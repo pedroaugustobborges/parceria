@@ -19,7 +19,7 @@ import {
   Chip,
 } from '@mui/material';
 import { DataGrid, GridColDef, GridToolbar } from '@mui/x-data-grid';
-import { Add, Edit, Delete, PersonAdd } from '@mui/icons-material';
+import { Edit, Delete, PersonAdd } from '@mui/icons-material';
 import { supabase } from '../lib/supabase';
 import { Usuario, UserRole, Contrato } from '../types/database.types';
 import { format, parseISO } from 'date-fns';
@@ -107,15 +107,16 @@ const Usuarios: React.FC = () => {
 
       if (editingUsuario) {
         // Atualizar usuário existente
+        const updateData: any = {
+          email: formData.email,
+          nome: formData.nome,
+          cpf: formData.cpf,
+          tipo: formData.tipo,
+          contrato_id: formData.contrato_id || null,
+        };
         const { error: updateError } = await supabase
           .from('usuarios')
-          .update({
-            email: formData.email,
-            nome: formData.nome,
-            cpf: formData.cpf,
-            tipo: formData.tipo,
-            contrato_id: formData.contrato_id || null,
-          })
+          .update(updateData)
           .eq('id', editingUsuario.id);
 
         if (updateError) throw updateError;
@@ -145,7 +146,7 @@ const Usuarios: React.FC = () => {
               cpf: formData.cpf,
               tipo: formData.tipo,
               contrato_id: formData.contrato_id || null,
-            });
+            } as any);
 
           if (insertError) throw insertError;
 
@@ -155,7 +156,7 @@ const Usuarios: React.FC = () => {
               usuario_id: authData.user.id,
               contrato_id: formData.contrato_id,
               cpf: formData.cpf,
-            });
+            } as any);
           }
 
           setSuccess('Usuário criado com sucesso!');

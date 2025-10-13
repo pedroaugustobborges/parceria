@@ -18,14 +18,14 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ptBR } from 'date-fns/locale';
-import { FilterList, Refresh, TrendingUp, AccessTime, People, Login } from '@mui/icons-material';
+import { FilterList, Refresh, TrendingUp, AccessTime, People } from '@mui/icons-material';
 import { supabase } from '../lib/supabase';
 import { Acesso, HorasCalculadas } from '../types/database.types';
 import { useAuth } from '../contexts/AuthContext';
-import { format, parseISO, differenceInHours, differenceInMinutes } from 'date-fns';
+import { format, parseISO, differenceInMinutes } from 'date-fns';
 
 const Dashboard: React.FC = () => {
-  const { userProfile, isAdminAgir, isAdminTerceiro, isTerceiro } = useAuth();
+  const { userProfile, isAdminTerceiro, isTerceiro } = useAuth();
   const [acessos, setAcessos] = useState<Acesso[]>([]);
   const [horasCalculadas, setHorasCalculadas] = useState<HorasCalculadas[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
           .eq('contrato_id', userProfile.contrato_id);
 
         if (usuariosContrato && usuariosContrato.length > 0) {
-          const cpfs = usuariosContrato.map((u) => u.cpf);
+          const cpfs = usuariosContrato.map((u: any) => u.cpf);
           query = query.in('cpf', cpfs);
         }
       }

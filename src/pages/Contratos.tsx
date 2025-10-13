@@ -103,7 +103,7 @@ const Contratos: React.FC = () => {
         return;
       }
 
-      const contratoData = {
+      const contratoData: any = {
         nome: formData.nome,
         empresa: formData.empresa,
         data_inicio: formData.data_inicio.toISOString(),
@@ -155,9 +155,10 @@ const Contratos: React.FC = () => {
 
   const handleToggleAtivo = async (contrato: Contrato) => {
     try {
+      const updateData: any = { ativo: !contrato.ativo };
       const { error: updateError } = await supabase
         .from('contratos')
-        .update({ ativo: !contrato.ativo })
+        .update(updateData)
         .eq('id', contrato.id);
 
       if (updateError) throw updateError;
