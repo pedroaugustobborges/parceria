@@ -1,6 +1,6 @@
 import csv
 import os
-
+# testando
 # Ler o arquivo CSV
 csv_file = 'Acessos.csv'
 sql_file = 'importar-acessos.sql'
@@ -14,6 +14,8 @@ if not os.path.exists(csv_file):
 with open(sql_file, 'w', encoding='utf-8') as f:
     f.write("-- Script de Importação de Acessos\n")
     f.write("-- Gerado automaticamente a partir de Acessos.csv\n\n")
+
+
 
     # Ler CSV
     with open(csv_file, 'r', encoding='utf-8') as csvfile:
