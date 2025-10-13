@@ -10,7 +10,10 @@
       "Bash(npm run dev)",
       "Bash(start \"C:\\Users\\16144-pedro\\Documents\\python_projects\\gestaodeacesso\\testar-supabase.html\")",
       "Bash(ping:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(npm run build)",
+      "Bash(git add:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
