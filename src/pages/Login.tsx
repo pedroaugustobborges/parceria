@@ -13,6 +13,7 @@ import {
   alpha,
   Divider,
   Chip,
+  Link,
 } from "@mui/material";
 import {
   Visibility,
@@ -283,7 +284,7 @@ const Login: React.FC = () => {
               </Box>
 
               <CardContent sx={{ p: 4 }}>
-                <Box sx={{ mb: 4 }}>
+                <Box sx={{ mb: 4, textAlign: "center" }}>
                   <Typography
                     variant="h5"
                     fontWeight={700}
@@ -409,6 +410,24 @@ const Login: React.FC = () => {
                     {loading ? "Entrando..." : "Entrar no Sistema"}
                   </Button>
                 </form>
+
+                <Box sx={{ mt: 2, textAlign: "center" }}>
+                  <Link
+                    component="button"
+                    variant="body2"
+                    onClick={() => navigate("/forgot-password")}
+                    sx={{
+                      color: "primary.main",
+                      textDecoration: "none",
+                      fontWeight: 600,
+                      "&:hover": {
+                        textDecoration: "underline",
+                      },
+                    }}
+                  >
+                    Esqueceu sua senha?
+                  </Link>
+                </Box>
 
                 <Divider sx={{ my: 3 }}>
                   <Chip
