@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir)",
+      "Bash(npm create:*)",
+      "Bash(copy logodaagir.png publiclogodaagir.png)",
+      "Bash(tree:*)",
+      "Bash(dir:*)",
+      "Bash(npm install)",
+      "Bash(npm run dev)",
+      "Bash(start \"C:\\Users\\16144-pedro\\Documents\\python_projects\\gestaodeacesso\\testar-supabase.html\")",
+      "Bash(ping:*)",
+      "Bash(python:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
