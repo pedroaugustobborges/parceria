@@ -31,6 +31,8 @@ import {
   Brightness7,
   ChevronLeft,
   ChevronRight,
+  Inventory,
+  MedicalServices,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import { useThemeMode } from "../../contexts/ThemeContext";
@@ -92,6 +94,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       text: "Contratos",
       icon: <Description />,
       path: "/contratos",
+      adminOnly: true,
+    },
+    {
+      text: "Itens de Contrato",
+      icon: <MedicalServices />,
+      path: "/itens",
       adminOnly: true,
     },
   ];

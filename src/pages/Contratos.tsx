@@ -15,16 +15,32 @@ import {
   Chip,
   Switch,
   FormControlLabel,
+  Autocomplete,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Divider,
 } from '@mui/material';
 import { DataGrid, GridColDef, GridToolbar } from '@mui/x-data-grid';
-import { Add, Edit, Delete, Description } from '@mui/icons-material';
+import { Add, Edit, Delete, Description, Remove, Inventory } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
-import { Contrato } from '../types/database.types';
+import { Contrato, ItemContrato, ContratoItem } from '../types/database.types';
 import { format, parseISO } from 'date-fns';
+
+interface ItemSelecionado {
+  item: ItemContrato;
+  quantidade: number;
+  valor_unitario: number;
+  observacoes: string;
+}
 
 const Contratos: React.FC = () => {
   const [contratos, setContratos] = useState<Contrato[]>([]);
@@ -33,6 +49,11 @@ const Contratos: React.FC = () => {
   const [editingContrato, setEditingContrato] = useState<Contrato | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Items state
+  const [itensDisponiveis, setItensDisponiveis] = useState<ItemContrato[]>([]);
+  const [itensSelecionados, setItensSelecionados] = useState<ItemSelecionado[]>([]);
+  const [itemParaAdicionar, setItemParaAdicionar] = useState<ItemContrato | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -45,6 +66,7 @@ const Contratos: React.FC = () => {
 
   useEffect(() => {
     loadContratos();
+    loadItens();
   }, []);
 
   const loadContratos = async () => {
@@ -64,7 +86,44 @@ const Contratos: React.FC = () => {
     }
   };
 
-  const handleOpenDialog = (contrato?: Contrato) => {
+  const loadItens = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('itens_contrato')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome');
+
+      if (fetchError) throw fetchError;
+      setItensDisponiveis(data || []);
+    } catch (err: any) {
+      console.error('Erro ao carregar itens:', err);
+    }
+  };
+
+  const loadContratoItens = async (contratoId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('contrato_itens')
+        .select('*, item:itens_contrato(*)')
+        .eq('contrato_id', contratoId);
+
+      if (error) throw error;
+
+      const itens: ItemSelecionado[] = (data || []).map((ci: any) => ({
+        item: ci.item,
+        quantidade: ci.quantidade,
+        valor_unitario: ci.valor_unitario || 0,
+        observacoes: ci.observacoes || '',
+      }));
+
+      setItensSelecionados(itens);
+    } catch (err: any) {
+      console.error('Erro ao carregar itens do contrato:', err);
+    }
+  };
+
+  const handleOpenDialog = async (contrato?: Contrato) => {
     if (contrato) {
       setEditingContrato(contrato);
       setFormData({
@@ -74,6 +133,7 @@ const Contratos: React.FC = () => {
         data_fim: contrato.data_fim ? parseISO(contrato.data_fim) : null,
         ativo: contrato.ativo,
       });
+      await loadContratoItens(contrato.id);
     } else {
       setEditingContrato(null);
       setFormData({
@@ -83,6 +143,7 @@ const Contratos: React.FC = () => {
         data_fim: null,
         ativo: true,
       });
+      setItensSelecionados([]);
     }
     setOpenDialog(true);
   };
@@ -90,7 +151,50 @@ const Contratos: React.FC = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingContrato(null);
+    setItensSelecionados([]);
+    setItemParaAdicionar(null);
     setError('');
+  };
+
+  const handleAdicionarItem = () => {
+    if (!itemParaAdicionar) return;
+
+    // Check if item already added
+    if (itensSelecionados.some(is => is.item.id === itemParaAdicionar.id)) {
+      setError('Este item já foi adicionado ao contrato');
+      return;
+    }
+
+    setItensSelecionados([
+      ...itensSelecionados,
+      {
+        item: itemParaAdicionar,
+        quantidade: 1,
+        valor_unitario: 0,
+        observacoes: '',
+      },
+    ]);
+    setItemParaAdicionar(null);
+  };
+
+  const handleRemoverItem = (itemId: string) => {
+    setItensSelecionados(itensSelecionados.filter(is => is.item.id !== itemId));
+  };
+
+  const handleUpdateItemQuantidade = (itemId: string, quantidade: number) => {
+    setItensSelecionados(
+      itensSelecionados.map(is =>
+        is.item.id === itemId ? { ...is, quantidade } : is
+      )
+    );
+  };
+
+  const handleUpdateItemValor = (itemId: string, valor_unitario: number) => {
+    setItensSelecionados(
+      itensSelecionados.map(is =>
+        is.item.id === itemId ? { ...is, valor_unitario } : is
+      )
+    );
   };
 
   const handleSave = async () => {
@@ -111,21 +215,53 @@ const Contratos: React.FC = () => {
         ativo: formData.ativo,
       };
 
+      let contratoId: string;
+
       if (editingContrato) {
+        // Update contract
         const { error: updateError } = await supabase
           .from('contratos')
           .update(contratoData)
           .eq('id', editingContrato.id);
 
         if (updateError) throw updateError;
+        contratoId = editingContrato.id;
+
+        // Delete existing items and insert new ones
+        await supabase
+          .from('contrato_itens')
+          .delete()
+          .eq('contrato_id', contratoId);
+
         setSuccess('Contrato atualizado com sucesso!');
       } else {
-        const { error: insertError } = await supabase
+        // Create new contract
+        const { data: newContrato, error: insertError } = await supabase
           .from('contratos')
-          .insert(contratoData);
+          .insert(contratoData)
+          .select()
+          .single();
 
         if (insertError) throw insertError;
+        contratoId = newContrato.id;
         setSuccess('Contrato criado com sucesso!');
+      }
+
+      // Insert contract items
+      if (itensSelecionados.length > 0) {
+        const contratoItensData = itensSelecionados.map(is => ({
+          contrato_id: contratoId,
+          item_id: is.item.id,
+          quantidade: is.quantidade,
+          valor_unitario: is.valor_unitario,
+          observacoes: is.observacoes,
+        }));
+
+        const { error: itensError } = await supabase
+          .from('contrato_itens')
+          .insert(contratoItensData);
+
+        if (itensError) throw itensError;
       }
 
       handleCloseDialog();
@@ -360,6 +496,89 @@ const Contratos: React.FC = () => {
                 }
                 label="Contrato Ativo"
               />
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Seção de Itens do Contrato */}
+              <Box>
+                <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Inventory color="primary" />
+                  Itens do Contrato
+                </Typography>
+
+                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                  <Autocomplete
+                    value={itemParaAdicionar}
+                    onChange={(_, newValue) => setItemParaAdicionar(newValue)}
+                    options={itensDisponiveis}
+                    getOptionLabel={(option) => `${option.nome} (${option.unidade_medida})`}
+                    renderInput={(params) => <TextField {...params} label="Selecione um item" size="small" />}
+                    sx={{ flex: 1 }}
+                    size="small"
+                  />
+                  <Button
+                    variant="contained"
+                    onClick={handleAdicionarItem}
+                    disabled={!itemParaAdicionar}
+                    size="small"
+                  >
+                    Adicionar
+                  </Button>
+                </Box>
+
+                {itensSelecionados.length > 0 && (
+                  <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 300 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Item</TableCell>
+                          <TableCell width={100}>Quantidade</TableCell>
+                          <TableCell width={50}>Ações</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {itensSelecionados.map((is) => (
+                          <TableRow key={is.item.id}>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={600}>
+                                {is.item.nome}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {is.item.unidade_medida}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <TextField
+                                type="number"
+                                value={is.quantidade}
+                                onChange={(e) =>
+                                  handleUpdateItemQuantidade(is.item.id, parseFloat(e.target.value) || 0)
+                                }
+                                size="small"
+                                inputProps={{ min: 0, step: 0.01 }}
+                                fullWidth
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleRemoverItem(is.item.id)}
+                              >
+                                <Remove fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+
+                {itensSelecionados.length === 0 && (
+                  <Alert severity="info">Nenhum item adicionado ao contrato</Alert>
+                )}
+              </Box>
             </Box>
           </DialogContent>
           <DialogActions>

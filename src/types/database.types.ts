@@ -103,3 +103,38 @@ export interface HorasCalculadas {
   saidas: number;
   ultimoAcesso: string;
 }
+
+export type UnidadeMedida =
+  | 'horas'
+  | 'plantão'
+  | 'procedimento'
+  | 'cirurgia'
+  | 'consulta'
+  | 'diária'
+  | 'atendimento ambulatorial'
+  | 'atendimento domiciliar'
+  | 'intervenção'
+  | 'parecer médico'
+  | 'visita'
+  | 'carga horária semanal'
+  | 'carga horária mensal';
+
+export interface ItemContrato {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  unidade_medida: UnidadeMedida;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContratoItem {
+  id: string;
+  contrato_id: string;
+  item_id: string;
+  quantidade: number;
+  valor_unitario: number | null;
+  observacoes: string | null;
+  created_at: string;
+}
