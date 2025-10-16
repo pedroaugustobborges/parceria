@@ -32,7 +32,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
-import { Contrato, ItemContrato, ContratoItem } from '../types/database.types';
+import { Contrato, ItemContrato, ContratoItem, Parceiro } from '../types/database.types';
 import { format, parseISO } from 'date-fns';
 
 interface ItemSelecionado {
@@ -55,9 +55,13 @@ const Contratos: React.FC = () => {
   const [itensSelecionados, setItensSelecionados] = useState<ItemSelecionado[]>([]);
   const [itemParaAdicionar, setItemParaAdicionar] = useState<ItemContrato | null>(null);
 
+  // Parceiros state
+  const [parceiros, setParceiros] = useState<Parceiro[]>([]);
+
   // Form state
   const [formData, setFormData] = useState({
     nome: '',
+    numero_contrato: '',
     empresa: '',
     data_inicio: null as Date | null,
     data_fim: null as Date | null,
@@ -67,6 +71,7 @@ const Contratos: React.FC = () => {
   useEffect(() => {
     loadContratos();
     loadItens();
+    loadParceiros();
   }, []);
 
   const loadContratos = async () => {
@@ -101,6 +106,21 @@ const Contratos: React.FC = () => {
     }
   };
 
+  const loadParceiros = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('parceiros')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome');
+
+      if (fetchError) throw fetchError;
+      setParceiros(data || []);
+    } catch (err: any) {
+      console.error('Erro ao carregar parceiros:', err);
+    }
+  };
+
   const loadContratoItens = async (contratoId: string) => {
     try {
       const { data, error } = await supabase
@@ -128,6 +148,7 @@ const Contratos: React.FC = () => {
       setEditingContrato(contrato);
       setFormData({
         nome: contrato.nome,
+        numero_contrato: contrato.numero_contrato || '',
         empresa: contrato.empresa,
         data_inicio: parseISO(contrato.data_inicio),
         data_fim: contrato.data_fim ? parseISO(contrato.data_fim) : null,
@@ -138,6 +159,7 @@ const Contratos: React.FC = () => {
       setEditingContrato(null);
       setFormData({
         nome: '',
+        numero_contrato: '',
         empresa: '',
         data_inicio: null,
         data_fim: null,
@@ -209,6 +231,7 @@ const Contratos: React.FC = () => {
 
       const contratoData: any = {
         nome: formData.nome,
+        numero_contrato: formData.numero_contrato || null,
         empresa: formData.empresa,
         data_inicio: formData.data_inicio.toISOString(),
         data_fim: formData.data_fim ? formData.data_fim.toISOString() : null,
@@ -322,6 +345,12 @@ const Contratos: React.FC = () => {
           </Typography>
         </Box>
       ),
+    },
+    {
+      field: 'numero_contrato',
+      headerName: 'Número',
+      width: 150,
+      renderCell: (params) => params.value || '-',
     },
     {
       field: 'data_inicio',
@@ -464,12 +493,27 @@ const Contratos: React.FC = () => {
               />
 
               <TextField
-                label="Empresa Contratada"
-                value={formData.empresa}
-                onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
+                label="Número do Contrato"
+                value={formData.numero_contrato}
+                onChange={(e) => setFormData({ ...formData, numero_contrato: e.target.value })}
                 fullWidth
-                required
-                helperText="Nome da empresa terceirizada"
+                helperText="Ex: 001/2024, CT-2024-001, etc."
+              />
+
+              <Autocomplete
+                value={parceiros.find(p => p.nome === formData.empresa) || null}
+                onChange={(_, newValue) => setFormData({ ...formData, empresa: newValue?.nome || '' })}
+                options={parceiros}
+                getOptionLabel={(option) => option.nome}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Empresa Contratada"
+                    required
+                    helperText="Selecione a empresa parceira"
+                  />
+                )}
+                fullWidth
               />
 
               <DatePicker

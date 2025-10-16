@@ -91,6 +91,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     },
     { text: "Usuários", icon: <People />, path: "/usuarios", adminOnly: true },
     {
+      text: "Parceiros",
+      icon: <Handshake />,
+      path: "/parceiros",
+      adminOnly: true,
+    },
+    {
       text: "Contratos",
       icon: <Description />,
       path: "/contratos",

@@ -21,6 +21,7 @@ export interface Database {
         Row: {
           id: string;
           nome: string;
+          numero_contrato: string | null;
           empresa: string;
           data_inicio: string;
           data_fim: string | null;
@@ -85,6 +86,7 @@ export interface Usuario {
 export interface Contrato {
   id: string;
   nome: string;
+  numero_contrato: string | null;
   empresa: string;
   data_inicio: string;
   data_fim: string | null;
@@ -137,4 +139,15 @@ export interface ContratoItem {
   valor_unitario: number | null;
   observacoes: string | null;
   created_at: string;
+}
+
+export interface Parceiro {
+  id: string;
+  nome: string;
+  cnpj: string;
+  telefone: string | null;
+  email: string | null;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
 }

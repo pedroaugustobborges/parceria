@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Usuarios from './pages/Usuarios';
 import Contratos from './pages/Contratos';
 import Itens from './pages/Itens';
+import Parceiros from './pages/Parceiros';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
@@ -61,6 +62,17 @@ const App: React.FC = () => {
                 <ProtectedRoute requireAdminAgir>
                   <Layout>
                     <Itens />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/parceiros"
+              element={
+                <ProtectedRoute requireAdminAgir>
+                  <Layout>
+                    <Parceiros />
                   </Layout>
                 </ProtectedRoute>
               }
