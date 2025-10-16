@@ -1,0 +1,16 @@
+# Dependências para o projeto de Gestão de Acesso
+
+# Conexão com PostgreSQL (Data Warehouse)
+psycopg2-binary==2.9.9
+
+# Cliente Supabase (atualizado para versão 2.22.0)
+supabase>=2.22.0
+realtime>=2.22.0
+websockets>=15.0.1
+
+# Variáveis de ambiente
+python-dotenv==1.0.0
+
+# SSH Tunnel (opcional - apenas se usar importar-acessos-ssh-tunnel.py)
+sshtunnel==0.4.0
+tqdm

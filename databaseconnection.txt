@@ -1,0 +1,18 @@
+Database Connection
+Connection Name: DW AWS (user teste)
+
+Host: https://www.google.com/search?q=db-rds-postgres.cx4bovrfmkbp.sa-east-1.rds.amazonaws.com
+
+Port: 5432
+
+Initial Database: db_rds_01
+
+User Name: gest_contratos
+
+Password: asdgRTFG98
+
+
+A status message at the bottom reads: "Connection Successful Server Version: 140017"
+
+
+A tabela disponível é: suricato.acesso_colaborador 

@@ -12,13 +12,26 @@ import {
   Tooltip,
   CircularProgress,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Divider,
 } from '@mui/material';
 import { DataGrid, GridColDef, GridToolbar } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ptBR } from 'date-fns/locale';
-import { FilterList, Refresh, TrendingUp, AccessTime, People } from '@mui/icons-material';
+import { FilterList, Refresh, TrendingUp, AccessTime, People, Download, Close, LoginOutlined, LogoutOutlined } from '@mui/icons-material';
 import { supabase } from '../lib/supabase';
 import { Acesso, HorasCalculadas } from '../types/database.types';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,6 +52,11 @@ const Dashboard: React.FC = () => {
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
 
+  // Modal de detalhes
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<HorasCalculadas | null>(null);
+  const [personAcessos, setPersonAcessos] = useState<Acesso[]>([]);
+
   useEffect(() => {
     loadAcessos();
   }, []);
@@ -54,29 +72,49 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       setError('');
 
-      let query = supabase.from('acessos').select('*');
+      // Carregar todos os registros usando paginação
+      const pageSize = 1000;
+      let allAcessos: Acesso[] = [];
+      let from = 0;
+      let hasMore = true;
 
-      // Aplicar filtros baseados no tipo de usuário
-      if (isTerceiro && userProfile) {
-        query = query.eq('cpf', userProfile.cpf);
-      } else if (isAdminTerceiro && userProfile?.contrato_id) {
-        // Buscar CPFs dos usuários vinculados ao contrato do administrador
-        const { data: usuariosContrato } = await supabase
-          .from('usuario_contrato')
-          .select('cpf')
-          .eq('contrato_id', userProfile.contrato_id);
+      while (hasMore) {
+        let query = supabase
+          .from('acessos')
+          .select('*')
+          .order('data_acesso', { ascending: false })
+          .range(from, from + pageSize - 1);
 
-        if (usuariosContrato && usuariosContrato.length > 0) {
-          const cpfs = usuariosContrato.map((u: any) => u.cpf);
-          query = query.in('cpf', cpfs);
+        // Aplicar filtros baseados no tipo de usuário
+        if (isTerceiro && userProfile) {
+          query = query.eq('cpf', userProfile.cpf);
+        } else if (isAdminTerceiro && userProfile?.contrato_id) {
+          // Buscar CPFs dos usuários vinculados ao contrato do administrador
+          const { data: usuariosContrato } = await supabase
+            .from('usuario_contrato')
+            .select('cpf')
+            .eq('contrato_id', userProfile.contrato_id);
+
+          if (usuariosContrato && usuariosContrato.length > 0) {
+            const cpfs = usuariosContrato.map((u: any) => u.cpf);
+            query = query.in('cpf', cpfs);
+          }
+        }
+
+        const { data, error: fetchError } = await query;
+
+        if (fetchError) throw fetchError;
+
+        if (data && data.length > 0) {
+          allAcessos = [...allAcessos, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
         }
       }
 
-      const { data, error: fetchError } = await query.order('data_acesso', { ascending: false });
-
-      if (fetchError) throw fetchError;
-
-      setAcessos(data || []);
+      setAcessos(allAcessos);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar acessos');
       console.error('Erro:', err);
@@ -153,6 +191,56 @@ const Dashboard: React.FC = () => {
   const nomesUnicos = useMemo(() => [...new Set(acessos.map((a) => a.nome))].sort(), [acessos]);
   const cpfsUnicos = useMemo(() => [...new Set(acessos.map((a) => a.cpf))].sort(), [acessos]);
 
+  const handleOpenModal = (person: HorasCalculadas) => {
+    setSelectedPerson(person);
+    const personAccessHistory = acessos
+      .filter((a) => a.cpf === person.cpf)
+      .sort((a, b) => new Date(b.data_acesso).getTime() - new Date(a.data_acesso).getTime());
+    setPersonAcessos(personAccessHistory);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedPerson(null);
+    setPersonAcessos([]);
+  };
+
+  const handleExportCSV = () => {
+    if (!selectedPerson || personAcessos.length === 0) return;
+
+    // Prepare CSV header
+    const headers = ['Data/Hora', 'Tipo', 'Matrícula', 'Nome', 'CPF', 'Sentido', 'Local'];
+
+    // Prepare CSV rows
+    const rows = personAcessos.map((acesso) => [
+      format(parseISO(acesso.data_acesso), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR }),
+      acesso.tipo,
+      acesso.matricula,
+      acesso.nome,
+      acesso.cpf,
+      acesso.sentido === 'E' ? 'Entrada' : 'Saída',
+      '', // Local field (not available in current schema)
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `acessos_${selectedPerson.nome.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const columns: GridColDef[] = [
     {
       field: 'nome',
@@ -160,7 +248,17 @@ const Dashboard: React.FC = () => {
       flex: 1,
       minWidth: 200,
       renderCell: (params) => (
-        <Box>
+        <Box
+          sx={{
+            cursor: 'pointer',
+            '&:hover': {
+              '& .MuiTypography-root': {
+                color: 'primary.main',
+              },
+            },
+          }}
+          onClick={() => handleOpenModal(params.row)}
+        >
           <Typography variant="body2" fontWeight={600}>
             {params.value}
           </Typography>
@@ -332,6 +430,7 @@ const Dashboard: React.FC = () => {
                   options={tiposUnicos}
                   renderInput={(params) => <TextField {...params} label="Tipo" />}
                   size="small"
+                  freeSolo
                 />
               </Grid>
 
@@ -342,6 +441,7 @@ const Dashboard: React.FC = () => {
                   options={matriculasUnicas}
                   renderInput={(params) => <TextField {...params} label="Matrícula" />}
                   size="small"
+                  freeSolo
                 />
               </Grid>
 
@@ -352,6 +452,7 @@ const Dashboard: React.FC = () => {
                   options={nomesUnicos}
                   renderInput={(params) => <TextField {...params} label="Nome" />}
                   size="small"
+                  freeSolo
                 />
               </Grid>
 
@@ -362,6 +463,7 @@ const Dashboard: React.FC = () => {
                   options={cpfsUnicos}
                   renderInput={(params) => <TextField {...params} label="CPF" />}
                   size="small"
+                  freeSolo
                 />
               </Grid>
 
@@ -422,6 +524,192 @@ const Dashboard: React.FC = () => {
             </Box>
           </CardContent>
         </Card>
+
+        {/* Modal de Detalhes de Acessos */}
+        <Dialog
+          open={modalOpen}
+          onClose={handleCloseModal}
+          maxWidth="lg"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 2,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            },
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography variant="h5" fontWeight={700}>
+                  Histórico de Acessos
+                </Typography>
+                {selectedPerson && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {selectedPerson.nome}
+                  </Typography>
+                )}
+              </Box>
+              <IconButton onClick={handleCloseModal} size="small">
+                <Close />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+
+          <Divider />
+
+          <DialogContent sx={{ pt: 3 }}>
+            {selectedPerson && (
+              <>
+                {/* Informações do Colaborador */}
+                <Grid container spacing={3} sx={{ mb: 3 }}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200' }}>
+                      <CardContent sx={{ py: 2 }}>
+                        <Typography variant="caption" color="text.secondary" gutterBottom>
+                          CPF
+                        </Typography>
+                        <Typography variant="h6" fontWeight={600}>
+                          {selectedPerson.cpf}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ bgcolor: 'success.50', border: '1px solid', borderColor: 'success.200' }}>
+                      <CardContent sx={{ py: 2 }}>
+                        <Typography variant="caption" color="text.secondary" gutterBottom>
+                          Matrícula
+                        </Typography>
+                        <Typography variant="h6" fontWeight={600}>
+                          {selectedPerson.matricula}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ bgcolor: 'warning.50', border: '1px solid', borderColor: 'warning.200' }}>
+                      <CardContent sx={{ py: 2 }}>
+                        <Typography variant="caption" color="text.secondary" gutterBottom>
+                          Tipo
+                        </Typography>
+                        <Typography variant="h6" fontWeight={600}>
+                          {selectedPerson.tipo}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ bgcolor: 'info.50', border: '1px solid', borderColor: 'info.200' }}>
+                      <CardContent sx={{ py: 2 }}>
+                        <Typography variant="caption" color="text.secondary" gutterBottom>
+                          Total de Horas
+                        </Typography>
+                        <Typography variant="h6" fontWeight={600}>
+                          {selectedPerson.totalHoras}h
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {/* Tabela de Acessos */}
+                <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                  Registros de Acesso ({personAcessos.length})
+                </Typography>
+
+                <TableContainer
+                  component={Paper}
+                  sx={{
+                    maxHeight: 400,
+                    boxShadow: 'none',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                  }}
+                >
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
+                          Data/Hora
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
+                          Sentido
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
+                          Tipo
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
+                          Matrícula
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {personAcessos.map((acesso, index) => (
+                        <TableRow
+                          key={index}
+                          sx={{
+                            '&:hover': { bgcolor: 'action.hover' },
+                            '&:last-child td': { border: 0 },
+                          }}
+                        >
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <AccessTime fontSize="small" color="action" />
+                              <Typography variant="body2">
+                                {format(parseISO(acesso.data_acesso), 'dd/MM/yyyy HH:mm:ss', {
+                                  locale: ptBR,
+                                })}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              icon={
+                                acesso.sentido === 'E' ? (
+                                  <LoginOutlined fontSize="small" />
+                                ) : (
+                                  <LogoutOutlined fontSize="small" />
+                                )
+                              }
+                              label={acesso.sentido === 'E' ? 'Entrada' : 'Saída'}
+                              size="small"
+                              color={acesso.sentido === 'E' ? 'success' : 'error'}
+                              sx={{ fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">{acesso.tipo}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">{acesso.matricula}</Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            )}
+          </DialogContent>
+
+          <Divider />
+
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={handleCloseModal} variant="outlined">
+              Fechar
+            </Button>
+            <Button
+              onClick={handleExportCSV}
+              variant="contained"
+              startIcon={<Download />}
+              sx={{ ml: 1 }}
+            >
+              Exportar CSV
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </LocalizationProvider>
   );
