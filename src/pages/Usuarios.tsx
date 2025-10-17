@@ -128,12 +128,36 @@ const Usuarios: React.FC = () => {
           return;
         }
 
+        // Primeiro, verificar se o email ou CPF já existem
+        const { data: existingUsers } = await supabase
+          .from('usuarios')
+          .select('id, email, cpf')
+          .or(`email.eq.${formData.email},cpf.eq.${formData.cpf}`);
+
+        if (existingUsers && existingUsers.length > 0) {
+          const existing = existingUsers[0];
+          if (existing.email === formData.email) {
+            setError('Já existe um usuário com este email');
+          } else if (existing.cpf === formData.cpf) {
+            setError('Já existe um usuário com este CPF');
+          }
+          return;
+        }
+
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
         });
 
-        if (authError) throw authError;
+        if (authError) {
+          // Verificar se o erro é de email já existente
+          if (authError.message.includes('already registered')) {
+            setError('Este email já está registrado no sistema');
+          } else {
+            throw authError;
+          }
+          return;
+        }
 
         if (authData.user) {
           // Criar registro na tabela usuarios
@@ -148,15 +172,40 @@ const Usuarios: React.FC = () => {
               contrato_id: formData.contrato_id || null,
             } as any);
 
-          if (insertError) throw insertError;
+          if (insertError) {
+            // Se falhar ao inserir na tabela usuarios, precisamos limpar o usuário de auth
+            console.error('Erro ao inserir usuário na tabela:', insertError);
+
+            // Mostrar erro mais detalhado
+            if (insertError.code === '23505') {
+              // Unique violation
+              setError('Email ou CPF já cadastrado no sistema');
+            } else if (insertError.message.includes('policy')) {
+              setError('Erro de permissão. Verifique se você tem privilégios de administrador.');
+            } else {
+              setError(`Erro ao criar usuário: ${insertError.message}`);
+            }
+            return;
+          }
 
           // Se for terceiro, criar vínculo com contrato
           if (formData.tipo !== 'administrador-agir' && formData.contrato_id) {
-            await supabase.from('usuario_contrato').insert({
-              usuario_id: authData.user.id,
-              contrato_id: formData.contrato_id,
-              cpf: formData.cpf,
-            } as any);
+            const { error: vinculoError } = await supabase
+              .from('usuario_contrato')
+              .insert({
+                usuario_id: authData.user.id,
+                contrato_id: formData.contrato_id,
+                cpf: formData.cpf,
+              } as any);
+
+            if (vinculoError) {
+              console.error('Erro ao criar vínculo:', vinculoError);
+              // Não bloquear a criação do usuário, apenas avisar
+              setSuccess('Usuário criado, mas houve erro ao vincular ao contrato');
+              handleCloseDialog();
+              loadData();
+              return;
+            }
           }
 
           setSuccess('Usuário criado com sucesso!');
@@ -174,14 +223,30 @@ const Usuarios: React.FC = () => {
     if (!window.confirm(`Tem certeza que deseja excluir ${usuario.nome}?`)) return;
 
     try {
-      const { error: deleteError } = await supabase
-        .from('usuarios')
-        .delete()
-        .eq('id', usuario.id);
+      // Usar a função do banco de dados para deletar completamente o usuário
+      const { data, error: rpcError } = await supabase.rpc('delete_user_completely', {
+        user_id: usuario.id,
+      });
 
-      if (deleteError) throw deleteError;
+      if (rpcError) {
+        console.error('Erro ao deletar usuário:', rpcError);
+        // Se a função não existir, tentar o método antigo
+        if (rpcError.message.includes('function') && rpcError.message.includes('does not exist')) {
+          // Fallback: deletar apenas da tabela usuarios
+          const { error: deleteError } = await supabase
+            .from('usuarios')
+            .delete()
+            .eq('id', usuario.id);
 
-      setSuccess('Usuário excluído com sucesso!');
+          if (deleteError) throw deleteError;
+          setSuccess('Usuário excluído da tabela. Nota: o registro de autenticação pode ainda existir.');
+        } else {
+          throw rpcError;
+        }
+      } else {
+        setSuccess('Usuário excluído completamente do sistema!');
+      }
+
       loadData();
     } catch (err: any) {
       setError(err.message);
