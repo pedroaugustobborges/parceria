@@ -61,7 +61,7 @@ def conectar_supabase():
         print(f"❌ Erro ao conectar no Supabase: {e}")
         raise
 
-def extrair_acessos(conn, limite=10000):
+def extrair_acessos(conn, limite=30000):
     """Extrai os últimos N acessos do banco de dados."""
     try:
         cursor = conn.cursor()
@@ -182,12 +182,12 @@ def main():
         supabase = conectar_supabase()
 
         # Define o limite de registros
-        limite = 10000
+        limite = 30000
         if len(sys.argv) > 1:
             try:
                 limite = int(sys.argv[1])
             except ValueError:
-                print(f"⚠️ Argumento '{sys.argv[1]}' inválido. Usando o padrão de 10000 registros.")
+                print(f"⚠️ Argumento '{sys.argv[1]}' inválido. Usando o padrão de 30000 registros.")
 
         print(f"\n📥 Extraindo os últimos {limite} registros do Data Warehouse...")
         dados_extraidos = extrair_acessos(conn, limite)

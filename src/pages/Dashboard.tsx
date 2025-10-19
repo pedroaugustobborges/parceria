@@ -31,9 +31,9 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ptBR } from 'date-fns/locale';
-import { FilterList, Refresh, TrendingUp, AccessTime, People, Download, Close, LoginOutlined, LogoutOutlined } from '@mui/icons-material';
+import { FilterList, Refresh, TrendingUp, AccessTime, People, Download, Close, LoginOutlined, LogoutOutlined, Warning } from '@mui/icons-material';
 import { supabase } from '../lib/supabase';
-import { Acesso, HorasCalculadas } from '../types/database.types';
+import { Acesso, HorasCalculadas, Contrato } from '../types/database.types';
 import { useAuth } from '../contexts/AuthContext';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 
@@ -41,14 +41,16 @@ const Dashboard: React.FC = () => {
   const { userProfile, isAdminTerceiro, isTerceiro } = useAuth();
   const [acessos, setAcessos] = useState<Acesso[]>([]);
   const [horasCalculadas, setHorasCalculadas] = useState<HorasCalculadas[]>([]);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Filtros
-  const [filtroTipo, setFiltroTipo] = useState<string | null>(null);
-  const [filtroMatricula, setFiltroMatricula] = useState<string | null>(null);
-  const [filtroNome, setFiltroNome] = useState<string | null>(null);
-  const [filtroCpf, setFiltroCpf] = useState<string | null>(null);
+  // Filtros - Agora com múltiplas seleções
+  const [filtroTipo, setFiltroTipo] = useState<string[]>([]);
+  const [filtroMatricula, setFiltroMatricula] = useState<string[]>([]);
+  const [filtroNome, setFiltroNome] = useState<string[]>([]);
+  const [filtroCpf, setFiltroCpf] = useState<string[]>([]);
+  const [filtroContrato, setFiltroContrato] = useState<Contrato | null>(null);
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
 
@@ -57,15 +59,35 @@ const Dashboard: React.FC = () => {
   const [selectedPerson, setSelectedPerson] = useState<HorasCalculadas | null>(null);
   const [personAcessos, setPersonAcessos] = useState<Acesso[]>([]);
 
+  // Modal de aviso de contrato
+  const [contratoWarningOpen, setContratoWarningOpen] = useState(false);
+  const [pendingContrato, setPendingContrato] = useState<Contrato | null>(null);
+
   useEffect(() => {
     loadAcessos();
+    loadContratos();
   }, []);
 
   useEffect(() => {
     if (acessos.length > 0) {
       calcularHoras();
     }
-  }, [acessos, filtroTipo, filtroMatricula, filtroNome, filtroCpf, filtroDataInicio, filtroDataFim]);
+  }, [acessos, filtroTipo, filtroMatricula, filtroNome, filtroCpf, filtroContrato, filtroDataInicio, filtroDataFim]);
+
+  const loadContratos = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('contratos')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome');
+
+      if (fetchError) throw fetchError;
+      setContratos(data || []);
+    } catch (err: any) {
+      console.error('Erro ao carregar contratos:', err);
+    }
+  };
 
   const loadAcessos = async () => {
     try {
@@ -123,14 +145,38 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const calcularHoras = () => {
+  const calcularHoras = async () => {
+    // Se há filtro de contrato, buscar CPFs vinculados
+    let cpfsDoContrato: string[] = [];
+    if (filtroContrato) {
+      try {
+        const { data: usuariosContrato } = await supabase
+          .from('usuario_contrato')
+          .select('cpf')
+          .eq('contrato_id', filtroContrato.id);
+
+        if (usuariosContrato && usuariosContrato.length > 0) {
+          cpfsDoContrato = usuariosContrato.map((u: any) => u.cpf);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar CPFs do contrato:', err);
+      }
+    }
+
     const acessosFiltrados = acessos.filter((acesso) => {
-      if (filtroTipo && acesso.tipo !== filtroTipo) return false;
-      if (filtroMatricula && acesso.matricula !== filtroMatricula) return false;
-      if (filtroNome && !acesso.nome.toLowerCase().includes(filtroNome.toLowerCase())) return false;
-      if (filtroCpf && acesso.cpf !== filtroCpf) return false;
+      // Filtro de múltiplas seleções
+      if (filtroTipo.length > 0 && !filtroTipo.includes(acesso.tipo)) return false;
+      if (filtroMatricula.length > 0 && !filtroMatricula.includes(acesso.matricula)) return false;
+      if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome)) return false;
+      if (filtroCpf.length > 0 && !filtroCpf.includes(acesso.cpf)) return false;
+
+      // Filtro de contrato
+      if (filtroContrato && cpfsDoContrato.length > 0 && !cpfsDoContrato.includes(acesso.cpf)) return false;
+
+      // Filtros de data
       if (filtroDataInicio && new Date(acesso.data_acesso) < filtroDataInicio) return false;
       if (filtroDataFim && new Date(acesso.data_acesso) > filtroDataFim) return false;
+
       return true;
     });
 
@@ -145,30 +191,78 @@ const Dashboard: React.FC = () => {
 
     // Calcular horas para cada CPF
     const resultado: HorasCalculadas[] = Object.entries(acessosPorCpf).map(([cpf, acessosCpf]) => {
-      const entradas = acessosCpf.filter((a) => a.sentido === 'E').sort((a, b) =>
+      // Ordenar todos os acessos por data
+      const acessosOrdenados = acessosCpf.sort((a, b) =>
         new Date(a.data_acesso).getTime() - new Date(b.data_acesso).getTime()
       );
-      const saidas = acessosCpf.filter((a) => a.sentido === 'S').sort((a, b) =>
-        new Date(a.data_acesso).getTime() - new Date(b.data_acesso).getTime()
-      );
+
+      // Agrupar por dia (YYYY-MM-DD)
+      const acessosPorDia = acessosOrdenados.reduce((acc, acesso) => {
+        const data = format(parseISO(acesso.data_acesso), 'yyyy-MM-dd');
+        if (!acc[data]) {
+          acc[data] = [];
+        }
+        acc[data].push(acesso);
+        return acc;
+      }, {} as Record<string, Acesso[]>);
 
       let totalMinutos = 0;
+      let totalEntradas = 0;
+      let totalSaidas = 0;
 
-      // Parear entradas com saídas
-      for (let i = 0; i < entradas.length; i++) {
-        if (i < saidas.length) {
-          const entrada = parseISO(entradas[i].data_acesso);
-          const saida = parseISO(saidas[i].data_acesso);
+      // Para cada dia, calcular a diferença entre primeira entrada e última saída
+      const diasOrdenados = Object.keys(acessosPorDia).sort();
 
-          if (saida > entrada) {
-            const minutos = differenceInMinutes(saida, entrada);
-            totalMinutos += minutos;
+      for (let i = 0; i < diasOrdenados.length; i++) {
+        const dia = diasOrdenados[i];
+        const acessosDia = acessosPorDia[dia];
+
+        const entradasDia = acessosDia.filter((a) => a.sentido === 'E');
+        const saidasDia = acessosDia.filter((a) => a.sentido === 'S');
+
+        totalEntradas += entradasDia.length;
+        totalSaidas += saidasDia.length;
+
+        if (entradasDia.length > 0) {
+          const primeiraEntrada = parseISO(entradasDia[0].data_acesso);
+
+          // Se há saída no mesmo dia, usar a última saída do dia
+          if (saidasDia.length > 0) {
+            const ultimaSaida = parseISO(saidasDia[saidasDia.length - 1].data_acesso);
+
+            if (ultimaSaida > primeiraEntrada) {
+              const minutos = differenceInMinutes(ultimaSaida, primeiraEntrada);
+              totalMinutos += minutos;
+            }
+          } else {
+            // Último registro do dia é entrada, buscar primeira saída do dia seguinte
+            let saidaEncontrada = false;
+            for (let j = i + 1; j < diasOrdenados.length; j++) {
+              const proximoDia = diasOrdenados[j];
+              const acessosProximoDia = acessosPorDia[proximoDia];
+              const saidasProximoDia = acessosProximoDia.filter((a) => a.sentido === 'S');
+
+              if (saidasProximoDia.length > 0) {
+                const primeiraSaidaProximoDia = parseISO(saidasProximoDia[0].data_acesso);
+                const minutos = differenceInMinutes(primeiraSaidaProximoDia, primeiraEntrada);
+                totalMinutos += minutos;
+                saidaEncontrada = true;
+                break;
+              }
+            }
+
+            // Se não encontrou saída em nenhum dia seguinte, não contabilizar essa entrada
+            if (!saidaEncontrada) {
+              // Não adiciona nada ao totalMinutos
+            }
           }
         }
       }
 
       const totalHoras = totalMinutos / 60;
-      const ultimoAcesso = acessosCpf[0]; // Já está ordenado por data_acesso desc
+      const ultimoAcesso = acessosCpf.sort((a, b) =>
+        new Date(b.data_acesso).getTime() - new Date(a.data_acesso).getTime()
+      )[0];
 
       return {
         cpf,
@@ -176,8 +270,8 @@ const Dashboard: React.FC = () => {
         matricula: ultimoAcesso.matricula,
         tipo: ultimoAcesso.tipo,
         totalHoras: parseFloat(totalHoras.toFixed(2)),
-        entradas: entradas.length,
-        saidas: saidas.length,
+        entradas: totalEntradas,
+        saidas: totalSaidas,
         ultimoAcesso: ultimoAcesso.data_acesso,
       };
     });
@@ -204,6 +298,28 @@ const Dashboard: React.FC = () => {
     setModalOpen(false);
     setSelectedPerson(null);
     setPersonAcessos([]);
+  };
+
+  const handleContratoChange = (_: any, newValue: Contrato | null) => {
+    if (newValue && !filtroContrato) {
+      // Se está selecionando um contrato pela primeira vez, mostrar aviso
+      setPendingContrato(newValue);
+      setContratoWarningOpen(true);
+    } else {
+      // Se está removendo o filtro de contrato
+      setFiltroContrato(newValue);
+    }
+  };
+
+  const handleContratoWarningAccept = () => {
+    setFiltroContrato(pendingContrato);
+    setContratoWarningOpen(false);
+    setPendingContrato(null);
+  };
+
+  const handleContratoWarningClose = () => {
+    setContratoWarningOpen(false);
+    setPendingContrato(null);
   };
 
   const handleExportCSV = () => {
@@ -423,51 +539,66 @@ const Dashboard: React.FC = () => {
             </Box>
 
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={4}>
                 <Autocomplete
+                  multiple
                   value={filtroTipo}
                   onChange={(_, newValue) => setFiltroTipo(newValue)}
                   options={tiposUnicos}
-                  renderInput={(params) => <TextField {...params} label="Tipo" />}
+                  renderInput={(params) => <TextField {...params} label="Tipo" placeholder="Selecione um ou mais" />}
                   size="small"
-                  freeSolo
+                  limitTags={2}
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={4}>
                 <Autocomplete
+                  multiple
                   value={filtroMatricula}
                   onChange={(_, newValue) => setFiltroMatricula(newValue)}
                   options={matriculasUnicas}
-                  renderInput={(params) => <TextField {...params} label="Matrícula" />}
+                  renderInput={(params) => <TextField {...params} label="Matrícula" placeholder="Selecione uma ou mais" />}
                   size="small"
-                  freeSolo
+                  limitTags={2}
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={4}>
                 <Autocomplete
+                  multiple
                   value={filtroNome}
                   onChange={(_, newValue) => setFiltroNome(newValue)}
                   options={nomesUnicos}
-                  renderInput={(params) => <TextField {...params} label="Nome" />}
+                  renderInput={(params) => <TextField {...params} label="Nome" placeholder="Selecione um ou mais" />}
                   size="small"
-                  freeSolo
+                  limitTags={2}
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={4}>
                 <Autocomplete
+                  multiple
                   value={filtroCpf}
                   onChange={(_, newValue) => setFiltroCpf(newValue)}
                   options={cpfsUnicos}
-                  renderInput={(params) => <TextField {...params} label="CPF" />}
+                  renderInput={(params) => <TextField {...params} label="CPF" placeholder="Selecione um ou mais" />}
                   size="small"
-                  freeSolo
+                  limitTags={2}
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={4}>
+                <Autocomplete
+                  value={filtroContrato}
+                  onChange={handleContratoChange}
+                  options={contratos}
+                  getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
+                  renderInput={(params) => <TextField {...params} label="Contrato" placeholder="Selecione um contrato" />}
+                  size="small"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
                 <DatePicker
                   label="Data Início"
                   value={filtroDataInicio}
@@ -476,7 +607,7 @@ const Dashboard: React.FC = () => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={4}>
                 <DatePicker
                   label="Data Fim"
                   value={filtroDataFim}
@@ -707,6 +838,68 @@ const Dashboard: React.FC = () => {
               sx={{ ml: 1 }}
             >
               Exportar CSV
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Modal de Aviso de Contrato */}
+        <Dialog
+          open={contratoWarningOpen}
+          onClose={handleContratoWarningClose}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            },
+          }}
+        >
+          <DialogContent sx={{ pt: 4, pb: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: '50%',
+                  bgcolor: 'warning.50',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mb: 2,
+                }}
+              >
+                <Warning sx={{ fontSize: 32, color: 'warning.main' }} />
+              </Box>
+
+              <Typography variant="h5" fontWeight={700} gutterBottom>
+                Atenção
+              </Typography>
+
+              <Typography variant="body1" color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
+                Ao selecionar um contrato, você estará visualizando todos os acessos de parceiros que estão
+                vinculados ao número desse contrato. No entanto, isso não significa <em>necessariamente</em> que
+                os acessos sejam referentes a esse contrato, uma vez que um parceiro pode participar de diferentes
+                contratos.
+              </Typography>
+            </Box>
+          </DialogContent>
+
+          <Divider />
+
+          <DialogActions sx={{ px: 3, py: 2, justifyContent: 'center' }}>
+            <Button
+              onClick={handleContratoWarningAccept}
+              variant="contained"
+              sx={{
+                minWidth: 120,
+                background: 'linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)',
+                },
+              }}
+            >
+              Entendido
             </Button>
           </DialogActions>
         </Dialog>
