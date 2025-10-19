@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Card,
@@ -25,17 +25,28 @@ import {
   TableRow,
   Paper,
   Divider,
-} from '@mui/material';
-import { DataGrid, GridColDef, GridToolbar } from '@mui/x-data-grid';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { ptBR } from 'date-fns/locale';
-import { FilterList, Refresh, TrendingUp, AccessTime, People, Download, Close, LoginOutlined, LogoutOutlined, Warning } from '@mui/icons-material';
-import { supabase } from '../lib/supabase';
-import { Acesso, HorasCalculadas, Contrato } from '../types/database.types';
-import { useAuth } from '../contexts/AuthContext';
-import { format, parseISO, differenceInMinutes } from 'date-fns';
+} from "@mui/material";
+import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { ptBR } from "date-fns/locale";
+import {
+  FilterList,
+  Refresh,
+  TrendingUp,
+  AccessTime,
+  People,
+  Download,
+  Close,
+  LoginOutlined,
+  LogoutOutlined,
+  Warning,
+} from "@mui/icons-material";
+import { supabase } from "../lib/supabase";
+import { Acesso, HorasCalculadas, Contrato } from "../types/database.types";
+import { useAuth } from "../contexts/AuthContext";
+import { format, parseISO, differenceInMinutes } from "date-fns";
 
 const Dashboard: React.FC = () => {
   const { userProfile, isAdminTerceiro, isTerceiro } = useAuth();
@@ -43,7 +54,7 @@ const Dashboard: React.FC = () => {
   const [horasCalculadas, setHorasCalculadas] = useState<HorasCalculadas[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // Filtros - Agora com múltiplas seleções
   const [filtroTipo, setFiltroTipo] = useState<string[]>([]);
@@ -56,7 +67,9 @@ const Dashboard: React.FC = () => {
 
   // Modal de detalhes
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedPerson, setSelectedPerson] = useState<HorasCalculadas | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<HorasCalculadas | null>(
+    null
+  );
   const [personAcessos, setPersonAcessos] = useState<Acesso[]>([]);
 
   // Modal de aviso de contrato
@@ -72,27 +85,36 @@ const Dashboard: React.FC = () => {
     if (acessos.length > 0) {
       calcularHoras();
     }
-  }, [acessos, filtroTipo, filtroMatricula, filtroNome, filtroCpf, filtroContrato, filtroDataInicio, filtroDataFim]);
+  }, [
+    acessos,
+    filtroTipo,
+    filtroMatricula,
+    filtroNome,
+    filtroCpf,
+    filtroContrato,
+    filtroDataInicio,
+    filtroDataFim,
+  ]);
 
   const loadContratos = async () => {
     try {
       const { data, error: fetchError } = await supabase
-        .from('contratos')
-        .select('*')
-        .eq('ativo', true)
-        .order('nome');
+        .from("contratos")
+        .select("*")
+        .eq("ativo", true)
+        .order("nome");
 
       if (fetchError) throw fetchError;
       setContratos(data || []);
     } catch (err: any) {
-      console.error('Erro ao carregar contratos:', err);
+      console.error("Erro ao carregar contratos:", err);
     }
   };
 
   const loadAcessos = async () => {
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
       // Carregar todos os registros usando paginação
       const pageSize = 1000;
@@ -102,24 +124,24 @@ const Dashboard: React.FC = () => {
 
       while (hasMore) {
         let query = supabase
-          .from('acessos')
-          .select('*')
-          .order('data_acesso', { ascending: false })
+          .from("acessos")
+          .select("*")
+          .order("data_acesso", { ascending: false })
           .range(from, from + pageSize - 1);
 
         // Aplicar filtros baseados no tipo de usuário
         if (isTerceiro && userProfile) {
-          query = query.eq('cpf', userProfile.cpf);
+          query = query.eq("cpf", userProfile.cpf);
         } else if (isAdminTerceiro && userProfile?.contrato_id) {
           // Buscar CPFs dos usuários vinculados ao contrato do administrador
           const { data: usuariosContrato } = await supabase
-            .from('usuario_contrato')
-            .select('cpf')
-            .eq('contrato_id', userProfile.contrato_id);
+            .from("usuario_contrato")
+            .select("cpf")
+            .eq("contrato_id", userProfile.contrato_id);
 
           if (usuariosContrato && usuariosContrato.length > 0) {
             const cpfs = usuariosContrato.map((u: any) => u.cpf);
-            query = query.in('cpf', cpfs);
+            query = query.in("cpf", cpfs);
           }
         }
 
@@ -138,8 +160,8 @@ const Dashboard: React.FC = () => {
 
       setAcessos(allAcessos);
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar acessos');
-      console.error('Erro:', err);
+      setError(err.message || "Erro ao carregar acessos");
+      console.error("Erro:", err);
     } finally {
       setLoading(false);
     }
@@ -151,31 +173,44 @@ const Dashboard: React.FC = () => {
     if (filtroContrato) {
       try {
         const { data: usuariosContrato } = await supabase
-          .from('usuario_contrato')
-          .select('cpf')
-          .eq('contrato_id', filtroContrato.id);
+          .from("usuario_contrato")
+          .select("cpf")
+          .eq("contrato_id", filtroContrato.id);
 
         if (usuariosContrato && usuariosContrato.length > 0) {
           cpfsDoContrato = usuariosContrato.map((u: any) => u.cpf);
         }
       } catch (err) {
-        console.error('Erro ao buscar CPFs do contrato:', err);
+        console.error("Erro ao buscar CPFs do contrato:", err);
       }
     }
 
     const acessosFiltrados = acessos.filter((acesso) => {
       // Filtro de múltiplas seleções
-      if (filtroTipo.length > 0 && !filtroTipo.includes(acesso.tipo)) return false;
-      if (filtroMatricula.length > 0 && !filtroMatricula.includes(acesso.matricula)) return false;
-      if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome)) return false;
+      if (filtroTipo.length > 0 && !filtroTipo.includes(acesso.tipo))
+        return false;
+      if (
+        filtroMatricula.length > 0 &&
+        !filtroMatricula.includes(acesso.matricula)
+      )
+        return false;
+      if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome))
+        return false;
       if (filtroCpf.length > 0 && !filtroCpf.includes(acesso.cpf)) return false;
 
       // Filtro de contrato
-      if (filtroContrato && cpfsDoContrato.length > 0 && !cpfsDoContrato.includes(acesso.cpf)) return false;
+      if (
+        filtroContrato &&
+        cpfsDoContrato.length > 0 &&
+        !cpfsDoContrato.includes(acesso.cpf)
+      )
+        return false;
 
       // Filtros de data
-      if (filtroDataInicio && new Date(acesso.data_acesso) < filtroDataInicio) return false;
-      if (filtroDataFim && new Date(acesso.data_acesso) > filtroDataFim) return false;
+      if (filtroDataInicio && new Date(acesso.data_acesso) < filtroDataInicio)
+        return false;
+      if (filtroDataFim && new Date(acesso.data_acesso) > filtroDataFim)
+        return false;
 
       return true;
     });
@@ -190,106 +225,139 @@ const Dashboard: React.FC = () => {
     }, {} as Record<string, Acesso[]>);
 
     // Calcular horas para cada CPF
-    const resultado: HorasCalculadas[] = Object.entries(acessosPorCpf).map(([cpf, acessosCpf]) => {
-      // Ordenar todos os acessos por data
-      const acessosOrdenados = acessosCpf.sort((a, b) =>
-        new Date(a.data_acesso).getTime() - new Date(b.data_acesso).getTime()
-      );
+    const resultado: HorasCalculadas[] = Object.entries(acessosPorCpf).map(
+      ([cpf, acessosCpf]) => {
+        // Ordenar todos os acessos por data
+        const acessosOrdenados = acessosCpf.sort(
+          (a, b) =>
+            new Date(a.data_acesso).getTime() -
+            new Date(b.data_acesso).getTime()
+        );
 
-      // Agrupar por dia (YYYY-MM-DD)
-      const acessosPorDia = acessosOrdenados.reduce((acc, acesso) => {
-        const data = format(parseISO(acesso.data_acesso), 'yyyy-MM-dd');
-        if (!acc[data]) {
-          acc[data] = [];
-        }
-        acc[data].push(acesso);
-        return acc;
-      }, {} as Record<string, Acesso[]>);
+        // Agrupar por dia (YYYY-MM-DD)
+        const acessosPorDia = acessosOrdenados.reduce((acc, acesso) => {
+          const data = format(parseISO(acesso.data_acesso), "yyyy-MM-dd");
+          if (!acc[data]) {
+            acc[data] = [];
+          }
+          acc[data].push(acesso);
+          return acc;
+        }, {} as Record<string, Acesso[]>);
 
-      let totalMinutos = 0;
-      let totalEntradas = 0;
-      let totalSaidas = 0;
+        let totalMinutos = 0;
+        let totalEntradas = 0;
+        let totalSaidas = 0;
 
-      // Para cada dia, calcular a diferença entre primeira entrada e última saída
-      const diasOrdenados = Object.keys(acessosPorDia).sort();
+        // Para cada dia, calcular a diferença entre primeira entrada e última saída
+        const diasOrdenados = Object.keys(acessosPorDia).sort();
 
-      for (let i = 0; i < diasOrdenados.length; i++) {
-        const dia = diasOrdenados[i];
-        const acessosDia = acessosPorDia[dia];
+        for (let i = 0; i < diasOrdenados.length; i++) {
+          const dia = diasOrdenados[i];
+          const acessosDia = acessosPorDia[dia];
 
-        const entradasDia = acessosDia.filter((a) => a.sentido === 'E');
-        const saidasDia = acessosDia.filter((a) => a.sentido === 'S');
+          const entradasDia = acessosDia.filter((a) => a.sentido === "E");
+          const saidasDia = acessosDia.filter((a) => a.sentido === "S");
 
-        totalEntradas += entradasDia.length;
-        totalSaidas += saidasDia.length;
+          totalEntradas += entradasDia.length;
+          totalSaidas += saidasDia.length;
 
-        if (entradasDia.length > 0) {
-          const primeiraEntrada = parseISO(entradasDia[0].data_acesso);
+          if (entradasDia.length > 0) {
+            const primeiraEntrada = parseISO(entradasDia[0].data_acesso);
 
-          // Se há saída no mesmo dia, usar a última saída do dia
-          if (saidasDia.length > 0) {
-            const ultimaSaida = parseISO(saidasDia[saidasDia.length - 1].data_acesso);
+            // Se há saída no mesmo dia, usar a última saída do dia
+            if (saidasDia.length > 0) {
+              const ultimaSaida = parseISO(
+                saidasDia[saidasDia.length - 1].data_acesso
+              );
 
-            if (ultimaSaida > primeiraEntrada) {
-              const minutos = differenceInMinutes(ultimaSaida, primeiraEntrada);
-              totalMinutos += minutos;
-            }
-          } else {
-            // Último registro do dia é entrada, buscar primeira saída do dia seguinte
-            let saidaEncontrada = false;
-            for (let j = i + 1; j < diasOrdenados.length; j++) {
-              const proximoDia = diasOrdenados[j];
-              const acessosProximoDia = acessosPorDia[proximoDia];
-              const saidasProximoDia = acessosProximoDia.filter((a) => a.sentido === 'S');
-
-              if (saidasProximoDia.length > 0) {
-                const primeiraSaidaProximoDia = parseISO(saidasProximoDia[0].data_acesso);
-                const minutos = differenceInMinutes(primeiraSaidaProximoDia, primeiraEntrada);
+              if (ultimaSaida > primeiraEntrada) {
+                const minutos = differenceInMinutes(
+                  ultimaSaida,
+                  primeiraEntrada
+                );
                 totalMinutos += minutos;
-                saidaEncontrada = true;
-                break;
               }
-            }
+            } else {
+              // Último registro do dia é entrada, buscar primeira saída do dia seguinte
+              let saidaEncontrada = false;
+              for (let j = i + 1; j < diasOrdenados.length; j++) {
+                const proximoDia = diasOrdenados[j];
+                const acessosProximoDia = acessosPorDia[proximoDia];
+                const saidasProximoDia = acessosProximoDia.filter(
+                  (a) => a.sentido === "S"
+                );
 
-            // Se não encontrou saída em nenhum dia seguinte, não contabilizar essa entrada
-            if (!saidaEncontrada) {
-              // Não adiciona nada ao totalMinutos
+                if (saidasProximoDia.length > 0) {
+                  const primeiraSaidaProximoDia = parseISO(
+                    saidasProximoDia[0].data_acesso
+                  );
+                  const minutos = differenceInMinutes(
+                    primeiraSaidaProximoDia,
+                    primeiraEntrada
+                  );
+                  totalMinutos += minutos;
+                  saidaEncontrada = true;
+                  break;
+                }
+              }
+
+              // Se não encontrou saída em nenhum dia seguinte, não contabilizar essa entrada
+              if (!saidaEncontrada) {
+                // Não adiciona nada ao totalMinutos
+              }
             }
           }
         }
+
+        const totalHoras = totalMinutos / 60;
+        const ultimoAcesso = acessosCpf.sort(
+          (a, b) =>
+            new Date(b.data_acesso).getTime() -
+            new Date(a.data_acesso).getTime()
+        )[0];
+
+        return {
+          cpf,
+          nome: ultimoAcesso.nome,
+          matricula: ultimoAcesso.matricula,
+          tipo: ultimoAcesso.tipo,
+          totalHoras: parseFloat(totalHoras.toFixed(2)),
+          entradas: totalEntradas,
+          saidas: totalSaidas,
+          ultimoAcesso: ultimoAcesso.data_acesso,
+        };
       }
-
-      const totalHoras = totalMinutos / 60;
-      const ultimoAcesso = acessosCpf.sort((a, b) =>
-        new Date(b.data_acesso).getTime() - new Date(a.data_acesso).getTime()
-      )[0];
-
-      return {
-        cpf,
-        nome: ultimoAcesso.nome,
-        matricula: ultimoAcesso.matricula,
-        tipo: ultimoAcesso.tipo,
-        totalHoras: parseFloat(totalHoras.toFixed(2)),
-        entradas: totalEntradas,
-        saidas: totalSaidas,
-        ultimoAcesso: ultimoAcesso.data_acesso,
-      };
-    });
+    );
 
     setHorasCalculadas(resultado.sort((a, b) => b.totalHoras - a.totalHoras));
   };
 
   // Opções para autocomplete
-  const tiposUnicos = useMemo(() => [...new Set(acessos.map((a) => a.tipo))].sort(), [acessos]);
-  const matriculasUnicas = useMemo(() => [...new Set(acessos.map((a) => a.matricula))].sort(), [acessos]);
-  const nomesUnicos = useMemo(() => [...new Set(acessos.map((a) => a.nome))].sort(), [acessos]);
-  const cpfsUnicos = useMemo(() => [...new Set(acessos.map((a) => a.cpf))].sort(), [acessos]);
+  const tiposUnicos = useMemo(
+    () => [...new Set(acessos.map((a) => a.tipo))].sort(),
+    [acessos]
+  );
+  const matriculasUnicas = useMemo(
+    () => [...new Set(acessos.map((a) => a.matricula))].sort(),
+    [acessos]
+  );
+  const nomesUnicos = useMemo(
+    () => [...new Set(acessos.map((a) => a.nome))].sort(),
+    [acessos]
+  );
+  const cpfsUnicos = useMemo(
+    () => [...new Set(acessos.map((a) => a.cpf))].sort(),
+    [acessos]
+  );
 
   const handleOpenModal = (person: HorasCalculadas) => {
     setSelectedPerson(person);
     const personAccessHistory = acessos
       .filter((a) => a.cpf === person.cpf)
-      .sort((a, b) => new Date(b.data_acesso).getTime() - new Date(a.data_acesso).getTime());
+      .sort(
+        (a, b) =>
+          new Date(b.data_acesso).getTime() - new Date(a.data_acesso).getTime()
+      );
     setPersonAcessos(personAccessHistory);
     setModalOpen(true);
   };
@@ -326,32 +394,50 @@ const Dashboard: React.FC = () => {
     if (!selectedPerson || personAcessos.length === 0) return;
 
     // Prepare CSV header
-    const headers = ['Data/Hora', 'Tipo', 'Matrícula', 'Nome', 'CPF', 'Sentido', 'Local'];
+    const headers = [
+      "Data/Hora",
+      "Tipo",
+      "Matrícula",
+      "Nome",
+      "CPF",
+      "Sentido",
+      "Local",
+    ];
 
     // Prepare CSV rows
     const rows = personAcessos.map((acesso) => [
-      format(parseISO(acesso.data_acesso), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR }),
+      format(parseISO(acesso.data_acesso), "dd/MM/yyyy HH:mm:ss", {
+        locale: ptBR,
+      }),
       acesso.tipo,
       acesso.matricula,
       acesso.nome,
       acesso.cpf,
-      acesso.sentido === 'E' ? 'Entrada' : 'Saída',
-      '', // Local field (not available in current schema)
+      acesso.sentido === "E" ? "Entrada" : "Saída",
+      "", // Local field (not available in current schema)
     ]);
 
     // Combine headers and rows
     const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
 
     // Create blob and download
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `acessos_${selectedPerson.nome.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`);
-    link.style.visibility = 'hidden';
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `acessos_${selectedPerson.nome.replace(/\s+/g, "_")}_${format(
+        new Date(),
+        "yyyyMMdd_HHmmss"
+      )}.csv`
+    );
+    link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -359,17 +445,17 @@ const Dashboard: React.FC = () => {
 
   const columns: GridColDef[] = [
     {
-      field: 'nome',
-      headerName: 'Nome',
+      field: "nome",
+      headerName: "Nome",
       flex: 1,
       minWidth: 200,
       renderCell: (params) => (
         <Box
           sx={{
-            cursor: 'pointer',
-            '&:hover': {
-              '& .MuiTypography-root': {
-                color: 'primary.main',
+            cursor: "pointer",
+            "&:hover": {
+              "& .MuiTypography-root": {
+                color: "primary.main",
               },
             },
           }}
@@ -384,10 +470,10 @@ const Dashboard: React.FC = () => {
         </Box>
       ),
     },
-    { field: 'cpf', headerName: 'CPF', width: 140 },
+    { field: "cpf", headerName: "CPF", width: 140 },
     {
-      field: 'tipo',
-      headerName: 'Tipo',
+      field: "tipo",
+      headerName: "Tipo",
       width: 130,
       renderCell: (params) => (
         <Chip
@@ -399,12 +485,12 @@ const Dashboard: React.FC = () => {
       ),
     },
     {
-      field: 'totalHoras',
-      headerName: 'Total de Horas',
+      field: "totalHoras",
+      headerName: "Total de Horas",
       width: 140,
-      type: 'number',
+      type: "number",
       renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <AccessTime fontSize="small" color="action" />
           <Typography variant="body2" fontWeight={600} color="primary">
             {params.value}h
@@ -413,30 +499,30 @@ const Dashboard: React.FC = () => {
       ),
     },
     {
-      field: 'entradas',
-      headerName: 'Entradas',
+      field: "entradas",
+      headerName: "Entradas",
       width: 100,
-      type: 'number',
+      type: "number",
       renderCell: (params) => (
         <Chip label={params.value} size="small" color="success" />
       ),
     },
     {
-      field: 'saidas',
-      headerName: 'Saídas',
+      field: "saidas",
+      headerName: "Saídas",
       width: 100,
-      type: 'number',
+      type: "number",
       renderCell: (params) => (
         <Chip label={params.value} size="small" color="error" />
       ),
     },
     {
-      field: 'ultimoAcesso',
-      headerName: 'Último Acesso',
+      field: "ultimoAcesso",
+      headerName: "Último Acesso",
       width: 180,
       renderCell: (params) => (
         <Typography variant="body2">
-          {format(parseISO(params.value), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+          {format(parseISO(params.value), "dd/MM/yyyy HH:mm", { locale: ptBR })}
         </Typography>
       ),
     },
@@ -444,8 +530,12 @@ const Dashboard: React.FC = () => {
 
   // Estatísticas
   const totalPessoas = horasCalculadas.length;
-  const totalHorasGeral = horasCalculadas.reduce((sum, item) => sum + item.totalHoras, 0);
-  const mediaHoras = totalPessoas > 0 ? (totalHorasGeral / totalPessoas).toFixed(2) : '0';
+  const totalHorasGeral = horasCalculadas.reduce(
+    (sum, item) => sum + item.totalHoras,
+    0
+  );
+  const mediaHoras =
+    totalPessoas > 0 ? (totalHorasGeral / totalPessoas).toFixed(2) : "0";
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
@@ -468,9 +558,21 @@ const Dashboard: React.FC = () => {
         {/* Estatísticas */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ height: '100%', background: 'linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)' }}>
+            <Card
+              sx={{
+                height: "100%",
+                background: "linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)",
+              }}
+            >
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'white' }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    color: "white",
+                  }}
+                >
                   <Box>
                     <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
                       Total de Pessoas
@@ -486,9 +588,21 @@ const Dashboard: React.FC = () => {
           </Grid>
 
           <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ height: '100%', background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)' }}>
+            <Card
+              sx={{
+                height: "100%",
+                background: "linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)",
+              }}
+            >
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'white' }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    color: "white",
+                  }}
+                >
                   <Box>
                     <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
                       Total de Horas
@@ -504,9 +618,21 @@ const Dashboard: React.FC = () => {
           </Grid>
 
           <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ height: '100%', background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)' }}>
+            <Card
+              sx={{
+                height: "100%",
+                background: "linear-gradient(135deg, #10b981 0%, #34d399 100%)",
+              }}
+            >
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'white' }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    color: "white",
+                  }}
+                >
                   <Box>
                     <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
                       Média de Horas
@@ -525,7 +651,7 @@ const Dashboard: React.FC = () => {
         {/* Filtros */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 1 }}>
               <FilterList color="primary" />
               <Typography variant="h6" fontWeight={600}>
                 Filtros Avançados
@@ -545,7 +671,13 @@ const Dashboard: React.FC = () => {
                   value={filtroTipo}
                   onChange={(_, newValue) => setFiltroTipo(newValue)}
                   options={tiposUnicos}
-                  renderInput={(params) => <TextField {...params} label="Tipo" placeholder="Selecione um ou mais" />}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Tipo"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
                   size="small"
                   limitTags={2}
                 />
@@ -557,7 +689,13 @@ const Dashboard: React.FC = () => {
                   value={filtroMatricula}
                   onChange={(_, newValue) => setFiltroMatricula(newValue)}
                   options={matriculasUnicas}
-                  renderInput={(params) => <TextField {...params} label="Matrícula" placeholder="Selecione uma ou mais" />}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Matrícula"
+                      placeholder="Selecione uma ou mais"
+                    />
+                  )}
                   size="small"
                   limitTags={2}
                 />
@@ -569,7 +707,13 @@ const Dashboard: React.FC = () => {
                   value={filtroNome}
                   onChange={(_, newValue) => setFiltroNome(newValue)}
                   options={nomesUnicos}
-                  renderInput={(params) => <TextField {...params} label="Nome" placeholder="Selecione um ou mais" />}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Nome"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
                   size="small"
                   limitTags={2}
                 />
@@ -581,7 +725,13 @@ const Dashboard: React.FC = () => {
                   value={filtroCpf}
                   onChange={(_, newValue) => setFiltroCpf(newValue)}
                   options={cpfsUnicos}
-                  renderInput={(params) => <TextField {...params} label="CPF" placeholder="Selecione um ou mais" />}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="CPF"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
                   size="small"
                   limitTags={2}
                 />
@@ -592,8 +742,16 @@ const Dashboard: React.FC = () => {
                   value={filtroContrato}
                   onChange={handleContratoChange}
                   options={contratos}
-                  getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
-                  renderInput={(params) => <TextField {...params} label="Contrato" placeholder="Selecione um contrato" />}
+                  getOptionLabel={(option) =>
+                    `${option.nome} - ${option.empresa}`
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Contrato"
+                      placeholder="Selecione um contrato"
+                    />
+                  )}
                   size="small"
                 />
               </Grid>
@@ -603,7 +761,7 @@ const Dashboard: React.FC = () => {
                   label="Data Início"
                   value={filtroDataInicio}
                   onChange={(newValue) => setFiltroDataInicio(newValue)}
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                  slotProps={{ textField: { size: "small", fullWidth: true } }}
                 />
               </Grid>
 
@@ -612,7 +770,7 @@ const Dashboard: React.FC = () => {
                   label="Data Fim"
                   value={filtroDataFim}
                   onChange={(newValue) => setFiltroDataFim(newValue)}
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                  slotProps={{ textField: { size: "small", fullWidth: true } }}
                 />
               </Grid>
             </Grid>
@@ -622,9 +780,16 @@ const Dashboard: React.FC = () => {
         {/* Tabela */}
         <Card>
           <CardContent>
-            <Box sx={{ height: 600, width: '100%' }}>
+            <Box sx={{ height: 600, width: "100%" }}>
               {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: "100%",
+                  }}
+                >
                   <CircularProgress />
                 </Box>
               ) : (
@@ -645,9 +810,9 @@ const Dashboard: React.FC = () => {
                   }}
                   disableRowSelectionOnClick
                   sx={{
-                    border: 'none',
-                    '& .MuiDataGrid-cell:focus': {
-                      outline: 'none',
+                    border: "none",
+                    "& .MuiDataGrid-cell:focus": {
+                      outline: "none",
                     },
                   }}
                 />
@@ -665,18 +830,28 @@ const Dashboard: React.FC = () => {
           PaperProps={{
             sx: {
               borderRadius: 2,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
             },
           }}
         >
           <DialogTitle sx={{ pb: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
               <Box>
                 <Typography variant="h5" fontWeight={700}>
                   Histórico de Acessos
                 </Typography>
                 {selectedPerson && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
                     {selectedPerson.nome}
                   </Typography>
                 )}
@@ -695,9 +870,19 @@ const Dashboard: React.FC = () => {
                 {/* Informações do Colaborador */}
                 <Grid container spacing={3} sx={{ mb: 3 }}>
                   <Grid item xs={12} sm={6} md={3}>
-                    <Card sx={{ bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200' }}>
+                    <Card
+                      sx={{
+                        bgcolor: "primary.50",
+                        border: "1px solid",
+                        borderColor: "primary.200",
+                      }}
+                    >
                       <CardContent sx={{ py: 2 }}>
-                        <Typography variant="caption" color="text.secondary" gutterBottom>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          gutterBottom
+                        >
                           CPF
                         </Typography>
                         <Typography variant="h6" fontWeight={600}>
@@ -707,9 +892,19 @@ const Dashboard: React.FC = () => {
                     </Card>
                   </Grid>
                   <Grid item xs={12} sm={6} md={3}>
-                    <Card sx={{ bgcolor: 'success.50', border: '1px solid', borderColor: 'success.200' }}>
+                    <Card
+                      sx={{
+                        bgcolor: "success.50",
+                        border: "1px solid",
+                        borderColor: "success.200",
+                      }}
+                    >
                       <CardContent sx={{ py: 2 }}>
-                        <Typography variant="caption" color="text.secondary" gutterBottom>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          gutterBottom
+                        >
                           Matrícula
                         </Typography>
                         <Typography variant="h6" fontWeight={600}>
@@ -719,9 +914,19 @@ const Dashboard: React.FC = () => {
                     </Card>
                   </Grid>
                   <Grid item xs={12} sm={6} md={3}>
-                    <Card sx={{ bgcolor: 'warning.50', border: '1px solid', borderColor: 'warning.200' }}>
+                    <Card
+                      sx={{
+                        bgcolor: "warning.50",
+                        border: "1px solid",
+                        borderColor: "warning.200",
+                      }}
+                    >
                       <CardContent sx={{ py: 2 }}>
-                        <Typography variant="caption" color="text.secondary" gutterBottom>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          gutterBottom
+                        >
                           Tipo
                         </Typography>
                         <Typography variant="h6" fontWeight={600}>
@@ -731,9 +936,19 @@ const Dashboard: React.FC = () => {
                     </Card>
                   </Grid>
                   <Grid item xs={12} sm={6} md={3}>
-                    <Card sx={{ bgcolor: 'info.50', border: '1px solid', borderColor: 'info.200' }}>
+                    <Card
+                      sx={{
+                        bgcolor: "info.50",
+                        border: "1px solid",
+                        borderColor: "info.200",
+                      }}
+                    >
                       <CardContent sx={{ py: 2 }}>
-                        <Typography variant="caption" color="text.secondary" gutterBottom>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          gutterBottom
+                        >
                           Total de Horas
                         </Typography>
                         <Typography variant="h6" fontWeight={600}>
@@ -753,25 +968,25 @@ const Dashboard: React.FC = () => {
                   component={Paper}
                   sx={{
                     maxHeight: 400,
-                    boxShadow: 'none',
-                    border: '1px solid',
-                    borderColor: 'divider',
+                    boxShadow: "none",
+                    border: "1px solid",
+                    borderColor: "divider",
                     borderRadius: 2,
                   }}
                 >
                   <Table stickyHeader size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
                           Data/Hora
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
                           Sentido
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
                           Tipo
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
                           Matrícula
                         </TableCell>
                       </TableRow>
@@ -781,40 +996,58 @@ const Dashboard: React.FC = () => {
                         <TableRow
                           key={index}
                           sx={{
-                            '&:hover': { bgcolor: 'action.hover' },
-                            '&:last-child td': { border: 0 },
+                            "&:hover": { bgcolor: "action.hover" },
+                            "&:last-child td": { border: 0 },
                           }}
                         >
                           <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                              }}
+                            >
                               <AccessTime fontSize="small" color="action" />
                               <Typography variant="body2">
-                                {format(parseISO(acesso.data_acesso), 'dd/MM/yyyy HH:mm:ss', {
-                                  locale: ptBR,
-                                })}
+                                {format(
+                                  parseISO(acesso.data_acesso),
+                                  "dd/MM/yyyy HH:mm:ss",
+                                  {
+                                    locale: ptBR,
+                                  }
+                                )}
                               </Typography>
                             </Box>
                           </TableCell>
                           <TableCell>
                             <Chip
                               icon={
-                                acesso.sentido === 'E' ? (
+                                acesso.sentido === "E" ? (
                                   <LoginOutlined fontSize="small" />
                                 ) : (
                                   <LogoutOutlined fontSize="small" />
                                 )
                               }
-                              label={acesso.sentido === 'E' ? 'Entrada' : 'Saída'}
+                              label={
+                                acesso.sentido === "E" ? "Entrada" : "Saída"
+                              }
                               size="small"
-                              color={acesso.sentido === 'E' ? 'success' : 'error'}
+                              color={
+                                acesso.sentido === "E" ? "success" : "error"
+                              }
                               sx={{ fontWeight: 600 }}
                             />
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2">{acesso.tipo}</Typography>
+                            <Typography variant="body2">
+                              {acesso.tipo}
+                            </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2">{acesso.matricula}</Typography>
+                            <Typography variant="body2">
+                              {acesso.matricula}
+                            </Typography>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -851,35 +1084,48 @@ const Dashboard: React.FC = () => {
           PaperProps={{
             sx: {
               borderRadius: 3,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
             },
           }}
         >
           <DialogContent sx={{ pt: 4, pb: 3 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                textAlign: "center",
+              }}
+            >
               <Box
                 sx={{
                   width: 64,
                   height: 64,
-                  borderRadius: '50%',
-                  bgcolor: 'warning.50',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  borderRadius: "50%",
+                  bgcolor: "warning.50",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   mb: 2,
                 }}
               >
-                <Warning sx={{ fontSize: 32, color: 'warning.main' }} />
+                <Warning sx={{ fontSize: 32, color: "warning.main" }} />
               </Box>
 
               <Typography variant="h5" fontWeight={700} gutterBottom>
                 Atenção
               </Typography>
 
-              <Typography variant="body1" color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
-                Ao selecionar um contrato, você estará visualizando todos os acessos de parceiros que estão
-                vinculados ao número desse contrato. No entanto, isso não significa <em>necessariamente</em> que
-                os acessos sejam referentes a esse contrato, uma vez que um parceiro pode participar de diferentes
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                sx={{ mt: 1, lineHeight: 1.7 }}
+              >
+                Ao selecionar um contrato, você estará visualizando todos os
+                acessos de parceiros que estão vinculados ao número desse
+                contrato. No entanto, isso não significa{" "}
+                <em>necessariamente</em> que os acessos sejam referentes a esse
+                contrato, uma vez que um parceiro pode participar de diferentes
                 contratos.
               </Typography>
             </Box>
@@ -887,15 +1133,16 @@ const Dashboard: React.FC = () => {
 
           <Divider />
 
-          <DialogActions sx={{ px: 3, py: 2, justifyContent: 'center' }}>
+          <DialogActions sx={{ px: 3, py: 2, justifyContent: "center" }}>
             <Button
               onClick={handleContratoWarningAccept}
               variant="contained"
               sx={{
                 minWidth: 120,
-                background: 'linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)',
+                background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+                "&:hover": {
+                  background:
+                    "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
                 },
               }}
             >

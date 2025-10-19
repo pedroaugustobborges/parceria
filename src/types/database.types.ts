@@ -11,6 +11,7 @@ export interface Database {
           cpf: string;
           tipo: UserRole;
           contrato_id: string | null;
+          codigomv: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -79,6 +80,7 @@ export interface Usuario {
   cpf: string;
   tipo: UserRole;
   contrato_id: string | null;
+  codigomv: string | null;
   created_at: string;
   updated_at: string;
 }

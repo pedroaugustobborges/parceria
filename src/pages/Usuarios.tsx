@@ -40,6 +40,7 @@ const Usuarios: React.FC = () => {
     cpf: '',
     tipo: 'terceiro' as UserRole,
     contrato_id: '',
+    codigomv: '',
     password: '',
   });
 
@@ -73,6 +74,7 @@ const Usuarios: React.FC = () => {
         cpf: usuario.cpf,
         tipo: usuario.tipo,
         contrato_id: usuario.contrato_id || '',
+        codigomv: usuario.codigomv || '',
         password: '',
       });
     } else {
@@ -83,6 +85,7 @@ const Usuarios: React.FC = () => {
         cpf: '',
         tipo: 'terceiro',
         contrato_id: '',
+        codigomv: '',
         password: '',
       });
     }
@@ -105,6 +108,12 @@ const Usuarios: React.FC = () => {
         return;
       }
 
+      // Validar codigomv para usuários do tipo "terceiro"
+      if (formData.tipo === 'terceiro' && !formData.codigomv) {
+        setError('Código do Prestador no MV é obrigatório para usuários do tipo Terceiro');
+        return;
+      }
+
       if (editingUsuario) {
         // Atualizar usuário existente
         const updateData: any = {
@@ -113,6 +122,7 @@ const Usuarios: React.FC = () => {
           cpf: formData.cpf,
           tipo: formData.tipo,
           contrato_id: formData.contrato_id || null,
+          codigomv: formData.tipo === 'terceiro' ? formData.codigomv : null,
         };
         const { error: updateError } = await supabase
           .from('usuarios')
@@ -170,6 +180,7 @@ const Usuarios: React.FC = () => {
               cpf: formData.cpf,
               tipo: formData.tipo,
               contrato_id: formData.contrato_id || null,
+              codigomv: formData.tipo === 'terceiro' ? formData.codigomv : null,
             } as any);
 
           if (insertError) {
@@ -448,6 +459,17 @@ const Usuarios: React.FC = () => {
                 <MenuItem value="terceiro">Terceiro</MenuItem>
               </Select>
             </FormControl>
+
+            {formData.tipo === 'terceiro' && (
+              <TextField
+                label="Código do Prestador no MV"
+                value={formData.codigomv}
+                onChange={(e) => setFormData({ ...formData, codigomv: e.target.value })}
+                fullWidth
+                required
+                helperText="Código do prestador cadastrado no sistema MV"
+              />
+            )}
 
             {formData.tipo !== 'administrador-agir' && (
               <FormControl fullWidth>
