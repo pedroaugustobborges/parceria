@@ -12,6 +12,7 @@ export interface Database {
           tipo: UserRole;
           contrato_id: string | null;
           codigomv: string | null;
+          especialidade: string[] | null;
           created_at: string;
           updated_at: string;
         };
@@ -81,6 +82,7 @@ export interface Usuario {
   tipo: UserRole;
   contrato_id: string | null;
   codigomv: string | null;
+  especialidade: string[] | null;
   created_at: string;
   updated_at: string;
 }

@@ -17,12 +17,38 @@ import {
   IconButton,
   Alert,
   Chip,
+  Autocomplete,
 } from '@mui/material';
 import { DataGrid, GridColDef, GridToolbar } from '@mui/x-data-grid';
 import { Edit, Delete, PersonAdd } from '@mui/icons-material';
 import { supabase } from '../lib/supabase';
 import { Usuario, UserRole, Contrato } from '../types/database.types';
 import { format, parseISO } from 'date-fns';
+
+const ESPECIALIDADES = [
+  'Anestesiologia',
+  'Cardiologia',
+  'Cardiologia Pediátrica',
+  'Cirurgia Cardiovascular',
+  'Cirurgia Geral',
+  'Cirurgia Pediátrica',
+  'Cirurgia Plástica',
+  'Cirurgia Vascular',
+  'Clínica Geral',
+  'Diagnóstico por Imagem',
+  'Ecocardiografia',
+  'Endoscopia',
+  'Gastroenterologia',
+  'Intervencionista',
+  'Medicina Intensiva',
+  'Medicina Intensiva Pediátrica',
+  'Nefrologia',
+  'Neurocirurgia Pediátrica',
+  'Neurologia',
+  'Nutrologia',
+  'Ortopedia',
+  'Pediatria',
+];
 
 const Usuarios: React.FC = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -41,6 +67,7 @@ const Usuarios: React.FC = () => {
     tipo: 'terceiro' as UserRole,
     contrato_id: '',
     codigomv: '',
+    especialidade: [] as string[],
     password: '',
   });
 
@@ -75,6 +102,7 @@ const Usuarios: React.FC = () => {
         tipo: usuario.tipo,
         contrato_id: usuario.contrato_id || '',
         codigomv: usuario.codigomv || '',
+        especialidade: usuario.especialidade || [],
         password: '',
       });
     } else {
@@ -86,6 +114,7 @@ const Usuarios: React.FC = () => {
         tipo: 'terceiro',
         contrato_id: '',
         codigomv: '',
+        especialidade: [],
         password: '',
       });
     }
@@ -108,9 +137,14 @@ const Usuarios: React.FC = () => {
         return;
       }
 
-      // Validar codigomv para usuários do tipo "terceiro"
+      // Validar codigomv e especialidade para usuários do tipo "terceiro"
       if (formData.tipo === 'terceiro' && !formData.codigomv) {
         setError('Código do Prestador no MV é obrigatório para usuários do tipo Terceiro');
+        return;
+      }
+
+      if (formData.tipo === 'terceiro' && (!formData.especialidade || formData.especialidade.length === 0)) {
+        setError('Selecione pelo menos uma especialidade para usuários do tipo Terceiro');
         return;
       }
 
@@ -123,6 +157,7 @@ const Usuarios: React.FC = () => {
           tipo: formData.tipo,
           contrato_id: formData.contrato_id || null,
           codigomv: formData.tipo === 'terceiro' ? formData.codigomv : null,
+          especialidade: formData.tipo === 'terceiro' ? formData.especialidade : null,
         };
         const { error: updateError } = await supabase
           .from('usuarios')
@@ -181,6 +216,7 @@ const Usuarios: React.FC = () => {
               tipo: formData.tipo,
               contrato_id: formData.contrato_id || null,
               codigomv: formData.tipo === 'terceiro' ? formData.codigomv : null,
+              especialidade: formData.tipo === 'terceiro' ? formData.especialidade : null,
             } as any);
 
           if (insertError) {
@@ -461,14 +497,41 @@ const Usuarios: React.FC = () => {
             </FormControl>
 
             {formData.tipo === 'terceiro' && (
-              <TextField
-                label="Código do Prestador no MV"
-                value={formData.codigomv}
-                onChange={(e) => setFormData({ ...formData, codigomv: e.target.value })}
-                fullWidth
-                required
-                helperText="Código do prestador cadastrado no sistema MV"
-              />
+              <>
+                <TextField
+                  label="Código do Prestador no MV"
+                  value={formData.codigomv}
+                  onChange={(e) => setFormData({ ...formData, codigomv: e.target.value })}
+                  fullWidth
+                  required
+                  helperText="Código do prestador cadastrado no sistema MV"
+                />
+
+                <Autocomplete
+                  multiple
+                  options={ESPECIALIDADES}
+                  value={formData.especialidade}
+                  onChange={(_, newValue) => setFormData({ ...formData, especialidade: newValue })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Especialidade"
+                      required
+                      helperText="Selecione uma ou mais especialidades"
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                      <Chip
+                        label={option}
+                        {...getTagProps({ index })}
+                        size="small"
+                        color="primary"
+                      />
+                    ))
+                  }
+                />
+              </>
             )}
 
             {formData.tipo !== 'administrador-agir' && (
