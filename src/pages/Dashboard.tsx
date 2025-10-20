@@ -247,6 +247,7 @@ const Dashboard: React.FC = () => {
         let totalMinutos = 0;
         let totalEntradas = 0;
         let totalSaidas = 0;
+        const diasUnicos = new Set<string>(); // Para contar dias únicos
 
         // Para cada dia, calcular a diferença entre primeira entrada e última saída
         const diasOrdenados = Object.keys(acessosPorDia).sort();
@@ -276,6 +277,7 @@ const Dashboard: React.FC = () => {
                   primeiraEntrada
                 );
                 totalMinutos += minutos;
+                diasUnicos.add(dia); // Adiciona o dia ao conjunto de dias únicos
               }
             } else {
               // Último registro do dia é entrada, buscar primeira saída do dia seguinte
@@ -296,6 +298,7 @@ const Dashboard: React.FC = () => {
                     primeiraEntrada
                   );
                   totalMinutos += minutos;
+                  diasUnicos.add(dia); // Adiciona o dia ao conjunto de dias únicos
                   saidaEncontrada = true;
                   break;
                 }
@@ -322,6 +325,7 @@ const Dashboard: React.FC = () => {
           matricula: ultimoAcesso.matricula,
           tipo: ultimoAcesso.tipo,
           totalHoras: parseFloat(totalHoras.toFixed(2)),
+          diasComRegistro: diasUnicos.size,
           entradas: totalEntradas,
           saidas: totalSaidas,
           ultimoAcesso: ultimoAcesso.data_acesso,
@@ -534,8 +538,12 @@ const Dashboard: React.FC = () => {
     (sum, item) => sum + item.totalHoras,
     0
   );
+  const totalDiasUnicos = horasCalculadas.reduce(
+    (sum, item) => sum + item.diasComRegistro,
+    0
+  );
   const mediaHoras =
-    totalPessoas > 0 ? (totalHorasGeral / totalPessoas).toFixed(2) : "0";
+    totalDiasUnicos > 0 ? (totalHorasGeral / totalDiasUnicos).toFixed(2) : "0";
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
@@ -635,7 +643,7 @@ const Dashboard: React.FC = () => {
                 >
                   <Box>
                     <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                      Média de Horas
+                      Média de Horas por Dia
                     </Typography>
                     <Typography variant="h3" fontWeight={700}>
                       {mediaHoras}h

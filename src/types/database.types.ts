@@ -59,6 +59,33 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['usuario_contrato']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['usuario_contrato']['Insert']>;
       };
+      produtividade: {
+        Row: {
+          id: string;
+          codigo_mv: string;
+          nome: string;
+          especialidade: string | null;
+          vinculo: string | null;
+          data: string | null;
+          procedimento: number;
+          parecer_solicitado: number;
+          parecer_realizado: number;
+          cirurgia_realizada: number;
+          prescricao: number;
+          evolucao: number;
+          urgencia: number;
+          ambulatorio: number;
+          auxiliar: number;
+          encaminhamento: number;
+          folha_objetivo_diario: number;
+          evolucao_diurna_cti: number;
+          evolucao_noturna_cti: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['produtividade']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['produtividade']['Insert']>;
+      };
     };
   };
 }
@@ -105,6 +132,7 @@ export interface HorasCalculadas {
   matricula: string;
   tipo: string;
   totalHoras: number;
+  diasComRegistro: number;
   entradas: number;
   saidas: number;
   ultimoAcesso: string;
@@ -152,6 +180,30 @@ export interface Parceiro {
   telefone: string | null;
   email: string | null;
   ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Produtividade {
+  id: string;
+  codigo_mv: string;
+  nome: string;
+  especialidade: string | null;
+  vinculo: string | null;
+  data: string | null;
+  procedimento: number;
+  parecer_solicitado: number;
+  parecer_realizado: number;
+  cirurgia_realizada: number;
+  prescricao: number;
+  evolucao: number;
+  urgencia: number;
+  ambulatorio: number;
+  auxiliar: number;
+  encaminhamento: number;
+  folha_objetivo_diario: number;
+  evolucao_diurna_cti: number;
+  evolucao_noturna_cti: number;
   created_at: string;
   updated_at: string;
 }

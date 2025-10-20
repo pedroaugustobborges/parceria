@@ -61,35 +61,73 @@ def conectar_supabase():
         print(f"❌ Erro ao conectar no Supabase: {e}")
         raise
 
-def extrair_acessos(conn, limite=30000):
-    """Extrai os últimos N acessos do banco de dados."""
+def buscar_cpfs_usuarios(supabase: Client):
+    """Busca todos os CPFs da tabela usuarios."""
     try:
+        print("\n📋 Buscando CPFs da tabela usuarios...")
+        response = supabase.table('usuarios').select('cpf').execute()
+        cpfs = [usuario['cpf'] for usuario in response.data if usuario.get('cpf')]
+        print(f"  ✅ {len(cpfs)} CPFs encontrados na tabela usuarios")
+        return cpfs
+    except Exception as e:
+        print(f"❌ Erro ao buscar CPFs dos usuários: {e}")
+        raise
+
+def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=50):
+    """
+    Extrai os últimos N acessos do banco de dados para cada CPF presente na tabela usuarios.
+
+    Args:
+        conn: Conexão com o Data Warehouse
+        cpfs_usuarios: Lista de CPFs da tabela usuarios
+        limite_por_cpf: Número máximo de registros por CPF (padrão: 50)
+    """
+    try:
+        if not cpfs_usuarios:
+            print("⚠️ Nenhum CPF encontrado na tabela usuarios. Nada para importar.")
+            return []
+
         cursor = conn.cursor()
+        todos_resultados = []
+        total_cpfs = len(cpfs_usuarios)
 
-        query = """
-        SELECT
-            tipo, matricula, nome, cpf, data_acesso, sentido, pis,
-            cracha, planta, codin, grupo_de_acess, desc_perm,
-            tipo_acesso, descr_acesso, modelo, cod_planta, cod_codin
-        FROM suricato.acesso_colaborador
-        ORDER BY data_acesso DESC
-        LIMIT %s
-        """
+        print(f"\n📊 Executando query para buscar os últimos {limite_por_cpf} registros para cada um dos {total_cpfs} CPFs...")
 
-        print(f"\n📊 Executando query para buscar os últimos {limite} registros...")
-        cursor.execute(query, (limite,))
+        for i, cpf in enumerate(cpfs_usuarios, 1):
+            try:
+                query = """
+                SELECT
+                    tipo, matricula, nome, cpf, data_acesso, sentido, pis,
+                    cracha, planta, codin, grupo_de_acess, desc_perm,
+                    tipo_acesso, descr_acesso, modelo, cod_planta, cod_codin
+                FROM suricato.acesso_colaborador
+                WHERE cpf = %s
+                ORDER BY data_acesso DESC
+                LIMIT %s
+                """
 
-        resultados = cursor.fetchall()
-        colunas = [desc[0] for desc in cursor.description]
+                cursor.execute(query, (cpf, limite_por_cpf))
+                resultados = cursor.fetchall()
 
-        print(f"  Total de registros encontrados: {len(resultados)}")
+                if resultados:
+                    # Inverte para ordem cronológica (mais antigo para mais recente)
+                    resultados.reverse()
+                    todos_resultados.extend(resultados)
+
+                # Mostra progresso a cada 10 CPFs ou no último
+                if i % 10 == 0 or i == total_cpfs:
+                    print(f"  Progresso: {i}/{total_cpfs} CPFs processados - {len(todos_resultados)} registros coletados")
+
+            except Exception as e:
+                print(f"  ⚠️ Erro ao processar CPF {cpf}: {e}")
+                continue
+
+        colunas = [desc[0] for desc in cursor.description] if cursor.description else []
         cursor.close()
 
-        # Inverte a lista para ordem cronológica (mais antigo para mais recente)
-        if resultados:
-            resultados.reverse()
+        print(f"  ✅ Total de registros encontrados: {len(todos_resultados)}")
 
-        dados = [dict(zip(colunas, row)) for row in resultados]
+        dados = [dict(zip(colunas, row)) for row in todos_resultados]
         return dados
 
     except Exception as e:
@@ -170,35 +208,48 @@ def inserir_em_supabase(supabase: Client, dados):
 
 def main():
     """Função principal do script."""
-    print("=" * 60)
+    print("=" * 70)
     print("IMPORTAÇÃO DE ACESSOS DO DATA WAREHOUSE PARA SUPABASE")
+    print("(Apenas para CPFs cadastrados na tabela usuarios)")
     print(f"Horário: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("=" * 60)
+    print("=" * 70)
 
     conn = None
     try:
-        # Conecta aos dois bancos
-        conn = conectar_data_warehouse()
+        # Conecta ao Supabase primeiro para buscar os CPFs
         supabase = conectar_supabase()
 
-        # Define o limite de registros
-        limite = 30000
+        # Busca os CPFs da tabela usuarios
+        cpfs_usuarios = buscar_cpfs_usuarios(supabase)
+
+        if not cpfs_usuarios:
+            print("\n⚠️ Nenhum CPF encontrado na tabela usuarios. Nada para importar.")
+            return
+
+        # Conecta ao Data Warehouse
+        conn = conectar_data_warehouse()
+
+        # Define o limite de registros por CPF
+        limite_por_cpf = 50
         if len(sys.argv) > 1:
             try:
-                limite = int(sys.argv[1])
+                limite_por_cpf = int(sys.argv[1])
+                print(f"\n⚙️ Limite por CPF definido via argumento: {limite_por_cpf}")
             except ValueError:
-                print(f"⚠️ Argumento '{sys.argv[1]}' inválido. Usando o padrão de 30000 registros.")
+                print(f"⚠️ Argumento '{sys.argv[1]}' inválido. Usando o padrão de 50 registros por CPF.")
 
-        print(f"\n📥 Extraindo os últimos {limite} registros do Data Warehouse...")
-        dados_extraidos = extrair_acessos(conn, limite)
+        print(f"\n📥 Extraindo os últimos {limite_por_cpf} registros para cada CPF do Data Warehouse...")
+        dados_extraidos = extrair_acessos(conn, cpfs_usuarios, limite_por_cpf)
 
         if dados_extraidos:
             inserir_em_supabase(supabase, dados_extraidos)
         else:
-            print(f"\nℹ️ Nenhum acesso encontrado na tabela.")
+            print(f"\nℹ️ Nenhum acesso encontrado para os CPFs cadastrados.")
 
     except Exception as e:
         print(f"\n❌ O SCRIPT FOI INTERROMPIDO DEVIDO A UM ERRO: {e}")
+        import traceback
+        traceback.print_exc()
 
     finally:
         if conn:
