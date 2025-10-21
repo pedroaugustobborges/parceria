@@ -1,0 +1,17 @@
+# Dependências para coleta de produtividade do MV
+
+# Selenium para automação web
+selenium==4.15.2
+
+# Supabase para acesso ao banco de dados
+supabase==2.3.2
+
+# Gerenciamento de variáveis de ambiente
+python-dotenv==1.0.0
+
+# Dependências do Supabase
+postgrest==0.13.2
+realtime==1.0.5
+storage3==0.7.4
+supafunc
+httpx==0.25.2
