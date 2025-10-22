@@ -43,8 +43,18 @@ import {
   LogoutOutlined,
   Warning,
 } from "@mui/icons-material";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 import { supabase } from "../lib/supabase";
-import { Acesso, HorasCalculadas, Contrato } from "../types/database.types";
+import { Acesso, HorasCalculadas, Contrato, Produtividade } from "../types/database.types";
 import { useAuth } from "../contexts/AuthContext";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 
@@ -53,6 +63,7 @@ const Dashboard: React.FC = () => {
   const [acessos, setAcessos] = useState<Acesso[]>([]);
   const [horasCalculadas, setHorasCalculadas] = useState<HorasCalculadas[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [produtividade, setProdutividade] = useState<Produtividade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -61,6 +72,7 @@ const Dashboard: React.FC = () => {
   const [filtroMatricula, setFiltroMatricula] = useState<string[]>([]);
   const [filtroNome, setFiltroNome] = useState<string[]>([]);
   const [filtroCpf, setFiltroCpf] = useState<string[]>([]);
+  const [filtroSentido, setFiltroSentido] = useState<string[]>([]);
   const [filtroContrato, setFiltroContrato] = useState<Contrato | null>(null);
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
@@ -79,6 +91,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     loadAcessos();
     loadContratos();
+    loadProdutividade();
   }, []);
 
   useEffect(() => {
@@ -91,6 +104,7 @@ const Dashboard: React.FC = () => {
     filtroMatricula,
     filtroNome,
     filtroCpf,
+    filtroSentido,
     filtroContrato,
     filtroDataInicio,
     filtroDataFim,
@@ -108,6 +122,20 @@ const Dashboard: React.FC = () => {
       setContratos(data || []);
     } catch (err: any) {
       console.error("Erro ao carregar contratos:", err);
+    }
+  };
+
+  const loadProdutividade = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("produtividade")
+        .select("*")
+        .order("data", { ascending: false });
+
+      if (fetchError) throw fetchError;
+      setProdutividade(data || []);
+    } catch (err: any) {
+      console.error("Erro ao carregar produtividade:", err);
     }
   };
 
@@ -197,6 +225,8 @@ const Dashboard: React.FC = () => {
       if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome))
         return false;
       if (filtroCpf.length > 0 && !filtroCpf.includes(acesso.cpf)) return false;
+      if (filtroSentido.length > 0 && !filtroSentido.includes(acesso.sentido))
+        return false;
 
       // Filtro de contrato
       if (
@@ -394,6 +424,90 @@ const Dashboard: React.FC = () => {
     setPendingContrato(null);
   };
 
+  // Calcular dados do gráfico de produtividade
+  const chartDataProdutividade = useMemo(() => {
+    if (produtividade.length === 0) return [];
+
+    const totais = {
+      procedimento: 0,
+      parecer_solicitado: 0,
+      parecer_realizado: 0,
+      cirurgia_realizada: 0,
+      prescricao: 0,
+      evolucao: 0,
+      urgencia: 0,
+      ambulatorio: 0,
+      auxiliar: 0,
+      encaminhamento: 0,
+      folha_objetivo_diario: 0,
+      evolucao_diurna_cti: 0,
+      evolucao_noturna_cti: 0,
+    };
+
+    produtividade.forEach((item) => {
+      totais.procedimento += item.procedimento || 0;
+      totais.parecer_solicitado += item.parecer_solicitado || 0;
+      totais.parecer_realizado += item.parecer_realizado || 0;
+      totais.cirurgia_realizada += item.cirurgia_realizada || 0;
+      totais.prescricao += item.prescricao || 0;
+      totais.evolucao += item.evolucao || 0;
+      totais.urgencia += item.urgencia || 0;
+      totais.ambulatorio += item.ambulatorio || 0;
+      totais.auxiliar += item.auxiliar || 0;
+      totais.encaminhamento += item.encaminhamento || 0;
+      totais.folha_objetivo_diario += item.folha_objetivo_diario || 0;
+      totais.evolucao_diurna_cti += item.evolucao_diurna_cti || 0;
+      totais.evolucao_noturna_cti += item.evolucao_noturna_cti || 0;
+    });
+
+    // Criar array de dados para o gráfico (apenas com valores > 0)
+    const data = [
+      { name: "Procedimento", value: totais.procedimento, color: "#0ea5e9" },
+      {
+        name: "Parecer Solicitado",
+        value: totais.parecer_solicitado,
+        color: "#8b5cf6",
+      },
+      {
+        name: "Parecer Realizado",
+        value: totais.parecer_realizado,
+        color: "#10b981",
+      },
+      {
+        name: "Cirurgia Realizada",
+        value: totais.cirurgia_realizada,
+        color: "#f59e0b",
+      },
+      { name: "Prescrição", value: totais.prescricao, color: "#ec4899" },
+      { name: "Evolução", value: totais.evolucao, color: "#06b6d4" },
+      { name: "Urgência", value: totais.urgencia, color: "#ef4444" },
+      { name: "Ambulatório", value: totais.ambulatorio, color: "#6366f1" },
+      { name: "Auxiliar", value: totais.auxiliar, color: "#14b8a6" },
+      {
+        name: "Encaminhamento",
+        value: totais.encaminhamento,
+        color: "#f97316",
+      },
+      {
+        name: "Folha Objetivo Diário",
+        value: totais.folha_objetivo_diario,
+        color: "#a855f7",
+      },
+      {
+        name: "Evolução Diurna CTI",
+        value: totais.evolucao_diurna_cti,
+        color: "#22c55e",
+      },
+      {
+        name: "Evolução Noturna CTI",
+        value: totais.evolucao_noturna_cti,
+        color: "#3b82f6",
+      },
+    ].filter((item) => item.value > 0); // Filtrar apenas valores maiores que 0
+
+    return data;
+  }, [produtividade]);
+
   const handleExportCSV = () => {
     if (!selectedPerson || personAcessos.length === 0) return;
 
@@ -563,6 +677,156 @@ const Dashboard: React.FC = () => {
           </Alert>
         )}
 
+        {/* Filtros */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 1 }}>
+              <FilterList color="primary" />
+              <Typography variant="h6" fontWeight={600}>
+                Filtros Avançados
+              </Typography>
+              <Box sx={{ flexGrow: 1 }} />
+              <Tooltip title="Atualizar dados">
+                <IconButton onClick={loadAcessos} color="primary">
+                  <Refresh />
+                </IconButton>
+              </Tooltip>
+            </Box>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <Autocomplete
+                  multiple
+                  value={filtroTipo}
+                  onChange={(_, newValue) => setFiltroTipo(newValue)}
+                  options={tiposUnicos}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Tipo"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <Autocomplete
+                  multiple
+                  value={filtroMatricula}
+                  onChange={(_, newValue) => setFiltroMatricula(newValue)}
+                  options={matriculasUnicas}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Matrícula"
+                      placeholder="Selecione uma ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <Autocomplete
+                  multiple
+                  value={filtroNome}
+                  onChange={(_, newValue) => setFiltroNome(newValue)}
+                  options={nomesUnicos}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Nome"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <Autocomplete
+                  multiple
+                  value={filtroCpf}
+                  onChange={(_, newValue) => setFiltroCpf(newValue)}
+                  options={cpfsUnicos}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="CPF"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <Autocomplete
+                  multiple
+                  value={filtroSentido}
+                  onChange={(_, newValue) => setFiltroSentido(newValue)}
+                  options={["E", "S"]}
+                  getOptionLabel={(option) =>
+                    option === "E" ? "Entrada" : "Saída"
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Sentido"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <Autocomplete
+                  value={filtroContrato}
+                  onChange={handleContratoChange}
+                  options={contratos}
+                  getOptionLabel={(option) =>
+                    `${option.nome} - ${option.empresa}`
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Contrato"
+                      placeholder="Selecione um contrato"
+                    />
+                  )}
+                  size="small"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <DatePicker
+                  label="Data Início"
+                  value={filtroDataInicio}
+                  onChange={(newValue) => setFiltroDataInicio(newValue)}
+                  slotProps={{ textField: { size: "small", fullWidth: true } }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <DatePicker
+                  label="Data Fim"
+                  value={filtroDataFim}
+                  onChange={(newValue) => setFiltroDataFim(newValue)}
+                  slotProps={{ textField: { size: "small", fullWidth: true } }}
+                />
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
         {/* Estatísticas */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={4}>
@@ -656,134 +920,49 @@ const Dashboard: React.FC = () => {
           </Grid>
         </Grid>
 
-        {/* Filtros */}
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 1 }}>
-              <FilterList color="primary" />
-              <Typography variant="h6" fontWeight={600}>
-                Filtros Avançados
+        {/* Gráfico de Produtividade */}
+        {chartDataProdutividade.length > 0 && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Produtividade Médica - Distribuição de Atividades
               </Typography>
-              <Box sx={{ flexGrow: 1 }} />
-              <Tooltip title="Atualizar dados">
-                <IconButton onClick={loadAcessos} color="primary">
-                  <Refresh />
-                </IconButton>
-              </Tooltip>
-            </Box>
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={4}>
-                <Autocomplete
-                  multiple
-                  value={filtroTipo}
-                  onChange={(_, newValue) => setFiltroTipo(newValue)}
-                  options={tiposUnicos}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Tipo"
-                      placeholder="Selecione um ou mais"
-                    />
-                  )}
-                  size="small"
-                  limitTags={2}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Autocomplete
-                  multiple
-                  value={filtroMatricula}
-                  onChange={(_, newValue) => setFiltroMatricula(newValue)}
-                  options={matriculasUnicas}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Matrícula"
-                      placeholder="Selecione uma ou mais"
-                    />
-                  )}
-                  size="small"
-                  limitTags={2}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Autocomplete
-                  multiple
-                  value={filtroNome}
-                  onChange={(_, newValue) => setFiltroNome(newValue)}
-                  options={nomesUnicos}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Nome"
-                      placeholder="Selecione um ou mais"
-                    />
-                  )}
-                  size="small"
-                  limitTags={2}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Autocomplete
-                  multiple
-                  value={filtroCpf}
-                  onChange={(_, newValue) => setFiltroCpf(newValue)}
-                  options={cpfsUnicos}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="CPF"
-                      placeholder="Selecione um ou mais"
-                    />
-                  )}
-                  size="small"
-                  limitTags={2}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Autocomplete
-                  value={filtroContrato}
-                  onChange={handleContratoChange}
-                  options={contratos}
-                  getOptionLabel={(option) =>
-                    `${option.nome} - ${option.empresa}`
-                  }
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Contrato"
-                      placeholder="Selecione um contrato"
-                    />
-                  )}
-                  size="small"
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <DatePicker
-                  label="Data Início"
-                  value={filtroDataInicio}
-                  onChange={(newValue) => setFiltroDataInicio(newValue)}
-                  slotProps={{ textField: { size: "small", fullWidth: true } }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <DatePicker
-                  label="Data Fim"
-                  value={filtroDataFim}
-                  onChange={(newValue) => setFiltroDataFim(newValue)}
-                  slotProps={{ textField: { size: "small", fullWidth: true } }}
-                />
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Total acumulado de cada tipo de atividade registrada
+              </Typography>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart
+                  data={chartDataProdutividade}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                  <XAxis type="number" />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={180}
+                    style={{ fontSize: 12 }}
+                  />
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(255, 255, 255, 0.95)",
+                      border: "1px solid #e0e0e0",
+                      borderRadius: 8,
+                      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                    }}
+                    formatter={(value: any) => [value, "Total"]}
+                  />
+                  <Bar dataKey="value" radius={[0, 8, 8, 0]}>
+                    {chartDataProdutividade.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabela */}
         <Card>
