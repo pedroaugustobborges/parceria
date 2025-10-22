@@ -61,6 +61,7 @@ import { format, parseISO, differenceInMinutes } from "date-fns";
 const Dashboard: React.FC = () => {
   const { userProfile, isAdminTerceiro, isTerceiro } = useAuth();
   const [acessos, setAcessos] = useState<Acesso[]>([]);
+  const [acessosFiltrados, setAcessosFiltrados] = useState<Acesso[]>([]); // Novo state para acessos filtrados
   const [horasCalculadas, setHorasCalculadas] = useState<HorasCalculadas[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [produtividade, setProdutividade] = useState<Produtividade[]>([]);
@@ -213,7 +214,7 @@ const Dashboard: React.FC = () => {
       }
     }
 
-    const acessosFiltrados = acessos.filter((acesso) => {
+    const acessosFiltradosLocal = acessos.filter((acesso) => {
       // Filtro de múltiplas seleções
       if (filtroTipo.length > 0 && !filtroTipo.includes(acesso.tipo))
         return false;
@@ -245,8 +246,11 @@ const Dashboard: React.FC = () => {
       return true;
     });
 
+    // Salvar acessos filtrados no state para uso no modal
+    setAcessosFiltrados(acessosFiltradosLocal);
+
     // Agrupar por CPF
-    const acessosPorCpf = acessosFiltrados.reduce((acc, acesso) => {
+    const acessosPorCpf = acessosFiltradosLocal.reduce((acc, acesso) => {
       if (!acc[acesso.cpf]) {
         acc[acesso.cpf] = [];
       }
@@ -386,7 +390,8 @@ const Dashboard: React.FC = () => {
 
   const handleOpenModal = (person: HorasCalculadas) => {
     setSelectedPerson(person);
-    const personAccessHistory = acessos
+    // Usar acessos filtrados ao invés de todos os acessos
+    const personAccessHistory = acessosFiltrados
       .filter((a) => a.cpf === person.cpf)
       .sort(
         (a, b) =>
