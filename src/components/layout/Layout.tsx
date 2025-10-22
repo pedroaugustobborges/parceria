@@ -33,6 +33,7 @@ import {
   ChevronRight,
   Inventory,
   MedicalServices,
+  Psychology,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import { useThemeMode } from "../../contexts/ThemeContext";
@@ -88,6 +89,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: <Dashboard />,
       path: "/dashboard",
       adminOnly: false,
+    },
+    {
+      text: "Insights da IA",
+      icon: <Psychology />,
+      path: "/insights-ia",
+      adminOnly: true,
     },
     { text: "Usuários", icon: <People />, path: "/usuarios", adminOnly: true },
     {

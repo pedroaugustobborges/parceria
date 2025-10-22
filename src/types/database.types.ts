@@ -207,3 +207,10 @@ export interface Produtividade {
   created_at: string;
   updated_at: string;
 }
+
+export interface InsightIA {
+  id: string;
+  diagnostico: string;
+  data_analise: string;
+  created_at: string;
+}
