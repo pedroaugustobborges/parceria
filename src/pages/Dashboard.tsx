@@ -424,9 +424,28 @@ const Dashboard: React.FC = () => {
     setPendingContrato(null);
   };
 
-  // Calcular dados do gráfico de produtividade
+  // Calcular dados do gráfico de produtividade (com filtros aplicados)
   const chartDataProdutividade = useMemo(() => {
     if (produtividade.length === 0) return [];
+
+    // Filtrar dados de produtividade baseado nos filtros avançados
+    const produtividadeFiltrada = produtividade.filter((item) => {
+      // Filtro de Nome
+      if (filtroNome.length > 0 && !filtroNome.includes(item.nome))
+        return false;
+
+      // Filtros de data (usando a coluna 'data' da tabela produtividade)
+      if (
+        filtroDataInicio &&
+        item.data &&
+        new Date(item.data) < filtroDataInicio
+      )
+        return false;
+      if (filtroDataFim && item.data && new Date(item.data) > filtroDataFim)
+        return false;
+
+      return true;
+    });
 
     const totais = {
       procedimento: 0,
@@ -444,7 +463,7 @@ const Dashboard: React.FC = () => {
       evolucao_noturna_cti: 0,
     };
 
-    produtividade.forEach((item) => {
+    produtividadeFiltrada.forEach((item) => {
       totais.procedimento += item.procedimento || 0;
       totais.parecer_solicitado += item.parecer_solicitado || 0;
       totais.parecer_realizado += item.parecer_realizado || 0;
@@ -506,7 +525,7 @@ const Dashboard: React.FC = () => {
     ].filter((item) => item.value > 0); // Filtrar apenas valores maiores que 0
 
     return data;
-  }, [produtividade]);
+  }, [produtividade, filtroNome, filtroDataInicio, filtroDataFim]);
 
   const handleExportCSV = () => {
     if (!selectedPerson || personAcessos.length === 0) return;
@@ -927,9 +946,22 @@ const Dashboard: React.FC = () => {
               <Typography variant="h6" fontWeight={600} gutterBottom>
                 Produtividade Médica - Distribuição de Atividades
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 Total acumulado de cada tipo de atividade registrada
               </Typography>
+              {(filtroNome.length > 0 || filtroDataInicio || filtroDataFim) && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: "block",
+                    mb: 2,
+                    color: "primary.main",
+                    fontStyle: "italic",
+                  }}
+                >
+                  ℹ️ Gráfico filtrado pelos filtros avançados (Nome e/ou Data)
+                </Typography>
+              )}
               <ResponsiveContainer width="100%" height={400}>
                 <BarChart
                   data={chartDataProdutividade}
