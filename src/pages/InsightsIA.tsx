@@ -87,7 +87,7 @@ const InsightsIA: React.FC = () => {
       const temHoje = await jaTemAnaliseHoje();
       if (temHoje) {
         const confirmar = window.confirm(
-          "Já existe uma análise gerada hoje. Deseja gerar uma nova análise mesmo assim?"
+          "Já existe uma análise gerada hoje. Deseja gerar uma nova análise mesmo assim? Economizar tokens é economia de custos!"
         );
         if (!confirmar) {
           setGerando(false);
