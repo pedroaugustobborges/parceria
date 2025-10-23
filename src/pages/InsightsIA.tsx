@@ -161,7 +161,7 @@ const InsightsIA: React.FC = () => {
         <Box display="flex" alignItems="center" gap={2} mb={2}>
           <Box
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
               borderRadius: "12px",
               p: 1.5,
               display: "flex",
@@ -187,17 +187,18 @@ const InsightsIA: React.FC = () => {
             variant="contained"
             startIcon={
               gerando ? (
-                <CircularProgress size={20} color="inherit" />
+                <CircularProgress size={20} sx={{ color: "white" }} />
               ) : (
-                <Refresh />
+                <Refresh sx={{ color: "white" }} />
               )
             }
             onClick={handleGerarNovaAnalise}
             disabled={gerando}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              bgcolor: "primary.main",
+              color: "white",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                bgcolor: "primary.dark",
               },
             }}
           >
@@ -349,12 +350,12 @@ const InsightsIA: React.FC = () => {
               />
               <Chip
                 icon={<Assessment />}
-                label="Análise Avançada"
+                label="Análise Automatizada"
                 sx={{ background: "rgba(255,255,255,0.2)", color: "white" }}
               />
               <Chip
                 icon={<Psychology />}
-                label="Powered by DeepSeek AI"
+                label="Powered by Agir"
                 sx={{ background: "rgba(255,255,255,0.2)", color: "white" }}
               />
             </Box>

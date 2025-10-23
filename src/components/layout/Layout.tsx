@@ -145,7 +145,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Handshake sx={{ fontSize: 40 }} />
             <Box sx={{ textAlign: "center" }}>
               <Typography variant="h6" fontWeight={700}>
-                Parcer<span style={{ fontWeight: 800 }}>IA</span>
+                Parcer<span style={{ fontWeight: 900, color: "#fbbf24" }}>IA</span>
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.9 }}>
                 Gestão Inteligente de Acessos e Parcerias
