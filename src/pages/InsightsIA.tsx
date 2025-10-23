@@ -289,7 +289,7 @@ const InsightsIA: React.FC = () => {
               sx={{
                 p: 3,
                 borderRadius: "12px",
-                background: "white",
+                bgcolor: "background.paper",
                 color: "text.primary",
                 maxHeight: "70vh",
                 overflow: "auto",
