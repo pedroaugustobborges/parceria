@@ -257,11 +257,21 @@ const Dashboard: React.FC = () => {
       )
         return false;
 
-      // Filtros de data
-      if (filtroDataInicio && new Date(acesso.data_acesso) < filtroDataInicio)
-        return false;
-      if (filtroDataFim && new Date(acesso.data_acesso) > filtroDataFim)
-        return false;
+      // Filtros de data - normalizar para comparar apenas o dia (sem hora)
+      if (filtroDataInicio) {
+        const dataAcesso = new Date(acesso.data_acesso);
+        dataAcesso.setHours(0, 0, 0, 0);
+        const inicioNormalizado = new Date(filtroDataInicio);
+        inicioNormalizado.setHours(0, 0, 0, 0);
+        if (dataAcesso < inicioNormalizado) return false;
+      }
+      if (filtroDataFim) {
+        const dataAcesso = new Date(acesso.data_acesso);
+        dataAcesso.setHours(0, 0, 0, 0);
+        const fimNormalizado = new Date(filtroDataFim);
+        fimNormalizado.setHours(0, 0, 0, 0);
+        if (dataAcesso > fimNormalizado) return false;
+      }
 
       return true;
     });
@@ -441,12 +451,42 @@ const Dashboard: React.FC = () => {
     }
 
     // Filtrar produtividade por CODIGO_MV encontrado na tabela usuarios
-    const personProdHistory = produtividade
-      .filter((p) => p.codigo_mv === usuario.codigomv)
-      .sort((a, b) => {
-        if (!a.data || !b.data) return 0;
-        return new Date(b.data).getTime() - new Date(a.data).getTime();
+    let personProdHistory = produtividade
+      .filter((p) => p.codigo_mv === usuario.codigomv);
+
+    // Aplicar filtros de data se estiverem definidos
+    // Normalizar as datas para comparar apenas o dia (sem hora)
+    if (filtroDataInicio) {
+      const inicioNormalizado = new Date(filtroDataInicio);
+      inicioNormalizado.setHours(0, 0, 0, 0);
+
+      personProdHistory = personProdHistory.filter((p) => {
+        if (!p.data) return false;
+        // Parse ISO date string (YYYY-MM-DD) correctly
+        const [year, month, day] = p.data.split('T')[0].split('-').map(Number);
+        const dataProducao = new Date(year, month - 1, day);
+        return dataProducao >= inicioNormalizado;
       });
+    }
+
+    if (filtroDataFim) {
+      const fimNormalizado = new Date(filtroDataFim);
+      fimNormalizado.setHours(0, 0, 0, 0);
+
+      personProdHistory = personProdHistory.filter((p) => {
+        if (!p.data) return false;
+        // Parse ISO date string (YYYY-MM-DD) correctly
+        const [year, month, day] = p.data.split('T')[0].split('-').map(Number);
+        const dataProducao = new Date(year, month - 1, day);
+        return dataProducao <= fimNormalizado;
+      });
+    }
+
+    // Ordenar por data
+    personProdHistory = personProdHistory.sort((a, b) => {
+      if (!a.data || !b.data) return 0;
+      return new Date(b.data).getTime() - new Date(a.data).getTime();
+    });
 
     setPersonProdutividade(personProdHistory);
     setProdutividadeModalOpen(true);
@@ -491,14 +531,21 @@ const Dashboard: React.FC = () => {
         return false;
 
       // Filtros de data (usando a coluna 'data' da tabela produtividade)
-      if (
-        filtroDataInicio &&
-        item.data &&
-        new Date(item.data) < filtroDataInicio
-      )
-        return false;
-      if (filtroDataFim && item.data && new Date(item.data) > filtroDataFim)
-        return false;
+      // Parse ISO date string (YYYY-MM-DD) correctly to avoid timezone issues
+      if (filtroDataInicio && item.data) {
+        const [year, month, day] = item.data.split('T')[0].split('-').map(Number);
+        const dataProd = new Date(year, month - 1, day);
+        const inicioNormalizado = new Date(filtroDataInicio);
+        inicioNormalizado.setHours(0, 0, 0, 0);
+        if (dataProd < inicioNormalizado) return false;
+      }
+      if (filtroDataFim && item.data) {
+        const [year, month, day] = item.data.split('T')[0].split('-').map(Number);
+        const dataProd = new Date(year, month - 1, day);
+        const fimNormalizado = new Date(filtroDataFim);
+        fimNormalizado.setHours(0, 0, 0, 0);
+        if (dataProd > fimNormalizado) return false;
+      }
 
       return true;
     });
@@ -599,10 +646,21 @@ const Dashboard: React.FC = () => {
       if (filtroCpf.length > 0 && !filtroCpf.includes(acesso.cpf)) return false;
       if (filtroSentido.length > 0 && !filtroSentido.includes(acesso.sentido))
         return false;
-      if (filtroDataInicio && new Date(acesso.data_acesso) < filtroDataInicio)
-        return false;
-      if (filtroDataFim && new Date(acesso.data_acesso) > filtroDataFim)
-        return false;
+      // Filtros de data - normalizar para comparar apenas o dia (sem hora)
+      if (filtroDataInicio) {
+        const dataAcesso = new Date(acesso.data_acesso);
+        dataAcesso.setHours(0, 0, 0, 0);
+        const inicioNormalizado = new Date(filtroDataInicio);
+        inicioNormalizado.setHours(0, 0, 0, 0);
+        if (dataAcesso < inicioNormalizado) return false;
+      }
+      if (filtroDataFim) {
+        const dataAcesso = new Date(acesso.data_acesso);
+        dataAcesso.setHours(0, 0, 0, 0);
+        const fimNormalizado = new Date(filtroDataFim);
+        fimNormalizado.setHours(0, 0, 0, 0);
+        if (dataAcesso > fimNormalizado) return false;
+      }
       return true;
     });
 
