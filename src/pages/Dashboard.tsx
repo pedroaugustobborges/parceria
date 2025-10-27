@@ -54,7 +54,7 @@ import {
   Cell,
 } from "recharts";
 import { supabase } from "../lib/supabase";
-import { Acesso, HorasCalculadas, Contrato, Produtividade } from "../types/database.types";
+import { Acesso, HorasCalculadas, Contrato, Produtividade, Usuario } from "../types/database.types";
 import { useAuth } from "../contexts/AuthContext";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 
@@ -65,6 +65,7 @@ const Dashboard: React.FC = () => {
   const [horasCalculadas, setHorasCalculadas] = useState<HorasCalculadas[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [produtividade, setProdutividade] = useState<Produtividade[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -85,6 +86,11 @@ const Dashboard: React.FC = () => {
   );
   const [personAcessos, setPersonAcessos] = useState<Acesso[]>([]);
 
+  // Modal de produtividade
+  const [produtividadeModalOpen, setProdutividadeModalOpen] = useState(false);
+  const [selectedPersonProdutividade, setSelectedPersonProdutividade] = useState<HorasCalculadas | null>(null);
+  const [personProdutividade, setPersonProdutividade] = useState<Produtividade[]>([]);
+
   // Modal de aviso de contrato
   const [contratoWarningOpen, setContratoWarningOpen] = useState(false);
   const [pendingContrato, setPendingContrato] = useState<Contrato | null>(null);
@@ -93,6 +99,7 @@ const Dashboard: React.FC = () => {
     loadAcessos();
     loadContratos();
     loadProdutividade();
+    loadUsuarios();
   }, []);
 
   useEffect(() => {
@@ -137,6 +144,19 @@ const Dashboard: React.FC = () => {
       setProdutividade(data || []);
     } catch (err: any) {
       console.error("Erro ao carregar produtividade:", err);
+    }
+  };
+
+  const loadUsuarios = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("usuarios")
+        .select("cpf, codigomv");
+
+      if (fetchError) throw fetchError;
+      setUsuarios(data || []);
+    } catch (err: any) {
+      console.error("Erro ao carregar usuarios:", err);
     }
   };
 
@@ -405,6 +425,37 @@ const Dashboard: React.FC = () => {
     setModalOpen(false);
     setSelectedPerson(null);
     setPersonAcessos([]);
+  };
+
+  const handleOpenProdutividadeModal = (person: HorasCalculadas) => {
+    setSelectedPersonProdutividade(person);
+
+    // Encontrar o codigomv da pessoa através do CPF na tabela usuarios
+    const usuario = usuarios.find((u) => u.cpf === person.cpf);
+
+    if (!usuario || !usuario.codigomv) {
+      console.warn(`Nenhum codigomv encontrado para CPF ${person.cpf}`);
+      setPersonProdutividade([]);
+      setProdutividadeModalOpen(true);
+      return;
+    }
+
+    // Filtrar produtividade por CODIGO_MV encontrado na tabela usuarios
+    const personProdHistory = produtividade
+      .filter((p) => p.codigo_mv === usuario.codigomv)
+      .sort((a, b) => {
+        if (!a.data || !b.data) return 0;
+        return new Date(b.data).getTime() - new Date(a.data).getTime();
+      });
+
+    setPersonProdutividade(personProdHistory);
+    setProdutividadeModalOpen(true);
+  };
+
+  const handleCloseProdutividadeModal = () => {
+    setProdutividadeModalOpen(false);
+    setSelectedPersonProdutividade(null);
+    setPersonProdutividade([]);
   };
 
   const handleContratoChange = (_: any, newValue: Contrato | null) => {
@@ -691,6 +742,69 @@ const Dashboard: React.FC = () => {
     link.setAttribute(
       "download",
       `acessos_${selectedPerson.nome.replace(/\s+/g, "_")}_${format(
+        new Date(),
+        "yyyyMMdd_HHmmss"
+      )}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportProdutividadeCSV = () => {
+    if (!selectedPersonProdutividade || personProdutividade.length === 0) return;
+
+    // Prepare CSV header
+    const headers = [
+      "Data",
+      "Código MV",
+      "Nome",
+      "Especialidade",
+      "Vínculo",
+      "Procedimentos",
+      "Pareceres Solicitados",
+      "Pareceres Realizados",
+      "Cirurgias Realizadas",
+      "Prescrições",
+      "Evoluções",
+      "Urgências",
+      "Ambulatórios",
+    ];
+
+    // Prepare CSV rows
+    const rows = personProdutividade.map((prod) => [
+      prod.data ? format(parseISO(prod.data), "dd/MM/yyyy", { locale: ptBR }) : "",
+      prod.codigo_mv,
+      prod.nome,
+      prod.especialidade || "",
+      prod.vinculo || "",
+      prod.procedimento,
+      prod.parecer_solicitado,
+      prod.parecer_realizado,
+      prod.cirurgia_realizada,
+      prod.prescricao,
+      prod.evolucao,
+      prod.urgencia,
+      prod.ambulatorio,
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    // Create blob and download
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `produtividade_${selectedPersonProdutividade.matricula}_${format(
         new Date(),
         "yyyyMMdd_HHmmss"
       )}.csv`
@@ -1556,11 +1670,327 @@ const Dashboard: React.FC = () => {
           <Divider />
 
           <DialogActions sx={{ px: 3, py: 2 }}>
+            <Box sx={{ flexGrow: 1 }}>
+              <Button
+                onClick={() => {
+                  if (selectedPerson) {
+                    handleCloseModal();
+                    handleOpenProdutividadeModal(selectedPerson);
+                  }
+                }}
+                variant="outlined"
+                color="secondary"
+                startIcon={<TrendingUp />}
+              >
+                Ver Produtividade
+              </Button>
+            </Box>
             <Button onClick={handleCloseModal} variant="outlined">
               Fechar
             </Button>
             <Button
               onClick={handleExportCSV}
+              variant="contained"
+              startIcon={<Download />}
+              sx={{ ml: 1 }}
+            >
+              Exportar CSV
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Modal de Histórico de Produtividade */}
+        <Dialog
+          open={produtividadeModalOpen}
+          onClose={handleCloseProdutividadeModal}
+          maxWidth="xl"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 2,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+            },
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Box>
+                <Typography variant="h5" fontWeight={700}>
+                  Histórico de Produtividade
+                </Typography>
+                {selectedPersonProdutividade && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    {selectedPersonProdutividade.nome}
+                  </Typography>
+                )}
+              </Box>
+              <IconButton onClick={handleCloseProdutividadeModal} size="small">
+                <Close />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+
+          <Divider />
+
+          <DialogContent sx={{ pt: 3 }}>
+            {selectedPersonProdutividade && (
+              <>
+                {/* Informações do Colaborador */}
+                <Grid container spacing={3} sx={{ mb: 3 }}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card
+                      sx={{
+                        bgcolor: "primary.50",
+                        border: "1px solid",
+                        borderColor: "primary.200",
+                      }}
+                    >
+                      <CardContent sx={{ py: 2 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          gutterBottom
+                        >
+                          CPF
+                        </Typography>
+                        <Typography variant="h6" fontWeight={600}>
+                          {selectedPersonProdutividade.cpf}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card
+                      sx={{
+                        bgcolor: "success.50",
+                        border: "1px solid",
+                        borderColor: "success.200",
+                      }}
+                    >
+                      <CardContent sx={{ py: 2 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          gutterBottom
+                        >
+                          Matrícula
+                        </Typography>
+                        <Typography variant="h6" fontWeight={600}>
+                          {selectedPersonProdutividade.matricula}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card
+                      sx={{
+                        bgcolor: "warning.50",
+                        border: "1px solid",
+                        borderColor: "warning.200",
+                      }}
+                    >
+                      <CardContent sx={{ py: 2 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          gutterBottom
+                        >
+                          Tipo
+                        </Typography>
+                        <Typography variant="h6" fontWeight={600}>
+                          {selectedPersonProdutividade.tipo}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card
+                      sx={{
+                        bgcolor: "info.50",
+                        border: "1px solid",
+                        borderColor: "info.200",
+                      }}
+                    >
+                      <CardContent sx={{ py: 2 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          gutterBottom
+                        >
+                          Registros
+                        </Typography>
+                        <Typography variant="h6" fontWeight={600}>
+                          {personProdutividade.length}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {/* Tabela de Produtividade */}
+                <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                  Registros de Produtividade ({personProdutividade.length})
+                </Typography>
+
+                <TableContainer
+                  component={Paper}
+                  sx={{
+                    maxHeight: 500,
+                    boxShadow: "none",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 2,
+                  }}
+                >
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
+                          Data
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
+                          Código MV
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
+                          Especialidade
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                          Proced.
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                          Pareceres Sol.
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                          Pareceres Real.
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                          Cirurgias
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                          Prescrições
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                          Evoluções
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                          Urgências
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                          Ambulatórios
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {personProdutividade.map((prod, index) => (
+                        <TableRow
+                          key={index}
+                          sx={{
+                            "&:hover": { bgcolor: "action.hover" },
+                            "&:last-child td": { border: 0 },
+                          }}
+                        >
+                          <TableCell>
+                            <Typography variant="body2">
+                              {prod.data ? format(parseISO(prod.data), "dd/MM/yyyy", {
+                                locale: ptBR,
+                              }) : "-"}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={prod.codigo_mv}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {prod.especialidade || "-"}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "center" }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {prod.procedimento}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "center" }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {prod.parecer_solicitado}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "center" }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {prod.parecer_realizado}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "center" }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {prod.cirurgia_realizada}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "center" }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {prod.prescricao}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "center" }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {prod.evolucao}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "center" }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {prod.urgencia}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "center" }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {prod.ambulatorio}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            )}
+          </DialogContent>
+
+          <Divider />
+
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Box sx={{ flexGrow: 1 }}>
+              <Button
+                onClick={() => {
+                  if (selectedPersonProdutividade) {
+                    handleCloseProdutividadeModal();
+                    handleOpenModal(selectedPersonProdutividade);
+                  }
+                }}
+                variant="outlined"
+                color="secondary"
+                startIcon={<AccessTime />}
+              >
+                Ver Acessos
+              </Button>
+            </Box>
+            <Button onClick={handleCloseProdutividadeModal} variant="outlined">
+              Fechar
+            </Button>
+            <Button
+              onClick={handleExportProdutividadeCSV}
               variant="contained"
               startIcon={<Download />}
               sx={{ ml: 1 }}

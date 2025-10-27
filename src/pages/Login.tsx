@@ -444,7 +444,7 @@ const Login: React.FC = () => {
 
                 <Box sx={{ textAlign: "center" }}>
                   <Typography variant="caption" color="text.secondary">
-                    © 2024-2025 Todos os direitos reservados
+                    © 2025 Todos os direitos reservados
                   </Typography>
                 </Box>
               </CardContent>
