@@ -43,6 +43,8 @@ export interface Database {
           cpf: string;
           data_acesso: string;
           sentido: 'E' | 'S'; // E = Entrada, S = Saída
+          planta: string | null;
+          codin: string | null;
           created_at: string;
         };
         Insert: Omit<Database['public']['Tables']['acessos']['Row'], 'id' | 'created_at'>;
@@ -98,6 +100,8 @@ export interface Acesso {
   cpf: string;
   data_acesso: string;
   sentido: 'E' | 'S';
+  planta: string | null;
+  codin: string | null;
   created_at: string;
 }
 

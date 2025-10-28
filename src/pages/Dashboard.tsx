@@ -95,6 +95,14 @@ const Dashboard: React.FC = () => {
   const [contratoWarningOpen, setContratoWarningOpen] = useState(false);
   const [pendingContrato, setPendingContrato] = useState<Contrato | null>(null);
 
+  // Modal de inconsistências
+  const [inconsistenciaModalOpen, setInconsistenciaModalOpen] = useState(false);
+  const [inconsistenciaSelecionada, setInconsistenciaSelecionada] = useState<{
+    nome: string;
+    tipo: 'prodSemAcesso' | 'acessoSemProd';
+    datas: string[];
+  } | null>(null);
+
   useEffect(() => {
     loadAcessos();
     loadContratos();
@@ -630,6 +638,142 @@ const Dashboard: React.FC = () => {
     return data;
   }, [produtividade, filtroNome, filtroDataInicio, filtroDataFim]);
 
+  // Calcular inconsistências entre produtividade e acessos
+  const inconsistencias = useMemo(() => {
+    // Mapear os usuarios para ter relação cpf <-> codigomv
+    const cpfToCodigoMV = new Map<string, string>();
+    const codigoMVToCPF = new Map<string, string>();
+    usuarios.forEach((u) => {
+      if (u.cpf && u.codigomv) {
+        cpfToCodigoMV.set(u.cpf, u.codigomv);
+        codigoMVToCPF.set(u.codigomv, u.cpf);
+      }
+    });
+
+    // Aplicar filtros de data para normalização
+    const dataInicioNormalizada = filtroDataInicio ? new Date(filtroDataInicio) : null;
+    if (dataInicioNormalizada) dataInicioNormalizada.setHours(0, 0, 0, 0);
+
+    const dataFimNormalizada = filtroDataFim ? new Date(filtroDataFim) : null;
+    if (dataFimNormalizada) dataFimNormalizada.setHours(0, 0, 0, 0);
+
+    // Agrupar acessos por pessoa e data (com filtros aplicados)
+    const acessosPorPessoaData = new Map<string, Set<string>>();
+    acessos.forEach((acesso) => {
+      // Aplicar filtros de nome
+      if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome)) return;
+
+      // Aplicar filtros de data
+      const dataAcesso = new Date(acesso.data_acesso);
+      dataAcesso.setHours(0, 0, 0, 0);
+
+      if (dataInicioNormalizada && dataAcesso < dataInicioNormalizada) return;
+      if (dataFimNormalizada && dataAcesso > dataFimNormalizada) return;
+
+      const [year, month, day] = acesso.data_acesso.split('T')[0].split('-');
+      const dataStr = `${year}-${month}-${day}`;
+      const key = `${acesso.cpf}`;
+      if (!acessosPorPessoaData.has(key)) {
+        acessosPorPessoaData.set(key, new Set());
+      }
+      acessosPorPessoaData.get(key)!.add(dataStr);
+    });
+
+    // Agrupar produtividade por pessoa e data (com filtros aplicados)
+    // IMPORTANTE: Só considera como produtividade válida se a soma das atividades for > 0
+    const produtividadePorPessoaData = new Map<string, Set<string>>();
+    produtividade.forEach((prod) => {
+      if (!prod.data) return;
+      const cpf = codigoMVToCPF.get(prod.codigo_mv);
+      if (!cpf) return;
+
+      // Calcular soma de todas as atividades de produtividade
+      const somaProdutividade =
+        prod.procedimento +
+        prod.parecer_solicitado +
+        prod.parecer_realizado +
+        prod.cirurgia_realizada +
+        prod.prescricao +
+        prod.evolucao +
+        prod.urgencia +
+        prod.ambulatorio +
+        prod.auxiliar +
+        prod.encaminhamento +
+        prod.folha_objetivo_diario +
+        prod.evolucao_diurna_cti +
+        prod.evolucao_noturna_cti;
+
+      // Se a soma for 0, não é considerado produtividade válida
+      if (somaProdutividade === 0) return;
+
+      // Aplicar filtros de nome
+      if (filtroNome.length > 0 && !filtroNome.includes(prod.nome)) return;
+
+      // Aplicar filtros de data
+      const [year, month, day] = prod.data.split('T')[0].split('-').map(Number);
+      const dataProd = new Date(year, month - 1, day);
+
+      if (dataInicioNormalizada && dataProd < dataInicioNormalizada) return;
+      if (dataFimNormalizada && dataProd > dataFimNormalizada) return;
+
+      const dataStr = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+      const key = `${cpf}`;
+      if (!produtividadePorPessoaData.has(key)) {
+        produtividadePorPessoaData.set(key, new Set());
+      }
+      produtividadePorPessoaData.get(key)!.add(dataStr);
+    });
+
+    // Encontrar produtividade sem acesso
+    const prodSemAcesso = new Map<string, string[]>();
+    produtividadePorPessoaData.forEach((datas, cpf) => {
+      const datasAcesso = acessosPorPessoaData.get(cpf) || new Set();
+      const datasSemAcesso: string[] = [];
+      datas.forEach((data) => {
+        if (!datasAcesso.has(data)) {
+          datasSemAcesso.push(data);
+        }
+      });
+      if (datasSemAcesso.length > 0) {
+        // Encontrar o nome da pessoa
+        const acesso = acessos.find((a) => a.cpf === cpf);
+        const nome = acesso?.nome || cpf;
+        prodSemAcesso.set(nome, datasSemAcesso);
+      }
+    });
+
+    // Encontrar acesso sem produtividade
+    const acessoSemProd = new Map<string, string[]>();
+    acessosPorPessoaData.forEach((datas, cpf) => {
+      const datasProd = produtividadePorPessoaData.get(cpf) || new Set();
+      const datasSemProd: string[] = [];
+      datas.forEach((data) => {
+        if (!datasProd.has(data)) {
+          datasSemProd.push(data);
+        }
+      });
+      if (datasSemProd.length > 0) {
+        const acesso = acessos.find((a) => a.cpf === cpf);
+        const nome = acesso?.nome || cpf;
+        acessoSemProd.set(nome, datasSemProd);
+      }
+    });
+
+    // Converter para arrays ordenados
+    const prodSemAcessoArray = Array.from(prodSemAcesso.entries())
+      .map(([nome, datas]) => ({ nome, count: datas.length, datas }))
+      .sort((a, b) => b.count - a.count);
+
+    const acessoSemProdArray = Array.from(acessoSemProd.entries())
+      .map(([nome, datas]) => ({ nome, count: datas.length, datas }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      prodSemAcesso: prodSemAcessoArray,
+      acessoSemProd: acessoSemProdArray,
+    };
+  }, [acessos, produtividade, usuarios, filtroNome, filtroDataInicio, filtroDataFim]);
+
   // Calcular dados do heatmap baseado nos acessos filtrados
   const heatmapData = useMemo(() => {
     // Filtrar acessos
@@ -863,6 +1007,60 @@ const Dashboard: React.FC = () => {
     link.setAttribute(
       "download",
       `produtividade_${selectedPersonProdutividade.matricula}_${format(
+        new Date(),
+        "yyyyMMdd_HHmmss"
+      )}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleOpenInconsistenciaModal = (
+    nome: string,
+    tipo: 'prodSemAcesso' | 'acessoSemProd',
+    datas: string[]
+  ) => {
+    setInconsistenciaSelecionada({ nome, tipo, datas });
+    setInconsistenciaModalOpen(true);
+  };
+
+  const handleCloseInconsistenciaModal = () => {
+    setInconsistenciaModalOpen(false);
+    setInconsistenciaSelecionada(null);
+  };
+
+  const handleExportInconsistenciaCSV = () => {
+    if (!inconsistenciaSelecionada) return;
+
+    const { nome, tipo, datas } = inconsistenciaSelecionada;
+    const tipoTexto = tipo === 'prodSemAcesso'
+      ? 'Produtividade sem Acesso'
+      : 'Acesso sem Produtividade';
+
+    // Prepare CSV
+    const headers = ["Data", "Nome", "Tipo de Inconsistência"];
+    const rows = datas.map((data) => [
+      format(parseISO(data), "dd/MM/yyyy", { locale: ptBR }),
+      nome,
+      tipoTexto,
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `inconsistencia_${nome.replace(/\s+/g, '_')}_${format(
         new Date(),
         "yyyyMMdd_HHmmss"
       )}.csv`
@@ -1443,6 +1641,309 @@ const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Seções de Inconsistências */}
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {/* Produtividade sem Acesso */}
+          <Grid item xs={12} md={6}>
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%)",
+                borderRadius: 3,
+                boxShadow: "0 4px 12px rgba(251, 191, 36, 0.2)",
+                height: "100%",
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "12px",
+                      bgcolor: "warning.main",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Warning sx={{ color: "white", fontSize: 28 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700} color="warning.dark">
+                      Produtividade sem Acesso
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Registros de produção sem entrada/saída
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {(filtroNome.length > 0 || filtroDataInicio || filtroDataFim) && (
+                  <Box sx={{ mb: 2 }}>
+                    <Chip
+                      icon={<FilterList />}
+                      label="Filtros ativos"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(251, 191, 36, 0.2)",
+                        color: "warning.dark",
+                        fontWeight: 600,
+                      }}
+                    />
+                  </Box>
+                )}
+
+                <Divider sx={{ mb: 2 }} />
+
+                {inconsistencias.prodSemAcesso.length === 0 ? (
+                  <Box
+                    sx={{
+                      textAlign: "center",
+                      py: 4,
+                      opacity: 0.6,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      ✓ Nenhuma inconsistência encontrada
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+                    {inconsistencias.prodSemAcesso.slice(0, 10).map((item, index) => (
+                      <Paper
+                        key={index}
+                        sx={{
+                          p: 2,
+                          mb: 1.5,
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          "&:hover": {
+                            transform: "translateX(4px)",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            bgcolor: "warning.50",
+                          },
+                        }}
+                        onClick={() =>
+                          handleOpenInconsistenciaModal(
+                            item.nome,
+                            "prodSemAcesso",
+                            item.datas
+                          )
+                        }
+                      >
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="center"
+                        >
+                          <Box display="flex" alignItems="center" gap={1.5}>
+                            <Box
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: "8px",
+                                bgcolor: "warning.main",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: 700,
+                                fontSize: 14,
+                              }}
+                            >
+                              {index + 1}
+                            </Box>
+                            <Typography
+                              variant="body2"
+                              fontWeight={600}
+                              sx={{
+                                maxWidth: 200,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {item.nome}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            label={`${item.count} ${item.count === 1 ? "dia" : "dias"}`}
+                            size="small"
+                            sx={{
+                              bgcolor: "warning.main",
+                              color: "white",
+                              fontWeight: 600,
+                            }}
+                          />
+                        </Box>
+                      </Paper>
+                    ))}
+                    {inconsistencias.prodSemAcesso.length > 10 && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", textAlign: "center", mt: 2 }}
+                      >
+                        +{inconsistencias.prodSemAcesso.length - 10} profissionais
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Acesso sem Produtividade */}
+          <Grid item xs={12} md={6}>
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%)",
+                borderRadius: 3,
+                boxShadow: "0 4px 12px rgba(59, 130, 246, 0.2)",
+                height: "100%",
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "12px",
+                      bgcolor: "info.main",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <AccessTime sx={{ color: "white", fontSize: 28 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700} color="info.dark">
+                      Acesso sem Produtividade
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Entrada/saída sem registro de produção
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {(filtroNome.length > 0 || filtroDataInicio || filtroDataFim) && (
+                  <Box sx={{ mb: 2 }}>
+                    <Chip
+                      icon={<FilterList />}
+                      label="Filtros ativos"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(59, 130, 246, 0.2)",
+                        color: "info.dark",
+                        fontWeight: 600,
+                      }}
+                    />
+                  </Box>
+                )}
+
+                <Divider sx={{ mb: 2 }} />
+
+                {inconsistencias.acessoSemProd.length === 0 ? (
+                  <Box
+                    sx={{
+                      textAlign: "center",
+                      py: 4,
+                      opacity: 0.6,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      ✓ Nenhuma inconsistência encontrada
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+                    {inconsistencias.acessoSemProd.slice(0, 10).map((item, index) => (
+                      <Paper
+                        key={index}
+                        sx={{
+                          p: 2,
+                          mb: 1.5,
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          "&:hover": {
+                            transform: "translateX(4px)",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            bgcolor: "info.50",
+                          },
+                        }}
+                        onClick={() =>
+                          handleOpenInconsistenciaModal(
+                            item.nome,
+                            "acessoSemProd",
+                            item.datas
+                          )
+                        }
+                      >
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="center"
+                        >
+                          <Box display="flex" alignItems="center" gap={1.5}>
+                            <Box
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: "8px",
+                                bgcolor: "info.main",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: 700,
+                                fontSize: 14,
+                              }}
+                            >
+                              {index + 1}
+                            </Box>
+                            <Typography
+                              variant="body2"
+                              fontWeight={600}
+                              sx={{
+                                maxWidth: 200,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {item.nome}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            label={`${item.count} ${item.count === 1 ? "dia" : "dias"}`}
+                            size="small"
+                            sx={{
+                              bgcolor: "info.main",
+                              color: "white",
+                              fontWeight: 600,
+                            }}
+                          />
+                        </Box>
+                      </Paper>
+                    ))}
+                    {inconsistencias.acessoSemProd.length > 10 && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", textAlign: "center", mt: 2 }}
+                      >
+                        +{inconsistencias.acessoSemProd.length - 10} profissionais
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
         {/* Tabela */}
         <Card>
@@ -2049,6 +2550,217 @@ const Dashboard: React.FC = () => {
             </Button>
             <Button
               onClick={handleExportProdutividadeCSV}
+              variant="contained"
+              startIcon={<Download />}
+              sx={{ ml: 1 }}
+            >
+              Exportar CSV
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Modal de Detalhes de Inconsistência */}
+        <Dialog
+          open={inconsistenciaModalOpen}
+          onClose={handleCloseInconsistenciaModal}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+            },
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Box>
+                <Typography variant="h5" fontWeight={700}>
+                  {inconsistenciaSelecionada?.tipo === "prodSemAcesso"
+                    ? "Produtividade sem Acesso"
+                    : "Acesso sem Produtividade"}
+                </Typography>
+                {inconsistenciaSelecionada && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    {inconsistenciaSelecionada.nome}
+                  </Typography>
+                )}
+              </Box>
+              <IconButton onClick={handleCloseInconsistenciaModal} size="small">
+                <Close />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+
+          <Divider />
+
+          <DialogContent sx={{ pt: 3 }}>
+            {inconsistenciaSelecionada && (
+              <>
+                <Box
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor:
+                      inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                        ? "warning.50"
+                        : "info.50",
+                    border: "1px solid",
+                    borderColor:
+                      inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                        ? "warning.200"
+                        : "info.200",
+                  }}
+                >
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <Box
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: "12px",
+                        bgcolor:
+                          inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                            ? "warning.main"
+                            : "info.main",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {inconsistenciaSelecionada.tipo === "prodSemAcesso" ? (
+                        <Warning sx={{ color: "white", fontSize: 28 }} />
+                      ) : (
+                        <AccessTime sx={{ color: "white", fontSize: 28 }} />
+                      )}
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" fontWeight={600}>
+                        {inconsistenciaSelecionada.datas.length}{" "}
+                        {inconsistenciaSelecionada.datas.length === 1
+                          ? "dia"
+                          : "dias"}{" "}
+                        com inconsistência
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                          ? "Houve registro de produtividade médica mas não há registro de entrada/saída no sistema de acessos nestes dias"
+                          : "Houve registro de entrada/saída no sistema mas não há registro de produtividade médica nestes dias"}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                  Datas com Inconsistência
+                </Typography>
+
+                <TableContainer
+                  component={Paper}
+                  sx={{
+                    maxHeight: 400,
+                    boxShadow: "none",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 2,
+                  }}
+                >
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
+                          #
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
+                          Data
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
+                          Tipo de Inconsistência
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {inconsistenciaSelecionada.datas
+                        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+                        .map((data, index) => (
+                          <TableRow
+                            key={index}
+                            sx={{
+                              "&:hover": { bgcolor: "action.hover" },
+                              "&:last-child td": { border: 0 },
+                            }}
+                          >
+                            <TableCell>
+                              <Box
+                                sx={{
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: "6px",
+                                  bgcolor:
+                                    inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                                      ? "warning.main"
+                                      : "info.main",
+                                  color: "white",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: 700,
+                                  fontSize: 12,
+                                }}
+                              >
+                                {index + 1}
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={600}>
+                                {format(parseISO(data), "dd/MM/yyyy - EEEE", {
+                                  locale: ptBR,
+                                })}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={
+                                  inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                                    ? "Produção sem Acesso"
+                                    : "Acesso sem Produção"
+                                }
+                                size="small"
+                                color={
+                                  inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                                    ? "warning"
+                                    : "info"
+                                }
+                                sx={{ fontWeight: 600 }}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            )}
+          </DialogContent>
+
+          <Divider />
+
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={handleCloseInconsistenciaModal} variant="outlined">
+              Fechar
+            </Button>
+            <Button
+              onClick={handleExportInconsistenciaCSV}
               variant="contained"
               startIcon={<Download />}
               sx={{ ml: 1 }}

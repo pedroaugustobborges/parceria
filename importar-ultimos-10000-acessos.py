@@ -1,5 +1,6 @@
 """
-Script para importar os últimos registros de acesso do Data Warehouse para o Supabase.
+Script para importar os últimos 500 registros de acesso do tipo 'Terceiro' POR CPF do Data Warehouse para o Supabase.
+Inclui os campos planta e codin.
 Evita duplicações verificando se o registro já existe antes de inserir.
 """
 
@@ -73,14 +74,14 @@ def buscar_cpfs_usuarios(supabase: Client):
         print(f"❌ Erro ao buscar CPFs dos usuários: {e}")
         raise
 
-def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=50):
+def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=500):
     """
-    Extrai os últimos N acessos do banco de dados para cada CPF presente na tabela usuarios.
+    Extrai os últimos N acessos do tipo 'Terceiro' para cada CPF da tabela usuarios.
 
     Args:
         conn: Conexão com o Data Warehouse
         cpfs_usuarios: Lista de CPFs da tabela usuarios
-        limite_por_cpf: Número máximo de registros por CPF (padrão: 50)
+        limite_por_cpf: Número máximo de registros por CPF (padrão: 500)
     """
     try:
         if not cpfs_usuarios:
@@ -91,10 +92,11 @@ def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=50):
         todos_resultados = []
         total_cpfs = len(cpfs_usuarios)
 
-        print(f"\n📊 Executando query para buscar os últimos {limite_por_cpf} registros para cada um dos {total_cpfs} CPFs...")
+        print(f"\n📊 Executando query para buscar os últimos {limite_por_cpf} registros do tipo 'Terceiro' para cada um dos {total_cpfs} CPFs...")
 
         for i, cpf in enumerate(cpfs_usuarios, 1):
             try:
+                # Query filtrada por tipo='Terceiro' e incluindo planta e codin
                 query = """
                 SELECT
                     tipo, matricula, nome, cpf, data_acesso, sentido, pis,
@@ -102,6 +104,7 @@ def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=50):
                     tipo_acesso, descr_acesso, modelo, cod_planta, cod_codin
                 FROM suricato.acesso_colaborador
                 WHERE cpf = %s
+                  AND tipo = 'Terceiro'
                 ORDER BY data_acesso DESC
                 LIMIT %s
                 """
@@ -172,7 +175,9 @@ def inserir_em_supabase(supabase: Client, dados):
                     'nome': registro.get('nome', ''),
                     'cpf': registro.get('cpf', ''),
                     'data_acesso': registro.get('data_acesso').isoformat() if hasattr(registro.get('data_acesso'), 'isoformat') else str(registro.get('data_acesso')),
-                    'sentido': registro.get('sentido', '')
+                    'sentido': registro.get('sentido', ''),
+                    'planta': registro.get('planta'),
+                    'codin': registro.get('codin')
                 }
 
                 # Verifica se já existe
@@ -210,7 +215,7 @@ def main():
     """Função principal do script."""
     print("=" * 70)
     print("IMPORTAÇÃO DE ACESSOS DO DATA WAREHOUSE PARA SUPABASE")
-    print("(Apenas para CPFs cadastrados na tabela usuarios)")
+    print("(Últimos 500 registros tipo 'Terceiro' POR CPF com planta e codin)")
     print(f"Horário: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 70)
 
@@ -230,15 +235,15 @@ def main():
         conn = conectar_data_warehouse()
 
         # Define o limite de registros por CPF
-        limite_por_cpf = 50
+        limite_por_cpf = 500
         if len(sys.argv) > 1:
             try:
                 limite_por_cpf = int(sys.argv[1])
                 print(f"\n⚙️ Limite por CPF definido via argumento: {limite_por_cpf}")
             except ValueError:
-                print(f"⚠️ Argumento '{sys.argv[1]}' inválido. Usando o padrão de 50 registros por CPF.")
+                print(f"⚠️ Argumento '{sys.argv[1]}' inválido. Usando o padrão de 500 registros por CPF.")
 
-        print(f"\n📥 Extraindo os últimos {limite_por_cpf} registros para cada CPF do Data Warehouse...")
+        print(f"\n📥 Extraindo os últimos {limite_por_cpf} registros do tipo 'Terceiro' para cada CPF do Data Warehouse...")
         dados_extraidos = extrair_acessos(conn, cpfs_usuarios, limite_por_cpf)
 
         if dados_extraidos:

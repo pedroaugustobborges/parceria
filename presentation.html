@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParcerIA - Apresentação para Diretoria</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css">
+    <style>
+        /* Custom Theme for Board Presentation */
+        :root {
+            --primary-color: #0ea5e9;
+            --secondary-color: #8b5cf6;
+            --accent-color: #10b981;
+            --dark-bg: #0f172a;
+            --light-text: #f8fafc;
+        }
+
+        .reveal {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #1e293b 100%);
+        }
+
+        .reveal h1,
+        .reveal h2,
+        .reveal h3,
+        .reveal h4,
+        .reveal h5,
+        .reveal h6 {
+            text-transform: none;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .reveal h1 {
+            font-size: 3.5rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5em;
+        }
+
+        .reveal h2 {
+            font-size: 2.8rem;
+            color: var(--light-text);
+            margin-bottom: 1em;
+        }
+
+        .reveal h3 {
+            font-size: 2rem;
+            color: var(--primary-color);
+        }
+
+        .reveal p {
+            font-size: 1.4rem;
+            line-height: 1.8;
+            color: #cbd5e1;
+        }
+
+        .reveal li {
+            font-size: 1.3rem;
+            line-height: 1.8;
+            margin-bottom: 0.8em;
+            color: #cbd5e1;
+        }
+
+        /* Slide Backgrounds */
+        .reveal .slides > section {
+            padding: 60px;
+            text-align: left;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+
+        .reveal .slides > section > section {
+            padding: 40px;
+        }
+
+        /* Title Slide */
+        .title-slide {
+            background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%) !important;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0;
+        }
+
+        .title-slide h1 {
+            font-size: 4rem;
+            color: white;
+            -webkit-text-fill-color: white;
+            margin-bottom: 0.3em;
+        }
+
+        .title-slide .subtitle {
+            font-size: 1.8rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 2em;
+        }
+
+        .title-slide .presenter {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 3em;
+        }
+
+        /* Content Slides */
+        .content-slide {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .content-slide h2 {
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 0.5em;
+            margin-bottom: 1em;
+        }
+
+        /* Metric Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2em;
+            margin-top: 1.5em;
+        }
+
+        .metric-card {
+            background: rgba(14, 165, 233, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 1.5em;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .metric-card.accent {
+            background: rgba(139, 92, 246, 0.1);
+            border-left-color: var(--secondary-color);
+        }
+
+        .metric-card.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-left-color: var(--accent-color);
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.3em;
+        }
+
+        .metric-label {
+            font-size: 1.1rem;
+            color: #cbd5e1;
+        }
+
+        /* Feature List */
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding-left: 2.5em;
+            position: relative;
+            margin-bottom: 1.2em;
+        }
+
+        .feature-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--accent-color);
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 2em;
+        }
+
+        .timeline-item {
+            margin-bottom: 1.5em;
+            padding-bottom: 1.5em;
+            border-left: 2px solid var(--primary-color);
+            padding-left: 2em;
+            position: relative;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary-color);
+        }
+
+        .timeline-item h4 {
+            color: var(--primary-color);
+            font-size: 1.3rem;
+            margin-bottom: 0.5em;
+        }
+
+        .timeline-item p {
+            font-size: 1.1rem;
+            color: #cbd5e1;
+        }
+
+        /* Dashboard Image */
+        .dashboard-container {
+            margin: 2em 0;
+            text-align: center;
+        }
+
+        .dashboard-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(14, 165, 233, 0.3);
+            max-height: 500px;
+        }
+
+        /* KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.5em;
+            margin-top: 1.5em;
+        }
+
+        .kpi-box {
+            background: rgba(14, 165, 233, 0.15);
+            padding: 1.5em;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid rgba(14, 165, 233, 0.3);
+        }
+
+        .kpi-box.secondary {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        .kpi-box.success {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .kpi-number {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.5em;
+        }
+
+        .kpi-box.secondary .kpi-number {
+            color: var(--secondary-color);
+        }
+
+        .kpi-box.success .kpi-number {
+            color: var(--accent-color);
+        }
+
+        .kpi-text {
+            font-size: 1rem;
+            color: #cbd5e1;
+        }
+
+        /* Roadmap */
+        .roadmap-item {
+            background: rgba(14, 165, 233, 0.1);
+            padding: 1.2em;
+            margin-bottom: 1em;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .roadmap-item h4 {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            margin-bottom: 0.5em;
+        }
+
+        .roadmap-item p {
+            font-size: 1rem;
+            color: #cbd5e1;
+            margin: 0;
+        }
+
+        /* Closing Slide */
+        .closing-slide {
+            background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%) !important;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0;
+        }
+
+        .closing-slide h2 {
+            font-size: 3rem;
+            color: white;
+            border: none;
+            padding-bottom: 0;
+            margin-bottom: 1em;
+        }
+
+        .closing-slide p {
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 2em;
+        }
+
+        .closing-slide .footer-text {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 3em;
+        }
+
+        /* Navigation */
+        .reveal .controls {
+            color: var(--primary-color);
+        }
+
+        .reveal .progress {
+            background: rgba(14, 165, 233, 0.3);
+        }
+
+        .reveal .progress span {
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .reveal h1 {
+                font-size: 2.5rem;
+            }
+
+            .reveal h2 {
+                font-size: 2rem;
+            }
+
+            .reveal p,
+            .reveal li {
+                font-size: 1.1rem;
+            }
+
+            .metrics-grid,
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .reveal .slides > section {
+                padding: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Slide 1: Título -->
+            <section class="title-slide">
+                <h1>ParcerIA</h1>
+                <p class="subtitle">Transformando a Gestão de Contratos Médicos</p>
+                <p class="subtitle" style="font-size: 1.4rem; margin-top: 2em; opacity: 0.9;">Uma Proposta de Valor para a Diretoria</p>
+                <p class="presenter">Outubro de 2025</p>
+            </section>
+
+            <!-- Slide 2: O Desafio -->
+            <section class="content-slide">
+                <h2>O Desafio Atual</h2>
+                <p style="margin-top: 1.5em; font-size: 1.5rem; color: #f87171;">Risco Operacional e Ineficiência</p>
+                <ul class="feature-list" style="margin-top: 1.5em;">
+                    <li><strong>Cálculo Manual:</strong> Horas trabalhadas calculadas manualmente, propenso a erros</li>
+                    <li><strong>Dados Descentralizados:</strong> Planilhas espalhadas, sem consolidação única</li>
+                    <li><strong>Falta de Visibilidade:</strong> Impossível rastrear custos em tempo real</li>
+                    <li><strong>Fechamento Lento:</strong> Processo mensal demorado e custoso</li>
+                </ul>
+            </section>
+
+            <!-- Slide 3: A Solução -->
+            <section class="content-slide">
+                <h2>ParcerIA: A Solução</h2>
+                <p style="margin-top: 1.5em; font-size: 1.5rem; color: #86efac;">Gestão Inteligente e Automatizada</p>
+                <ul class="feature-list" style="margin-top: 1.5em;">
+                    <li><strong>Automação Total:</strong> Cálculo automático 24/7 com 99.9% de acurácia</li>
+                    <li><strong>Inteligência Artificial:</strong> Análises preditivas e insights automáticos</li>
+                    <li><strong>Centralização:</strong> Dashboard unificado, auditável e integrado ao reconhecimento facial</li>
+                    <li><strong>Segurança:</strong> Dados criptografados com auditoria completa</li>
+                </ul>
+            </section>
+
+            <!-- Slide 4: Dashboard -->
+            <section class="content-slide">
+                <h2>Visibilidade em Tempo Real</h2>
+                <p style="color: #cbd5e1; margin-bottom: 1em;">Interface do Dashboard - Controle Total de Acessos e Horas</p>
+                <div class="dashboard-container">
+                    <img src="dashboard.png" alt="Dashboard ParcerIA">
+                </div>
+                <p style="font-size: 1.1rem; color: #94a3b8; margin-top: 1em; text-align: center;">
+                    3 Cards de Estatísticas • Heatmap de Horários • Análise de Produtividade • DataGrid Avançada
+                </p>
+            </section>
+
+            <!-- Slide 5: Impacto Quantificável -->
+            <section class="content-slide">
+                <h2>Retorno do Investimento (ROI)</h2>
+                <div class="metrics-grid" style="margin-top: 2em;">
+                    <div class="metric-card">
+                        <div class="metric-value">95%</div>
+                        <div class="metric-label">Redução no Tempo de Fechamento</div>
+                    </div>
+                    <div class="metric-card accent">
+                        <div class="metric-value">100%</div>
+                        <div class="metric-label">Eliminação de Erros Manuais</div>
+                    </div>
+                    <div class="metric-card success">
+                        <div class="metric-value">30%</div>
+                        <div class="metric-label">Economia em Custos Operacionais</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">24/7</div>
+                        <div class="metric-label">Auditoria Completa de Acessos</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 6: Roadmap Estratégico -->
+            <section class="content-slide">
+                <h2>Roadmap de Implementação</h2>
+                <div class="timeline" style="margin-top: 1.5em;">
+                    <div class="timeline-item">
+                        <h4>Q1 2025: Consolidação</h4>
+                        <p>Testes automatizados, documentação técnica, treinamento da equipe</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Q2/Q3 2025: Expansão</h4>
+                        <p>Dashboard financeiro, relatórios avançados, integrações TOTVS/SAP</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Q4 2025+: Escalabilidade</h4>
+                        <p>App Mobile, IA preditiva, modelo SaaS B2B para parceiros</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 7: Métricas de Sucesso -->
+            <section class="content-slide">
+                <h2>Nossos KPIs de Sucesso</h2>
+                <div class="kpi-grid" style="margin-top: 2em;">
+                    <div class="kpi-box">
+                        <div class="kpi-number">100%</div>
+                        <div class="kpi-text">Adoção do Sistema</div>
+                    </div>
+                    <div class="kpi-box secondary">
+                        <div class="kpi-number">99.9%</div>
+                        <div class="kpi-text">Acurácia de Dados</div>
+                    </div>
+                    <div class="kpi-box success">
+                        <div class="kpi-number">8.0+</div>
+                        <div class="kpi-text">NPS (Satisfação)</div>
+                    </div>
+                </div>
+                <div style="margin-top: 2em; padding: 1.5em; background: rgba(14, 165, 233, 0.1); border-radius: 8px; border-left: 4px solid var(--primary-color);">
+                    <p style="color: #cbd5e1; font-size: 1.2rem;">
+                        <strong>Meta Principal:</strong> Zero incidentes de segurança e economia de 30% em custos operacionais
+                    </p>
+                </div>
+            </section>
+
+            <!-- Slide 8: Conclusão -->
+            <section class="closing-slide">
+                <h2>ParcerIA: O Futuro Começa Agora</h2>
+                <p>Precisão • Economia • Visibilidade</p>
+                <p style="font-size: 1.3rem; margin-top: 2em; color: rgba(255, 255, 255, 0.85);">
+                    Transformando a gestão de contratos médicos através de automação, inteligência artificial e design centrado no usuário.
+                </p>
+                <p class="footer-text">Desenvolvido com 💙 por Pedro Santos</p>
+                <p class="footer-text" style="margin-top: 1em; font-size: 1rem;">© 2025 Agir Saúde - Todos os direitos reservados</p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            transition: 'slide',
+            transitionSpeed: 'default',
+            controls: true,
+            progress: true,
+            center: false,
+            touch: true,
+            overview: true,
+            keyboard: true,
+            help: true,
+            width: '100%',
+            height: '100%',
+            margin: 0.1,
+            minScale: 0.2,
+            maxScale: 2.0,
+            embedded: false,
+            autoPlayMedia: null,
+            autoSlide: 0,
+            autoSlideStoppable: true,
+            autoSlideMethod: 'Reveal.nextSlide',
+            defaultTiming: 120,
+            totalTime: false,
+            minimumTimePerSlide: 0,
+            preloadIframes: null,
+            postMessage: true,
+            postMessageEvents: false,
+            focusBodyOnPageVisibilityChange: true,
+            fragments: true,
+            fragmentInURL: true,
+            hashOneBasedIndex: false,
+            respondToHashChanges: true,
+            history: false,
+            keyboard: true,
+            overview: true,
+            center: false,
+            touch: true,
+            loop: false,
+            rtl: false,
+            navigationMode: 'default',
+            shuffle: false,
+            pause: true,
+            showNotes: false,
+            showHidden: false,
+            showSlideNumber: 'all',
+            slideNumber: true,
+            hashOneBasedIndex: false,
+            respondToHashChanges: true,
+            pdfMaxPagesPerSlide: Number.POSITIVE_INFINITY,
+            pdfSeparateFragments: true,
+            pdfPageHeightOffset: -1,
+            viewDistance: 3,
+            mobileViewDistance: 2,
+            display: 'block',
+            hideInactiveCursor: true,
+            hideCursorTime: 5000,
+            preloadIframes: null,
+            parallaxBackgroundImage: '',
+            parallaxBackgroundSize: '',
+            parallaxBackgroundHorizontal: 0,
+            parallaxBackgroundVertical: 0
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'f') {
+                document.documentElement.requestFullscreen();
+            }
+        });
+    </script>
+</body>
+</html>
+
