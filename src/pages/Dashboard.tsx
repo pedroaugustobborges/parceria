@@ -54,7 +54,7 @@ import {
   Cell,
 } from "recharts";
 import { supabase } from "../lib/supabase";
-import { Acesso, HorasCalculadas, Contrato, Produtividade, Usuario } from "../types/database.types";
+import { Acesso, HorasCalculadas, Contrato, Produtividade, Usuario, UnidadeHospitalar } from "../types/database.types";
 import { useAuth } from "../contexts/AuthContext";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 
@@ -66,6 +66,7 @@ const Dashboard: React.FC = () => {
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [produtividade, setProdutividade] = useState<Produtividade[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -76,6 +77,7 @@ const Dashboard: React.FC = () => {
   const [filtroCpf, setFiltroCpf] = useState<string[]>([]);
   const [filtroSentido, setFiltroSentido] = useState<string[]>([]);
   const [filtroContrato, setFiltroContrato] = useState<Contrato | null>(null);
+  const [filtroUnidade, setFiltroUnidade] = useState<string[]>([]);
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
 
@@ -109,6 +111,7 @@ const Dashboard: React.FC = () => {
     loadContratos();
     loadProdutividade();
     loadUsuarios();
+    loadUnidades();
   }, []);
 
   useEffect(() => {
@@ -123,6 +126,7 @@ const Dashboard: React.FC = () => {
     filtroCpf,
     filtroSentido,
     filtroContrato,
+    filtroUnidade,
     filtroDataInicio,
     filtroDataFim,
   ]);
@@ -166,6 +170,21 @@ const Dashboard: React.FC = () => {
       setUsuarios(data || []);
     } catch (err: any) {
       console.error("Erro ao carregar usuarios:", err);
+    }
+  };
+
+  const loadUnidades = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("unidades_hospitalares")
+        .select("*")
+        .eq("ativo", true)
+        .order("codigo");
+
+      if (fetchError) throw fetchError;
+      setUnidades(data || []);
+    } catch (err: any) {
+      console.error("Erro ao carregar unidades:", err);
     }
   };
 
@@ -264,6 +283,10 @@ const Dashboard: React.FC = () => {
         cpfsDoContrato.length > 0 &&
         !cpfsDoContrato.includes(acesso.cpf)
       )
+        return false;
+
+      // Filtro de unidade hospitalar
+      if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta))
         return false;
 
       // Filtros de data - normalizar para comparar apenas o dia (sem hora)
@@ -426,6 +449,10 @@ const Dashboard: React.FC = () => {
     () => [...new Set(acessos.map((a) => a.cpf))].sort(),
     [acessos]
   );
+  const plantasUnicas = useMemo(
+    () => [...new Set(acessos.map((a) => a.planta))].filter(Boolean).sort(),
+    [acessos]
+  );
 
   const handleOpenModal = (person: HorasCalculadas) => {
     setSelectedPerson(person);
@@ -539,6 +566,14 @@ const Dashboard: React.FC = () => {
       if (filtroNome.length > 0 && !filtroNome.includes(item.nome))
         return false;
 
+      // Filtro de Unidade Hospitalar
+      if (filtroUnidade.length > 0 && item.unidade_hospitalar_id) {
+        const unidadeItem = unidades.find(u => u.id === item.unidade_hospitalar_id);
+        if (!unidadeItem || !filtroUnidade.includes(unidadeItem.codigo)) {
+          return false;
+        }
+      }
+
       // Filtros de data (usando a coluna 'data' da tabela produtividade)
       // Parse ISO date string (YYYY-MM-DD) correctly to avoid timezone issues
       if (filtroDataInicio && item.data) {
@@ -637,7 +672,7 @@ const Dashboard: React.FC = () => {
     ].filter((item) => item.value > 0); // Filtrar apenas valores maiores que 0
 
     return data;
-  }, [produtividade, filtroNome, filtroDataInicio, filtroDataFim]);
+  }, [produtividade, filtroNome, filtroUnidade, filtroDataInicio, filtroDataFim, unidades]);
 
   // Calcular inconsistências entre produtividade e acessos
   const inconsistencias = useMemo(() => {
@@ -663,6 +698,9 @@ const Dashboard: React.FC = () => {
     acessos.forEach((acesso) => {
       // Aplicar filtros de nome
       if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome)) return;
+
+      // Aplicar filtro de unidade hospitalar
+      if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta)) return;
 
       // Aplicar filtros de data
       const dataAcesso = new Date(acesso.data_acesso);
@@ -709,6 +747,14 @@ const Dashboard: React.FC = () => {
 
       // Aplicar filtros de nome
       if (filtroNome.length > 0 && !filtroNome.includes(prod.nome)) return;
+
+      // Aplicar filtro de unidade hospitalar
+      if (filtroUnidade.length > 0 && prod.unidade_hospitalar_id) {
+        const unidadeItem = unidades.find(u => u.id === prod.unidade_hospitalar_id);
+        if (!unidadeItem || !filtroUnidade.includes(unidadeItem.codigo)) {
+          return;
+        }
+      }
 
       // Aplicar filtros de data
       const [year, month, day] = prod.data.split('T')[0].split('-').map(Number);
@@ -773,7 +819,7 @@ const Dashboard: React.FC = () => {
       prodSemAcesso: prodSemAcessoArray,
       acessoSemProd: acessoSemProdArray,
     };
-  }, [acessos, produtividade, usuarios, filtroNome, filtroDataInicio, filtroDataFim]);
+  }, [acessos, produtividade, usuarios, filtroNome, filtroUnidade, filtroDataInicio, filtroDataFim, unidades]);
 
   // Calcular dados do heatmap baseado nos acessos filtrados
   const heatmapData = useMemo(() => {
@@ -790,6 +836,8 @@ const Dashboard: React.FC = () => {
         return false;
       if (filtroCpf.length > 0 && !filtroCpf.includes(acesso.cpf)) return false;
       if (filtroSentido.length > 0 && !filtroSentido.includes(acesso.sentido))
+        return false;
+      if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta))
         return false;
       // Filtros de data - normalizar para comparar apenas o dia (sem hora)
       if (filtroDataInicio) {
@@ -887,6 +935,7 @@ const Dashboard: React.FC = () => {
     filtroNome,
     filtroCpf,
     filtroSentido,
+    filtroUnidade,
     filtroDataInicio,
     filtroDataFim,
   ]);
@@ -1386,6 +1435,24 @@ const Dashboard: React.FC = () => {
                       {...params}
                       label="Sentido"
                       placeholder="Selecione um ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <Autocomplete
+                  multiple
+                  value={filtroUnidade}
+                  onChange={(_, newValue) => setFiltroUnidade(newValue)}
+                  options={plantasUnicas}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Unidade Hospitalar"
+                      placeholder="Selecione uma ou mais"
                     />
                   )}
                   size="small"

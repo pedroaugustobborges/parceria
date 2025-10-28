@@ -34,6 +34,7 @@ import {
   Inventory,
   MedicalServices,
   Psychology,
+  CorporateFare,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import { useThemeMode } from "../../contexts/ThemeContext";
@@ -53,7 +54,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return saved === "true";
   });
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { userProfile, signOut, isAdminAgir, isAdminAgirCorporativo } = useAuth();
+  const { userProfile, signOut, isAdminAgir, isAdminAgirCorporativo } =
+    useAuth();
   const { mode, toggleTheme } = useThemeMode();
   const navigate = useNavigate();
   const location = useLocation();
@@ -99,7 +101,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: "Usuários", icon: <People />, path: "/usuarios", adminOnly: true },
     {
       text: "Unidades Hospitalares",
-      icon: <MedicalServices />,
+      icon: <CorporateFare />,
       path: "/unidades",
       adminOnly: true,
       corporativoOnly: true,
@@ -118,7 +120,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     },
     {
       text: "Itens de Contrato",
-      icon: <Inventory />,
+      icon: <MedicalServices />,
       path: "/itens",
       adminOnly: true,
     },
@@ -126,7 +128,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const getRoleLabel = (tipo: string) => {
     const roles: Record<string, { label: string; color: any }> = {
-      "administrador-agir-corporativo": { label: "Admin Corporativo", color: "primary" },
+      "administrador-agir-corporativo": {
+        label: "Admin Corporativo",
+        color: "primary",
+      },
       "administrador-agir-planta": { label: "Admin Planta", color: "info" },
       "administrador-terceiro": { label: "Admin Terceiro", color: "secondary" },
       terceiro: { label: "Terceiro", color: "default" },
@@ -153,7 +158,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Handshake sx={{ fontSize: 40 }} />
             <Box sx={{ textAlign: "center" }}>
               <Typography variant="h6" fontWeight={700}>
-                Parcer<span style={{ fontWeight: 900, color: "#fbbf24" }}>IA</span>
+                Parcer
+                <span style={{ fontWeight: 900, color: "#fbbf24" }}>IA</span>
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.9 }}>
                 Gestão Inteligente de Acessos e Parcerias
@@ -167,7 +173,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <List sx={{ flex: 1, p: 2 }}>
         {menuItems.map((item) => {
           if (item.adminOnly && !isAdminAgir) return null;
-          if ((item as any).corporativoOnly && !isAdminAgirCorporativo) return null;
+          if ((item as any).corporativoOnly && !isAdminAgirCorporativo)
+            return null;
 
           const isActive = location.pathname === item.path;
 
