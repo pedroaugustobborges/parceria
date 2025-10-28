@@ -101,6 +101,7 @@ const Dashboard: React.FC = () => {
     nome: string;
     tipo: 'prodSemAcesso' | 'acessoSemProd';
     datas: string[];
+    detalhes?: Map<string, Produtividade[]>; // Mapa de data -> registros de produtividade
   } | null>(null);
 
   useEffect(() => {
@@ -1022,7 +1023,29 @@ const Dashboard: React.FC = () => {
     tipo: 'prodSemAcesso' | 'acessoSemProd',
     datas: string[]
   ) => {
-    setInconsistenciaSelecionada({ nome, tipo, datas });
+    // Se for "produtividade sem acesso", buscar os detalhes de produtividade
+    if (tipo === 'prodSemAcesso') {
+      const detalhesMap = new Map<string, Produtividade[]>();
+
+      datas.forEach((data) => {
+        // Buscar todos os registros de produtividade para esta data e pessoa
+        const registrosDoDia = produtividade.filter((prod) => {
+          if (!prod.data || prod.nome !== nome) return false;
+          const [year, month, day] = prod.data.split('T')[0].split('-');
+          const dataStr = `${year}-${month}-${day}`;
+          return dataStr === data;
+        });
+
+        if (registrosDoDia.length > 0) {
+          detalhesMap.set(data, registrosDoDia);
+        }
+      });
+
+      setInconsistenciaSelecionada({ nome, tipo, datas, detalhes: detalhesMap });
+    } else {
+      setInconsistenciaSelecionada({ nome, tipo, datas });
+    }
+
     setInconsistenciaModalOpen(true);
   };
 
@@ -1034,18 +1057,91 @@ const Dashboard: React.FC = () => {
   const handleExportInconsistenciaCSV = () => {
     if (!inconsistenciaSelecionada) return;
 
-    const { nome, tipo, datas } = inconsistenciaSelecionada;
+    const { nome, tipo, datas, detalhes } = inconsistenciaSelecionada;
     const tipoTexto = tipo === 'prodSemAcesso'
       ? 'Produtividade sem Acesso'
       : 'Acesso sem Produtividade';
 
-    // Prepare CSV
-    const headers = ["Data", "Nome", "Tipo de Inconsistência"];
-    const rows = datas.map((data) => [
-      format(parseISO(data), "dd/MM/yyyy", { locale: ptBR }),
-      nome,
-      tipoTexto,
-    ]);
+    // Prepare CSV com colunas adicionais para produtividade
+    let headers: string[];
+    let rows: string[][];
+
+    if (tipo === 'prodSemAcesso' && detalhes) {
+      headers = [
+        "Data",
+        "Nome",
+        "Tipo de Inconsistência",
+        "Procedimentos",
+        "Pareceres Sol.",
+        "Pareceres Real.",
+        "Cirurgias",
+        "Prescrições",
+        "Evoluções",
+        "Urgências",
+        "Ambulatórios",
+        "Total Atividades"
+      ];
+
+      rows = datas.map((data) => {
+        const registros = detalhes.get(data) || [];
+
+        // Somar todas as atividades do dia
+        const totais = registros.reduce(
+          (acc, reg) => ({
+            procedimento: acc.procedimento + reg.procedimento,
+            parecer_solicitado: acc.parecer_solicitado + reg.parecer_solicitado,
+            parecer_realizado: acc.parecer_realizado + reg.parecer_realizado,
+            cirurgia: acc.cirurgia + reg.cirurgia_realizada,
+            prescricao: acc.prescricao + reg.prescricao,
+            evolucao: acc.evolucao + reg.evolucao,
+            urgencia: acc.urgencia + reg.urgencia,
+            ambulatorio: acc.ambulatorio + reg.ambulatorio,
+          }),
+          {
+            procedimento: 0,
+            parecer_solicitado: 0,
+            parecer_realizado: 0,
+            cirurgia: 0,
+            prescricao: 0,
+            evolucao: 0,
+            urgencia: 0,
+            ambulatorio: 0,
+          }
+        );
+
+        const totalAtividades =
+          totais.procedimento +
+          totais.parecer_solicitado +
+          totais.parecer_realizado +
+          totais.cirurgia +
+          totais.prescricao +
+          totais.evolucao +
+          totais.urgencia +
+          totais.ambulatorio;
+
+        return [
+          format(parseISO(data), "dd/MM/yyyy", { locale: ptBR }),
+          nome,
+          tipoTexto,
+          totais.procedimento.toString(),
+          totais.parecer_solicitado.toString(),
+          totais.parecer_realizado.toString(),
+          totais.cirurgia.toString(),
+          totais.prescricao.toString(),
+          totais.evolucao.toString(),
+          totais.urgencia.toString(),
+          totais.ambulatorio.toString(),
+          totalAtividades.toString(),
+        ];
+      });
+    } else {
+      headers = ["Data", "Nome", "Tipo de Inconsistência"];
+      rows = datas.map((data) => [
+        format(parseISO(data), "dd/MM/yyyy", { locale: ptBR }),
+        nome,
+        tipoTexto,
+      ]);
+    }
 
     const csvContent = [
       headers.join(","),
@@ -2687,65 +2783,192 @@ const Dashboard: React.FC = () => {
                         <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
                           Tipo de Inconsistência
                         </TableCell>
+                        {inconsistenciaSelecionada.tipo === "prodSemAcesso" && (
+                          <>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                              Proced.
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                              Parec. S.
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                              Parec. R.
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                              Cirurg.
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                              Prescr.
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                              Evol.
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                              Urg.
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                              Ambul.
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                              Total
+                            </TableCell>
+                          </>
+                        )}
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {inconsistenciaSelecionada.datas
                         .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-                        .map((data, index) => (
-                          <TableRow
-                            key={index}
-                            sx={{
-                              "&:hover": { bgcolor: "action.hover" },
-                              "&:last-child td": { border: 0 },
-                            }}
-                          >
-                            <TableCell>
-                              <Box
-                                sx={{
-                                  width: 28,
-                                  height: 28,
-                                  borderRadius: "6px",
-                                  bgcolor:
+                        .map((data, index) => {
+                          // Calcular totais de produtividade para esta data (se aplicável)
+                          let totaisProd = {
+                            procedimento: 0,
+                            parecer_solicitado: 0,
+                            parecer_realizado: 0,
+                            cirurgia_realizada: 0,
+                            prescricao: 0,
+                            evolucao: 0,
+                            urgencia: 0,
+                            ambulatorio: 0,
+                          };
+
+                          if (
+                            inconsistenciaSelecionada.tipo === "prodSemAcesso" &&
+                            inconsistenciaSelecionada.detalhes
+                          ) {
+                            const registros = inconsistenciaSelecionada.detalhes.get(data) || [];
+                            totaisProd = registros.reduce(
+                              (acc, reg) => ({
+                                procedimento: acc.procedimento + reg.procedimento,
+                                parecer_solicitado: acc.parecer_solicitado + reg.parecer_solicitado,
+                                parecer_realizado: acc.parecer_realizado + reg.parecer_realizado,
+                                cirurgia_realizada: acc.cirurgia_realizada + reg.cirurgia_realizada,
+                                prescricao: acc.prescricao + reg.prescricao,
+                                evolucao: acc.evolucao + reg.evolucao,
+                                urgencia: acc.urgencia + reg.urgencia,
+                                ambulatorio: acc.ambulatorio + reg.ambulatorio,
+                              }),
+                              totaisProd
+                            );
+                          }
+
+                          const totalAtividades =
+                            totaisProd.procedimento +
+                            totaisProd.parecer_solicitado +
+                            totaisProd.parecer_realizado +
+                            totaisProd.cirurgia_realizada +
+                            totaisProd.prescricao +
+                            totaisProd.evolucao +
+                            totaisProd.urgencia +
+                            totaisProd.ambulatorio;
+
+                          return (
+                            <TableRow
+                              key={index}
+                              sx={{
+                                "&:hover": { bgcolor: "action.hover" },
+                                "&:last-child td": { border: 0 },
+                              }}
+                            >
+                              <TableCell>
+                                <Box
+                                  sx={{
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: "6px",
+                                    bgcolor:
+                                      inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                                        ? "warning.main"
+                                        : "info.main",
+                                    color: "white",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontWeight: 700,
+                                    fontSize: 12,
+                                  }}
+                                >
+                                  {index + 1}
+                                </Box>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {format(parseISO(data), "dd/MM/yyyy - EEEE", {
+                                    locale: ptBR,
+                                  })}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={
                                     inconsistenciaSelecionada.tipo === "prodSemAcesso"
-                                      ? "warning.main"
-                                      : "info.main",
-                                  color: "white",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  fontWeight: 700,
-                                  fontSize: 12,
-                                }}
-                              >
-                                {index + 1}
-                              </Box>
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={600}>
-                                {format(parseISO(data), "dd/MM/yyyy - EEEE", {
-                                  locale: ptBR,
-                                })}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Chip
-                                label={
-                                  inconsistenciaSelecionada.tipo === "prodSemAcesso"
-                                    ? "Produção sem Acesso"
-                                    : "Acesso sem Produção"
-                                }
-                                size="small"
-                                color={
-                                  inconsistenciaSelecionada.tipo === "prodSemAcesso"
-                                    ? "warning"
-                                    : "info"
-                                }
-                                sx={{ fontWeight: 600 }}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                                      ? "Produção sem Acesso"
+                                      : "Acesso sem Produção"
+                                  }
+                                  size="small"
+                                  color={
+                                    inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                                      ? "warning"
+                                      : "info"
+                                  }
+                                  sx={{ fontWeight: 600 }}
+                                />
+                              </TableCell>
+                              {inconsistenciaSelecionada.tipo === "prodSemAcesso" && (
+                                <>
+                                  <TableCell sx={{ textAlign: "center" }}>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {totaisProd.procedimento}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell sx={{ textAlign: "center" }}>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {totaisProd.parecer_solicitado}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell sx={{ textAlign: "center" }}>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {totaisProd.parecer_realizado}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell sx={{ textAlign: "center" }}>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {totaisProd.cirurgia_realizada}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell sx={{ textAlign: "center" }}>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {totaisProd.prescricao}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell sx={{ textAlign: "center" }}>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {totaisProd.evolucao}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell sx={{ textAlign: "center" }}>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {totaisProd.urgencia}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell sx={{ textAlign: "center" }}>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {totaisProd.ambulatorio}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell sx={{ textAlign: "center" }}>
+                                    <Chip
+                                      label={totalAtividades}
+                                      size="small"
+                                      color="primary"
+                                      sx={{ fontWeight: 700 }}
+                                    />
+                                  </TableCell>
+                                </>
+                              )}
+                            </TableRow>
+                          );
+                        })}
                     </TableBody>
                   </Table>
                 </TableContainer>
