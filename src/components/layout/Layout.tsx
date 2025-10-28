@@ -53,7 +53,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return saved === "true";
   });
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { userProfile, signOut, isAdminAgir } = useAuth();
+  const { userProfile, signOut, isAdminAgir, isAdminAgirCorporativo } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
   const navigate = useNavigate();
   const location = useLocation();
@@ -98,6 +98,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     },
     { text: "Usuários", icon: <People />, path: "/usuarios", adminOnly: true },
     {
+      text: "Unidades Hospitalares",
+      icon: <MedicalServices />,
+      path: "/unidades",
+      adminOnly: true,
+      corporativoOnly: true,
+    },
+    {
       text: "Parceiros",
       icon: <Handshake />,
       path: "/parceiros",
@@ -111,7 +118,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     },
     {
       text: "Itens de Contrato",
-      icon: <MedicalServices />,
+      icon: <Inventory />,
       path: "/itens",
       adminOnly: true,
     },
@@ -119,7 +126,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const getRoleLabel = (tipo: string) => {
     const roles: Record<string, { label: string; color: any }> = {
-      "administrador-agir": { label: "Admin Agir", color: "primary" },
+      "administrador-agir-corporativo": { label: "Admin Corporativo", color: "primary" },
+      "administrador-agir-planta": { label: "Admin Planta", color: "info" },
       "administrador-terceiro": { label: "Admin Terceiro", color: "secondary" },
       terceiro: { label: "Terceiro", color: "default" },
     };
@@ -159,6 +167,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <List sx={{ flex: 1, p: 2 }}>
         {menuItems.map((item) => {
           if (item.adminOnly && !isAdminAgir) return null;
+          if ((item as any).corporativoOnly && !isAdminAgirCorporativo) return null;
 
           const isActive = location.pathname === item.path;
 

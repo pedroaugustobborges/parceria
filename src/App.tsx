@@ -11,6 +11,7 @@ import Contratos from './pages/Contratos';
 import Itens from './pages/Itens';
 import Parceiros from './pages/Parceiros';
 import InsightsIA from './pages/InsightsIA';
+import UnidadesHospitalares from './pages/UnidadesHospitalares';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
@@ -85,6 +86,17 @@ const App: React.FC = () => {
                 <ProtectedRoute requireAdminAgir>
                   <Layout>
                     <InsightsIA />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/unidades"
+              element={
+                <ProtectedRoute requireAdminAgir>
+                  <Layout>
+                    <UnidadesHospitalares />
                   </Layout>
                 </ProtectedRoute>
               }

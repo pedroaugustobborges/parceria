@@ -32,8 +32,9 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
-import { Contrato, ItemContrato, ContratoItem, Parceiro } from '../types/database.types';
+import { Contrato, ItemContrato, ContratoItem, Parceiro, UnidadeHospitalar } from '../types/database.types';
 import { format, parseISO } from 'date-fns';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ItemSelecionado {
   item: ItemContrato;
@@ -43,6 +44,7 @@ interface ItemSelecionado {
 }
 
 const Contratos: React.FC = () => {
+  const { isAdminAgirCorporativo, isAdminAgirPlanta, unidadeHospitalarId } = useAuth();
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -58,6 +60,9 @@ const Contratos: React.FC = () => {
   // Parceiros state
   const [parceiros, setParceiros] = useState<Parceiro[]>([]);
 
+  // Unidades state
+  const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
+
   // Form state
   const [formData, setFormData] = useState({
     nome: '',
@@ -66,12 +71,14 @@ const Contratos: React.FC = () => {
     data_inicio: null as Date | null,
     data_fim: null as Date | null,
     ativo: true,
+    unidade_hospitalar_id: null as string | null,
   });
 
   useEffect(() => {
     loadContratos();
     loadItens();
     loadParceiros();
+    loadUnidades();
   }, []);
 
   const loadContratos = async () => {
@@ -108,7 +115,7 @@ const Contratos: React.FC = () => {
 
   const loadParceiros = async () => {
     try {
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError} = await supabase
         .from('parceiros')
         .select('*')
         .eq('ativo', true)
@@ -118,6 +125,21 @@ const Contratos: React.FC = () => {
       setParceiros(data || []);
     } catch (err: any) {
       console.error('Erro ao carregar parceiros:', err);
+    }
+  };
+
+  const loadUnidades = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('unidades_hospitalares')
+        .select('*')
+        .eq('ativo', true)
+        .order('codigo');
+
+      if (fetchError) throw fetchError;
+      setUnidades(data || []);
+    } catch (err: any) {
+      console.error('Erro ao carregar unidades:', err);
     }
   };
 
@@ -153,6 +175,7 @@ const Contratos: React.FC = () => {
         data_inicio: parseISO(contrato.data_inicio),
         data_fim: contrato.data_fim ? parseISO(contrato.data_fim) : null,
         ativo: contrato.ativo,
+        unidade_hospitalar_id: contrato.unidade_hospitalar_id,
       });
       await loadContratoItens(contrato.id);
     } else {
@@ -164,6 +187,7 @@ const Contratos: React.FC = () => {
         data_inicio: null,
         data_fim: null,
         ativo: true,
+        unidade_hospitalar_id: isAdminAgirPlanta ? unidadeHospitalarId : null,
       });
       setItensSelecionados([]);
     }
@@ -224,8 +248,8 @@ const Contratos: React.FC = () => {
       setError('');
       setSuccess('');
 
-      if (!formData.nome || !formData.empresa || !formData.data_inicio) {
-        setError('Preencha todos os campos obrigatórios');
+      if (!formData.nome || !formData.empresa || !formData.data_inicio || !formData.unidade_hospitalar_id) {
+        setError('Preencha todos os campos obrigatórios (incluindo Unidade Hospitalar)');
         return;
       }
 
@@ -236,6 +260,7 @@ const Contratos: React.FC = () => {
         data_inicio: formData.data_inicio.toISOString(),
         data_fim: formData.data_fim ? formData.data_fim.toISOString() : null,
         ativo: formData.ativo,
+        unidade_hospitalar_id: formData.unidade_hospitalar_id,
       };
 
       let contratoId: string;
@@ -511,6 +536,23 @@ const Contratos: React.FC = () => {
                     label="Empresa Contratada"
                     required
                     helperText="Selecione a empresa parceira"
+                  />
+                )}
+                fullWidth
+              />
+
+              <Autocomplete
+                value={unidades.find(u => u.id === formData.unidade_hospitalar_id) || null}
+                onChange={(_, newValue) => setFormData({ ...formData, unidade_hospitalar_id: newValue?.id || null })}
+                options={unidades}
+                getOptionLabel={(option) => `${option.codigo} - ${option.nome}`}
+                disabled={isAdminAgirPlanta}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Unidade Hospitalar"
+                    required
+                    helperText={isAdminAgirPlanta ? "Automaticamente vinculado à sua unidade" : "Selecione a unidade hospitalar"}
                   />
                 )}
                 fullWidth

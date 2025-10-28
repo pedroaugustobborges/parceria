@@ -1,4 +1,8 @@
-export type UserRole = 'administrador-agir' | 'administrador-terceiro' | 'terceiro';
+export type UserRole =
+  | 'administrador-agir-corporativo'
+  | 'administrador-agir-planta'
+  | 'administrador-terceiro'
+  | 'terceiro';
 
 export interface Database {
   public: {
@@ -13,6 +17,7 @@ export interface Database {
           contrato_id: string | null;
           codigomv: string | null;
           especialidade: string[] | null;
+          unidade_hospitalar_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -28,6 +33,7 @@ export interface Database {
           data_inicio: string;
           data_fim: string | null;
           ativo: boolean;
+          unidade_hospitalar_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -82,11 +88,25 @@ export interface Database {
           folha_objetivo_diario: number;
           evolucao_diurna_cti: number;
           evolucao_noturna_cti: number;
+          unidade_hospitalar_id: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: Omit<Database['public']['Tables']['produtividade']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['produtividade']['Insert']>;
+      };
+      unidades_hospitalares: {
+        Row: {
+          id: string;
+          codigo: string;
+          nome: string;
+          endereco: string | null;
+          ativo: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['unidades_hospitalares']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['unidades_hospitalares']['Insert']>;
       };
     };
   };
@@ -114,6 +134,7 @@ export interface Usuario {
   contrato_id: string | null;
   codigomv: string | null;
   especialidade: string[] | null;
+  unidade_hospitalar_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -126,6 +147,7 @@ export interface Contrato {
   data_inicio: string;
   data_fim: string | null;
   ativo: boolean;
+  unidade_hospitalar_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -208,6 +230,17 @@ export interface Produtividade {
   folha_objetivo_diario: number;
   evolucao_diurna_cti: number;
   evolucao_noturna_cti: number;
+  unidade_hospitalar_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UnidadeHospitalar {
+  id: string;
+  codigo: string;
+  nome: string;
+  endereco: string | null;
+  ativo: boolean;
   created_at: string;
   updated_at: string;
 }

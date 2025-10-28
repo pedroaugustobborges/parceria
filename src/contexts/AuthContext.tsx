@@ -10,9 +10,12 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
-  isAdminAgir: boolean;
+  isAdminAgir: boolean; // Deprecated: use isAdminAgirCorporativo or isAdminAgirPlanta
+  isAdminAgirCorporativo: boolean;
+  isAdminAgirPlanta: boolean;
   isAdminTerceiro: boolean;
   isTerceiro: boolean;
+  unidadeHospitalarId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -89,10 +92,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserProfile(null);
   };
 
-  const isAdminAgir = userProfile?.tipo === 'administrador-agir';
+  const isAdminAgirCorporativo = userProfile?.tipo === 'administrador-agir-corporativo';
+  const isAdminAgirPlanta = userProfile?.tipo === 'administrador-agir-planta';
   const isAdminTerceiro = userProfile?.tipo === 'administrador-terceiro';
   const isTerceiro = userProfile?.tipo === 'terceiro';
+  const isAdminAgir = isAdminAgirCorporativo || isAdminAgirPlanta; // Backward compatibility
   const isAdmin = isAdminAgir || isAdminTerceiro;
+  const unidadeHospitalarId = userProfile?.unidade_hospitalar_id || null;
 
   const value = {
     user,
@@ -102,8 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     isAdmin,
     isAdminAgir,
+    isAdminAgirCorporativo,
+    isAdminAgirPlanta,
     isAdminTerceiro,
     isTerceiro,
+    unidadeHospitalarId,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
