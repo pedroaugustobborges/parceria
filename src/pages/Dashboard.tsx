@@ -1744,9 +1744,10 @@ const Dashboard: React.FC = () => {
           <Grid item xs={12} md={6}>
             <Card
               sx={{
-                background: "linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%)",
+                background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
                 borderRadius: 3,
-                boxShadow: "0 4px 12px rgba(251, 191, 36, 0.2)",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                border: "1px solid #fde68a",
                 height: "100%",
               }}
             >
@@ -1757,7 +1758,7 @@ const Dashboard: React.FC = () => {
                       width: 48,
                       height: 48,
                       borderRadius: "12px",
-                      bgcolor: "warning.main",
+                      bgcolor: "#fbbf24",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -1766,7 +1767,7 @@ const Dashboard: React.FC = () => {
                     <Warning sx={{ color: "white", fontSize: 28 }} />
                   </Box>
                   <Box>
-                    <Typography variant="h6" fontWeight={700} color="warning.dark">
+                    <Typography variant="h6" fontWeight={700} color="#b45309">
                       Produtividade sem Acesso
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -1782,8 +1783,8 @@ const Dashboard: React.FC = () => {
                       label="Filtros ativos"
                       size="small"
                       sx={{
-                        bgcolor: "rgba(251, 191, 36, 0.2)",
-                        color: "warning.dark",
+                        bgcolor: "rgba(251, 191, 36, 0.15)",
+                        color: "#b45309",
                         fontWeight: 600,
                       }}
                     />
@@ -1839,7 +1840,7 @@ const Dashboard: React.FC = () => {
                                 width: 32,
                                 height: 32,
                                 borderRadius: "8px",
-                                bgcolor: "warning.main",
+                                bgcolor: "#fbbf24",
                                 color: "white",
                                 display: "flex",
                                 alignItems: "center",
@@ -1867,7 +1868,7 @@ const Dashboard: React.FC = () => {
                             label={`${item.count} ${item.count === 1 ? "dia" : "dias"}`}
                             size="small"
                             sx={{
-                              bgcolor: "warning.main",
+                              bgcolor: "#fbbf24",
                               color: "white",
                               fontWeight: 600,
                             }}
@@ -1894,9 +1895,10 @@ const Dashboard: React.FC = () => {
           <Grid item xs={12} md={6}>
             <Card
               sx={{
-                background: "linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%)",
+                background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
                 borderRadius: 3,
-                boxShadow: "0 4px 12px rgba(59, 130, 246, 0.2)",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                border: "1px solid #bae6fd",
                 height: "100%",
               }}
             >
@@ -1907,7 +1909,7 @@ const Dashboard: React.FC = () => {
                       width: 48,
                       height: 48,
                       borderRadius: "12px",
-                      bgcolor: "info.main",
+                      bgcolor: "#3b82f6",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -1916,7 +1918,7 @@ const Dashboard: React.FC = () => {
                     <AccessTime sx={{ color: "white", fontSize: 28 }} />
                   </Box>
                   <Box>
-                    <Typography variant="h6" fontWeight={700} color="info.dark">
+                    <Typography variant="h6" fontWeight={700} color="#1e40af">
                       Acesso sem Produtividade
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -1932,8 +1934,8 @@ const Dashboard: React.FC = () => {
                       label="Filtros ativos"
                       size="small"
                       sx={{
-                        bgcolor: "rgba(59, 130, 246, 0.2)",
-                        color: "info.dark",
+                        bgcolor: "rgba(59, 130, 246, 0.15)",
+                        color: "#1e40af",
                         fontWeight: 600,
                       }}
                     />
@@ -1989,7 +1991,7 @@ const Dashboard: React.FC = () => {
                                 width: 32,
                                 height: 32,
                                 borderRadius: "8px",
-                                bgcolor: "info.main",
+                                bgcolor: "#3b82f6",
                                 color: "white",
                                 display: "flex",
                                 alignItems: "center",
@@ -2017,7 +2019,7 @@ const Dashboard: React.FC = () => {
                             label={`${item.count} ${item.count === 1 ? "dia" : "dias"}`}
                             size="small"
                             sx={{
-                              bgcolor: "info.main",
+                              bgcolor: "#3b82f6",
                               color: "white",
                               fontWeight: 600,
                             }}
