@@ -40,7 +40,8 @@ const UnidadesHospitalares: React.FC = () => {
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingUnidade, setEditingUnidade] = useState<UnidadeHospitalar | null>(null);
+  const [editingUnidade, setEditingUnidade] =
+    useState<UnidadeHospitalar | null>(null);
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
 
@@ -131,14 +132,12 @@ const UnidadesHospitalares: React.FC = () => {
         setSucesso("Unidade atualizada com sucesso!");
       } else {
         // Insert
-        const { error } = await supabase
-          .from("unidades_hospitalares")
-          .insert({
-            codigo: formData.codigo,
-            nome: formData.nome,
-            endereco: formData.endereco || null,
-            ativo: formData.ativo,
-          });
+        const { error } = await supabase.from("unidades_hospitalares").insert({
+          codigo: formData.codigo,
+          nome: formData.nome,
+          endereco: formData.endereco || null,
+          ativo: formData.ativo,
+        });
 
         if (error) throw error;
         setSucesso("Unidade criada com sucesso!");
@@ -189,7 +188,12 @@ const UnidadesHospitalares: React.FC = () => {
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="60vh"
+        >
           <CircularProgress size={60} />
         </Box>
       </Container>
@@ -287,7 +291,9 @@ const UnidadesHospitalares: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1}>
-                          <BusinessCenter sx={{ fontSize: 20, color: "primary.main" }} />
+                          <BusinessCenter
+                            sx={{ fontSize: 20, color: "primary.main" }}
+                          />
                           <Typography variant="body2" fontWeight={600}>
                             {unidade.nome}
                           </Typography>
@@ -353,20 +359,25 @@ const UnidadesHospitalares: React.FC = () => {
         <DialogContent>
           <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 3 }}>
             <TextField
-              label="Código"
+              label="Sigla/abreviação"
               value={formData.codigo}
               onChange={(e) =>
-                setFormData({ ...formData, codigo: e.target.value.toUpperCase() })
+                setFormData({
+                  ...formData,
+                  codigo: e.target.value.toUpperCase(),
+                })
               }
               disabled={!!editingUnidade}
               required
               fullWidth
-              helperText="Código único da unidade (ex: HUGOL, HECAD, CRER)"
+              helperText="Sigla/abreviação única da unidade (ex: HUGOL, HECAD, CRER)"
             />
             <TextField
               label="Nome"
               value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, nome: e.target.value })
+              }
               required
               fullWidth
               helperText="Nome completo da unidade hospitalar"
