@@ -111,6 +111,30 @@ const Dashboard: React.FC = () => {
     detalhes?: Map<string, Produtividade[]>; // Mapa de data -> registros de produtividade
   } | null>(null);
 
+  // Modal de pontualidade
+  const [pontualidadeModalOpen, setPontualidadeModalOpen] = useState(false);
+  const [pontualidadeSelecionada, setPontualidadeSelecionada] = useState<{
+    nome: string;
+    cpf: string;
+    atrasos: Array<{
+      data: string;
+      horarioEscalado: string;
+      horarioEntrada: string;
+      atrasoMinutos: number;
+    }>;
+  } | null>(null);
+
+  // Modal de absenteísmo
+  const [absenteismoModalOpen, setAbsenteismoModalOpen] = useState(false);
+  const [absenteismoSelecionado, setAbsenteismoSelecionado] = useState<{
+    nome: string;
+    cpf: string;
+    ausencias: Array<{
+      data: string;
+      horarioEscalado: string;
+    }>;
+  } | null>(null);
+
   useEffect(() => {
     loadAcessos();
     loadContratos();
@@ -901,41 +925,52 @@ const Dashboard: React.FC = () => {
     // Filtrar escalas por data
     const escalasFiltr = escalas.filter(escala => {
       if (dataInicioNormalizada) {
-        const dataEscala = new Date(escala.data_inicio);
+        // Usa parseISO para evitar problemas de timezone
+        const dataEscala = parseISO(escala.data_inicio);
         dataEscala.setHours(0, 0, 0, 0);
         if (dataEscala < dataInicioNormalizada) return false;
       }
       if (dataFimNormalizada) {
-        const dataEscala = new Date(escala.data_inicio);
+        // Usa parseISO para evitar problemas de timezone
+        const dataEscala = parseISO(escala.data_inicio);
         dataEscala.setHours(0, 0, 0, 0);
         if (dataEscala > dataFimNormalizada) return false;
       }
       return true;
     });
 
-    // Mapear médicos por CPF
-    const pontualidadePorMedico = new Map<string, { nome: string; totalEscalas: number; atrasos: number }>();
-    const absenteismoPorMedico = new Map<string, { nome: string; totalEscalas: number; ausencias: number }>();
+    // Mapear médicos por CPF com detalhes
+    const pontualidadePorMedico = new Map<string, {
+      nome: string;
+      totalEscalas: number;
+      atrasos: number;
+      detalhesAtrasos: Array<{ data: string; horarioEscalado: string; horarioEntrada: string; atrasoMinutos: number }>;
+    }>();
+    const absenteismoPorMedico = new Map<string, {
+      nome: string;
+      totalEscalas: number;
+      ausencias: number;
+      detalhesAusencias: Array<{ data: string; horarioEscalado: string }>;
+    }>();
 
     escalasFiltr.forEach(escala => {
       escala.medicos?.forEach(medico => {
-        const dataEscala = new Date(escala.data_inicio);
-        dataEscala.setHours(0, 0, 0, 0);
-        const dataStr = format(dataEscala, 'yyyy-MM-dd');
+        // Extrair data da escala (formato: YYYY-MM-DD)
+        const dataStr = escala.data_inicio.split('T')[0];
 
         // Aplicar filtro de nome
         if (filtroNome.length > 0 && !filtroNome.includes(medico.nome)) return;
 
         // Inicializar contadores de pontualidade
         if (!pontualidadePorMedico.has(medico.cpf)) {
-          pontualidadePorMedico.set(medico.cpf, { nome: medico.nome, totalEscalas: 0, atrasos: 0 });
+          pontualidadePorMedico.set(medico.cpf, { nome: medico.nome, totalEscalas: 0, atrasos: 0, detalhesAtrasos: [] });
         }
         const pontInfo = pontualidadePorMedico.get(medico.cpf)!;
         pontInfo.totalEscalas++;
 
         // Inicializar contadores de absenteísmo
         if (!absenteismoPorMedico.has(medico.cpf)) {
-          absenteismoPorMedico.set(medico.cpf, { nome: medico.nome, totalEscalas: 0, ausencias: 0 });
+          absenteismoPorMedico.set(medico.cpf, { nome: medico.nome, totalEscalas: 0, ausencias: 0, detalhesAusencias: [] });
         }
         const absentInfo = absenteismoPorMedico.get(medico.cpf)!;
         absentInfo.totalEscalas++;
@@ -943,15 +978,18 @@ const Dashboard: React.FC = () => {
         // Verificar acessos do médico nesta data
         const acessosDoDia = acessos.filter(acesso => {
           if (acesso.cpf !== medico.cpf) return false;
-          const dataAcesso = new Date(acesso.data_acesso);
-          dataAcesso.setHours(0, 0, 0, 0);
-          const acessoDataStr = format(dataAcesso, 'yyyy-MM-dd');
+          // Extrair data do acesso (formato: YYYY-MM-DD)
+          const acessoDataStr = acesso.data_acesso.split('T')[0];
           return acessoDataStr === dataStr && acesso.sentido === 'E';
         });
 
         // Se não há acesso neste dia, conta como ausência
         if (acessosDoDia.length === 0) {
           absentInfo.ausencias++;
+          absentInfo.detalhesAusencias.push({
+            data: dataStr,
+            horarioEscalado: escala.horario_entrada
+          });
         } else {
           // Verificar pontualidade (primeira entrada do dia)
           const primeiraEntrada = acessosDoDia.sort((a, b) =>
@@ -960,13 +998,21 @@ const Dashboard: React.FC = () => {
 
           const horaEntrada = new Date(primeiraEntrada.data_acesso);
           const [horaEscalada, minEscalada] = escala.horario_entrada.split(':').map(Number);
-          const horaEscaladaDate = new Date(dataEscala);
+          // Usa parseISO para criar a data base corretamente
+          const horaEscaladaDate = parseISO(dataStr);
           horaEscaladaDate.setHours(horaEscalada, minEscalada, 0, 0);
 
-          // Tolerância de 10 minutos
+          // Tolerância de 10 minutos APÓS o horário escalado
+          // Só conta atraso se chegou DEPOIS do horário + 10 min
           const diferencaMinutos = (horaEntrada.getTime() - horaEscaladaDate.getTime()) / (1000 * 60);
           if (diferencaMinutos > 10) {
             pontInfo.atrasos++;
+            pontInfo.detalhesAtrasos.push({
+              data: dataStr,
+              horarioEscalado: escala.horario_entrada,
+              horarioEntrada: format(horaEntrada, 'HH:mm'),
+              atrasoMinutos: Math.round(diferencaMinutos)
+            });
           }
         }
       });
@@ -979,6 +1025,7 @@ const Dashboard: React.FC = () => {
         nome: info.nome,
         totalEscalas: info.totalEscalas,
         atrasos: info.atrasos,
+        detalhesAtrasos: info.detalhesAtrasos,
         indice: info.totalEscalas > 0 ? ((info.totalEscalas - info.atrasos) / info.totalEscalas * 100).toFixed(1) : '0.0'
       }))
       .sort((a, b) => b.atrasos - a.atrasos);
@@ -989,6 +1036,7 @@ const Dashboard: React.FC = () => {
         nome: info.nome,
         totalEscalas: info.totalEscalas,
         ausencias: info.ausencias,
+        detalhesAusencias: info.detalhesAusencias,
         indice: info.totalEscalas > 0 ? (info.ausencias / info.totalEscalas * 100).toFixed(1) : '0.0'
       }))
       .sort((a, b) => b.ausencias - a.ausencias);
@@ -1279,6 +1327,40 @@ const Dashboard: React.FC = () => {
   const handleCloseInconsistenciaModal = () => {
     setInconsistenciaModalOpen(false);
     setInconsistenciaSelecionada(null);
+  };
+
+  const handleOpenPontualidadeModal = (cpf: string, nome: string) => {
+    const medicoData = indicadoresEscalas.pontualidade.find(p => p.cpf === cpf);
+    if (medicoData) {
+      setPontualidadeSelecionada({
+        nome,
+        cpf,
+        atrasos: medicoData.detalhesAtrasos
+      });
+      setPontualidadeModalOpen(true);
+    }
+  };
+
+  const handleClosePontualidadeModal = () => {
+    setPontualidadeModalOpen(false);
+    setPontualidadeSelecionada(null);
+  };
+
+  const handleOpenAbsenteismoModal = (cpf: string, nome: string) => {
+    const medicoData = indicadoresEscalas.absenteismo.find(a => a.cpf === cpf);
+    if (medicoData) {
+      setAbsenteismoSelecionado({
+        nome,
+        cpf,
+        ausencias: medicoData.detalhesAusencias
+      });
+      setAbsenteismoModalOpen(true);
+    }
+  };
+
+  const handleCloseAbsenteismoModal = () => {
+    setAbsenteismoModalOpen(false);
+    setAbsenteismoSelecionado(null);
   };
 
   const handleExportInconsistenciaCSV = () => {
@@ -2505,6 +2587,7 @@ const Dashboard: React.FC = () => {
                         sx={{
                           p: 2,
                           mb: 1.5,
+                          cursor: "pointer",
                           transition: "all 0.2s",
                           "&:hover": {
                             transform: "translateX(4px)",
@@ -2512,6 +2595,7 @@ const Dashboard: React.FC = () => {
                             bgcolor: "success.50",
                           },
                         }}
+                        onClick={() => handleOpenPontualidadeModal(item.cpf, item.nome)}
                       >
                         <Box
                           display="flex"
@@ -2652,6 +2736,7 @@ const Dashboard: React.FC = () => {
                         sx={{
                           p: 2,
                           mb: 1.5,
+                          cursor: "pointer",
                           transition: "all 0.2s",
                           "&:hover": {
                             transform: "translateX(4px)",
@@ -2659,6 +2744,7 @@ const Dashboard: React.FC = () => {
                             bgcolor: "error.50",
                           },
                         }}
+                        onClick={() => handleOpenAbsenteismoModal(item.cpf, item.nome)}
                       >
                         <Box
                           display="flex"
@@ -3759,6 +3845,230 @@ const Dashboard: React.FC = () => {
               }}
             >
               Entendido
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Modal de Pontualidade */}
+        <Dialog
+          open={pontualidadeModalOpen}
+          onClose={handleClosePontualidadeModal}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box display="flex" alignItems="center" gap={2}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "10px",
+                    bgcolor: "#22c55e",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Schedule sx={{ color: "white", fontSize: 24 }} />
+                </Box>
+                <Typography variant="h6" fontWeight={700}>
+                  Detalhes de Pontualidade - {pontualidadeSelecionada?.nome}
+                </Typography>
+              </Box>
+              <IconButton onClick={handleClosePontualidadeModal} size="small">
+                <Close />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+
+          <DialogContent>
+            {pontualidadeSelecionada && (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Total de atrasos: {pontualidadeSelecionada.atrasos.length}
+                </Typography>
+
+                <TableContainer component={Paper} sx={{ boxShadow: "none", border: "1px solid #e5e7eb" }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: "#f9fafb" }}>
+                        <TableCell width={60}>#</TableCell>
+                        <TableCell>Data</TableCell>
+                        <TableCell>Horário Escalado</TableCell>
+                        <TableCell>Horário de Entrada</TableCell>
+                        <TableCell>Atraso</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {pontualidadeSelecionada.atrasos.map((atraso, index) => (
+                        <TableRow key={index} sx={{ "&:hover": { bgcolor: "#f9fafb" } }}>
+                          <TableCell>
+                            <Box
+                              sx={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: "6px",
+                                bgcolor: "#22c55e",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: 700,
+                                fontSize: 12,
+                              }}
+                            >
+                              {index + 1}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {format(parseISO(atraso.data), "dd/MM/yyyy - EEEE", { locale: ptBR })}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={atraso.horarioEscalado}
+                              size="small"
+                              sx={{ bgcolor: "#dbeafe", color: "#1e40af", fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={atraso.horarioEntrada}
+                              size="small"
+                              sx={{ bgcolor: "#fef3c7", color: "#92400e", fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={`${atraso.atrasoMinutos} min`}
+                              size="small"
+                              sx={{
+                                bgcolor: atraso.atrasoMinutos > 30 ? "#fecaca" : "#fed7aa",
+                                color: atraso.atrasoMinutos > 30 ? "#991b1b" : "#92400e",
+                                fontWeight: 600,
+                              }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            )}
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={handleClosePontualidadeModal} variant="outlined">
+              Fechar
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Modal de Absenteísmo */}
+        <Dialog
+          open={absenteismoModalOpen}
+          onClose={handleCloseAbsenteismoModal}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box display="flex" alignItems="center" gap={2}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "10px",
+                    bgcolor: "#ef4444",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <PersonOff sx={{ color: "white", fontSize: 24 }} />
+                </Box>
+                <Typography variant="h6" fontWeight={700}>
+                  Detalhes de Absenteísmo - {absenteismoSelecionado?.nome}
+                </Typography>
+              </Box>
+              <IconButton onClick={handleCloseAbsenteismoModal} size="small">
+                <Close />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+
+          <DialogContent>
+            {absenteismoSelecionado && (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Total de ausências: {absenteismoSelecionado.ausencias.length}
+                </Typography>
+
+                <TableContainer component={Paper} sx={{ boxShadow: "none", border: "1px solid #e5e7eb" }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: "#f9fafb" }}>
+                        <TableCell width={60}>#</TableCell>
+                        <TableCell>Data</TableCell>
+                        <TableCell>Horário Escalado</TableCell>
+                        <TableCell>Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {absenteismoSelecionado.ausencias.map((ausencia, index) => (
+                        <TableRow key={index} sx={{ "&:hover": { bgcolor: "#f9fafb" } }}>
+                          <TableCell>
+                            <Box
+                              sx={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: "6px",
+                                bgcolor: "#ef4444",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: 700,
+                                fontSize: 12,
+                              }}
+                            >
+                              {index + 1}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {format(parseISO(ausencia.data), "dd/MM/yyyy - EEEE", { locale: ptBR })}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={ausencia.horarioEscalado}
+                              size="small"
+                              sx={{ bgcolor: "#dbeafe", color: "#1e40af", fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label="Sem acesso registrado"
+                              size="small"
+                              sx={{ bgcolor: "#fecaca", color: "#991b1b", fontWeight: 600 }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            )}
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={handleCloseAbsenteismoModal} variant="outlined">
+              Fechar
             </Button>
           </DialogActions>
         </Dialog>
