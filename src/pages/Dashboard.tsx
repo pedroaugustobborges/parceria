@@ -42,6 +42,8 @@ import {
   LoginOutlined,
   LogoutOutlined,
   Warning,
+  LocalHospital,
+  CalendarMonth,
 } from "@mui/icons-material";
 import {
   BarChart,
@@ -54,7 +56,7 @@ import {
   Cell,
 } from "recharts";
 import { supabase } from "../lib/supabase";
-import { Acesso, HorasCalculadas, Contrato, Produtividade, Usuario, UnidadeHospitalar } from "../types/database.types";
+import { Acesso, HorasCalculadas, Contrato, Produtividade, Usuario, UnidadeHospitalar, EscalaMedica } from "../types/database.types";
 import { useAuth } from "../contexts/AuthContext";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 
@@ -65,6 +67,7 @@ const Dashboard: React.FC = () => {
   const [horasCalculadas, setHorasCalculadas] = useState<HorasCalculadas[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [produtividade, setProdutividade] = useState<Produtividade[]>([]);
+  const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,6 +113,7 @@ const Dashboard: React.FC = () => {
     loadAcessos();
     loadContratos();
     loadProdutividade();
+    loadEscalas();
     loadUsuarios();
     loadUnidades();
   }, []);
@@ -157,6 +161,21 @@ const Dashboard: React.FC = () => {
       setProdutividade(data || []);
     } catch (err: any) {
       console.error("Erro ao carregar produtividade:", err);
+    }
+  };
+
+  const loadEscalas = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("escalas_medicas")
+        .select("*")
+        .eq("ativo", true)
+        .order("data_inicio", { ascending: false });
+
+      if (fetchError) throw fetchError;
+      setEscalas(data || []);
+    } catch (err: any) {
+      console.error("Erro ao carregar escalas:", err);
     }
   };
 
@@ -1314,6 +1333,55 @@ const Dashboard: React.FC = () => {
   const mediaHoras =
     totalDiasUnicos > 0 ? (totalHorasGeral / totalDiasUnicos).toFixed(2) : "0";
 
+  // Cálculo da Produtividade Médica
+  // Soma de todas as colunas de produtividade (procedimento até evolucao_noturna_cti) dividido pelo Total de Horas
+  const totalProdutividade = produtividade.reduce((sum, item) => {
+    return sum +
+      item.procedimento +
+      item.parecer_solicitado +
+      item.parecer_realizado +
+      item.cirurgia_realizada +
+      item.prescricao +
+      item.evolucao +
+      item.urgencia +
+      item.ambulatorio +
+      item.auxiliar +
+      item.encaminhamento +
+      item.folha_objetivo_diario +
+      item.evolucao_diurna_cti +
+      item.evolucao_noturna_cti;
+  }, 0);
+  const produtividadeMedia = totalHorasGeral > 0 ? (totalProdutividade / totalHorasGeral).toFixed(2) : "0";
+
+  // Cálculo da Carga Horária Escalada
+  // Soma de (horario_saida - horario_entrada) × número de médicos para cada escala
+  const cargaHorariaEscalada = escalas.reduce((sum, escala) => {
+    try {
+      // Parse dos horários (formato: "HH:mm")
+      const [horaEntrada, minEntrada] = escala.horario_entrada.split(":").map(Number);
+      const [horaSaida, minSaida] = escala.horario_saida.split(":").map(Number);
+
+      // Calcular diferença em minutos
+      let minutosTotais = (horaSaida * 60 + minSaida) - (horaEntrada * 60 + minEntrada);
+
+      // Se horário de saída é menor que entrada, significa que passou da meia-noite
+      if (minutosTotais < 0) {
+        minutosTotais += 24 * 60; // Adicionar 24 horas em minutos
+      }
+
+      // Converter para horas
+      const horas = minutosTotais / 60;
+
+      // Multiplicar pela quantidade de médicos
+      const numMedicos = escala.medicos?.length || 0;
+
+      return sum + (horas * numMedicos);
+    } catch (err) {
+      console.error("Erro ao calcular horas da escala:", err);
+      return sum;
+    }
+  }, 0);
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
       <Box>
@@ -1587,6 +1655,66 @@ const Dashboard: React.FC = () => {
                     </Typography>
                   </Box>
                   <TrendingUp sx={{ fontSize: 48, opacity: 0.3 }} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={6}>
+            <Card
+              sx={{
+                height: "100%",
+                background: "linear-gradient(135deg, #ec4899 0%, #f472b6 100%)",
+              }}
+            >
+              <CardContent>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    color: "white",
+                  }}
+                >
+                  <Box>
+                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                      Produtividade Médica
+                    </Typography>
+                    <Typography variant="h3" fontWeight={700}>
+                      {produtividadeMedia}
+                    </Typography>
+                  </Box>
+                  <LocalHospital sx={{ fontSize: 48, opacity: 0.3 }} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={6}>
+            <Card
+              sx={{
+                height: "100%",
+                background: "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
+              }}
+            >
+              <CardContent>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    color: "white",
+                  }}
+                >
+                  <Box>
+                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                      Carga Horária Escalada
+                    </Typography>
+                    <Typography variant="h3" fontWeight={700}>
+                      {cargaHorariaEscalada.toFixed(0)}h
+                    </Typography>
+                  </Box>
+                  <CalendarMonth sx={{ fontSize: 48, opacity: 0.3 }} />
                 </Box>
               </CardContent>
             </Card>
