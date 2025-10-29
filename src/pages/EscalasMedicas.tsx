@@ -45,7 +45,7 @@ import {
   Refresh,
 } from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
-import { EscalaMedica, MedicoEscala, Contrato, Usuario } from "../types/database.types";
+import { EscalaMedica, MedicoEscala, Contrato, Usuario, UnidadeHospitalar } from "../types/database.types";
 import { format, parseISO } from "date-fns";
 
 const EscalasMedicas: React.FC = () => {
@@ -53,6 +53,7 @@ const EscalasMedicas: React.FC = () => {
   const [escalasFiltradas, setEscalasFiltradas] = useState<EscalaMedica[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -60,6 +61,9 @@ const EscalasMedicas: React.FC = () => {
   // Filtros
   const [filtroParceiro, setFiltroParceiro] = useState<string[]>([]);
   const [filtroContrato, setFiltroContrato] = useState<string[]>([]);
+  const [filtroUnidade, setFiltroUnidade] = useState<string[]>([]);
+  const [filtroNome, setFiltroNome] = useState<string[]>([]);
+  const [filtroCpf, setFiltroCpf] = useState<string[]>([]);
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
 
@@ -95,21 +99,23 @@ const EscalasMedicas: React.FC = () => {
 
   useEffect(() => {
     aplicarFiltros();
-  }, [escalas, filtroParceiro, filtroContrato, filtroDataInicio, filtroDataFim]);
+  }, [escalas, filtroParceiro, filtroContrato, filtroUnidade, filtroNome, filtroCpf, filtroDataInicio, filtroDataFim]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [{ data: escal }, { data: contr }] = await Promise.all([
+      const [{ data: escal }, { data: contr }, { data: unid }] = await Promise.all([
         supabase
           .from("escalas_medicas")
           .select("*")
           .order("data_inicio", { ascending: false }),
         supabase.from("contratos").select("*").eq("ativo", true),
+        supabase.from("unidades_hospitalares").select("*").eq("ativo", true).order("codigo"),
       ]);
 
       setEscalas(escal || []);
       setContratos(contr || []);
+      setUnidades(unid || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -159,6 +165,30 @@ const EscalasMedicas: React.FC = () => {
       filtered = filtered.filter((escala) => filtroContrato.includes(escala.contrato_id));
     }
 
+    // Filtro por unidade hospitalar
+    if (filtroUnidade.length > 0) {
+      filtered = filtered.filter((escala) => {
+        const contrato = contratos.find((c) => c.id === escala.contrato_id);
+        if (!contrato || !contrato.unidade_hospitalar_id) return false;
+        const unidade = unidades.find((u) => u.id === contrato.unidade_hospitalar_id);
+        return unidade && filtroUnidade.includes(unidade.codigo);
+      });
+    }
+
+    // Filtro por nome de médico
+    if (filtroNome.length > 0) {
+      filtered = filtered.filter((escala) => {
+        return escala.medicos.some((medico) => filtroNome.includes(medico.nome));
+      });
+    }
+
+    // Filtro por CPF
+    if (filtroCpf.length > 0) {
+      filtered = filtered.filter((escala) => {
+        return escala.medicos.some((medico) => filtroCpf.includes(medico.cpf));
+      });
+    }
+
     // Filtro por data início
     if (filtroDataInicio) {
       const dataInicio = new Date(filtroDataInicio);
@@ -187,6 +217,15 @@ const EscalasMedicas: React.FC = () => {
   // Opções únicas para filtros
   const parceirosUnicos = Array.from(new Set(contratos.map((c) => c.empresa))).sort();
   const contratosUnicos = contratos.map((c) => ({ id: c.id, label: `${c.nome} - ${c.empresa}` }));
+  const unidadesUnicas = unidades.map((u) => u.codigo).sort();
+
+  // Extrair nomes e CPFs únicos de todos os médicos nas escalas
+  const nomesUnicos = Array.from(
+    new Set(escalas.flatMap((e) => e.medicos.map((m) => m.nome)))
+  ).sort();
+  const cpfsUnicos = Array.from(
+    new Set(escalas.flatMap((e) => e.medicos.map((m) => m.cpf)))
+  ).sort();
 
   const handleContratoChange = (contrato: Contrato | null) => {
     setFormData({ ...formData, contrato_id: contrato?.id || "", medicos_selecionados: [] });
@@ -402,6 +441,60 @@ const EscalasMedicas: React.FC = () => {
                     <TextField
                       {...params}
                       label="Contrato"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Autocomplete
+                  multiple
+                  value={filtroUnidade}
+                  onChange={(_, newValue) => setFiltroUnidade(newValue)}
+                  options={unidadesUnicas}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Unidade Hospitalar"
+                      placeholder="Selecione uma ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Autocomplete
+                  multiple
+                  value={filtroNome}
+                  onChange={(_, newValue) => setFiltroNome(newValue)}
+                  options={nomesUnicos}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Nome"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Autocomplete
+                  multiple
+                  value={filtroCpf}
+                  onChange={(_, newValue) => setFiltroCpf(newValue)}
+                  options={cpfsUnicos}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="CPF"
                       placeholder="Selecione um ou mais"
                     />
                   )}
