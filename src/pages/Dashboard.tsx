@@ -44,6 +44,8 @@ import {
   Warning,
   LocalHospital,
   CalendarMonth,
+  Schedule,
+  PersonOff,
 } from "@mui/icons-material";
 import {
   BarChart,
@@ -886,6 +888,116 @@ const Dashboard: React.FC = () => {
       acessoSemProd: acessoSemProdArray,
     };
   }, [acessos, produtividade, usuarios, filtroNome, filtroUnidade, filtroDataInicio, filtroDataFim, unidades]);
+
+  // Cálculo de Pontualidade e Absenteísmo
+  const indicadoresEscalas = useMemo(() => {
+    // Aplicar filtros de data para normalização
+    const dataInicioNormalizada = filtroDataInicio ? new Date(filtroDataInicio) : null;
+    if (dataInicioNormalizada) dataInicioNormalizada.setHours(0, 0, 0, 0);
+
+    const dataFimNormalizada = filtroDataFim ? new Date(filtroDataFim) : null;
+    if (dataFimNormalizada) dataFimNormalizada.setHours(0, 0, 0, 0);
+
+    // Filtrar escalas por data
+    const escalasFiltr = escalas.filter(escala => {
+      if (dataInicioNormalizada) {
+        const dataEscala = new Date(escala.data_inicio);
+        dataEscala.setHours(0, 0, 0, 0);
+        if (dataEscala < dataInicioNormalizada) return false;
+      }
+      if (dataFimNormalizada) {
+        const dataEscala = new Date(escala.data_inicio);
+        dataEscala.setHours(0, 0, 0, 0);
+        if (dataEscala > dataFimNormalizada) return false;
+      }
+      return true;
+    });
+
+    // Mapear médicos por CPF
+    const pontualidadePorMedico = new Map<string, { nome: string; totalEscalas: number; atrasos: number }>();
+    const absenteismoPorMedico = new Map<string, { nome: string; totalEscalas: number; ausencias: number }>();
+
+    escalasFiltr.forEach(escala => {
+      escala.medicos?.forEach(medico => {
+        const dataEscala = new Date(escala.data_inicio);
+        dataEscala.setHours(0, 0, 0, 0);
+        const dataStr = format(dataEscala, 'yyyy-MM-dd');
+
+        // Aplicar filtro de nome
+        if (filtroNome.length > 0 && !filtroNome.includes(medico.nome)) return;
+
+        // Inicializar contadores de pontualidade
+        if (!pontualidadePorMedico.has(medico.cpf)) {
+          pontualidadePorMedico.set(medico.cpf, { nome: medico.nome, totalEscalas: 0, atrasos: 0 });
+        }
+        const pontInfo = pontualidadePorMedico.get(medico.cpf)!;
+        pontInfo.totalEscalas++;
+
+        // Inicializar contadores de absenteísmo
+        if (!absenteismoPorMedico.has(medico.cpf)) {
+          absenteismoPorMedico.set(medico.cpf, { nome: medico.nome, totalEscalas: 0, ausencias: 0 });
+        }
+        const absentInfo = absenteismoPorMedico.get(medico.cpf)!;
+        absentInfo.totalEscalas++;
+
+        // Verificar acessos do médico nesta data
+        const acessosDoDia = acessos.filter(acesso => {
+          if (acesso.cpf !== medico.cpf) return false;
+          const dataAcesso = new Date(acesso.data_acesso);
+          dataAcesso.setHours(0, 0, 0, 0);
+          const acessoDataStr = format(dataAcesso, 'yyyy-MM-dd');
+          return acessoDataStr === dataStr && acesso.sentido === 'E';
+        });
+
+        // Se não há acesso neste dia, conta como ausência
+        if (acessosDoDia.length === 0) {
+          absentInfo.ausencias++;
+        } else {
+          // Verificar pontualidade (primeira entrada do dia)
+          const primeiraEntrada = acessosDoDia.sort((a, b) =>
+            new Date(a.data_acesso).getTime() - new Date(b.data_acesso).getTime()
+          )[0];
+
+          const horaEntrada = new Date(primeiraEntrada.data_acesso);
+          const [horaEscalada, minEscalada] = escala.horario_entrada.split(':').map(Number);
+          const horaEscaladaDate = new Date(dataEscala);
+          horaEscaladaDate.setHours(horaEscalada, minEscalada, 0, 0);
+
+          // Tolerância de 10 minutos
+          const diferencaMinutos = (horaEntrada.getTime() - horaEscaladaDate.getTime()) / (1000 * 60);
+          if (diferencaMinutos > 10) {
+            pontInfo.atrasos++;
+          }
+        }
+      });
+    });
+
+    // Calcular índices e ordenar
+    const pontualidadeArray = Array.from(pontualidadePorMedico.entries())
+      .map(([cpf, info]) => ({
+        cpf,
+        nome: info.nome,
+        totalEscalas: info.totalEscalas,
+        atrasos: info.atrasos,
+        indice: info.totalEscalas > 0 ? ((info.totalEscalas - info.atrasos) / info.totalEscalas * 100).toFixed(1) : '0.0'
+      }))
+      .sort((a, b) => b.atrasos - a.atrasos);
+
+    const absenteismoArray = Array.from(absenteismoPorMedico.entries())
+      .map(([cpf, info]) => ({
+        cpf,
+        nome: info.nome,
+        totalEscalas: info.totalEscalas,
+        ausencias: info.ausencias,
+        indice: info.totalEscalas > 0 ? (info.ausencias / info.totalEscalas * 100).toFixed(1) : '0.0'
+      }))
+      .sort((a, b) => b.ausencias - a.ausencias);
+
+    return {
+      pontualidade: pontualidadeArray,
+      absenteismo: absenteismoArray
+    };
+  }, [escalas, acessos, filtroNome, filtroDataInicio, filtroDataFim]);
 
   // Calcular dados do heatmap baseado nos acessos filtrados
   const heatmapData = useMemo(() => {
@@ -2309,6 +2421,303 @@ const Dashboard: React.FC = () => {
                         sx={{ display: "block", textAlign: "center", mt: 2 }}
                       >
                         +{inconsistencias.acessoSemProd.length - 10} profissionais
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Indicadores de Escalas */}
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {/* Índice de Pontualidade */}
+          <Grid item xs={12} md={6}>
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+                borderRadius: 3,
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                border: "1px solid #86efac",
+                height: "100%",
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "12px",
+                      bgcolor: "#22c55e",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Schedule sx={{ color: "white", fontSize: 28 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700} color="#15803d">
+                      Índice de Pontualidade
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Médicos com mais atrasos (acima de 10min)
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {(filtroNome.length > 0 || filtroDataInicio || filtroDataFim) && (
+                  <Box sx={{ mb: 2 }}>
+                    <Chip
+                      icon={<FilterList />}
+                      label="Filtros ativos"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(34, 197, 94, 0.15)",
+                        color: "#15803d",
+                        fontWeight: 600,
+                      }}
+                    />
+                  </Box>
+                )}
+
+                <Divider sx={{ mb: 2 }} />
+
+                {indicadoresEscalas.pontualidade.length === 0 ? (
+                  <Box
+                    sx={{
+                      textAlign: "center",
+                      py: 4,
+                      opacity: 0.6,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      ✓ Sem dados de escalas no período
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+                    {indicadoresEscalas.pontualidade.slice(0, 10).map((item, index) => (
+                      <Paper
+                        key={item.cpf}
+                        sx={{
+                          p: 2,
+                          mb: 1.5,
+                          transition: "all 0.2s",
+                          "&:hover": {
+                            transform: "translateX(4px)",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            bgcolor: "success.50",
+                          },
+                        }}
+                      >
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="center"
+                        >
+                          <Box display="flex" alignItems="center" gap={1.5} flex={1}>
+                            <Box
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: "8px",
+                                bgcolor: "#22c55e",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: 700,
+                                fontSize: 14,
+                              }}
+                            >
+                              {index + 1}
+                            </Box>
+                            <Box flex={1}>
+                              <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                sx={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {item.nome}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Pontualidade: {item.indice}%
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Chip
+                            label={`${item.atrasos} ${item.atrasos === 1 ? "atraso" : "atrasos"}`}
+                            size="small"
+                            sx={{
+                              bgcolor: item.atrasos > 5 ? "#ef4444" : item.atrasos > 2 ? "#f59e0b" : "#22c55e",
+                              color: "white",
+                              fontWeight: 600,
+                            }}
+                          />
+                        </Box>
+                      </Paper>
+                    ))}
+                    {indicadoresEscalas.pontualidade.length > 10 && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", textAlign: "center", mt: 2 }}
+                      >
+                        +{indicadoresEscalas.pontualidade.length - 10} médicos
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Índice de Absenteísmo */}
+          <Grid item xs={12} md={6}>
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)",
+                borderRadius: 3,
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                border: "1px solid #fca5a5",
+                height: "100%",
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "12px",
+                      bgcolor: "#ef4444",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <PersonOff sx={{ color: "white", fontSize: 28 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700} color="#991b1b">
+                      Índice de Absenteísmo
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Escalas sem registro de acesso
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {(filtroNome.length > 0 || filtroDataInicio || filtroDataFim) && (
+                  <Box sx={{ mb: 2 }}>
+                    <Chip
+                      icon={<FilterList />}
+                      label="Filtros ativos"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(239, 68, 68, 0.15)",
+                        color: "#991b1b",
+                        fontWeight: 600,
+                      }}
+                    />
+                  </Box>
+                )}
+
+                <Divider sx={{ mb: 2 }} />
+
+                {indicadoresEscalas.absenteismo.length === 0 ? (
+                  <Box
+                    sx={{
+                      textAlign: "center",
+                      py: 4,
+                      opacity: 0.6,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      ✓ Sem dados de escalas no período
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+                    {indicadoresEscalas.absenteismo.slice(0, 10).map((item, index) => (
+                      <Paper
+                        key={item.cpf}
+                        sx={{
+                          p: 2,
+                          mb: 1.5,
+                          transition: "all 0.2s",
+                          "&:hover": {
+                            transform: "translateX(4px)",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            bgcolor: "error.50",
+                          },
+                        }}
+                      >
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="center"
+                        >
+                          <Box display="flex" alignItems="center" gap={1.5} flex={1}>
+                            <Box
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: "8px",
+                                bgcolor: "#ef4444",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: 700,
+                                fontSize: 14,
+                              }}
+                            >
+                              {index + 1}
+                            </Box>
+                            <Box flex={1}>
+                              <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                sx={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {item.nome}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Absenteísmo: {item.indice}%
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Chip
+                            label={`${item.ausencias} ${item.ausencias === 1 ? "ausência" : "ausências"}`}
+                            size="small"
+                            sx={{
+                              bgcolor: item.ausencias > 5 ? "#991b1b" : item.ausencias > 2 ? "#dc2626" : "#ef4444",
+                              color: "white",
+                              fontWeight: 600,
+                            }}
+                          />
+                        </Box>
+                      </Paper>
+                    ))}
+                    {indicadoresEscalas.absenteismo.length > 10 && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", textAlign: "center", mt: 2 }}
+                      >
+                        +{indicadoresEscalas.absenteismo.length - 10} médicos
                       </Typography>
                     )}
                   </Box>
