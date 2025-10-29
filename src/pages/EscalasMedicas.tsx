@@ -256,7 +256,8 @@ const EscalasMedicas: React.FC = () => {
       const dataInicio = new Date(filtroDataInicio);
       dataInicio.setHours(0, 0, 0, 0);
       filtered = filtered.filter((escala) => {
-        const dataEscala = new Date(escala.data_inicio);
+        // Usa parseISO para evitar problemas de timezone
+        const dataEscala = parseISO(escala.data_inicio);
         dataEscala.setHours(0, 0, 0, 0);
         return dataEscala >= dataInicio;
       });
@@ -267,7 +268,8 @@ const EscalasMedicas: React.FC = () => {
       const dataFim = new Date(filtroDataFim);
       dataFim.setHours(0, 0, 0, 0);
       filtered = filtered.filter((escala) => {
-        const dataEscala = new Date(escala.data_inicio);
+        // Usa parseISO para evitar problemas de timezone
+        const dataEscala = parseISO(escala.data_inicio);
         dataEscala.setHours(0, 0, 0, 0);
         return dataEscala <= dataFim;
       });
