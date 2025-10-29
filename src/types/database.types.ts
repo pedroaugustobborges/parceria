@@ -158,6 +158,7 @@ export interface HorasCalculadas {
   matricula: string;
   tipo: string;
   totalHoras: number;
+  cargaHorariaEscalada: number;
   diasComRegistro: number;
   entradas: number;
   saidas: number;

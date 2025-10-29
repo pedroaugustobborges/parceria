@@ -434,12 +434,37 @@ const Dashboard: React.FC = () => {
             new Date(a.data_acesso).getTime()
         )[0];
 
+        // Calcular carga horária escalada para este CPF
+        const escalasDoMedico = escalas.filter(escala =>
+          escala.medicos?.some(medico => medico.cpf === cpf)
+        );
+
+        const cargaHorariaEscaladaPorCpf = escalasDoMedico.reduce((sum, escala) => {
+          try {
+            const [horaEntrada, minEntrada] = escala.horario_entrada.split(":").map(Number);
+            const [horaSaida, minSaida] = escala.horario_saida.split(":").map(Number);
+
+            let minutosTotais = (horaSaida * 60 + minSaida) - (horaEntrada * 60 + minEntrada);
+
+            if (minutosTotais < 0) {
+              minutosTotais += 24 * 60;
+            }
+
+            const horas = minutosTotais / 60;
+            return sum + horas;
+          } catch (err) {
+            console.error("Erro ao calcular horas da escala para CPF:", err);
+            return sum;
+          }
+        }, 0);
+
         return {
           cpf,
           nome: ultimoAcesso.nome,
           matricula: ultimoAcesso.matricula,
           tipo: ultimoAcesso.tipo,
           totalHoras: parseFloat(totalHoras.toFixed(2)),
+          cargaHorariaEscalada: parseFloat(cargaHorariaEscaladaPorCpf.toFixed(2)),
           diasComRegistro: diasUnicos.size,
           entradas: totalEntradas,
           saidas: totalSaidas,
@@ -1262,11 +1287,11 @@ const Dashboard: React.FC = () => {
         </Box>
       ),
     },
-    { field: "cpf", headerName: "CPF", width: 140 },
+    { field: "cpf", headerName: "CPF", width: 130 },
     {
       field: "tipo",
       headerName: "Tipo",
-      width: 130,
+      width: 120,
       renderCell: (params) => (
         <Chip
           label={params.value}
@@ -1277,9 +1302,25 @@ const Dashboard: React.FC = () => {
       ),
     },
     {
+      field: "cargaHorariaEscalada",
+      headerName: "Carga Horária Escalada",
+      width: 170,
+      type: "number",
+      filterable: true,
+      sortable: true,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <CalendarMonth fontSize="small" color="action" />
+          <Typography variant="body2" fontWeight={600} color="warning.main">
+            {params.value}h
+          </Typography>
+        </Box>
+      ),
+    },
+    {
       field: "totalHoras",
       headerName: "Total de Horas",
-      width: 140,
+      width: 130,
       type: "number",
       renderCell: (params) => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
