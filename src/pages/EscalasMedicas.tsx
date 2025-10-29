@@ -51,6 +51,8 @@ import {
   Contrato,
   Usuario,
   UnidadeHospitalar,
+  ItemContrato,
+  ContratoItem,
 } from "../types/database.types";
 import { format, parseISO } from "date-fns";
 
@@ -60,6 +62,8 @@ const EscalasMedicas: React.FC = () => {
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
+  const [itensContrato, setItensContrato] = useState<ItemContrato[]>([]);
+  const [todosItensContrato, setTodosItensContrato] = useState<ItemContrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -81,6 +85,7 @@ const EscalasMedicas: React.FC = () => {
   // Form state
   const [formData, setFormData] = useState({
     contrato_id: "",
+    item_contrato_id: "",
     data_inicio: null as Date | null,
     horario_entrada: null as Date | null,
     horario_saida: null as Date | null,
@@ -119,7 +124,7 @@ const EscalasMedicas: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [{ data: escal }, { data: contr }, { data: unid }] =
+      const [{ data: escal }, { data: contr }, { data: unid }, { data: itens }] =
         await Promise.all([
           supabase
             .from("escalas_medicas")
@@ -131,11 +136,16 @@ const EscalasMedicas: React.FC = () => {
             .select("*")
             .eq("ativo", true)
             .order("codigo"),
+          supabase
+            .from("itens_contrato")
+            .select("*")
+            .eq("ativo", true),
         ]);
 
       setEscalas(escal || []);
       setContratos(contr || []);
       setUnidades(unid || []);
+      setTodosItensContrato(itens || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -166,6 +176,32 @@ const EscalasMedicas: React.FC = () => {
       setUsuarios(usuariosData || []);
     } catch (err: any) {
       console.error("Erro ao carregar usuários:", err);
+    }
+  };
+
+  const loadItensContrato = async (contratoId: string) => {
+    try {
+      const { data: contratoItens, error } = await supabase
+        .from("contrato_itens")
+        .select("*, item:itens_contrato(*)")
+        .eq("contrato_id", contratoId);
+
+      if (error) {
+        console.error("Erro ao carregar itens do contrato:", error);
+        setItensContrato([]);
+        return;
+      }
+
+      if (!contratoItens || contratoItens.length === 0) {
+        setItensContrato([]);
+        return;
+      }
+
+      const itens = contratoItens.map((ci: any) => ci.item);
+      setItensContrato(itens || []);
+    } catch (err: any) {
+      console.error("Erro ao carregar itens do contrato:", err);
+      setItensContrato([]);
     }
   };
 
@@ -262,12 +298,15 @@ const EscalasMedicas: React.FC = () => {
     setFormData({
       ...formData,
       contrato_id: contrato?.id || "",
+      item_contrato_id: "",
       medicos_selecionados: [],
     });
     if (contrato) {
       loadUsuariosByContrato(contrato.id);
+      loadItensContrato(contrato.id);
     } else {
       setUsuarios([]);
+      setItensContrato([]);
     }
   };
 
@@ -276,6 +315,7 @@ const EscalasMedicas: React.FC = () => {
       // Validar dados básicos
       if (
         !formData.contrato_id ||
+        !formData.item_contrato_id ||
         !formData.data_inicio ||
         !formData.horario_entrada ||
         !formData.horario_saida
@@ -315,6 +355,7 @@ const EscalasMedicas: React.FC = () => {
 
       const escalaMedica = {
         contrato_id: formData.contrato_id,
+        item_contrato_id: formData.item_contrato_id,
         data_inicio: format(formData.data_inicio!, "yyyy-MM-dd"),
         horario_entrada: format(formData.horario_entrada!, "HH:mm:ss"),
         horario_saida: format(formData.horario_saida!, "HH:mm:ss"),
@@ -354,6 +395,7 @@ const EscalasMedicas: React.FC = () => {
       setEditingEscala(null);
       setFormData({
         contrato_id: "",
+        item_contrato_id: "",
         data_inicio: null,
         horario_entrada: null,
         horario_saida: null,
@@ -649,7 +691,7 @@ const EscalasMedicas: React.FC = () => {
                       {contrato?.empresa}
                     </Typography>
 
-                    <Box display="flex" gap={1} my={2}>
+                    <Box display="flex" gap={1} my={2} flexWrap="wrap">
                       <Chip
                         icon={<Schedule />}
                         label={`${escala.horario_entrada.substring(
@@ -657,6 +699,26 @@ const EscalasMedicas: React.FC = () => {
                           5
                         )} - ${escala.horario_saida.substring(0, 5)}`}
                         size="small"
+                        variant="outlined"
+                      />
+                    </Box>
+
+                    <Box mb={2}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        display="block"
+                        gutterBottom
+                      >
+                        Item de Contrato:
+                      </Typography>
+                      <Chip
+                        label={
+                          todosItensContrato.find((i) => i.id === escala.item_contrato_id)?.nome ||
+                          "Item não encontrado"
+                        }
+                        size="small"
+                        color="secondary"
                         variant="outlined"
                       />
                     </Box>
@@ -735,6 +797,29 @@ const EscalasMedicas: React.FC = () => {
                   renderInput={(params) => (
                     <TextField {...params} label="Contrato" required />
                   )}
+                  fullWidth
+                />
+
+                <Autocomplete
+                  value={
+                    itensContrato.find((i) => i.id === formData.item_contrato_id) || null
+                  }
+                  onChange={(_, newValue) =>
+                    setFormData({ ...formData, item_contrato_id: newValue?.id || "" })
+                  }
+                  options={itensContrato}
+                  getOptionLabel={(option) =>
+                    `${option.nome} (${option.unidade_medida})`
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Item de Contrato"
+                      required
+                      helperText="Selecione o item de contrato relacionado a esta escala"
+                    />
+                  )}
+                  disabled={!formData.contrato_id}
                   fullWidth
                 />
 
@@ -843,7 +928,7 @@ const EscalasMedicas: React.FC = () => {
                     >
                       {previewData.contrato?.empresa}
                     </Typography>
-                    <Box display="flex" gap={2} mt={2}>
+                    <Box display="flex" gap={2} mt={2} flexWrap="wrap">
                       <Chip
                         icon={<CalendarMonth />}
                         label={
@@ -865,6 +950,14 @@ const EscalasMedicas: React.FC = () => {
                             : ""
                         }`}
                         color="primary"
+                      />
+                      <Chip
+                        label={
+                          itensContrato.find((i) => i.id === formData.item_contrato_id)
+                            ?.nome || "Item não encontrado"
+                        }
+                        color="secondary"
+                        variant="outlined"
                       />
                     </Box>
                   </CardContent>

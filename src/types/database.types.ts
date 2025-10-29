@@ -260,6 +260,7 @@ export interface MedicoEscala {
 export interface EscalaMedica {
   id: string;
   contrato_id: string;
+  item_contrato_id: string;
   data_inicio: string;
   horario_entrada: string;
   horario_saida: string;
