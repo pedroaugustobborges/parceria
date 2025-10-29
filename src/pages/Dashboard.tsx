@@ -1286,8 +1286,7 @@ const Dashboard: React.FC = () => {
     {
       field: "nome",
       headerName: "Nome",
-      flex: 1,
-      minWidth: 200,
+      width: 250,
       renderCell: (params) => (
         <Box
           sx={{
@@ -1309,11 +1308,11 @@ const Dashboard: React.FC = () => {
         </Box>
       ),
     },
-    { field: "cpf", headerName: "CPF", width: 130 },
+    { field: "cpf", headerName: "CPF", width: 140 },
     {
       field: "tipo",
       headerName: "Tipo",
-      width: 120,
+      width: 100,
       renderCell: (params) => (
         <Chip
           label={params.value}
@@ -1326,12 +1325,14 @@ const Dashboard: React.FC = () => {
     {
       field: "cargaHorariaEscalada",
       headerName: "Carga Horária Escalada",
-      width: 180,
+      width: 160,
       type: "number",
       filterable: true,
       sortable: true,
+      headerAlign: "center",
+      align: "center",
       renderCell: (params) => (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, width: "100%" }}>
           <CalendarMonth fontSize="small" color="action" />
           <Typography variant="body2" fontWeight={600} color="warning.main">
             {params.value}h
