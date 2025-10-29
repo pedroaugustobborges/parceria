@@ -12,6 +12,7 @@ import Itens from './pages/Itens';
 import Parceiros from './pages/Parceiros';
 import InsightsIA from './pages/InsightsIA';
 import UnidadesHospitalares from './pages/UnidadesHospitalares';
+import EscalasMedicas from './pages/EscalasMedicas';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
@@ -97,6 +98,17 @@ const App: React.FC = () => {
                 <ProtectedRoute requireAdminAgir>
                   <Layout>
                     <UnidadesHospitalares />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/escalas"
+              element={
+                <ProtectedRoute requireAdminAgir>
+                  <Layout>
+                    <EscalasMedicas />
                   </Layout>
                 </ProtectedRoute>
               }

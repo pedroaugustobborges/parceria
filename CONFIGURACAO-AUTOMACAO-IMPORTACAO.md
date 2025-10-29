@@ -17,7 +17,7 @@ Este guia documenta como configurar a execução automática do script `importar
 ### Via PuTTY (Windows)
 
 1. Abra o PuTTY
-2. Em "Host Name": `admin@10.12.1.70`
+2. Em "Host Name": `admin@10.12.1.170`
 3. Em Connection > SSH > Auth > Credentials: Selecione o arquivo `AgirChave02 2.ppk`
 4. Clique em "Open"
 
@@ -29,7 +29,7 @@ puttygen "AgirChave02 2.ppk" -O private-openssh -o agir-key.pem
 chmod 400 agir-key.pem
 
 # Conecte via SSH
-ssh -i agir-key.pem admin@10.12.1.70
+ssh -i agir-key.pem admin@10.12.1.170
 ```
 
 ---
@@ -226,36 +226,43 @@ tail -f /var/log/importacao-acessos.log
 ## Comandos Úteis para Monitoramento
 
 ### Ver últimas 50 linhas do log
+
 ```bash
 tail -n 50 /var/log/importacao-acessos.log
 ```
 
 ### Ver log em tempo real
+
 ```bash
 tail -f /var/log/importacao-acessos.log
 ```
 
 ### Ver apenas execuções com erro
+
 ```bash
 grep "❌" /var/log/importacao-acessos.log
 ```
 
 ### Ver apenas execuções bem-sucedidas
+
 ```bash
 grep "✅" /var/log/importacao-acessos.log
 ```
 
 ### Contar quantas execuções foram feitas hoje
+
 ```bash
 grep "$(date '+%Y-%m-%d')" /var/log/importacao-acessos.log | grep "Iniciando" | wc -l
 ```
 
 ### Verificar cron jobs ativos
+
 ```bash
 crontab -l
 ```
 
 ### Ver quando o cron vai executar próximo
+
 ```bash
 # Este comando mostra os próximos agendamentos
 sudo systemctl list-timers
@@ -358,10 +365,10 @@ nano /home/admin/gestaodeacesso/.env
 
 ## Resumo de Horários
 
-| Horário (Brasília) | Descrição |
-|-------------------|-----------|
-| 01:00 | Primeira importação diária (madrugada) |
-| 13:00 | Segunda importação diária (tarde) |
+| Horário (Brasília) | Descrição                              |
+| ------------------ | -------------------------------------- |
+| 01:00              | Primeira importação diária (madrugada) |
+| 13:00              | Segunda importação diária (tarde)      |
 
 **Nota:** Como configuramos o timezone para `America/Sao_Paulo`, os horários no cron (1 e 13) correspondem exatamente aos horários de Brasília.
 
@@ -387,6 +394,7 @@ nano /home/admin/gestaodeacesso/.env
 ## Contato e Suporte
 
 Se encontrar problemas, verifique os logs primeiro:
+
 ```bash
 tail -n 100 /var/log/importacao-acessos.log
 ```

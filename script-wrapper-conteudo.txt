@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Script wrapper para importar acessos do Data Warehouse
+# Executado pelo cron às 01:00 e 13:00 diariamente
+
+# Diretório do projeto
+PROJECT_DIR="/home/admin/gestaodeacesso"
+
+# Arquivo de log
+LOG_FILE="/var/log/importacao-acessos.log"
+
+# Início da execução
+echo "========================================" >> "$LOG_FILE"
+echo "Iniciando importação em $(date '+%Y-%m-%d %H:%M:%S %Z')" >> "$LOG_FILE"
+echo "Diretório do projeto: $PROJECT_DIR" >> "$LOG_FILE"
+
+# Navega para o diretório do projeto
+if [ ! -d "$PROJECT_DIR" ]; then
+    echo "ERRO: Diretório $PROJECT_DIR não existe!" >> "$LOG_FILE"
+    exit 1
+fi
+
+cd "$PROJECT_DIR" || {
+    echo "ERRO: Não foi possível acessar o diretório $PROJECT_DIR" >> "$LOG_FILE"
+    exit 1
+}
+
+echo "Diretório atual: $(pwd)" >> "$LOG_FILE"
+
+# Verifica se o ambiente virtual existe
+if [ ! -d "venv" ]; then
+    echo "ERRO: Ambiente virtual 'venv' não encontrado em $(pwd)" >> "$LOG_FILE"
+    exit 1
+fi
+
+# Ativa o ambiente virtual
+source venv/bin/activate || {
+    echo "ERRO: Não foi possível ativar o ambiente virtual" >> "$LOG_FILE"
+    exit 1
+}
+
+echo "Ambiente virtual ativado" >> "$LOG_FILE"
+
+# Verifica se o script Python existe
+if [ ! -f "importar-ultimos-10000-acessos.py" ]; then
+    echo "ERRO: Script importar-ultimos-10000-acessos.py não encontrado em $(pwd)" >> "$LOG_FILE"
+    exit 1
+fi
+
+# Executa o script Python (500 registros por CPF)
+echo "Executando script Python..." >> "$LOG_FILE"
+python3 importar-ultimos-10000-acessos.py 500 >> "$LOG_FILE" 2>&1
+
+# Status de saída
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "✅ Importação concluída com sucesso em $(date '+%Y-%m-%d %H:%M:%S %Z')" >> "$LOG_FILE"
+else
+    echo "❌ Importação falhou com código de erro: $EXIT_CODE em $(date '+%Y-%m-%d %H:%M:%S %Z')" >> "$LOG_FILE"
+fi
+
+echo "========================================" >> "$LOG_FILE"
+echo "" >> "$LOG_FILE"
+
+exit $EXIT_CODE

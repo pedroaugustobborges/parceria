@@ -35,6 +35,7 @@ import {
   MedicalServices,
   Psychology,
   CorporateFare,
+  CalendarMonth,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import { useThemeMode } from "../../contexts/ThemeContext";
@@ -122,6 +123,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       text: "Itens de Contrato",
       icon: <MedicalServices />,
       path: "/itens",
+      adminOnly: true,
+    },
+    {
+      text: "Escalas Médicas",
+      icon: <CalendarMonth />,
+      path: "/escalas",
       adminOnly: true,
     },
   ];

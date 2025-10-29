@@ -251,3 +251,22 @@ export interface InsightIA {
   data_analise: string;
   created_at: string;
 }
+
+export interface MedicoEscala {
+  nome: string;
+  cpf: string;
+}
+
+export interface EscalaMedica {
+  id: string;
+  contrato_id: string;
+  data_inicio: string;
+  horario_entrada: string;
+  horario_saida: string;
+  medicos: MedicoEscala[];
+  observacoes: string | null;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
