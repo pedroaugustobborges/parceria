@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -24,17 +24,30 @@ import {
   TableRow,
   Paper,
   Divider,
-} from '@mui/material';
-import { DataGrid, GridColDef, GridToolbar } from '@mui/x-data-grid';
-import { Add, Edit, Delete, Description, Remove, Inventory } from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { ptBR } from 'date-fns/locale';
-import { supabase } from '../lib/supabase';
-import { Contrato, ItemContrato, ContratoItem, Parceiro, UnidadeHospitalar } from '../types/database.types';
-import { format, parseISO } from 'date-fns';
-import { useAuth } from '../contexts/AuthContext';
+} from "@mui/material";
+import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
+import {
+  Add,
+  Edit,
+  Delete,
+  Description,
+  Remove,
+  Inventory,
+} from "@mui/icons-material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { ptBR } from "date-fns/locale";
+import { supabase } from "../lib/supabase";
+import {
+  Contrato,
+  ItemContrato,
+  ContratoItem,
+  Parceiro,
+  UnidadeHospitalar,
+} from "../types/database.types";
+import { format, parseISO } from "date-fns";
+import { useAuth } from "../contexts/AuthContext";
 
 interface ItemSelecionado {
   item: ItemContrato;
@@ -44,18 +57,22 @@ interface ItemSelecionado {
 }
 
 const Contratos: React.FC = () => {
-  const { isAdminAgirCorporativo, isAdminAgirPlanta, unidadeHospitalarId } = useAuth();
+  const { isAdminAgirCorporativo, isAdminAgirPlanta, unidadeHospitalarId } =
+    useAuth();
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingContrato, setEditingContrato] = useState<Contrato | null>(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // Items state
   const [itensDisponiveis, setItensDisponiveis] = useState<ItemContrato[]>([]);
-  const [itensSelecionados, setItensSelecionados] = useState<ItemSelecionado[]>([]);
-  const [itemParaAdicionar, setItemParaAdicionar] = useState<ItemContrato | null>(null);
+  const [itensSelecionados, setItensSelecionados] = useState<ItemSelecionado[]>(
+    []
+  );
+  const [itemParaAdicionar, setItemParaAdicionar] =
+    useState<ItemContrato | null>(null);
 
   // Parceiros state
   const [parceiros, setParceiros] = useState<Parceiro[]>([]);
@@ -65,9 +82,9 @@ const Contratos: React.FC = () => {
 
   // Form state
   const [formData, setFormData] = useState({
-    nome: '',
-    numero_contrato: '',
-    empresa: '',
+    nome: "",
+    numero_contrato: "",
+    empresa: "",
     data_inicio: null as Date | null,
     data_fim: null as Date | null,
     ativo: true,
@@ -85,9 +102,9 @@ const Contratos: React.FC = () => {
     try {
       setLoading(true);
       const { data, error: fetchError } = await supabase
-        .from('contratos')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("contratos")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;
       setContratos(data || []);
@@ -101,54 +118,54 @@ const Contratos: React.FC = () => {
   const loadItens = async () => {
     try {
       const { data, error: fetchError } = await supabase
-        .from('itens_contrato')
-        .select('*')
-        .eq('ativo', true)
-        .order('nome');
+        .from("itens_contrato")
+        .select("*")
+        .eq("ativo", true)
+        .order("nome");
 
       if (fetchError) throw fetchError;
       setItensDisponiveis(data || []);
     } catch (err: any) {
-      console.error('Erro ao carregar itens:', err);
+      console.error("Erro ao carregar itens:", err);
     }
   };
 
   const loadParceiros = async () => {
     try {
-      const { data, error: fetchError} = await supabase
-        .from('parceiros')
-        .select('*')
-        .eq('ativo', true)
-        .order('nome');
+      const { data, error: fetchError } = await supabase
+        .from("parceiros")
+        .select("*")
+        .eq("ativo", true)
+        .order("nome");
 
       if (fetchError) throw fetchError;
       setParceiros(data || []);
     } catch (err: any) {
-      console.error('Erro ao carregar parceiros:', err);
+      console.error("Erro ao carregar parceiros:", err);
     }
   };
 
   const loadUnidades = async () => {
     try {
       const { data, error: fetchError } = await supabase
-        .from('unidades_hospitalares')
-        .select('*')
-        .eq('ativo', true)
-        .order('codigo');
+        .from("unidades_hospitalares")
+        .select("*")
+        .eq("ativo", true)
+        .order("codigo");
 
       if (fetchError) throw fetchError;
       setUnidades(data || []);
     } catch (err: any) {
-      console.error('Erro ao carregar unidades:', err);
+      console.error("Erro ao carregar unidades:", err);
     }
   };
 
   const loadContratoItens = async (contratoId: string) => {
     try {
       const { data, error } = await supabase
-        .from('contrato_itens')
-        .select('*, item:itens_contrato(*)')
-        .eq('contrato_id', contratoId);
+        .from("contrato_itens")
+        .select("*, item:itens_contrato(*)")
+        .eq("contrato_id", contratoId);
 
       if (error) throw error;
 
@@ -156,12 +173,12 @@ const Contratos: React.FC = () => {
         item: ci.item,
         quantidade: ci.quantidade,
         valor_unitario: ci.valor_unitario || 0,
-        observacoes: ci.observacoes || '',
+        observacoes: ci.observacoes || "",
       }));
 
       setItensSelecionados(itens);
     } catch (err: any) {
-      console.error('Erro ao carregar itens do contrato:', err);
+      console.error("Erro ao carregar itens do contrato:", err);
     }
   };
 
@@ -170,7 +187,7 @@ const Contratos: React.FC = () => {
       setEditingContrato(contrato);
       setFormData({
         nome: contrato.nome,
-        numero_contrato: contrato.numero_contrato || '',
+        numero_contrato: contrato.numero_contrato || "",
         empresa: contrato.empresa,
         data_inicio: parseISO(contrato.data_inicio),
         data_fim: contrato.data_fim ? parseISO(contrato.data_fim) : null,
@@ -181,9 +198,9 @@ const Contratos: React.FC = () => {
     } else {
       setEditingContrato(null);
       setFormData({
-        nome: '',
-        numero_contrato: '',
-        empresa: '',
+        nome: "",
+        numero_contrato: "",
+        empresa: "",
         data_inicio: null,
         data_fim: null,
         ativo: true,
@@ -199,15 +216,15 @@ const Contratos: React.FC = () => {
     setEditingContrato(null);
     setItensSelecionados([]);
     setItemParaAdicionar(null);
-    setError('');
+    setError("");
   };
 
   const handleAdicionarItem = () => {
     if (!itemParaAdicionar) return;
 
     // Check if item already added
-    if (itensSelecionados.some(is => is.item.id === itemParaAdicionar.id)) {
-      setError('Este item já foi adicionado ao contrato');
+    if (itensSelecionados.some((is) => is.item.id === itemParaAdicionar.id)) {
+      setError("Este item já foi adicionado ao contrato");
       return;
     }
 
@@ -217,19 +234,21 @@ const Contratos: React.FC = () => {
         item: itemParaAdicionar,
         quantidade: 1,
         valor_unitario: 0,
-        observacoes: '',
+        observacoes: "",
       },
     ]);
     setItemParaAdicionar(null);
   };
 
   const handleRemoverItem = (itemId: string) => {
-    setItensSelecionados(itensSelecionados.filter(is => is.item.id !== itemId));
+    setItensSelecionados(
+      itensSelecionados.filter((is) => is.item.id !== itemId)
+    );
   };
 
   const handleUpdateItemQuantidade = (itemId: string, quantidade: number) => {
     setItensSelecionados(
-      itensSelecionados.map(is =>
+      itensSelecionados.map((is) =>
         is.item.id === itemId ? { ...is, quantidade } : is
       )
     );
@@ -237,7 +256,7 @@ const Contratos: React.FC = () => {
 
   const handleUpdateItemValor = (itemId: string, valor_unitario: number) => {
     setItensSelecionados(
-      itensSelecionados.map(is =>
+      itensSelecionados.map((is) =>
         is.item.id === itemId ? { ...is, valor_unitario } : is
       )
     );
@@ -245,11 +264,18 @@ const Contratos: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      setError('');
-      setSuccess('');
+      setError("");
+      setSuccess("");
 
-      if (!formData.nome || !formData.empresa || !formData.data_inicio || !formData.unidade_hospitalar_id) {
-        setError('Preencha todos os campos obrigatórios (incluindo Unidade Hospitalar)');
+      if (
+        !formData.nome ||
+        !formData.empresa ||
+        !formData.data_inicio ||
+        !formData.unidade_hospitalar_id
+      ) {
+        setError(
+          "Preencha todos os campos obrigatórios (incluindo Unidade Hospitalar)"
+        );
         return;
       }
 
@@ -268,36 +294,36 @@ const Contratos: React.FC = () => {
       if (editingContrato) {
         // Update contract
         const { error: updateError } = await supabase
-          .from('contratos')
+          .from("contratos")
           .update(contratoData)
-          .eq('id', editingContrato.id);
+          .eq("id", editingContrato.id);
 
         if (updateError) throw updateError;
         contratoId = editingContrato.id;
 
         // Delete existing items and insert new ones
         await supabase
-          .from('contrato_itens')
+          .from("contrato_itens")
           .delete()
-          .eq('contrato_id', contratoId);
+          .eq("contrato_id", contratoId);
 
-        setSuccess('Contrato atualizado com sucesso!');
+        setSuccess("Contrato atualizado com sucesso!");
       } else {
         // Create new contract
         const { data: newContrato, error: insertError } = await supabase
-          .from('contratos')
+          .from("contratos")
           .insert(contratoData)
           .select()
           .single();
 
         if (insertError) throw insertError;
         contratoId = newContrato.id;
-        setSuccess('Contrato criado com sucesso!');
+        setSuccess("Contrato criado com sucesso!");
       }
 
       // Insert contract items
       if (itensSelecionados.length > 0) {
-        const contratoItensData = itensSelecionados.map(is => ({
+        const contratoItensData = itensSelecionados.map((is) => ({
           contrato_id: contratoId,
           item_id: is.item.id,
           quantidade: is.quantidade,
@@ -306,7 +332,7 @@ const Contratos: React.FC = () => {
         }));
 
         const { error: itensError } = await supabase
-          .from('contrato_itens')
+          .from("contrato_itens")
           .insert(contratoItensData);
 
         if (itensError) throw itensError;
@@ -315,22 +341,27 @@ const Contratos: React.FC = () => {
       handleCloseDialog();
       loadContratos();
     } catch (err: any) {
-      setError(err.message || 'Erro ao salvar contrato');
+      setError(err.message || "Erro ao salvar contrato");
     }
   };
 
   const handleDelete = async (contrato: Contrato) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o contrato ${contrato.nome}?`)) return;
+    if (
+      !window.confirm(
+        `Tem certeza que deseja excluir o contrato ${contrato.nome}?`
+      )
+    )
+      return;
 
     try {
       const { error: deleteError } = await supabase
-        .from('contratos')
+        .from("contratos")
         .delete()
-        .eq('id', contrato.id);
+        .eq("id", contrato.id);
 
       if (deleteError) throw deleteError;
 
-      setSuccess('Contrato excluído com sucesso!');
+      setSuccess("Contrato excluído com sucesso!");
       loadContratos();
     } catch (err: any) {
       setError(err.message);
@@ -341,13 +372,15 @@ const Contratos: React.FC = () => {
     try {
       const updateData: any = { ativo: !contrato.ativo };
       const { error: updateError } = await supabase
-        .from('contratos')
+        .from("contratos")
         .update(updateData)
-        .eq('id', contrato.id);
+        .eq("id", contrato.id);
 
       if (updateError) throw updateError;
 
-      setSuccess(`Contrato ${!contrato.ativo ? 'ativado' : 'desativado'} com sucesso!`);
+      setSuccess(
+        `Contrato ${!contrato.ativo ? "ativado" : "desativado"} com sucesso!`
+      );
       loadContratos();
     } catch (err: any) {
       setError(err.message);
@@ -356,8 +389,8 @@ const Contratos: React.FC = () => {
 
   const columns: GridColDef[] = [
     {
-      field: 'nome',
-      headerName: 'Nome do Contrato',
+      field: "nome",
+      headerName: "Nome do Contrato",
       flex: 1,
       minWidth: 250,
       renderCell: (params) => (
@@ -372,47 +405,49 @@ const Contratos: React.FC = () => {
       ),
     },
     {
-      field: 'numero_contrato',
-      headerName: 'Número',
+      field: "numero_contrato",
+      headerName: "Número",
       width: 150,
-      renderCell: (params) => params.value || '-',
+      renderCell: (params) => params.value || "-",
     },
     {
-      field: 'data_inicio',
-      headerName: 'Início',
+      field: "data_inicio",
+      headerName: "Início",
       width: 120,
-      renderCell: (params) => format(parseISO(params.value), 'dd/MM/yyyy'),
+      renderCell: (params) => format(parseISO(params.value), "dd/MM/yyyy"),
     },
     {
-      field: 'data_fim',
-      headerName: 'Fim',
+      field: "data_fim",
+      headerName: "Fim",
       width: 120,
       renderCell: (params) =>
-        params.value ? format(parseISO(params.value), 'dd/MM/yyyy') : 'Indeterminado',
+        params.value
+          ? format(parseISO(params.value), "dd/MM/yyyy")
+          : "Indeterminado",
     },
     {
-      field: 'ativo',
-      headerName: 'Status',
+      field: "ativo",
+      headerName: "Status",
       width: 120,
       renderCell: (params) => (
         <Chip
-          label={params.value ? 'Ativo' : 'Inativo'}
-          color={params.value ? 'success' : 'default'}
+          label={params.value ? "Ativo" : "Inativo"}
+          color={params.value ? "success" : "default"}
           size="small"
           onClick={() => handleToggleAtivo(params.row)}
-          sx={{ cursor: 'pointer' }}
+          sx={{ cursor: "pointer" }}
         />
       ),
     },
     {
-      field: 'created_at',
-      headerName: 'Cadastro',
+      field: "created_at",
+      headerName: "Cadastro",
       width: 120,
-      renderCell: (params) => format(parseISO(params.value), 'dd/MM/yyyy'),
+      renderCell: (params) => format(parseISO(params.value), "dd/MM/yyyy"),
     },
     {
-      field: 'actions',
-      headerName: 'Ações',
+      field: "actions",
+      headerName: "Ações",
       width: 120,
       sortable: false,
       renderCell: (params) => (
@@ -439,7 +474,14 @@ const Contratos: React.FC = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
       <Box>
-        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box
+          sx={{
+            mb: 4,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <Box>
             <Typography variant="h4" fontWeight={700} gutterBottom>
               Gestão de Contratos
@@ -453,9 +495,11 @@ const Contratos: React.FC = () => {
             startIcon={<Add />}
             onClick={() => handleOpenDialog()}
             sx={{
-              background: 'linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)',
+              height: 42,
+              background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+              color: "white",
+              "&:hover": {
+                background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
               },
             }}
           >
@@ -464,20 +508,24 @@ const Contratos: React.FC = () => {
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError("")}>
             {error}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess('')}>
+          <Alert
+            severity="success"
+            sx={{ mb: 3 }}
+            onClose={() => setSuccess("")}
+          >
             {success}
           </Alert>
         )}
 
         <Card>
           <CardContent>
-            <Box sx={{ height: 600, width: '100%' }}>
+            <Box sx={{ height: 600, width: "100%" }}>
               <DataGrid
                 rows={contratos}
                 columns={columns}
@@ -499,19 +547,28 @@ const Contratos: React.FC = () => {
         </Card>
 
         {/* Dialog de Cadastro/Edição */}
-        <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <Dialog
+          open={openDialog}
+          onClose={handleCloseDialog}
+          maxWidth="sm"
+          fullWidth
+        >
           <DialogTitle>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Description color="primary" />
-              {editingContrato ? 'Editar Contrato' : 'Novo Contrato'}
+              {editingContrato ? "Editar Contrato" : "Novo Contrato"}
             </Box>
           </DialogTitle>
           <DialogContent>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <Box
+              sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}
+            >
               <TextField
                 label="Nome do Contrato"
                 value={formData.nome}
-                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, nome: e.target.value })
+                }
                 fullWidth
                 required
                 helperText="Ex: Contrato de Manutenção 2024"
@@ -520,14 +577,20 @@ const Contratos: React.FC = () => {
               <TextField
                 label="Número do Contrato"
                 value={formData.numero_contrato}
-                onChange={(e) => setFormData({ ...formData, numero_contrato: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, numero_contrato: e.target.value })
+                }
                 fullWidth
                 helperText="Ex: 001/2024, CT-2024-001, etc."
               />
 
               <Autocomplete
-                value={parceiros.find(p => p.nome === formData.empresa) || null}
-                onChange={(_, newValue) => setFormData({ ...formData, empresa: newValue?.nome || '' })}
+                value={
+                  parceiros.find((p) => p.nome === formData.empresa) || null
+                }
+                onChange={(_, newValue) =>
+                  setFormData({ ...formData, empresa: newValue?.nome || "" })
+                }
                 options={parceiros}
                 getOptionLabel={(option) => option.nome}
                 renderInput={(params) => (
@@ -542,8 +605,17 @@ const Contratos: React.FC = () => {
               />
 
               <Autocomplete
-                value={unidades.find(u => u.id === formData.unidade_hospitalar_id) || null}
-                onChange={(_, newValue) => setFormData({ ...formData, unidade_hospitalar_id: newValue?.id || null })}
+                value={
+                  unidades.find(
+                    (u) => u.id === formData.unidade_hospitalar_id
+                  ) || null
+                }
+                onChange={(_, newValue) =>
+                  setFormData({
+                    ...formData,
+                    unidade_hospitalar_id: newValue?.id || null,
+                  })
+                }
                 options={unidades}
                 getOptionLabel={(option) => `${option.codigo} - ${option.nome}`}
                 disabled={isAdminAgirPlanta}
@@ -552,7 +624,11 @@ const Contratos: React.FC = () => {
                     {...params}
                     label="Unidade Hospitalar"
                     required
-                    helperText={isAdminAgirPlanta ? "Automaticamente vinculado à sua unidade" : "Selecione a unidade hospitalar"}
+                    helperText={
+                      isAdminAgirPlanta
+                        ? "Automaticamente vinculado à sua unidade"
+                        : "Selecione a unidade hospitalar"
+                    }
                   />
                 )}
                 fullWidth
@@ -561,14 +637,18 @@ const Contratos: React.FC = () => {
               <DatePicker
                 label="Data de Início"
                 value={formData.data_inicio}
-                onChange={(newValue) => setFormData({ ...formData, data_inicio: newValue })}
+                onChange={(newValue) =>
+                  setFormData({ ...formData, data_inicio: newValue })
+                }
                 slotProps={{ textField: { fullWidth: true, required: true } }}
               />
 
               <DatePicker
                 label="Data de Fim (Opcional)"
                 value={formData.data_fim}
-                onChange={(newValue) => setFormData({ ...formData, data_fim: newValue })}
+                onChange={(newValue) =>
+                  setFormData({ ...formData, data_fim: newValue })
+                }
                 slotProps={{ textField: { fullWidth: true } }}
               />
 
@@ -576,7 +656,9 @@ const Contratos: React.FC = () => {
                 control={
                   <Switch
                     checked={formData.ativo}
-                    onChange={(e) => setFormData({ ...formData, ativo: e.target.checked })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, ativo: e.target.checked })
+                    }
                     color="primary"
                   />
                 }
@@ -587,18 +669,31 @@ const Contratos: React.FC = () => {
 
               {/* Seção de Itens do Contrato */}
               <Box>
-                <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography
+                  variant="h6"
+                  fontWeight={600}
+                  gutterBottom
+                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                >
                   <Inventory color="primary" />
                   Itens do Contrato
                 </Typography>
 
-                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
                   <Autocomplete
                     value={itemParaAdicionar}
                     onChange={(_, newValue) => setItemParaAdicionar(newValue)}
                     options={itensDisponiveis}
-                    getOptionLabel={(option) => `${option.nome} (${option.unidade_medida})`}
-                    renderInput={(params) => <TextField {...params} label="Selecione um item" size="small" />}
+                    getOptionLabel={(option) =>
+                      `${option.nome} (${option.unidade_medida})`
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Selecione um item"
+                        size="small"
+                      />
+                    )}
                     sx={{ flex: 1 }}
                     size="small"
                   />
@@ -613,7 +708,11 @@ const Contratos: React.FC = () => {
                 </Box>
 
                 {itensSelecionados.length > 0 && (
-                  <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 300 }}>
+                  <TableContainer
+                    component={Paper}
+                    variant="outlined"
+                    sx={{ maxHeight: 300 }}
+                  >
                     <Table size="small">
                       <TableHead>
                         <TableRow>
@@ -629,7 +728,10 @@ const Contratos: React.FC = () => {
                               <Typography variant="body2" fontWeight={600}>
                                 {is.item.nome}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
                                 {is.item.unidade_medida}
                               </Typography>
                             </TableCell>
@@ -638,7 +740,10 @@ const Contratos: React.FC = () => {
                                 type="number"
                                 value={is.quantidade}
                                 onChange={(e) =>
-                                  handleUpdateItemQuantidade(is.item.id, parseFloat(e.target.value) || 0)
+                                  handleUpdateItemQuantidade(
+                                    is.item.id,
+                                    parseFloat(e.target.value) || 0
+                                  )
                                 }
                                 size="small"
                                 inputProps={{ min: 0, step: 0.01 }}
@@ -662,7 +767,9 @@ const Contratos: React.FC = () => {
                 )}
 
                 {itensSelecionados.length === 0 && (
-                  <Alert severity="info">Nenhum item adicionado ao contrato</Alert>
+                  <Alert severity="info">
+                    Nenhum item adicionado ao contrato
+                  </Alert>
                 )}
               </Box>
             </Box>

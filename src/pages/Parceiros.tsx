@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Card,
@@ -14,25 +14,25 @@ import {
   Chip,
   Alert,
   CircularProgress,
-} from '@mui/material';
-import { DataGrid, GridColDef, GridToolbar } from '@mui/x-data-grid';
-import { Add, Edit, Delete, Business } from '@mui/icons-material';
-import { supabase } from '../lib/supabase';
-import { Parceiro } from '../types/database.types';
-import { format, parseISO } from 'date-fns';
+} from "@mui/material";
+import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
+import { Add, Edit, Delete, Business } from "@mui/icons-material";
+import { supabase } from "../lib/supabase";
+import { Parceiro } from "../types/database.types";
+import { format, parseISO } from "date-fns";
 
 const Parceiros: React.FC = () => {
   const [parceiros, setParceiros] = useState<Parceiro[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingParceiro, setEditingParceiro] = useState<Parceiro | null>(null);
   const [formData, setFormData] = useState({
-    nome: '',
-    cnpj: '',
-    telefone: '',
-    email: '',
+    nome: "",
+    cnpj: "",
+    telefone: "",
+    email: "",
   });
 
   useEffect(() => {
@@ -42,19 +42,19 @@ const Parceiros: React.FC = () => {
   const loadParceiros = async () => {
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
       const { data, error: fetchError } = await supabase
-        .from('parceiros')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("parceiros")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;
 
       setParceiros(data || []);
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar parceiros');
-      console.error('Erro:', err);
+      setError(err.message || "Erro ao carregar parceiros");
+      console.error("Erro:", err);
     } finally {
       setLoading(false);
     }
@@ -66,16 +66,16 @@ const Parceiros: React.FC = () => {
       setFormData({
         nome: parceiro.nome,
         cnpj: parceiro.cnpj,
-        telefone: parceiro.telefone || '',
-        email: parceiro.email || '',
+        telefone: parceiro.telefone || "",
+        email: parceiro.email || "",
       });
     } else {
       setEditingParceiro(null);
       setFormData({
-        nome: '',
-        cnpj: '',
-        telefone: '',
-        email: '',
+        nome: "",
+        cnpj: "",
+        telefone: "",
+        email: "",
       });
     }
     setDialogOpen(true);
@@ -84,52 +84,52 @@ const Parceiros: React.FC = () => {
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingParceiro(null);
-    setError('');
+    setError("");
   };
 
   const formatCNPJ = (value: string) => {
     // Remove tudo que não é dígito
-    const numbers = value.replace(/\D/g, '');
+    const numbers = value.replace(/\D/g, "");
 
     // Aplica a máscara de CNPJ
     if (numbers.length <= 14) {
       return numbers
-        .replace(/(\d{2})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1/$2')
-        .replace(/(\d{4})(\d)/, '$1-$2');
+        .replace(/(\d{2})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1/$2")
+        .replace(/(\d{4})(\d)/, "$1-$2");
     }
     return value;
   };
 
   const formatTelefone = (value: string) => {
     // Remove tudo que não é dígito
-    const numbers = value.replace(/\D/g, '');
+    const numbers = value.replace(/\D/g, "");
 
     // Aplica a máscara de telefone
     if (numbers.length <= 11) {
       return numbers
-        .replace(/(\d{2})(\d)/, '($1) $2')
-        .replace(/(\d{4,5})(\d{4})$/, '$1-$2');
+        .replace(/(\d{2})(\d)/, "($1) $2")
+        .replace(/(\d{4,5})(\d{4})$/, "$1-$2");
     }
     return value;
   };
 
   const handleSave = async () => {
     try {
-      setError('');
-      setSuccess('');
+      setError("");
+      setSuccess("");
 
       if (!formData.nome.trim() || !formData.cnpj.trim()) {
-        setError('Nome e CNPJ são obrigatórios');
+        setError("Nome e CNPJ são obrigatórios");
         return;
       }
 
       // Remove formatação do CNPJ para salvar
-      const cnpjLimpo = formData.cnpj.replace(/\D/g, '');
+      const cnpjLimpo = formData.cnpj.replace(/\D/g, "");
 
       if (cnpjLimpo.length !== 14) {
-        setError('CNPJ deve ter 14 dígitos');
+        setError("CNPJ deve ter 14 dígitos");
         return;
       }
 
@@ -143,125 +143,140 @@ const Parceiros: React.FC = () => {
       if (editingParceiro) {
         // Update existing parceiro
         const { error: updateError } = await supabase
-          .from('parceiros')
+          .from("parceiros")
           .update(parceiroData)
-          .eq('id', editingParceiro.id);
+          .eq("id", editingParceiro.id);
 
         if (updateError) throw updateError;
-        setSuccess('Parceiro atualizado com sucesso!');
+        setSuccess("Parceiro atualizado com sucesso!");
       } else {
         // Create new parceiro
         const { error: insertError } = await supabase
-          .from('parceiros')
+          .from("parceiros")
           .insert(parceiroData);
 
         if (insertError) throw insertError;
-        setSuccess('Parceiro criado com sucesso!');
+        setSuccess("Parceiro criado com sucesso!");
       }
 
       handleCloseDialog();
       loadParceiros();
     } catch (err: any) {
-      setError(err.message || 'Erro ao salvar parceiro');
-      console.error('Erro:', err);
+      setError(err.message || "Erro ao salvar parceiro");
+      console.error("Erro:", err);
     }
   };
 
   const handleToggleAtivo = async (parceiro: Parceiro) => {
     try {
       const { error: updateError } = await supabase
-        .from('parceiros')
+        .from("parceiros")
         .update({ ativo: !parceiro.ativo })
-        .eq('id', parceiro.id);
+        .eq("id", parceiro.id);
 
       if (updateError) throw updateError;
 
-      setSuccess(`Parceiro ${!parceiro.ativo ? 'ativado' : 'desativado'} com sucesso!`);
+      setSuccess(
+        `Parceiro ${!parceiro.ativo ? "ativado" : "desativado"} com sucesso!`
+      );
       loadParceiros();
     } catch (err: any) {
-      setError(err.message || 'Erro ao atualizar parceiro');
-      console.error('Erro:', err);
+      setError(err.message || "Erro ao atualizar parceiro");
+      console.error("Erro:", err);
     }
   };
 
   const handleDelete = async (parceiro: Parceiro) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o parceiro "${parceiro.nome}"?`)) {
+    if (
+      !window.confirm(
+        `Tem certeza que deseja excluir o parceiro "${parceiro.nome}"?`
+      )
+    ) {
       return;
     }
 
     try {
       const { error: deleteError } = await supabase
-        .from('parceiros')
+        .from("parceiros")
         .delete()
-        .eq('id', parceiro.id);
+        .eq("id", parceiro.id);
 
       if (deleteError) throw deleteError;
 
-      setSuccess('Parceiro excluído com sucesso!');
+      setSuccess("Parceiro excluído com sucesso!");
       loadParceiros();
     } catch (err: any) {
-      setError(err.message || 'Erro ao excluir parceiro');
-      console.error('Erro:', err);
+      setError(err.message || "Erro ao excluir parceiro");
+      console.error("Erro:", err);
     }
   };
 
   const columns: GridColDef[] = [
     {
-      field: 'nome',
-      headerName: 'Nome',
+      field: "nome",
+      headerName: "Nome",
       flex: 1,
       minWidth: 250,
     },
     {
-      field: 'cnpj',
-      headerName: 'CNPJ',
+      field: "cnpj",
+      headerName: "CNPJ",
       width: 180,
       renderCell: (params) => formatCNPJ(params.value),
     },
     {
-      field: 'telefone',
-      headerName: 'Telefone',
+      field: "telefone",
+      headerName: "Telefone",
       width: 150,
-      renderCell: (params) => params.value ? formatTelefone(params.value) : '-',
+      renderCell: (params) =>
+        params.value ? formatTelefone(params.value) : "-",
     },
     {
-      field: 'email',
-      headerName: 'E-mail',
+      field: "email",
+      headerName: "E-mail",
       flex: 1,
       minWidth: 200,
-      renderCell: (params) => params.value || '-',
+      renderCell: (params) => params.value || "-",
     },
     {
-      field: 'ativo',
-      headerName: 'Status',
+      field: "ativo",
+      headerName: "Status",
       width: 120,
       renderCell: (params) => (
         <Chip
-          label={params.value ? 'Ativo' : 'Inativo'}
+          label={params.value ? "Ativo" : "Inativo"}
           size="small"
-          color={params.value ? 'success' : 'default'}
+          color={params.value ? "success" : "default"}
           onClick={() => handleToggleAtivo(params.row)}
-          sx={{ cursor: 'pointer' }}
+          sx={{ cursor: "pointer" }}
         />
       ),
     },
     {
-      field: 'created_at',
-      headerName: 'Cadastro',
+      field: "created_at",
+      headerName: "Cadastro",
       width: 120,
-      renderCell: (params) => format(parseISO(params.value), 'dd/MM/yyyy'),
+      renderCell: (params) => format(parseISO(params.value), "dd/MM/yyyy"),
     },
     {
-      field: 'actions',
-      headerName: 'Ações',
+      field: "actions",
+      headerName: "Ações",
       width: 120,
       sortable: false,
       renderCell: (params) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <IconButton size="small" color="primary" onClick={() => handleOpenDialog(params.row)}>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <IconButton
+            size="small"
+            color="primary"
+            onClick={() => handleOpenDialog(params.row)}
+          >
             <Edit fontSize="small" />
           </IconButton>
-          <IconButton size="small" color="error" onClick={() => handleDelete(params.row)}>
+          <IconButton
+            size="small"
+            color="error"
+            onClick={() => handleDelete(params.row)}
+          >
             <Delete fontSize="small" />
           </IconButton>
         </Box>
@@ -271,7 +286,14 @@ const Parceiros: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 4,
+        }}
+      >
         <Box>
           <Typography variant="h4" fontWeight={700} gutterBottom>
             Parceiros
@@ -284,29 +306,43 @@ const Parceiros: React.FC = () => {
           variant="contained"
           startIcon={<Add />}
           onClick={() => handleOpenDialog()}
-          size="large"
+          sx={{
+            height: 42,
+            background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+            color: "white",
+            "&:hover": {
+              background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
+            },
+          }}
         >
           Novo Parceiro
         </Button>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError("")}>
           {error}
         </Alert>
       )}
 
       {success && (
-        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess('')}>
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess("")}>
           {success}
         </Alert>
       )}
 
       <Card>
         <CardContent>
-          <Box sx={{ height: 600, width: '100%' }}>
+          <Box sx={{ height: 600, width: "100%" }}>
             {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: "100%",
+                }}
+              >
                 <CircularProgress />
               </Box>
             ) : (
@@ -326,9 +362,9 @@ const Parceiros: React.FC = () => {
                 }}
                 disableRowSelectionOnClick
                 sx={{
-                  border: 'none',
-                  '& .MuiDataGrid-cell:focus': {
-                    outline: 'none',
+                  border: "none",
+                  "& .MuiDataGrid-cell:focus": {
+                    outline: "none",
                   },
                 }}
               />
@@ -338,22 +374,29 @@ const Parceiros: React.FC = () => {
       </Card>
 
       {/* Dialog para criar/editar parceiro */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Business color="primary" />
             <Typography variant="h6" fontWeight={600}>
-              {editingParceiro ? 'Editar Parceiro' : 'Novo Parceiro'}
+              {editingParceiro ? "Editar Parceiro" : "Novo Parceiro"}
             </Typography>
           </Box>
         </DialogTitle>
 
         <DialogContent sx={{ pt: 3 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <TextField
               label="Nome da Empresa"
               value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, nome: e.target.value })
+              }
               required
               fullWidth
               autoFocus
@@ -362,7 +405,9 @@ const Parceiros: React.FC = () => {
             <TextField
               label="CNPJ"
               value={formData.cnpj}
-              onChange={(e) => setFormData({ ...formData, cnpj: formatCNPJ(e.target.value) })}
+              onChange={(e) =>
+                setFormData({ ...formData, cnpj: formatCNPJ(e.target.value) })
+              }
               required
               fullWidth
               helperText="Ex: 12.345.678/0001-90"
@@ -372,7 +417,12 @@ const Parceiros: React.FC = () => {
             <TextField
               label="Telefone"
               value={formData.telefone}
-              onChange={(e) => setFormData({ ...formData, telefone: formatTelefone(e.target.value) })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  telefone: formatTelefone(e.target.value),
+                })
+              }
               fullWidth
               helperText="Ex: (62) 3234-5678"
               inputProps={{ maxLength: 15 }}
@@ -381,7 +431,9 @@ const Parceiros: React.FC = () => {
             <TextField
               label="E-mail"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               type="email"
               fullWidth
               helperText="Ex: contato@empresa.com.br"
@@ -394,7 +446,7 @@ const Parceiros: React.FC = () => {
             Cancelar
           </Button>
           <Button onClick={handleSave} variant="contained">
-            {editingParceiro ? 'Salvar' : 'Criar'}
+            {editingParceiro ? "Salvar" : "Criar"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -473,7 +473,9 @@ const Usuarios: React.FC = () => {
           startIcon={<PersonAdd />}
           onClick={() => handleOpenDialog()}
           sx={{
+            height: 42,
             background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+            color: "white",
             "&:hover": {
               background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
             },

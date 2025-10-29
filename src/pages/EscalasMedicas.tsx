@@ -45,7 +45,13 @@ import {
   Refresh,
 } from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
-import { EscalaMedica, MedicoEscala, Contrato, Usuario, UnidadeHospitalar } from "../types/database.types";
+import {
+  EscalaMedica,
+  MedicoEscala,
+  Contrato,
+  Usuario,
+  UnidadeHospitalar,
+} from "../types/database.types";
 import { format, parseISO } from "date-fns";
 
 const EscalasMedicas: React.FC = () => {
@@ -99,19 +105,33 @@ const EscalasMedicas: React.FC = () => {
 
   useEffect(() => {
     aplicarFiltros();
-  }, [escalas, filtroParceiro, filtroContrato, filtroUnidade, filtroNome, filtroCpf, filtroDataInicio, filtroDataFim]);
+  }, [
+    escalas,
+    filtroParceiro,
+    filtroContrato,
+    filtroUnidade,
+    filtroNome,
+    filtroCpf,
+    filtroDataInicio,
+    filtroDataFim,
+  ]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [{ data: escal }, { data: contr }, { data: unid }] = await Promise.all([
-        supabase
-          .from("escalas_medicas")
-          .select("*")
-          .order("data_inicio", { ascending: false }),
-        supabase.from("contratos").select("*").eq("ativo", true),
-        supabase.from("unidades_hospitalares").select("*").eq("ativo", true).order("codigo"),
-      ]);
+      const [{ data: escal }, { data: contr }, { data: unid }] =
+        await Promise.all([
+          supabase
+            .from("escalas_medicas")
+            .select("*")
+            .order("data_inicio", { ascending: false }),
+          supabase.from("contratos").select("*").eq("ativo", true),
+          supabase
+            .from("unidades_hospitalares")
+            .select("*")
+            .eq("ativo", true)
+            .order("codigo"),
+        ]);
 
       setEscalas(escal || []);
       setContratos(contr || []);
@@ -162,7 +182,9 @@ const EscalasMedicas: React.FC = () => {
 
     // Filtro por contrato
     if (filtroContrato.length > 0) {
-      filtered = filtered.filter((escala) => filtroContrato.includes(escala.contrato_id));
+      filtered = filtered.filter((escala) =>
+        filtroContrato.includes(escala.contrato_id)
+      );
     }
 
     // Filtro por unidade hospitalar
@@ -170,7 +192,9 @@ const EscalasMedicas: React.FC = () => {
       filtered = filtered.filter((escala) => {
         const contrato = contratos.find((c) => c.id === escala.contrato_id);
         if (!contrato || !contrato.unidade_hospitalar_id) return false;
-        const unidade = unidades.find((u) => u.id === contrato.unidade_hospitalar_id);
+        const unidade = unidades.find(
+          (u) => u.id === contrato.unidade_hospitalar_id
+        );
         return unidade && filtroUnidade.includes(unidade.codigo);
       });
     }
@@ -178,7 +202,9 @@ const EscalasMedicas: React.FC = () => {
     // Filtro por nome de médico
     if (filtroNome.length > 0) {
       filtered = filtered.filter((escala) => {
-        return escala.medicos.some((medico) => filtroNome.includes(medico.nome));
+        return escala.medicos.some((medico) =>
+          filtroNome.includes(medico.nome)
+        );
       });
     }
 
@@ -215,8 +241,13 @@ const EscalasMedicas: React.FC = () => {
   };
 
   // Opções únicas para filtros
-  const parceirosUnicos = Array.from(new Set(contratos.map((c) => c.empresa))).sort();
-  const contratosUnicos = contratos.map((c) => ({ id: c.id, label: `${c.nome} - ${c.empresa}` }));
+  const parceirosUnicos = Array.from(
+    new Set(contratos.map((c) => c.empresa))
+  ).sort();
+  const contratosUnicos = contratos.map((c) => ({
+    id: c.id,
+    label: `${c.nome} - ${c.empresa}`,
+  }));
   const unidadesUnicas = unidades.map((u) => u.codigo).sort();
 
   // Extrair nomes e CPFs únicos de todos os médicos nas escalas
@@ -228,7 +259,11 @@ const EscalasMedicas: React.FC = () => {
   ).sort();
 
   const handleContratoChange = (contrato: Contrato | null) => {
-    setFormData({ ...formData, contrato_id: contrato?.id || "", medicos_selecionados: [] });
+    setFormData({
+      ...formData,
+      contrato_id: contrato?.id || "",
+      medicos_selecionados: [],
+    });
     if (contrato) {
       loadUsuariosByContrato(contrato.id);
     } else {
@@ -239,7 +274,12 @@ const EscalasMedicas: React.FC = () => {
   const handleNext = () => {
     if (activeStep === 0) {
       // Validar dados básicos
-      if (!formData.contrato_id || !formData.data_inicio || !formData.horario_entrada || !formData.horario_saida) {
+      if (
+        !formData.contrato_id ||
+        !formData.data_inicio ||
+        !formData.horario_entrada ||
+        !formData.horario_saida
+      ) {
         setError("Preencha todos os campos obrigatórios");
         return;
       }
@@ -250,10 +290,12 @@ const EscalasMedicas: React.FC = () => {
 
       // Preparar preview
       const contrato = contratos.find((c) => c.id === formData.contrato_id);
-      const medicos: MedicoEscala[] = formData.medicos_selecionados.map((u) => ({
-        nome: u.nome,
-        cpf: u.cpf,
-      }));
+      const medicos: MedicoEscala[] = formData.medicos_selecionados.map(
+        (u) => ({
+          nome: u.nome,
+          cpf: u.cpf,
+        })
+      );
 
       setPreviewData({ contrato: contrato || null, medicos });
       setError("");
@@ -373,7 +415,9 @@ const EscalasMedicas: React.FC = () => {
             startIcon={<Add />}
             onClick={() => handleOpenDialog()}
             sx={{
+              height: 42,
               background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+              color: "white",
               "&:hover": {
                 background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
               },
@@ -390,7 +434,11 @@ const EscalasMedicas: React.FC = () => {
           </Alert>
         )}
         {success && (
-          <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess("")}>
+          <Alert
+            severity="success"
+            sx={{ mb: 3 }}
+            onClose={() => setSuccess("")}
+          >
             {success}
           </Alert>
         )}
@@ -436,7 +484,9 @@ const EscalasMedicas: React.FC = () => {
                   value={filtroContrato}
                   onChange={(_, newValue) => setFiltroContrato(newValue)}
                   options={contratosUnicos.map((c) => c.id)}
-                  getOptionLabel={(option) => contratosUnicos.find((c) => c.id === option)?.label || ""}
+                  getOptionLabel={(option) =>
+                    contratosUnicos.find((c) => c.id === option)?.label || ""
+                  }
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -541,18 +591,48 @@ const EscalasMedicas: React.FC = () => {
                   }}
                 >
                   <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="start"
+                      mb={2}
+                    >
                       <Chip
                         icon={<CalendarMonth />}
-                        label={format(parseISO(escala.data_inicio), "dd/MM/yyyy")}
-                        color="primary"
+                        label={format(
+                          parseISO(escala.data_inicio),
+                          "dd/MM/yyyy"
+                        )}
                         size="small"
+                        sx={{
+                          bgcolor: (theme) =>
+                            theme.palette.mode === "dark"
+                              ? "#1e3a8a"
+                              : "#dbeafe",
+                          color: (theme) =>
+                            theme.palette.mode === "dark"
+                              ? "#93c5fd"
+                              : "#1e40af",
+                          "& .MuiChip-icon": {
+                            color: (theme) =>
+                              theme.palette.mode === "dark"
+                                ? "#93c5fd"
+                                : "#1e40af",
+                          },
+                        }}
                       />
                       <Box>
-                        <IconButton size="small" onClick={() => handleOpenDialog(escala)}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenDialog(escala)}
+                        >
                           <Edit fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDelete(escala)}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(escala)}
+                        >
                           <Delete fontSize="small" />
                         </IconButton>
                       </Box>
@@ -561,21 +641,33 @@ const EscalasMedicas: React.FC = () => {
                     <Typography variant="h6" fontWeight={600} gutterBottom>
                       {contrato?.nome || "Contrato não encontrado"}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
                       {contrato?.empresa}
                     </Typography>
 
                     <Box display="flex" gap={1} my={2}>
                       <Chip
                         icon={<Schedule />}
-                        label={`${escala.horario_entrada.substring(0, 5)} - ${escala.horario_saida.substring(0, 5)}`}
+                        label={`${escala.horario_entrada.substring(
+                          0,
+                          5
+                        )} - ${escala.horario_saida.substring(0, 5)}`}
                         size="small"
                         variant="outlined"
                       />
                     </Box>
 
                     <Box>
-                      <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        gutterBottom
+                        display="block"
+                      >
                         Médicos ({escala.medicos.length}):
                       </Typography>
                       <Box display="flex" flexWrap="wrap" gap={0.5}>
@@ -605,7 +697,12 @@ const EscalasMedicas: React.FC = () => {
         </Grid>
 
         {/* Dialog - Wizard Form */}
-        <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+        <Dialog
+          open={dialogOpen}
+          onClose={handleCloseDialog}
+          maxWidth="md"
+          fullWidth
+        >
           <DialogTitle>
             <Typography variant="h6" fontWeight={700}>
               {editingEscala ? "Editar Escala Médica" : "Nova Escala Médica"}
@@ -623,12 +720,18 @@ const EscalasMedicas: React.FC = () => {
 
             {/* Step 0: Dados Básicos */}
             {activeStep === 0 && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
+              <Box
+                sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}
+              >
                 <Autocomplete
-                  value={contratos.find((c) => c.id === formData.contrato_id) || null}
+                  value={
+                    contratos.find((c) => c.id === formData.contrato_id) || null
+                  }
                   onChange={(_, newValue) => handleContratoChange(newValue)}
                   options={contratos}
-                  getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
+                  getOptionLabel={(option) =>
+                    `${option.nome} - ${option.empresa}`
+                  }
                   renderInput={(params) => (
                     <TextField {...params} label="Contrato" required />
                   )}
@@ -638,7 +741,9 @@ const EscalasMedicas: React.FC = () => {
                 <DatePicker
                   label="Data de Início"
                   value={formData.data_inicio}
-                  onChange={(newValue) => setFormData({ ...formData, data_inicio: newValue })}
+                  onChange={(newValue) =>
+                    setFormData({ ...formData, data_inicio: newValue })
+                  }
                   slotProps={{ textField: { fullWidth: true, required: true } }}
                 />
 
@@ -647,8 +752,12 @@ const EscalasMedicas: React.FC = () => {
                     <TimePicker
                       label="Horário de Entrada"
                       value={formData.horario_entrada}
-                      onChange={(newValue) => setFormData({ ...formData, horario_entrada: newValue })}
-                      slotProps={{ textField: { fullWidth: true, required: true } }}
+                      onChange={(newValue) =>
+                        setFormData({ ...formData, horario_entrada: newValue })
+                      }
+                      slotProps={{
+                        textField: { fullWidth: true, required: true },
+                      }}
                       ampm={false}
                     />
                   </Grid>
@@ -656,8 +765,12 @@ const EscalasMedicas: React.FC = () => {
                     <TimePicker
                       label="Horário de Saída"
                       value={formData.horario_saida}
-                      onChange={(newValue) => setFormData({ ...formData, horario_saida: newValue })}
-                      slotProps={{ textField: { fullWidth: true, required: true } }}
+                      onChange={(newValue) =>
+                        setFormData({ ...formData, horario_saida: newValue })
+                      }
+                      slotProps={{
+                        textField: { fullWidth: true, required: true },
+                      }}
                       ampm={false}
                     />
                   </Grid>
@@ -666,9 +779,13 @@ const EscalasMedicas: React.FC = () => {
                 <Autocomplete
                   multiple
                   value={formData.medicos_selecionados}
-                  onChange={(_, newValue) => setFormData({ ...formData, medicos_selecionados: newValue })}
+                  onChange={(_, newValue) =>
+                    setFormData({ ...formData, medicos_selecionados: newValue })
+                  }
                   options={usuarios}
-                  getOptionLabel={(option) => `${option.nome} - CPF: ${option.cpf}`}
+                  getOptionLabel={(option) =>
+                    `${option.nome} - CPF: ${option.cpf}`
+                  }
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -694,7 +811,9 @@ const EscalasMedicas: React.FC = () => {
                 <TextField
                   label="Observações"
                   value={formData.observacoes}
-                  onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, observacoes: e.target.value })
+                  }
                   multiline
                   rows={3}
                   fullWidth
@@ -705,23 +824,46 @@ const EscalasMedicas: React.FC = () => {
             {/* Step 1: Visualizar Escala */}
             {activeStep === 1 && (
               <Box sx={{ mt: 2 }}>
-                <Card sx={{ mb: 3, bgcolor: "primary.50", borderLeft: "4px solid", borderColor: "primary.main" }}>
+                <Card
+                  sx={{
+                    mb: 3,
+                    bgcolor: "primary.50",
+                    borderLeft: "4px solid",
+                    borderColor: "primary.main",
+                  }}
+                >
                   <CardContent>
                     <Typography variant="h6" fontWeight={600} gutterBottom>
                       {previewData.contrato?.nome}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
                       {previewData.contrato?.empresa}
                     </Typography>
                     <Box display="flex" gap={2} mt={2}>
                       <Chip
                         icon={<CalendarMonth />}
-                        label={formData.data_inicio ? format(formData.data_inicio, "dd/MM/yyyy") : ""}
+                        label={
+                          formData.data_inicio
+                            ? format(formData.data_inicio, "dd/MM/yyyy")
+                            : ""
+                        }
                         color="primary"
                       />
                       <Chip
                         icon={<Schedule />}
-                        label={`${formData.horario_entrada ? format(formData.horario_entrada, "HH:mm") : ""} - ${formData.horario_saida ? format(formData.horario_saida, "HH:mm") : ""}`}
+                        label={`${
+                          formData.horario_entrada
+                            ? format(formData.horario_entrada, "HH:mm")
+                            : ""
+                        } - ${
+                          formData.horario_saida
+                            ? format(formData.horario_saida, "HH:mm")
+                            : ""
+                        }`}
                         color="primary"
                       />
                     </Box>
@@ -732,12 +874,20 @@ const EscalasMedicas: React.FC = () => {
                   Médicos Escalados ({previewData.medicos.length})
                 </Typography>
 
-                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0" }}>
+                <TableContainer
+                  component={Paper}
+                  elevation={0}
+                  sx={{ border: "1px solid #e0e0e0" }}
+                >
                   <Table>
                     <TableHead>
                       <TableRow sx={{ bgcolor: "grey.50" }}>
-                        <TableCell><strong>Nome</strong></TableCell>
-                        <TableCell><strong>CPF</strong></TableCell>
+                        <TableCell>
+                          <strong>Nome</strong>
+                        </TableCell>
+                        <TableCell>
+                          <strong>CPF</strong>
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -758,11 +908,17 @@ const EscalasMedicas: React.FC = () => {
 
                 {formData.observacoes && (
                   <Box mt={3}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
                       <strong>Observações:</strong>
                     </Typography>
                     <Paper sx={{ p: 2, bgcolor: "grey.50" }}>
-                      <Typography variant="body2">{formData.observacoes}</Typography>
+                      <Typography variant="body2">
+                        {formData.observacoes}
+                      </Typography>
                     </Paper>
                   </Box>
                 )}
@@ -796,7 +952,12 @@ const EscalasMedicas: React.FC = () => {
               </Button>
             )}
             {activeStep === steps.length - 1 && (
-              <Button onClick={handleSave} variant="contained" color="success" startIcon={<Check />}>
+              <Button
+                onClick={handleSave}
+                variant="contained"
+                color="success"
+                startIcon={<Check />}
+              >
                 Salvar
               </Button>
             )}
