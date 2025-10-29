@@ -41,6 +41,8 @@ import {
   ArrowBack,
   Schedule,
   Person,
+  FilterList,
+  Refresh,
 } from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
 import { EscalaMedica, MedicoEscala, Contrato, Usuario } from "../types/database.types";
@@ -48,11 +50,18 @@ import { format, parseISO } from "date-fns";
 
 const EscalasMedicas: React.FC = () => {
   const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
+  const [escalasFiltradas, setEscalasFiltradas] = useState<EscalaMedica[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Filtros
+  const [filtroParceiro, setFiltroParceiro] = useState<string[]>([]);
+  const [filtroContrato, setFiltroContrato] = useState<string[]>([]);
+  const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
+  const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
 
   // Wizard state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -83,6 +92,10 @@ const EscalasMedicas: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    aplicarFiltros();
+  }, [escalas, filtroParceiro, filtroContrato, filtroDataInicio, filtroDataFim]);
 
   const loadData = async () => {
     try {
@@ -129,6 +142,51 @@ const EscalasMedicas: React.FC = () => {
       console.error("Erro ao carregar usuários:", err);
     }
   };
+
+  const aplicarFiltros = () => {
+    let filtered = [...escalas];
+
+    // Filtro por parceiro (empresa)
+    if (filtroParceiro.length > 0) {
+      filtered = filtered.filter((escala) => {
+        const contrato = contratos.find((c) => c.id === escala.contrato_id);
+        return contrato && filtroParceiro.includes(contrato.empresa);
+      });
+    }
+
+    // Filtro por contrato
+    if (filtroContrato.length > 0) {
+      filtered = filtered.filter((escala) => filtroContrato.includes(escala.contrato_id));
+    }
+
+    // Filtro por data início
+    if (filtroDataInicio) {
+      const dataInicio = new Date(filtroDataInicio);
+      dataInicio.setHours(0, 0, 0, 0);
+      filtered = filtered.filter((escala) => {
+        const dataEscala = new Date(escala.data_inicio);
+        dataEscala.setHours(0, 0, 0, 0);
+        return dataEscala >= dataInicio;
+      });
+    }
+
+    // Filtro por data fim
+    if (filtroDataFim) {
+      const dataFim = new Date(filtroDataFim);
+      dataFim.setHours(0, 0, 0, 0);
+      filtered = filtered.filter((escala) => {
+        const dataEscala = new Date(escala.data_inicio);
+        dataEscala.setHours(0, 0, 0, 0);
+        return dataEscala <= dataFim;
+      });
+    }
+
+    setEscalasFiltradas(filtered);
+  };
+
+  // Opções únicas para filtros
+  const parceirosUnicos = Array.from(new Set(contratos.map((c) => c.empresa))).sort();
+  const contratosUnicos = contratos.map((c) => ({ id: c.id, label: `${c.nome} - ${c.empresa}` }));
 
   const handleContratoChange = (contrato: Contrato | null) => {
     setFormData({ ...formData, contrato_id: contrato?.id || "", medicos_selecionados: [] });
@@ -298,9 +356,84 @@ const EscalasMedicas: React.FC = () => {
           </Alert>
         )}
 
+        {/* Filtros Avançados */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 1 }}>
+              <FilterList color="primary" />
+              <Typography variant="h6" fontWeight={600}>
+                Filtros Avançados
+              </Typography>
+              <Box sx={{ flexGrow: 1 }} />
+              <Tooltip title="Atualizar dados">
+                <IconButton onClick={loadData} color="primary">
+                  <Refresh />
+                </IconButton>
+              </Tooltip>
+            </Box>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <Autocomplete
+                  multiple
+                  value={filtroParceiro}
+                  onChange={(_, newValue) => setFiltroParceiro(newValue)}
+                  options={parceirosUnicos}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Parceiro"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Autocomplete
+                  multiple
+                  value={filtroContrato}
+                  onChange={(_, newValue) => setFiltroContrato(newValue)}
+                  options={contratosUnicos.map((c) => c.id)}
+                  getOptionLabel={(option) => contratosUnicos.find((c) => c.id === option)?.label || ""}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Contrato"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <DatePicker
+                  label="Data Início"
+                  value={filtroDataInicio}
+                  onChange={(newValue) => setFiltroDataInicio(newValue)}
+                  slotProps={{ textField: { size: "small", fullWidth: true } }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <DatePicker
+                  label="Data Fim"
+                  value={filtroDataFim}
+                  onChange={(newValue) => setFiltroDataFim(newValue)}
+                  slotProps={{ textField: { size: "small", fullWidth: true } }}
+                />
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
         {/* Escalas List */}
         <Grid container spacing={3}>
-          {escalas.map((escala) => {
+          {escalasFiltradas.map((escala) => {
             const contrato = contratos.find((c) => c.id === escala.contrato_id);
             return (
               <Grid item xs={12} md={6} lg={4} key={escala.id}>
