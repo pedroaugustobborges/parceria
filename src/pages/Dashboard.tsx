@@ -124,6 +124,7 @@ const Dashboard: React.FC = () => {
     }
   }, [
     acessos,
+    escalas,
     filtroTipo,
     filtroMatricula,
     filtroNome,
@@ -434,10 +435,31 @@ const Dashboard: React.FC = () => {
             new Date(a.data_acesso).getTime()
         )[0];
 
-        // Calcular carga horária escalada para este CPF
-        const escalasDoMedico = escalas.filter(escala =>
-          escala.medicos?.some(medico => medico.cpf === cpf)
-        );
+        // Calcular carga horária escalada para este CPF (aplicando filtros de data)
+        const escalasDoMedico = escalas.filter(escala => {
+          // Verificar se o médico está na escala
+          if (!escala.medicos?.some(medico => medico.cpf === cpf)) {
+            return false;
+          }
+
+          // Aplicar filtros de data
+          if (filtroDataInicio) {
+            const dataEscala = new Date(escala.data_inicio);
+            dataEscala.setHours(0, 0, 0, 0);
+            const inicioNormalizado = new Date(filtroDataInicio);
+            inicioNormalizado.setHours(0, 0, 0, 0);
+            if (dataEscala < inicioNormalizado) return false;
+          }
+          if (filtroDataFim) {
+            const dataEscala = new Date(escala.data_inicio);
+            dataEscala.setHours(0, 0, 0, 0);
+            const fimNormalizado = new Date(filtroDataFim);
+            fimNormalizado.setHours(0, 0, 0, 0);
+            if (dataEscala > fimNormalizado) return false;
+          }
+
+          return true;
+        });
 
         const cargaHorariaEscaladaPorCpf = escalasDoMedico.reduce((sum, escala) => {
           try {
@@ -1304,7 +1326,7 @@ const Dashboard: React.FC = () => {
     {
       field: "cargaHorariaEscalada",
       headerName: "Carga Horária Escalada",
-      width: 170,
+      width: 180,
       type: "number",
       filterable: true,
       sortable: true,
@@ -1394,10 +1416,26 @@ const Dashboard: React.FC = () => {
   }, 0);
   const produtividadeMedia = totalHorasGeral > 0 ? (totalProdutividade / totalHorasGeral).toFixed(2) : "0";
 
-  // Cálculo da Carga Horária Escalada
+  // Cálculo da Carga Horária Escalada (com filtros de data aplicados)
   // Soma de (horario_saida - horario_entrada) × número de médicos para cada escala
   const cargaHorariaEscalada = escalas.reduce((sum, escala) => {
     try {
+      // Aplicar filtros de data
+      if (filtroDataInicio) {
+        const dataEscala = new Date(escala.data_inicio);
+        dataEscala.setHours(0, 0, 0, 0);
+        const inicioNormalizado = new Date(filtroDataInicio);
+        inicioNormalizado.setHours(0, 0, 0, 0);
+        if (dataEscala < inicioNormalizado) return sum;
+      }
+      if (filtroDataFim) {
+        const dataEscala = new Date(escala.data_inicio);
+        dataEscala.setHours(0, 0, 0, 0);
+        const fimNormalizado = new Date(filtroDataFim);
+        fimNormalizado.setHours(0, 0, 0, 0);
+        if (dataEscala > fimNormalizado) return sum;
+      }
+
       // Parse dos horários (formato: "HH:mm")
       const [horaEntrada, minEntrada] = escala.horario_entrada.split(":").map(Number);
       const [horaSaida, minSaida] = escala.horario_saida.split(":").map(Number);
@@ -2315,6 +2353,14 @@ const Dashboard: React.FC = () => {
                     border: "none",
                     "& .MuiDataGrid-cell:focus": {
                       outline: "none",
+                    },
+                    "& .MuiDataGrid-columnHeader": {
+                      paddingLeft: "8px",
+                      paddingRight: "8px",
+                    },
+                    "& .MuiDataGrid-cell": {
+                      paddingLeft: "8px",
+                      paddingRight: "8px",
                     },
                   }}
                 />
