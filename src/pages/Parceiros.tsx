@@ -20,6 +20,7 @@ import { Add, Edit, Delete, Business } from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
 import { Parceiro } from "../types/database.types";
 import { format, parseISO } from "date-fns";
+import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
 const Parceiros: React.FC = () => {
   const [parceiros, setParceiros] = useState<Parceiro[]>([]);
@@ -34,6 +35,14 @@ const Parceiros: React.FC = () => {
     telefone: "",
     email: "",
   });
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [parceiroToDelete, setParceiroToDelete] = useState<Parceiro | null>(null);
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const [deleteBlockReason, setDeleteBlockReason] = useState("");
+  const [deleteRelatedItems, setDeleteRelatedItems] = useState<any[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadParceiros();
@@ -186,28 +195,76 @@ const Parceiros: React.FC = () => {
     }
   };
 
-  const handleDelete = async (parceiro: Parceiro) => {
-    if (
-      !window.confirm(
-        `Tem certeza que deseja excluir o parceiro "${parceiro.nome}"?`
-      )
-    ) {
+  const handleOpenDeleteDialog = async (parceiro: Parceiro) => {
+    setParceiroToDelete(parceiro);
+    setDeleteBlocked(false);
+    setDeleteBlockReason("");
+    setDeleteRelatedItems([]);
+
+    try {
+      // Verificar vínculos com contratos
+      const { data: contratos, error: contratosError } = await supabase
+        .from("contratos")
+        .select("nome")
+        .eq("empresa", parceiro.nome);
+
+      if (contratosError) throw contratosError;
+
+      const relatedItems = [];
+
+      if (contratos && contratos.length > 0) {
+        relatedItems.push({
+          type: "Contrato(s) vinculado(s)",
+          count: contratos.length,
+          items: contratos.map((c: any) => c.nome),
+        });
+      }
+
+      if (relatedItems.length > 0) {
+        setDeleteBlocked(true);
+        setDeleteBlockReason(
+          "Este parceiro não pode ser excluído pois possui contratos vinculados. Remova os contratos antes de excluir."
+        );
+        setDeleteRelatedItems(relatedItems);
+      }
+    } catch (err: any) {
+      console.error("Erro ao verificar vínculos:", err);
+      setError("Erro ao verificar vínculos do parceiro");
       return;
     }
 
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setParceiroToDelete(null);
+    setDeleteBlocked(false);
+    setDeleteBlockReason("");
+    setDeleteRelatedItems([]);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!parceiroToDelete || deleteBlocked) return;
+
     try {
+      setDeleting(true);
       const { error: deleteError } = await supabase
         .from("parceiros")
         .delete()
-        .eq("id", parceiro.id);
+        .eq("id", parceiroToDelete.id);
 
       if (deleteError) throw deleteError;
 
       setSuccess("Parceiro excluído com sucesso!");
+      handleCloseDeleteDialog();
       loadParceiros();
     } catch (err: any) {
       setError(err.message || "Erro ao excluir parceiro");
       console.error("Erro:", err);
+      handleCloseDeleteDialog();
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -275,7 +332,7 @@ const Parceiros: React.FC = () => {
           <IconButton
             size="small"
             color="error"
-            onClick={() => handleDelete(params.row)}
+            onClick={() => handleOpenDeleteDialog(params.row)}
           >
             <Delete fontSize="small" />
           </IconButton>
@@ -450,6 +507,25 @@ const Parceiros: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        title="Excluir Parceiro"
+        itemName={parceiroToDelete?.nome || ""}
+        severity="warning"
+        isBlocked={deleteBlocked}
+        blockReason={deleteBlockReason}
+        relatedItems={deleteRelatedItems}
+        warningMessage={
+          !deleteBlocked
+            ? "Esta ação não poderá ser desfeita. O parceiro será permanentemente removido do sistema."
+            : undefined
+        }
+        loading={deleting}
+      />
     </Box>
   );
 };

@@ -20,6 +20,7 @@ import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
 import { Add, Edit, Delete, Inventory } from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
 import { ItemContrato, UnidadeMedida } from "../types/database.types";
+import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
 const UNIDADES_MEDIDA: UnidadeMedida[] = [
   "horas",
@@ -48,6 +49,14 @@ const Itens: React.FC = () => {
     descricao: "",
     unidade_medida: "horas" as UnidadeMedida,
   });
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<ItemContrato | null>(null);
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const [deleteBlockReason, setDeleteBlockReason] = useState("");
+  const [deleteRelatedItems, setDeleteRelatedItems] = useState<any[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadItens();
@@ -161,25 +170,75 @@ const Itens: React.FC = () => {
     }
   };
 
-  const handleDelete = async (item: ItemContrato) => {
-    if (
-      !window.confirm(`Tem certeza que deseja excluir o item "${item.nome}"?`)
-    ) {
+  const handleOpenDeleteDialog = async (item: ItemContrato) => {
+    setItemToDelete(item);
+    setDeleteBlocked(false);
+    setDeleteBlockReason("");
+    setDeleteRelatedItems([]);
+
+    try {
+      // Verificar vínculos com contratos (tabela contrato_itens)
+      const { data: vinculos, error: vinculosError } = await supabase
+        .from("contrato_itens")
+        .select("contrato_id, contratos(nome)")
+        .eq("item_id", item.id);
+
+      if (vinculosError) throw vinculosError;
+
+      const relatedItems = [];
+
+      if (vinculos && vinculos.length > 0) {
+        relatedItems.push({
+          type: "Contrato(s) que utilizam este item",
+          count: vinculos.length,
+          items: vinculos.map((v: any) => v.contratos?.nome || "Contrato"),
+        });
+      }
+
+      if (relatedItems.length > 0) {
+        setDeleteBlocked(true);
+        setDeleteBlockReason(
+          "Este item não pode ser excluído pois está vinculado a contratos. Remova o item dos contratos antes de excluir."
+        );
+        setDeleteRelatedItems(relatedItems);
+      }
+    } catch (err: any) {
+      console.error("Erro ao verificar vínculos:", err);
+      setError("Erro ao verificar vínculos do item");
       return;
     }
 
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setItemToDelete(null);
+    setDeleteBlocked(false);
+    setDeleteBlockReason("");
+    setDeleteRelatedItems([]);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete || deleteBlocked) return;
+
     try {
+      setDeleting(true);
       const { error: deleteError } = await supabase
         .from("itens_contrato")
         .delete()
-        .eq("id", item.id);
+        .eq("id", itemToDelete.id);
 
       if (deleteError) throw deleteError;
 
+      handleCloseDeleteDialog();
       loadItens();
     } catch (err: any) {
       setError(err.message || "Erro ao excluir item");
       console.error("Erro:", err);
+      handleCloseDeleteDialog();
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -245,7 +304,7 @@ const Itens: React.FC = () => {
           <IconButton
             size="small"
             color="error"
-            onClick={() => handleDelete(params.row)}
+            onClick={() => handleOpenDeleteDialog(params.row)}
           >
             <Delete fontSize="small" />
           </IconButton>
@@ -408,6 +467,25 @@ const Itens: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        title="Excluir Item de Contrato"
+        itemName={itemToDelete?.nome || ""}
+        severity="warning"
+        isBlocked={deleteBlocked}
+        blockReason={deleteBlockReason}
+        relatedItems={deleteRelatedItems}
+        warningMessage={
+          !deleteBlocked
+            ? "Esta ação não poderá ser desfeita. O item será permanentemente removido do sistema."
+            : undefined
+        }
+        loading={deleting}
+      />
     </Box>
   );
 };

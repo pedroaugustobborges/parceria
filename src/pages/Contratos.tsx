@@ -48,6 +48,7 @@ import {
 } from "../types/database.types";
 import { format, parseISO } from "date-fns";
 import { useAuth } from "../contexts/AuthContext";
+import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
 interface ItemSelecionado {
   item: ItemContrato;
@@ -65,6 +66,12 @@ const Contratos: React.FC = () => {
   const [editingContrato, setEditingContrato] = useState<Contrato | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [contratoToDelete, setContratoToDelete] = useState<Contrato | null>(null);
+  const [deleteRelatedItems, setDeleteRelatedItems] = useState<any[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   // Items state
   const [itensDisponiveis, setItensDisponiveis] = useState<ItemContrato[]>([]);
@@ -345,26 +352,92 @@ const Contratos: React.FC = () => {
     }
   };
 
-  const handleDelete = async (contrato: Contrato) => {
-    if (
-      !window.confirm(
-        `Tem certeza que deseja excluir o contrato ${contrato.nome}?`
-      )
-    )
-      return;
+  const handleOpenDeleteDialog = async (contrato: Contrato) => {
+    setContratoToDelete(contrato);
+    setDeleteRelatedItems([]);
 
     try {
+      // Buscar informações sobre vínculos (escalas, usuários, etc.)
+      const [
+        { data: escalas },
+        { data: usuarios },
+        { data: itens }
+      ] = await Promise.all([
+        supabase
+          .from("escalas_medicas")
+          .select("id")
+          .eq("contrato_id", contrato.id),
+        supabase
+          .from("usuario_contrato")
+          .select("usuarios(nome)")
+          .eq("contrato_id", contrato.id),
+        supabase
+          .from("contrato_itens")
+          .select("itens_contrato(nome)")
+          .eq("contrato_id", contrato.id),
+      ]);
+
+      const relatedItems = [];
+
+      if (escalas && escalas.length > 0) {
+        relatedItems.push({
+          type: "Escala(s) médica(s)",
+          count: escalas.length,
+        });
+      }
+
+      if (usuarios && usuarios.length > 0) {
+        relatedItems.push({
+          type: "Usuário(s) vinculado(s)",
+          count: usuarios.length,
+          items: usuarios.map((u: any) => u.usuarios?.nome).filter(Boolean),
+        });
+      }
+
+      if (itens && itens.length > 0) {
+        relatedItems.push({
+          type: "Item(ns) de contrato",
+          count: itens.length,
+          items: itens.map((i: any) => i.itens_contrato?.nome).filter(Boolean),
+        });
+      }
+
+      setDeleteRelatedItems(relatedItems);
+    } catch (err: any) {
+      console.error("Erro ao verificar vínculos:", err);
+      setError("Erro ao verificar vínculos do contrato");
+      return;
+    }
+
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setContratoToDelete(null);
+    setDeleteRelatedItems([]);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!contratoToDelete) return;
+
+    try {
+      setDeleting(true);
       const { error: deleteError } = await supabase
         .from("contratos")
         .delete()
-        .eq("id", contrato.id);
+        .eq("id", contratoToDelete.id);
 
       if (deleteError) throw deleteError;
 
       setSuccess("Contrato excluído com sucesso!");
+      handleCloseDeleteDialog();
       loadContratos();
     } catch (err: any) {
       setError(err.message);
+      handleCloseDeleteDialog();
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -462,7 +535,7 @@ const Contratos: React.FC = () => {
           <IconButton
             size="small"
             color="error"
-            onClick={() => handleDelete(params.row)}
+            onClick={() => handleOpenDeleteDialog(params.row)}
           >
             <Delete fontSize="small" />
           </IconButton>
@@ -781,6 +854,20 @@ const Contratos: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <DeleteConfirmDialog
+          open={deleteDialogOpen}
+          onClose={handleCloseDeleteDialog}
+          onConfirm={handleConfirmDelete}
+          title="Excluir Contrato"
+          itemName={contratoToDelete?.nome || ""}
+          severity="critical"
+          isBlocked={false}
+          relatedItems={deleteRelatedItems}
+          warningMessage="A exclusão de um contrato é uma ação MUITO SÉRIA. Todos os vínculos, escalas médicas e dados relacionados serão permanentemente excluídos."
+          loading={deleting}
+        />
       </Box>
     </LocalizationProvider>
   );

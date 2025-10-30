@@ -2095,7 +2095,7 @@ const Dashboard: React.FC = () => {
       <Box>
         <Box sx={{ mb: 4 }}>
           <Typography variant="h4" fontWeight={700} gutterBottom>
-            Dashboard de Acessos
+            Dashboard Gerencial
           </Typography>
           <Typography variant="body1" color="text.secondary">
             Acompanhe e analise os acessos e horas trabalhadas

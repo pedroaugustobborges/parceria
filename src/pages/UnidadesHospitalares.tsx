@@ -30,10 +30,12 @@ import {
   Check,
   Close,
   BusinessCenter,
+  Delete,
 } from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
 import { UnidadeHospitalar } from "../types/database.types";
 import { useAuth } from "../contexts/AuthContext";
+import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
 const UnidadesHospitalares: React.FC = () => {
   const { isAdminAgirCorporativo } = useAuth();
@@ -44,6 +46,14 @@ const UnidadesHospitalares: React.FC = () => {
     useState<UnidadeHospitalar | null>(null);
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [unidadeToDelete, setUnidadeToDelete] = useState<UnidadeHospitalar | null>(null);
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const [deleteBlockReason, setDeleteBlockReason] = useState("");
+  const [deleteRelatedItems, setDeleteRelatedItems] = useState<any[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -171,6 +181,96 @@ const UnidadesHospitalares: React.FC = () => {
     } catch (error: any) {
       console.error("Erro ao alterar status:", error);
       setErro(error.message || "Erro ao alterar status da unidade");
+    }
+  };
+
+  const handleOpenDeleteDialog = async (unidade: UnidadeHospitalar) => {
+    setUnidadeToDelete(unidade);
+    setDeleteBlocked(false);
+    setDeleteBlockReason("");
+    setDeleteRelatedItems([]);
+
+    try {
+      // Verificar vínculos com contratos
+      const { data: contratos, error: contratosError } = await supabase
+        .from("contratos")
+        .select("nome")
+        .eq("unidade_hospitalar_id", unidade.id);
+
+      if (contratosError) throw contratosError;
+
+      // Verificar vínculos com usuários
+      const { data: usuarios, error: usuariosError } = await supabase
+        .from("usuarios")
+        .select("nome")
+        .eq("unidade_hospitalar_id", unidade.id);
+
+      if (usuariosError) throw usuariosError;
+
+      const relatedItems = [];
+
+      if (contratos && contratos.length > 0) {
+        relatedItems.push({
+          type: "Contrato(s) vinculado(s)",
+          count: contratos.length,
+          items: contratos.map((c: any) => c.nome),
+        });
+      }
+
+      if (usuarios && usuarios.length > 0) {
+        relatedItems.push({
+          type: "Usuário(s) vinculado(s)",
+          count: usuarios.length,
+          items: usuarios.map((u: any) => u.nome),
+        });
+      }
+
+      if (relatedItems.length > 0) {
+        setDeleteBlocked(true);
+        setDeleteBlockReason(
+          "Esta unidade hospitalar não pode ser excluída pois possui itens vinculados. Remova os vínculos antes de excluir."
+        );
+        setDeleteRelatedItems(relatedItems);
+      }
+    } catch (err: any) {
+      console.error("Erro ao verificar vínculos:", err);
+      setErro("Erro ao verificar vínculos da unidade");
+      return;
+    }
+
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setUnidadeToDelete(null);
+    setDeleteBlocked(false);
+    setDeleteBlockReason("");
+    setDeleteRelatedItems([]);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!unidadeToDelete || deleteBlocked) return;
+
+    try {
+      setDeleting(true);
+      const { error: deleteError } = await supabase
+        .from("unidades_hospitalares")
+        .delete()
+        .eq("id", unidadeToDelete.id);
+
+      if (deleteError) throw deleteError;
+
+      setSucesso("Unidade excluída com sucesso!");
+      handleCloseDeleteDialog();
+      carregarUnidades();
+      setTimeout(() => setSucesso(""), 3000);
+    } catch (error: any) {
+      console.error("Erro ao excluir unidade:", error);
+      setErro(error.message || "Erro ao excluir unidade");
+      handleCloseDeleteDialog();
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -323,6 +423,14 @@ const UnidadesHospitalares: React.FC = () => {
                         >
                           <Edit fontSize="small" />
                         </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleOpenDeleteDialog(unidade)}
+                          sx={{ mr: 1 }}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
                         <Button
                           size="small"
                           variant="outlined"
@@ -406,6 +514,25 @@ const UnidadesHospitalares: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        title="Excluir Unidade Hospitalar"
+        itemName={unidadeToDelete?.nome || ""}
+        severity="warning"
+        isBlocked={deleteBlocked}
+        blockReason={deleteBlockReason}
+        relatedItems={deleteRelatedItems}
+        warningMessage={
+          !deleteBlocked
+            ? "Esta ação não poderá ser desfeita. Todos os dados relacionados a esta unidade serão permanentemente removidos."
+            : undefined
+        }
+        loading={deleting}
+      />
     </Box>
   );
 };

@@ -29,6 +29,7 @@ import {
   UnidadeHospitalar,
 } from "../types/database.types";
 import { format, parseISO } from "date-fns";
+import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
 const ESPECIALIDADES = [
   "Anestesiologia",
@@ -64,6 +65,14 @@ const Usuarios: React.FC = () => {
   const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [usuarioToDelete, setUsuarioToDelete] = useState<Usuario | null>(null);
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const [deleteBlockReason, setDeleteBlockReason] = useState("");
+  const [deleteRelatedItems, setDeleteRelatedItems] = useState<any[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -322,16 +331,66 @@ const Usuarios: React.FC = () => {
     }
   };
 
-  const handleDelete = async (usuario: Usuario) => {
-    if (!window.confirm(`Tem certeza que deseja excluir ${usuario.nome}?`))
-      return;
+  const handleOpenDeleteDialog = async (usuario: Usuario) => {
+    setUsuarioToDelete(usuario);
+    setDeleteBlocked(false);
+    setDeleteBlockReason("");
+    setDeleteRelatedItems([]);
 
     try {
+      // Verificar vínculos com contratos
+      const { data: vinculos, error: vinculosError } = await supabase
+        .from("usuario_contrato")
+        .select("contrato_id, contratos(nome)")
+        .eq("usuario_id", usuario.id);
+
+      if (vinculosError) throw vinculosError;
+
+      const relatedItems = [];
+
+      if (vinculos && vinculos.length > 0) {
+        relatedItems.push({
+          type: "Contrato(s) vinculado(s)",
+          count: vinculos.length,
+          items: vinculos.map((v: any) => v.contratos?.nome || "Contrato"),
+        });
+      }
+
+      if (relatedItems.length > 0) {
+        setDeleteBlocked(true);
+        setDeleteBlockReason(
+          "Este usuário não pode ser excluído pois possui contratos vinculados. Remova os vínculos antes de excluir."
+        );
+        setDeleteRelatedItems(relatedItems);
+      }
+    } catch (err: any) {
+      console.error("Erro ao verificar vínculos:", err);
+      setError("Erro ao verificar vínculos do usuário");
+      return;
+    }
+
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setUsuarioToDelete(null);
+    setDeleteBlocked(false);
+    setDeleteBlockReason("");
+    setDeleteRelatedItems([]);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!usuarioToDelete || deleteBlocked) return;
+
+    try {
+      setDeleting(true);
+
       // Usar a função do banco de dados para deletar completamente o usuário
       const { data, error: rpcError } = await supabase.rpc(
         "delete_user_completely",
         {
-          user_id: usuario.id,
+          user_id: usuarioToDelete.id,
         }
       );
 
@@ -346,7 +405,7 @@ const Usuarios: React.FC = () => {
           const { error: deleteError } = await supabase
             .from("usuarios")
             .delete()
-            .eq("id", usuario.id);
+            .eq("id", usuarioToDelete.id);
 
           if (deleteError) throw deleteError;
           setSuccess(
@@ -359,9 +418,13 @@ const Usuarios: React.FC = () => {
         setSuccess("Usuário excluído completamente do sistema!");
       }
 
+      handleCloseDeleteDialog();
       loadData();
     } catch (err: any) {
       setError(err.message);
+      handleCloseDeleteDialog();
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -441,7 +504,7 @@ const Usuarios: React.FC = () => {
           <IconButton
             size="small"
             color="error"
-            onClick={() => handleDelete(params.row)}
+            onClick={() => handleOpenDeleteDialog(params.row)}
           >
             <Delete fontSize="small" />
           </IconButton>
@@ -698,6 +761,25 @@ const Usuarios: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        title="Excluir Usuário"
+        itemName={usuarioToDelete?.nome || ""}
+        severity="warning"
+        isBlocked={deleteBlocked}
+        blockReason={deleteBlockReason}
+        relatedItems={deleteRelatedItems}
+        warningMessage={
+          !deleteBlocked
+            ? "Esta ação não poderá ser desfeita. O usuário e todos os seus dados serão permanentemente removidos do sistema, incluindo o acesso de autenticação."
+            : undefined
+        }
+        loading={deleting}
+      />
     </Box>
   );
 };
