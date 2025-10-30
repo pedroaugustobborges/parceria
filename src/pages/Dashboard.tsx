@@ -137,6 +137,22 @@ const Dashboard: React.FC = () => {
     }>;
   } | null>(null);
 
+  // Modal de diferença de horas
+  const [diferencaHorasModalOpen, setDiferencaHorasModalOpen] = useState(false);
+  const [diferencaHorasSelecionada, setDiferencaHorasSelecionada] = useState<{
+    nome: string;
+    cpf: string;
+    totalHoras: number;
+    cargaHorariaEscalada: number;
+    diferenca: number;
+    detalhamentoDiario: Array<{
+      data: string;
+      horasTrabalhadas: number;
+      cargaEscalada: number;
+      diferenca: number;
+    }>;
+  } | null>(null);
+
   useEffect(() => {
     loadAcessos();
     loadContratos();
@@ -1379,6 +1395,105 @@ const Dashboard: React.FC = () => {
     setAbsenteismoSelecionado(null);
   };
 
+  const handleOpenDiferencaHorasModal = (cpf: string, nome: string, totalHoras: number, cargaHorariaEscalada: number) => {
+    // Calcular detalhamento diário
+    const acessosPessoa = acessosFiltrados.filter(a => a.cpf === cpf);
+    const escalasPessoa = escalas.filter(e =>
+      e.medicos.some(m => m.cpf === cpf) &&
+      (!filtroDataInicio || parseISO(e.data_inicio) >= new Date(filtroDataInicio)) &&
+      (!filtroDataFim || parseISO(e.data_inicio) <= new Date(filtroDataFim))
+    );
+
+    // Agrupar acessos por dia
+    const acessosPorDia = acessosPessoa.reduce((acc, acesso) => {
+      const dataStr = format(parseISO(acesso.data_acesso), 'yyyy-MM-dd');
+      if (!acc[dataStr]) {
+        acc[dataStr] = [];
+      }
+      acc[dataStr].push(acesso);
+      return acc;
+    }, {} as Record<string, Acesso[]>);
+
+    // Calcular horas por dia usando a mesma lógica do cálculo principal
+    const diasOrdenados = Object.keys(acessosPorDia).sort();
+    const detalhamentoDiario = diasOrdenados.map((dataStr, i) => {
+      const acessosDia = acessosPorDia[dataStr];
+
+      // IMPORTANTE: Ordenar os acessos do dia por horário
+      const acessosDiaOrdenados = acessosDia.sort(
+        (a, b) => new Date(a.data_acesso).getTime() - new Date(b.data_acesso).getTime()
+      );
+
+      const entradasDia = acessosDiaOrdenados.filter((a) => a.sentido === "E");
+      const saidasDia = acessosDiaOrdenados.filter((a) => a.sentido === "S");
+
+      let horasTrabalhadas = 0;
+
+      if (entradasDia.length > 0) {
+        const primeiraEntrada = parseISO(entradasDia[0].data_acesso);
+
+        // Se há saída no mesmo dia, usar a última saída do dia
+        if (saidasDia.length > 0) {
+          const ultimaSaida = parseISO(saidasDia[saidasDia.length - 1].data_acesso);
+
+          if (ultimaSaida > primeiraEntrada) {
+            const minutos = (ultimaSaida.getTime() - primeiraEntrada.getTime()) / (1000 * 60);
+            horasTrabalhadas = minutos / 60;
+          }
+        } else {
+          // Último registro do dia é entrada, buscar primeira saída do dia seguinte
+          for (let j = i + 1; j < diasOrdenados.length; j++) {
+            const proximoDia = diasOrdenados[j];
+            const acessosProximoDia = acessosPorDia[proximoDia];
+            const saidasProximoDia = acessosProximoDia.filter((a) => a.sentido === "S");
+
+            if (saidasProximoDia.length > 0) {
+              const primeiraSaidaProximoDia = parseISO(saidasProximoDia[0].data_acesso);
+              const minutos = (primeiraSaidaProximoDia.getTime() - primeiraEntrada.getTime()) / (1000 * 60);
+              horasTrabalhadas = minutos / 60;
+              break;
+            }
+          }
+        }
+      }
+
+      // Calcular carga escalada para este dia
+      const escalaDia = escalasPessoa.find(e => format(parseISO(e.data_inicio), 'yyyy-MM-dd') === dataStr);
+      let cargaEscalada = 0;
+      if (escalaDia) {
+        const [horaEntrada, minEntrada] = escalaDia.horario_entrada.split(":").map(Number);
+        const [horaSaida, minSaida] = escalaDia.horario_saida.split(":").map(Number);
+        let minutosTotais = (horaSaida * 60 + minSaida) - (horaEntrada * 60 + minEntrada);
+        if (minutosTotais < 0) {
+          minutosTotais += 24 * 60;
+        }
+        cargaEscalada = minutosTotais / 60;
+      }
+
+      return {
+        data: dataStr,
+        horasTrabalhadas: parseFloat(horasTrabalhadas.toFixed(2)),
+        cargaEscalada: parseFloat(cargaEscalada.toFixed(2)),
+        diferenca: parseFloat((horasTrabalhadas - cargaEscalada).toFixed(2))
+      };
+    });
+
+    setDiferencaHorasSelecionada({
+      nome,
+      cpf,
+      totalHoras,
+      cargaHorariaEscalada,
+      diferenca: totalHoras - cargaHorariaEscalada,
+      detalhamentoDiario
+    });
+    setDiferencaHorasModalOpen(true);
+  };
+
+  const handleCloseDiferencaHorasModal = () => {
+    setDiferencaHorasModalOpen(false);
+    setDiferencaHorasSelecionada(null);
+  };
+
   const handleExportInconsistenciaCSV = () => {
     if (!inconsistenciaSelecionada) return;
 
@@ -1563,6 +1678,37 @@ const Dashboard: React.FC = () => {
           </Typography>
         </Box>
       ),
+    },
+    {
+      field: "diferenca",
+      headerName: "Diferença",
+      width: 110,
+      type: "number",
+      renderCell: (params) => {
+        const row = params.row as HorasCalculadas;
+        const diferenca = row.totalHoras - row.cargaHorariaEscalada;
+        const isPositive = diferenca > 0;
+        const isNegative = diferenca < 0;
+
+        return (
+          <Chip
+            label={`${diferenca > 0 ? '+' : ''}${diferenca.toFixed(1)}h`}
+            size="small"
+            onClick={() => handleOpenDiferencaHorasModal(row.cpf, row.nome, row.totalHoras, row.cargaHorariaEscalada)}
+            sx={{
+              cursor: 'pointer',
+              bgcolor: isPositive ? 'rgba(34, 197, 94, 0.1)' : isNegative ? 'rgba(239, 68, 68, 0.1)' : 'rgba(156, 163, 175, 0.1)',
+              color: isPositive ? '#16a34a' : isNegative ? '#dc2626' : '#6b7280',
+              fontWeight: 600,
+              '&:hover': {
+                bgcolor: isPositive ? 'rgba(34, 197, 94, 0.2)' : isNegative ? 'rgba(239, 68, 68, 0.2)' : 'rgba(156, 163, 175, 0.2)',
+                transform: 'scale(1.05)',
+              },
+              transition: 'all 0.2s',
+            }}
+          />
+        );
+      },
     },
     {
       field: "entradas",
@@ -4182,6 +4328,167 @@ const Dashboard: React.FC = () => {
 
           <DialogActions sx={{ px: 3, py: 2 }}>
             <Button onClick={handleCloseAbsenteismoModal} variant="outlined">
+              Fechar
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Modal de Diferença de Horas */}
+        <Dialog
+          open={diferencaHorasModalOpen}
+          onClose={handleCloseDiferencaHorasModal}
+          maxWidth="lg"
+          fullWidth
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box display="flex" alignItems="center" gap={2}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "10px",
+                    bgcolor: "#3b82f6",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <AccessTime sx={{ color: "white", fontSize: 24 }} />
+                </Box>
+                <Typography variant="h6" fontWeight={700}>
+                  Análise de Horas - {diferencaHorasSelecionada?.nome}
+                </Typography>
+              </Box>
+              <IconButton onClick={handleCloseDiferencaHorasModal} size="small">
+                <Close />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+
+          <DialogContent>
+            {diferencaHorasSelecionada && (
+              <>
+                {/* Resumo */}
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={12} sm={4}>
+                    <Paper sx={{ p: 2, bgcolor: "#eff6ff", border: "1px solid #bfdbfe" }}>
+                      <Typography variant="caption" color="text.secondary" gutterBottom>
+                        Total de Horas Trabalhadas
+                      </Typography>
+                      <Typography variant="h5" fontWeight={700} color="#1e40af">
+                        {diferencaHorasSelecionada.totalHoras.toFixed(1)}h
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Paper sx={{ p: 2, bgcolor: "#f3f4f6", border: "1px solid #d1d5db" }}>
+                      <Typography variant="caption" color="text.secondary" gutterBottom>
+                        Carga Horária Escalada
+                      </Typography>
+                      <Typography variant="h5" fontWeight={700} color="#374151">
+                        {diferencaHorasSelecionada.cargaHorariaEscalada.toFixed(1)}h
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Paper sx={{
+                      p: 2,
+                      bgcolor: diferencaHorasSelecionada.diferenca > 0 ? "#f0fdf4" : diferencaHorasSelecionada.diferenca < 0 ? "#fef2f2" : "#f9fafb",
+                      border: `1px solid ${diferencaHorasSelecionada.diferenca > 0 ? "#bbf7d0" : diferencaHorasSelecionada.diferenca < 0 ? "#fecaca" : "#e5e7eb"}`
+                    }}>
+                      <Typography variant="caption" color="text.secondary" gutterBottom>
+                        Diferença
+                      </Typography>
+                      <Typography
+                        variant="h5"
+                        fontWeight={700}
+                        color={diferencaHorasSelecionada.diferenca > 0 ? "#16a34a" : diferencaHorasSelecionada.diferenca < 0 ? "#dc2626" : "#6b7280"}
+                      >
+                        {diferencaHorasSelecionada.diferenca > 0 ? '+' : ''}{diferencaHorasSelecionada.diferenca.toFixed(1)}h
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                </Grid>
+
+                {/* Detalhamento Diário */}
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                  Detalhamento Diário ({diferencaHorasSelecionada.detalhamentoDiario.length} {diferencaHorasSelecionada.detalhamentoDiario.length === 1 ? 'dia' : 'dias'})
+                </Typography>
+
+                <TableContainer component={Paper} sx={{ boxShadow: "none", border: "1px solid #e5e7eb", maxHeight: 400 }}>
+                  <Table stickyHeader>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: "#f9fafb" }}>
+                        <TableCell width={60}>#</TableCell>
+                        <TableCell>Data</TableCell>
+                        <TableCell align="right">Horas Trabalhadas</TableCell>
+                        <TableCell align="right">Carga Escalada</TableCell>
+                        <TableCell align="right">Diferença</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {diferencaHorasSelecionada.detalhamentoDiario.map((dia, index) => (
+                        <TableRow key={index} sx={{ "&:hover": { bgcolor: "#f9fafb" } }}>
+                          <TableCell>
+                            <Box
+                              sx={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: "6px",
+                                bgcolor: "#3b82f6",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: 700,
+                                fontSize: 12,
+                              }}
+                            >
+                              {index + 1}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {format(parseISO(dia.data), "dd/MM/yyyy - EEEE", { locale: ptBR })}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Chip
+                              label={`${dia.horasTrabalhadas.toFixed(1)}h`}
+                              size="small"
+                              sx={{ bgcolor: "#eff6ff", color: "#1e40af", fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Chip
+                              label={`${dia.cargaEscalada.toFixed(1)}h`}
+                              size="small"
+                              sx={{ bgcolor: "#f3f4f6", color: "#374151", fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Chip
+                              label={`${dia.diferenca > 0 ? '+' : ''}${dia.diferenca.toFixed(1)}h`}
+                              size="small"
+                              sx={{
+                                bgcolor: dia.diferenca > 0 ? 'rgba(34, 197, 94, 0.1)' : dia.diferenca < 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(156, 163, 175, 0.1)',
+                                color: dia.diferenca > 0 ? '#16a34a' : dia.diferenca < 0 ? '#dc2626' : '#6b7280',
+                                fontWeight: 700,
+                              }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            )}
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={handleCloseDiferencaHorasModal} variant="outlined">
               Fechar
             </Button>
           </DialogActions>
