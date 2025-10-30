@@ -2213,10 +2213,10 @@ const Dashboard: React.FC = () => {
           <Grid item xs={12} md={6}>
             <Card
               sx={{
-                background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
                 borderRadius: 3,
                 boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-                border: "1px solid #fde68a",
+                border: "1px solid #bae6fd",
                 height: "100%",
               }}
             >
@@ -2227,7 +2227,7 @@ const Dashboard: React.FC = () => {
                       width: 48,
                       height: 48,
                       borderRadius: "12px",
-                      bgcolor: "#fbbf24",
+                      bgcolor: "#3b82f6",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -2236,7 +2236,7 @@ const Dashboard: React.FC = () => {
                     <Warning sx={{ color: "white", fontSize: 28 }} />
                   </Box>
                   <Box>
-                    <Typography variant="h6" fontWeight={700} color="#b45309">
+                    <Typography variant="h6" fontWeight={700} color="#1e40af">
                       Produtividade sem Acesso
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -2252,8 +2252,8 @@ const Dashboard: React.FC = () => {
                       label="Filtros ativos"
                       size="small"
                       sx={{
-                        bgcolor: "rgba(251, 191, 36, 0.15)",
-                        color: "#b45309",
+                        bgcolor: "rgba(59, 130, 246, 0.15)",
+                        color: "#1e40af",
                         fontWeight: 600,
                       }}
                     />
@@ -2287,7 +2287,7 @@ const Dashboard: React.FC = () => {
                           "&:hover": {
                             transform: "translateX(4px)",
                             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            bgcolor: "warning.50",
+                            bgcolor: "info.50",
                           },
                         }}
                         onClick={() =>
@@ -2309,7 +2309,7 @@ const Dashboard: React.FC = () => {
                                 width: 32,
                                 height: 32,
                                 borderRadius: "8px",
-                                bgcolor: "#fbbf24",
+                                bgcolor: "#3b82f6",
                                 color: "white",
                                 display: "flex",
                                 alignItems: "center",
@@ -2337,7 +2337,7 @@ const Dashboard: React.FC = () => {
                             label={`${item.count} ${item.count === 1 ? "dia" : "dias"}`}
                             size="small"
                             sx={{
-                              bgcolor: "#fbbf24",
+                              bgcolor: "#3b82f6",
                               color: "white",
                               fontWeight: 600,
                             }}
@@ -2518,10 +2518,10 @@ const Dashboard: React.FC = () => {
           <Grid item xs={12} md={6}>
             <Card
               sx={{
-                background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+                background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
                 borderRadius: 3,
                 boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-                border: "1px solid #86efac",
+                border: "1px solid #bae6fd",
                 height: "100%",
               }}
             >
@@ -2532,7 +2532,7 @@ const Dashboard: React.FC = () => {
                       width: 48,
                       height: 48,
                       borderRadius: "12px",
-                      bgcolor: "#22c55e",
+                      bgcolor: "#3b82f6",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -2541,7 +2541,7 @@ const Dashboard: React.FC = () => {
                     <Schedule sx={{ color: "white", fontSize: 28 }} />
                   </Box>
                   <Box>
-                    <Typography variant="h6" fontWeight={700} color="#15803d">
+                    <Typography variant="h6" fontWeight={700} color="#1e40af">
                       Índice de Pontualidade
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -2557,8 +2557,8 @@ const Dashboard: React.FC = () => {
                       label="Filtros ativos"
                       size="small"
                       sx={{
-                        bgcolor: "rgba(34, 197, 94, 0.15)",
-                        color: "#15803d",
+                        bgcolor: "rgba(59, 130, 246, 0.15)",
+                        color: "#1e40af",
                         fontWeight: 600,
                       }}
                     />
@@ -2592,7 +2592,7 @@ const Dashboard: React.FC = () => {
                           "&:hover": {
                             transform: "translateX(4px)",
                             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            bgcolor: "success.50",
+                            bgcolor: "info.50",
                           },
                         }}
                         onClick={() => handleOpenPontualidadeModal(item.cpf, item.nome)}
@@ -2608,7 +2608,7 @@ const Dashboard: React.FC = () => {
                                 width: 32,
                                 height: 32,
                                 borderRadius: "8px",
-                                bgcolor: "#22c55e",
+                                bgcolor: "#3b82f6",
                                 color: "white",
                                 display: "flex",
                                 alignItems: "center",
@@ -2640,7 +2640,7 @@ const Dashboard: React.FC = () => {
                             label={`${item.atrasos} ${item.atrasos === 1 ? "atraso" : "atrasos"}`}
                             size="small"
                             sx={{
-                              bgcolor: item.atrasos > 5 ? "#ef4444" : item.atrasos > 2 ? "#f59e0b" : "#22c55e",
+                              bgcolor: "#3b82f6",
                               color: "white",
                               fontWeight: 600,
                             }}
@@ -2667,10 +2667,10 @@ const Dashboard: React.FC = () => {
           <Grid item xs={12} md={6}>
             <Card
               sx={{
-                background: "linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)",
+                background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
                 borderRadius: 3,
                 boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-                border: "1px solid #fca5a5",
+                border: "1px solid #bae6fd",
                 height: "100%",
               }}
             >
@@ -2681,7 +2681,7 @@ const Dashboard: React.FC = () => {
                       width: 48,
                       height: 48,
                       borderRadius: "12px",
-                      bgcolor: "#ef4444",
+                      bgcolor: "#3b82f6",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -2690,7 +2690,7 @@ const Dashboard: React.FC = () => {
                     <PersonOff sx={{ color: "white", fontSize: 28 }} />
                   </Box>
                   <Box>
-                    <Typography variant="h6" fontWeight={700} color="#991b1b">
+                    <Typography variant="h6" fontWeight={700} color="#1e40af">
                       Índice de Absenteísmo
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -2706,8 +2706,8 @@ const Dashboard: React.FC = () => {
                       label="Filtros ativos"
                       size="small"
                       sx={{
-                        bgcolor: "rgba(239, 68, 68, 0.15)",
-                        color: "#991b1b",
+                        bgcolor: "rgba(59, 130, 246, 0.15)",
+                        color: "#1e40af",
                         fontWeight: 600,
                       }}
                     />
@@ -2741,7 +2741,7 @@ const Dashboard: React.FC = () => {
                           "&:hover": {
                             transform: "translateX(4px)",
                             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            bgcolor: "error.50",
+                            bgcolor: "info.50",
                           },
                         }}
                         onClick={() => handleOpenAbsenteismoModal(item.cpf, item.nome)}
@@ -2757,7 +2757,7 @@ const Dashboard: React.FC = () => {
                                 width: 32,
                                 height: 32,
                                 borderRadius: "8px",
-                                bgcolor: "#ef4444",
+                                bgcolor: "#3b82f6",
                                 color: "white",
                                 display: "flex",
                                 alignItems: "center",
@@ -2789,7 +2789,7 @@ const Dashboard: React.FC = () => {
                             label={`${item.ausencias} ${item.ausencias === 1 ? "ausência" : "ausências"}`}
                             size="small"
                             sx={{
-                              bgcolor: item.ausencias > 5 ? "#991b1b" : item.ausencias > 2 ? "#dc2626" : "#ef4444",
+                              bgcolor: "#3b82f6",
                               color: "white",
                               fontWeight: 600,
                             }}
