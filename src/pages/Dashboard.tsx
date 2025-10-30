@@ -59,7 +59,15 @@ import {
   Cell,
 } from "recharts";
 import { supabase } from "../lib/supabase";
-import { Acesso, HorasCalculadas, Contrato, Produtividade, Usuario, UnidadeHospitalar, EscalaMedica } from "../types/database.types";
+import {
+  Acesso,
+  HorasCalculadas,
+  Contrato,
+  Produtividade,
+  Usuario,
+  UnidadeHospitalar,
+  EscalaMedica,
+} from "../types/database.types";
 import { useAuth } from "../contexts/AuthContext";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 
@@ -97,8 +105,11 @@ const Dashboard: React.FC = () => {
 
   // Modal de produtividade
   const [produtividadeModalOpen, setProdutividadeModalOpen] = useState(false);
-  const [selectedPersonProdutividade, setSelectedPersonProdutividade] = useState<HorasCalculadas | null>(null);
-  const [personProdutividade, setPersonProdutividade] = useState<Produtividade[]>([]);
+  const [selectedPersonProdutividade, setSelectedPersonProdutividade] =
+    useState<HorasCalculadas | null>(null);
+  const [personProdutividade, setPersonProdutividade] = useState<
+    Produtividade[]
+  >([]);
 
   // Modal de aviso de contrato
   const [contratoWarningOpen, setContratoWarningOpen] = useState(false);
@@ -108,7 +119,7 @@ const Dashboard: React.FC = () => {
   const [inconsistenciaModalOpen, setInconsistenciaModalOpen] = useState(false);
   const [inconsistenciaSelecionada, setInconsistenciaSelecionada] = useState<{
     nome: string;
-    tipo: 'prodSemAcesso' | 'acessoSemProd';
+    tipo: "prodSemAcesso" | "acessoSemProd";
     datas: string[];
     detalhes?: Map<string, Produtividade[]>; // Mapa de data -> registros de produtividade
   } | null>(null);
@@ -494,9 +505,9 @@ const Dashboard: React.FC = () => {
         )[0];
 
         // Calcular carga horária escalada para este CPF (aplicando filtros de data)
-        const escalasDoMedico = escalas.filter(escala => {
+        const escalasDoMedico = escalas.filter((escala) => {
           // Verificar se o médico está na escala
-          if (!escala.medicos?.some(medico => medico.cpf === cpf)) {
+          if (!escala.medicos?.some((medico) => medico.cpf === cpf)) {
             return false;
           }
 
@@ -519,24 +530,32 @@ const Dashboard: React.FC = () => {
           return true;
         });
 
-        const cargaHorariaEscaladaPorCpf = escalasDoMedico.reduce((sum, escala) => {
-          try {
-            const [horaEntrada, minEntrada] = escala.horario_entrada.split(":").map(Number);
-            const [horaSaida, minSaida] = escala.horario_saida.split(":").map(Number);
+        const cargaHorariaEscaladaPorCpf = escalasDoMedico.reduce(
+          (sum, escala) => {
+            try {
+              const [horaEntrada, minEntrada] = escala.horario_entrada
+                .split(":")
+                .map(Number);
+              const [horaSaida, minSaida] = escala.horario_saida
+                .split(":")
+                .map(Number);
 
-            let minutosTotais = (horaSaida * 60 + minSaida) - (horaEntrada * 60 + minEntrada);
+              let minutosTotais =
+                horaSaida * 60 + minSaida - (horaEntrada * 60 + minEntrada);
 
-            if (minutosTotais < 0) {
-              minutosTotais += 24 * 60;
+              if (minutosTotais < 0) {
+                minutosTotais += 24 * 60;
+              }
+
+              const horas = minutosTotais / 60;
+              return sum + horas;
+            } catch (err) {
+              console.error("Erro ao calcular horas da escala para CPF:", err);
+              return sum;
             }
-
-            const horas = minutosTotais / 60;
-            return sum + horas;
-          } catch (err) {
-            console.error("Erro ao calcular horas da escala para CPF:", err);
-            return sum;
-          }
-        }, 0);
+          },
+          0
+        );
 
         return {
           cpf,
@@ -544,7 +563,9 @@ const Dashboard: React.FC = () => {
           matricula: ultimoAcesso.matricula,
           tipo: ultimoAcesso.tipo,
           totalHoras: parseFloat(totalHoras.toFixed(2)),
-          cargaHorariaEscalada: parseFloat(cargaHorariaEscaladaPorCpf.toFixed(2)),
+          cargaHorariaEscalada: parseFloat(
+            cargaHorariaEscaladaPorCpf.toFixed(2)
+          ),
           diasComRegistro: diasUnicos.size,
           entradas: totalEntradas,
           saidas: totalSaidas,
@@ -611,8 +632,9 @@ const Dashboard: React.FC = () => {
     }
 
     // Filtrar produtividade por CODIGO_MV encontrado na tabela usuarios
-    let personProdHistory = produtividade
-      .filter((p) => p.codigo_mv === usuario.codigomv);
+    let personProdHistory = produtividade.filter(
+      (p) => p.codigo_mv === usuario.codigomv
+    );
 
     // Aplicar filtros de data se estiverem definidos
     // Normalizar as datas para comparar apenas o dia (sem hora)
@@ -623,7 +645,7 @@ const Dashboard: React.FC = () => {
       personProdHistory = personProdHistory.filter((p) => {
         if (!p.data) return false;
         // Parse ISO date string (YYYY-MM-DD) correctly
-        const [year, month, day] = p.data.split('T')[0].split('-').map(Number);
+        const [year, month, day] = p.data.split("T")[0].split("-").map(Number);
         const dataProducao = new Date(year, month - 1, day);
         return dataProducao >= inicioNormalizado;
       });
@@ -636,7 +658,7 @@ const Dashboard: React.FC = () => {
       personProdHistory = personProdHistory.filter((p) => {
         if (!p.data) return false;
         // Parse ISO date string (YYYY-MM-DD) correctly
-        const [year, month, day] = p.data.split('T')[0].split('-').map(Number);
+        const [year, month, day] = p.data.split("T")[0].split("-").map(Number);
         const dataProducao = new Date(year, month - 1, day);
         return dataProducao <= fimNormalizado;
       });
@@ -692,7 +714,9 @@ const Dashboard: React.FC = () => {
 
       // Filtro de Unidade Hospitalar
       if (filtroUnidade.length > 0 && item.unidade_hospitalar_id) {
-        const unidadeItem = unidades.find(u => u.id === item.unidade_hospitalar_id);
+        const unidadeItem = unidades.find(
+          (u) => u.id === item.unidade_hospitalar_id
+        );
         if (!unidadeItem || !filtroUnidade.includes(unidadeItem.codigo)) {
           return false;
         }
@@ -701,14 +725,20 @@ const Dashboard: React.FC = () => {
       // Filtros de data (usando a coluna 'data' da tabela produtividade)
       // Parse ISO date string (YYYY-MM-DD) correctly to avoid timezone issues
       if (filtroDataInicio && item.data) {
-        const [year, month, day] = item.data.split('T')[0].split('-').map(Number);
+        const [year, month, day] = item.data
+          .split("T")[0]
+          .split("-")
+          .map(Number);
         const dataProd = new Date(year, month - 1, day);
         const inicioNormalizado = new Date(filtroDataInicio);
         inicioNormalizado.setHours(0, 0, 0, 0);
         if (dataProd < inicioNormalizado) return false;
       }
       if (filtroDataFim && item.data) {
-        const [year, month, day] = item.data.split('T')[0].split('-').map(Number);
+        const [year, month, day] = item.data
+          .split("T")[0]
+          .split("-")
+          .map(Number);
         const dataProd = new Date(year, month - 1, day);
         const fimNormalizado = new Date(filtroDataFim);
         fimNormalizado.setHours(0, 0, 0, 0);
@@ -796,7 +826,14 @@ const Dashboard: React.FC = () => {
     ].filter((item) => item.value > 0); // Filtrar apenas valores maiores que 0
 
     return data;
-  }, [produtividade, filtroNome, filtroUnidade, filtroDataInicio, filtroDataFim, unidades]);
+  }, [
+    produtividade,
+    filtroNome,
+    filtroUnidade,
+    filtroDataInicio,
+    filtroDataFim,
+    unidades,
+  ]);
 
   // Calcular inconsistências entre produtividade e acessos
   const inconsistencias = useMemo(() => {
@@ -811,7 +848,9 @@ const Dashboard: React.FC = () => {
     });
 
     // Aplicar filtros de data para normalização
-    const dataInicioNormalizada = filtroDataInicio ? new Date(filtroDataInicio) : null;
+    const dataInicioNormalizada = filtroDataInicio
+      ? new Date(filtroDataInicio)
+      : null;
     if (dataInicioNormalizada) dataInicioNormalizada.setHours(0, 0, 0, 0);
 
     const dataFimNormalizada = filtroDataFim ? new Date(filtroDataFim) : null;
@@ -824,7 +863,8 @@ const Dashboard: React.FC = () => {
       if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome)) return;
 
       // Aplicar filtro de unidade hospitalar
-      if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta)) return;
+      if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta))
+        return;
 
       // Aplicar filtros de data
       const dataAcesso = new Date(acesso.data_acesso);
@@ -833,7 +873,7 @@ const Dashboard: React.FC = () => {
       if (dataInicioNormalizada && dataAcesso < dataInicioNormalizada) return;
       if (dataFimNormalizada && dataAcesso > dataFimNormalizada) return;
 
-      const [year, month, day] = acesso.data_acesso.split('T')[0].split('-');
+      const [year, month, day] = acesso.data_acesso.split("T")[0].split("-");
       const dataStr = `${year}-${month}-${day}`;
       const key = `${acesso.cpf}`;
       if (!acessosPorPessoaData.has(key)) {
@@ -874,20 +914,24 @@ const Dashboard: React.FC = () => {
 
       // Aplicar filtro de unidade hospitalar
       if (filtroUnidade.length > 0 && prod.unidade_hospitalar_id) {
-        const unidadeItem = unidades.find(u => u.id === prod.unidade_hospitalar_id);
+        const unidadeItem = unidades.find(
+          (u) => u.id === prod.unidade_hospitalar_id
+        );
         if (!unidadeItem || !filtroUnidade.includes(unidadeItem.codigo)) {
           return;
         }
       }
 
       // Aplicar filtros de data
-      const [year, month, day] = prod.data.split('T')[0].split('-').map(Number);
+      const [year, month, day] = prod.data.split("T")[0].split("-").map(Number);
       const dataProd = new Date(year, month - 1, day);
 
       if (dataInicioNormalizada && dataProd < dataInicioNormalizada) return;
       if (dataFimNormalizada && dataProd > dataFimNormalizada) return;
 
-      const dataStr = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+      const dataStr = `${year.toString().padStart(4, "0")}-${month
+        .toString()
+        .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
       const key = `${cpf}`;
       if (!produtividadePorPessoaData.has(key)) {
         produtividadePorPessoaData.set(key, new Set());
@@ -943,19 +987,30 @@ const Dashboard: React.FC = () => {
       prodSemAcesso: prodSemAcessoArray,
       acessoSemProd: acessoSemProdArray,
     };
-  }, [acessos, produtividade, usuarios, filtroNome, filtroUnidade, filtroDataInicio, filtroDataFim, unidades]);
+  }, [
+    acessos,
+    produtividade,
+    usuarios,
+    filtroNome,
+    filtroUnidade,
+    filtroDataInicio,
+    filtroDataFim,
+    unidades,
+  ]);
 
   // Cálculo de Pontualidade e Absenteísmo
   const indicadoresEscalas = useMemo(() => {
     // Aplicar filtros de data para normalização
-    const dataInicioNormalizada = filtroDataInicio ? new Date(filtroDataInicio) : null;
+    const dataInicioNormalizada = filtroDataInicio
+      ? new Date(filtroDataInicio)
+      : null;
     if (dataInicioNormalizada) dataInicioNormalizada.setHours(0, 0, 0, 0);
 
     const dataFimNormalizada = filtroDataFim ? new Date(filtroDataFim) : null;
     if (dataFimNormalizada) dataFimNormalizada.setHours(0, 0, 0, 0);
 
     // Filtrar escalas por data
-    const escalasFiltr = escalas.filter(escala => {
+    const escalasFiltr = escalas.filter((escala) => {
       if (dataInicioNormalizada) {
         // Usa parseISO para evitar problemas de timezone
         const dataEscala = parseISO(escala.data_inicio);
@@ -972,47 +1027,68 @@ const Dashboard: React.FC = () => {
     });
 
     // Mapear médicos por CPF com detalhes
-    const pontualidadePorMedico = new Map<string, {
-      nome: string;
-      totalEscalas: number;
-      atrasos: number;
-      detalhesAtrasos: Array<{ data: string; horarioEscalado: string; horarioEntrada: string; atrasoMinutos: number }>;
-    }>();
-    const absenteismoPorMedico = new Map<string, {
-      nome: string;
-      totalEscalas: number;
-      ausencias: number;
-      detalhesAusencias: Array<{ data: string; horarioEscalado: string }>;
-    }>();
+    const pontualidadePorMedico = new Map<
+      string,
+      {
+        nome: string;
+        totalEscalas: number;
+        atrasos: number;
+        detalhesAtrasos: Array<{
+          data: string;
+          horarioEscalado: string;
+          horarioEntrada: string;
+          atrasoMinutos: number;
+        }>;
+      }
+    >();
+    const absenteismoPorMedico = new Map<
+      string,
+      {
+        nome: string;
+        totalEscalas: number;
+        ausencias: number;
+        detalhesAusencias: Array<{ data: string; horarioEscalado: string }>;
+      }
+    >();
 
-    escalasFiltr.forEach(escala => {
-      escala.medicos?.forEach(medico => {
+    escalasFiltr.forEach((escala) => {
+      escala.medicos?.forEach((medico) => {
         // Extrair data da escala (formato: YYYY-MM-DD)
-        const dataStr = escala.data_inicio.split('T')[0];
+        const dataStr = escala.data_inicio.split("T")[0];
 
         // Aplicar filtro de nome
         if (filtroNome.length > 0 && !filtroNome.includes(medico.nome)) return;
 
         // Inicializar contadores de pontualidade
         if (!pontualidadePorMedico.has(medico.cpf)) {
-          pontualidadePorMedico.set(medico.cpf, { nome: medico.nome, totalEscalas: 0, atrasos: 0, detalhesAtrasos: [] });
+          pontualidadePorMedico.set(medico.cpf, {
+            nome: medico.nome,
+            totalEscalas: 0,
+            atrasos: 0,
+            detalhesAtrasos: [],
+          });
         }
         const pontInfo = pontualidadePorMedico.get(medico.cpf)!;
         pontInfo.totalEscalas++;
 
         // Inicializar contadores de absenteísmo
         if (!absenteismoPorMedico.has(medico.cpf)) {
-          absenteismoPorMedico.set(medico.cpf, { nome: medico.nome, totalEscalas: 0, ausencias: 0, detalhesAusencias: [] });
+          absenteismoPorMedico.set(medico.cpf, {
+            nome: medico.nome,
+            totalEscalas: 0,
+            ausencias: 0,
+            detalhesAusencias: [],
+          });
         }
         const absentInfo = absenteismoPorMedico.get(medico.cpf)!;
         absentInfo.totalEscalas++;
 
         // Verificar acessos do médico nesta data
-        const acessosDoDia = acessos.filter(acesso => {
+        const acessosDoDia = acessos.filter((acesso) => {
           if (acesso.cpf !== medico.cpf) return false;
           // Extrair data do acesso (formato: YYYY-MM-DD)
-          const acessoDataStr = acesso.data_acesso.split('T')[0];
-          return acessoDataStr === dataStr && acesso.sentido === 'E';
+          const acessoDataStr = acesso.data_acesso.split("T")[0];
+          return acessoDataStr === dataStr && acesso.sentido === "E";
         });
 
         // Se não há acesso neste dia, conta como ausência
@@ -1020,30 +1096,35 @@ const Dashboard: React.FC = () => {
           absentInfo.ausencias++;
           absentInfo.detalhesAusencias.push({
             data: dataStr,
-            horarioEscalado: escala.horario_entrada
+            horarioEscalado: escala.horario_entrada,
           });
         } else {
           // Verificar pontualidade (primeira entrada do dia)
-          const primeiraEntrada = acessosDoDia.sort((a, b) =>
-            new Date(a.data_acesso).getTime() - new Date(b.data_acesso).getTime()
+          const primeiraEntrada = acessosDoDia.sort(
+            (a, b) =>
+              new Date(a.data_acesso).getTime() -
+              new Date(b.data_acesso).getTime()
           )[0];
 
           const horaEntrada = new Date(primeiraEntrada.data_acesso);
-          const [horaEscalada, minEscalada] = escala.horario_entrada.split(':').map(Number);
+          const [horaEscalada, minEscalada] = escala.horario_entrada
+            .split(":")
+            .map(Number);
           // Usa parseISO para criar a data base corretamente
           const horaEscaladaDate = parseISO(dataStr);
           horaEscaladaDate.setHours(horaEscalada, minEscalada, 0, 0);
 
           // Tolerância de 10 minutos APÓS o horário escalado
           // Só conta atraso se chegou DEPOIS do horário + 10 min
-          const diferencaMinutos = (horaEntrada.getTime() - horaEscaladaDate.getTime()) / (1000 * 60);
+          const diferencaMinutos =
+            (horaEntrada.getTime() - horaEscaladaDate.getTime()) / (1000 * 60);
           if (diferencaMinutos > 10) {
             pontInfo.atrasos++;
             pontInfo.detalhesAtrasos.push({
               data: dataStr,
               horarioEscalado: escala.horario_entrada,
-              horarioEntrada: format(horaEntrada, 'HH:mm'),
-              atrasoMinutos: Math.round(diferencaMinutos)
+              horarioEntrada: format(horaEntrada, "HH:mm"),
+              atrasoMinutos: Math.round(diferencaMinutos),
             });
           }
         }
@@ -1058,7 +1139,13 @@ const Dashboard: React.FC = () => {
         totalEscalas: info.totalEscalas,
         atrasos: info.atrasos,
         detalhesAtrasos: info.detalhesAtrasos,
-        indice: info.totalEscalas > 0 ? ((info.totalEscalas - info.atrasos) / info.totalEscalas * 100).toFixed(1) : '0.0'
+        indice:
+          info.totalEscalas > 0
+            ? (
+                ((info.totalEscalas - info.atrasos) / info.totalEscalas) *
+                100
+              ).toFixed(1)
+            : "0.0",
       }))
       .sort((a, b) => b.atrasos - a.atrasos);
 
@@ -1069,13 +1156,16 @@ const Dashboard: React.FC = () => {
         totalEscalas: info.totalEscalas,
         ausencias: info.ausencias,
         detalhesAusencias: info.detalhesAusencias,
-        indice: info.totalEscalas > 0 ? (info.ausencias / info.totalEscalas * 100).toFixed(1) : '0.0'
+        indice:
+          info.totalEscalas > 0
+            ? ((info.ausencias / info.totalEscalas) * 100).toFixed(1)
+            : "0.0",
       }))
       .sort((a, b) => b.ausencias - a.ausencias);
 
     return {
       pontualidade: pontualidadeArray,
-      absenteismo: absenteismoArray
+      absenteismo: absenteismoArray,
     };
   }, [escalas, acessos, filtroNome, filtroDataInicio, filtroDataFim]);
 
@@ -1263,7 +1353,8 @@ const Dashboard: React.FC = () => {
   };
 
   const handleExportProdutividadeCSV = () => {
-    if (!selectedPersonProdutividade || personProdutividade.length === 0) return;
+    if (!selectedPersonProdutividade || personProdutividade.length === 0)
+      return;
 
     // Prepare CSV header
     const headers = [
@@ -1284,7 +1375,9 @@ const Dashboard: React.FC = () => {
 
     // Prepare CSV rows
     const rows = personProdutividade.map((prod) => [
-      prod.data ? format(parseISO(prod.data), "dd/MM/yyyy", { locale: ptBR }) : "",
+      prod.data
+        ? format(parseISO(prod.data), "dd/MM/yyyy", { locale: ptBR })
+        : "",
       prod.codigo_mv,
       prod.nome,
       prod.especialidade || "",
@@ -1327,18 +1420,18 @@ const Dashboard: React.FC = () => {
 
   const handleOpenInconsistenciaModal = (
     nome: string,
-    tipo: 'prodSemAcesso' | 'acessoSemProd',
+    tipo: "prodSemAcesso" | "acessoSemProd",
     datas: string[]
   ) => {
     // Se for "produtividade sem acesso", buscar os detalhes de produtividade
-    if (tipo === 'prodSemAcesso') {
+    if (tipo === "prodSemAcesso") {
       const detalhesMap = new Map<string, Produtividade[]>();
 
       datas.forEach((data) => {
         // Buscar todos os registros de produtividade para esta data e pessoa
         const registrosDoDia = produtividade.filter((prod) => {
           if (!prod.data || prod.nome !== nome) return false;
-          const [year, month, day] = prod.data.split('T')[0].split('-');
+          const [year, month, day] = prod.data.split("T")[0].split("-");
           const dataStr = `${year}-${month}-${day}`;
           return dataStr === data;
         });
@@ -1348,7 +1441,12 @@ const Dashboard: React.FC = () => {
         }
       });
 
-      setInconsistenciaSelecionada({ nome, tipo, datas, detalhes: detalhesMap });
+      setInconsistenciaSelecionada({
+        nome,
+        tipo,
+        datas,
+        detalhes: detalhesMap,
+      });
     } else {
       setInconsistenciaSelecionada({ nome, tipo, datas });
     }
@@ -1362,12 +1460,14 @@ const Dashboard: React.FC = () => {
   };
 
   const handleOpenPontualidadeModal = (cpf: string, nome: string) => {
-    const medicoData = indicadoresEscalas.pontualidade.find(p => p.cpf === cpf);
+    const medicoData = indicadoresEscalas.pontualidade.find(
+      (p) => p.cpf === cpf
+    );
     if (medicoData) {
       setPontualidadeSelecionada({
         nome,
         cpf,
-        atrasos: medicoData.detalhesAtrasos
+        atrasos: medicoData.detalhesAtrasos,
       });
       setPontualidadeModalOpen(true);
     }
@@ -1379,12 +1479,14 @@ const Dashboard: React.FC = () => {
   };
 
   const handleOpenAbsenteismoModal = (cpf: string, nome: string) => {
-    const medicoData = indicadoresEscalas.absenteismo.find(a => a.cpf === cpf);
+    const medicoData = indicadoresEscalas.absenteismo.find(
+      (a) => a.cpf === cpf
+    );
     if (medicoData) {
       setAbsenteismoSelecionado({
         nome,
         cpf,
-        ausencias: medicoData.detalhesAusencias
+        ausencias: medicoData.detalhesAusencias,
       });
       setAbsenteismoModalOpen(true);
     }
@@ -1395,18 +1497,25 @@ const Dashboard: React.FC = () => {
     setAbsenteismoSelecionado(null);
   };
 
-  const handleOpenDiferencaHorasModal = (cpf: string, nome: string, totalHoras: number, cargaHorariaEscalada: number) => {
+  const handleOpenDiferencaHorasModal = (
+    cpf: string,
+    nome: string,
+    totalHoras: number,
+    cargaHorariaEscalada: number
+  ) => {
     // Calcular detalhamento diário
-    const acessosPessoa = acessosFiltrados.filter(a => a.cpf === cpf);
-    const escalasPessoa = escalas.filter(e =>
-      e.medicos.some(m => m.cpf === cpf) &&
-      (!filtroDataInicio || parseISO(e.data_inicio) >= new Date(filtroDataInicio)) &&
-      (!filtroDataFim || parseISO(e.data_inicio) <= new Date(filtroDataFim))
+    const acessosPessoa = acessosFiltrados.filter((a) => a.cpf === cpf);
+    const escalasPessoa = escalas.filter(
+      (e) =>
+        e.medicos.some((m) => m.cpf === cpf) &&
+        (!filtroDataInicio ||
+          parseISO(e.data_inicio) >= new Date(filtroDataInicio)) &&
+        (!filtroDataFim || parseISO(e.data_inicio) <= new Date(filtroDataFim))
     );
 
     // Agrupar acessos por dia
     const acessosPorDia = acessosPessoa.reduce((acc, acesso) => {
-      const dataStr = format(parseISO(acesso.data_acesso), 'yyyy-MM-dd');
+      const dataStr = format(parseISO(acesso.data_acesso), "yyyy-MM-dd");
       if (!acc[dataStr]) {
         acc[dataStr] = [];
       }
@@ -1421,7 +1530,8 @@ const Dashboard: React.FC = () => {
 
       // IMPORTANTE: Ordenar os acessos do dia por horário
       const acessosDiaOrdenados = acessosDia.sort(
-        (a, b) => new Date(a.data_acesso).getTime() - new Date(b.data_acesso).getTime()
+        (a, b) =>
+          new Date(a.data_acesso).getTime() - new Date(b.data_acesso).getTime()
       );
 
       const entradasDia = acessosDiaOrdenados.filter((a) => a.sentido === "E");
@@ -1434,10 +1544,13 @@ const Dashboard: React.FC = () => {
 
         // Se há saída no mesmo dia, usar a última saída do dia
         if (saidasDia.length > 0) {
-          const ultimaSaida = parseISO(saidasDia[saidasDia.length - 1].data_acesso);
+          const ultimaSaida = parseISO(
+            saidasDia[saidasDia.length - 1].data_acesso
+          );
 
           if (ultimaSaida > primeiraEntrada) {
-            const minutos = (ultimaSaida.getTime() - primeiraEntrada.getTime()) / (1000 * 60);
+            const minutos =
+              (ultimaSaida.getTime() - primeiraEntrada.getTime()) / (1000 * 60);
             horasTrabalhadas = minutos / 60;
           }
         } else {
@@ -1445,11 +1558,18 @@ const Dashboard: React.FC = () => {
           for (let j = i + 1; j < diasOrdenados.length; j++) {
             const proximoDia = diasOrdenados[j];
             const acessosProximoDia = acessosPorDia[proximoDia];
-            const saidasProximoDia = acessosProximoDia.filter((a) => a.sentido === "S");
+            const saidasProximoDia = acessosProximoDia.filter(
+              (a) => a.sentido === "S"
+            );
 
             if (saidasProximoDia.length > 0) {
-              const primeiraSaidaProximoDia = parseISO(saidasProximoDia[0].data_acesso);
-              const minutos = (primeiraSaidaProximoDia.getTime() - primeiraEntrada.getTime()) / (1000 * 60);
+              const primeiraSaidaProximoDia = parseISO(
+                saidasProximoDia[0].data_acesso
+              );
+              const minutos =
+                (primeiraSaidaProximoDia.getTime() -
+                  primeiraEntrada.getTime()) /
+                (1000 * 60);
               horasTrabalhadas = minutos / 60;
               break;
             }
@@ -1458,12 +1578,19 @@ const Dashboard: React.FC = () => {
       }
 
       // Calcular carga escalada para este dia
-      const escalaDia = escalasPessoa.find(e => format(parseISO(e.data_inicio), 'yyyy-MM-dd') === dataStr);
+      const escalaDia = escalasPessoa.find(
+        (e) => format(parseISO(e.data_inicio), "yyyy-MM-dd") === dataStr
+      );
       let cargaEscalada = 0;
       if (escalaDia) {
-        const [horaEntrada, minEntrada] = escalaDia.horario_entrada.split(":").map(Number);
-        const [horaSaida, minSaida] = escalaDia.horario_saida.split(":").map(Number);
-        let minutosTotais = (horaSaida * 60 + minSaida) - (horaEntrada * 60 + minEntrada);
+        const [horaEntrada, minEntrada] = escalaDia.horario_entrada
+          .split(":")
+          .map(Number);
+        const [horaSaida, minSaida] = escalaDia.horario_saida
+          .split(":")
+          .map(Number);
+        let minutosTotais =
+          horaSaida * 60 + minSaida - (horaEntrada * 60 + minEntrada);
         if (minutosTotais < 0) {
           minutosTotais += 24 * 60;
         }
@@ -1474,7 +1601,7 @@ const Dashboard: React.FC = () => {
         data: dataStr,
         horasTrabalhadas: parseFloat(horasTrabalhadas.toFixed(2)),
         cargaEscalada: parseFloat(cargaEscalada.toFixed(2)),
-        diferenca: parseFloat((horasTrabalhadas - cargaEscalada).toFixed(2))
+        diferenca: parseFloat((horasTrabalhadas - cargaEscalada).toFixed(2)),
       };
     });
 
@@ -1484,7 +1611,7 @@ const Dashboard: React.FC = () => {
       totalHoras,
       cargaHorariaEscalada,
       diferenca: totalHoras - cargaHorariaEscalada,
-      detalhamentoDiario
+      detalhamentoDiario,
     });
     setDiferencaHorasModalOpen(true);
   };
@@ -1498,15 +1625,16 @@ const Dashboard: React.FC = () => {
     if (!inconsistenciaSelecionada) return;
 
     const { nome, tipo, datas, detalhes } = inconsistenciaSelecionada;
-    const tipoTexto = tipo === 'prodSemAcesso'
-      ? 'Produtividade sem Acesso'
-      : 'Acesso sem Produtividade';
+    const tipoTexto =
+      tipo === "prodSemAcesso"
+        ? "Produtividade sem Acesso"
+        : "Acesso sem Produtividade";
 
     // Prepare CSV com colunas adicionais para produtividade
     let headers: string[];
     let rows: string[][];
 
-    if (tipo === 'prodSemAcesso' && detalhes) {
+    if (tipo === "prodSemAcesso" && detalhes) {
       headers = [
         "Data",
         "Nome",
@@ -1519,7 +1647,7 @@ const Dashboard: React.FC = () => {
         "Evoluções",
         "Urgências",
         "Ambulatórios",
-        "Total Atividades"
+        "Total Atividades",
       ];
 
       rows = datas.map((data) => {
@@ -1596,7 +1724,7 @@ const Dashboard: React.FC = () => {
     link.setAttribute("href", url);
     link.setAttribute(
       "download",
-      `inconsistencia_${nome.replace(/\s+/g, '_')}_${format(
+      `inconsistencia_${nome.replace(/\s+/g, "_")}_${format(
         new Date(),
         "yyyyMMdd_HHmmss"
       )}.csv`
@@ -1649,7 +1777,7 @@ const Dashboard: React.FC = () => {
     },
     {
       field: "cargaHorariaEscalada",
-      headerName: "Carga Horária Escalada",
+      headerName: "Horas Escaladas",
       width: 160,
       type: "number",
       filterable: true,
@@ -1657,7 +1785,15 @@ const Dashboard: React.FC = () => {
       headerAlign: "center",
       align: "center",
       renderCell: (params) => (
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, width: "100%" }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 0.5,
+            width: "100%",
+          }}
+        >
           <CalendarMonth fontSize="small" color="action" />
           <Typography variant="body2" fontWeight={600} color="warning.main">
             {params.value}h
@@ -1667,7 +1803,7 @@ const Dashboard: React.FC = () => {
     },
     {
       field: "totalHoras",
-      headerName: "Total de Horas",
+      headerName: "Horas na Unidade",
       width: 130,
       type: "number",
       renderCell: (params) => (
@@ -1692,19 +1828,38 @@ const Dashboard: React.FC = () => {
 
         return (
           <Chip
-            label={`${diferenca > 0 ? '+' : ''}${diferenca.toFixed(1)}h`}
+            label={`${diferenca > 0 ? "+" : ""}${diferenca.toFixed(1)}h`}
             size="small"
-            onClick={() => handleOpenDiferencaHorasModal(row.cpf, row.nome, row.totalHoras, row.cargaHorariaEscalada)}
+            onClick={() =>
+              handleOpenDiferencaHorasModal(
+                row.cpf,
+                row.nome,
+                row.totalHoras,
+                row.cargaHorariaEscalada
+              )
+            }
             sx={{
-              cursor: 'pointer',
-              bgcolor: isPositive ? 'rgba(34, 197, 94, 0.1)' : isNegative ? 'rgba(239, 68, 68, 0.1)' : 'rgba(156, 163, 175, 0.1)',
-              color: isPositive ? '#16a34a' : isNegative ? '#dc2626' : '#6b7280',
+              cursor: "pointer",
+              bgcolor: isPositive
+                ? "rgba(34, 197, 94, 0.1)"
+                : isNegative
+                ? "rgba(239, 68, 68, 0.1)"
+                : "rgba(156, 163, 175, 0.1)",
+              color: isPositive
+                ? "#16a34a"
+                : isNegative
+                ? "#dc2626"
+                : "#6b7280",
               fontWeight: 600,
-              '&:hover': {
-                bgcolor: isPositive ? 'rgba(34, 197, 94, 0.2)' : isNegative ? 'rgba(239, 68, 68, 0.2)' : 'rgba(156, 163, 175, 0.2)',
-                transform: 'scale(1.05)',
+              "&:hover": {
+                bgcolor: isPositive
+                  ? "rgba(34, 197, 94, 0.2)"
+                  : isNegative
+                  ? "rgba(239, 68, 68, 0.2)"
+                  : "rgba(156, 163, 175, 0.2)",
+                transform: "scale(1.05)",
               },
-              transition: 'all 0.2s',
+              transition: "all 0.2s",
             }}
           />
         );
@@ -1754,9 +1909,10 @@ const Dashboard: React.FC = () => {
     totalDiasUnicos > 0 ? (totalHorasGeral / totalDiasUnicos).toFixed(2) : "0";
 
   // Cálculo da Produtividade Médica
-  // Soma de todas as colunas de produtividade (procedimento até evolucao_noturna_cti) dividido pelo Total de Horas
+  // Soma de todas as colunas de produtividade (procedimento até evolucao_noturna_cti) dividido pelo Total de Horas na Unidade
   const totalProdutividade = produtividade.reduce((sum, item) => {
-    return sum +
+    return (
+      sum +
       item.procedimento +
       item.parecer_solicitado +
       item.parecer_realizado +
@@ -1769,13 +1925,21 @@ const Dashboard: React.FC = () => {
       item.encaminhamento +
       item.folha_objetivo_diario +
       item.evolucao_diurna_cti +
-      item.evolucao_noturna_cti;
+      item.evolucao_noturna_cti
+    );
   }, 0);
-  const produtividadeMedia = totalHorasGeral > 0 ? (totalProdutividade / totalHorasGeral).toFixed(2) : "0";
+  const produtividadeMedia =
+    totalHorasGeral > 0
+      ? (totalProdutividade / totalHorasGeral).toFixed(2)
+      : "0";
 
-  // Cálculo da Carga Horária Contratada (com filtros de data aplicados)
+  // Cálculo da Carga Horária Contratada (com filtros de data e nome aplicados)
   const cargaHorariaContratada = useMemo(() => {
     let totalHoras = 0;
+
+    // Se há filtro de nome, pegar CPFs das pessoas filtradas para buscar seus contratos
+    const cpfsFiltrados =
+      filtroNome.length > 0 ? horasCalculadas.map((h) => h.cpf) : null;
 
     contratoItems.forEach((item) => {
       // Filtro de contrato
@@ -1787,14 +1951,30 @@ const Dashboard: React.FC = () => {
       const contrato = contratos.find((c) => c.id === item.contrato_id);
       if (!contrato) return;
 
+      // Filtro de nome: verificar se algum usuário filtrado tem esse contrato
+      if (cpfsFiltrados) {
+        // Buscar se há algum usuário com CPF filtrado que tem esse contrato
+        const usuariosDoContrato = usuarios.filter(
+          (u) => u.contrato_id === contrato.id
+        );
+        const temUsuarioFiltrado = usuariosDoContrato.some((u) =>
+          cpfsFiltrados.includes(u.cpf)
+        );
+        if (!temUsuarioFiltrado) return;
+      }
+
       // Parsear datas de vigência do contrato
       const dataInicioContrato = parseISO(contrato.data_inicio);
-      const dataFimContrato = contrato.data_fim ? parseISO(contrato.data_fim) : new Date(2099, 11, 31);
+      const dataFimContrato = contrato.data_fim
+        ? parseISO(contrato.data_fim)
+        : new Date(2099, 11, 31);
 
       // Calcular total de dias de vigência do contrato
-      const diasVigenciaTotal = Math.ceil(
-        (dataFimContrato.getTime() - dataInicioContrato.getTime()) / (1000 * 60 * 60 * 24)
-      ) + 1;
+      const diasVigenciaTotal =
+        Math.ceil(
+          (dataFimContrato.getTime() - dataInicioContrato.getTime()) /
+            (1000 * 60 * 60 * 24)
+        ) + 1;
 
       // Determinar o período para calcular (interseção entre filtro e vigência)
       let dataInicioCalculo = dataInicioContrato;
@@ -1825,9 +2005,11 @@ const Dashboard: React.FC = () => {
       }
 
       // Calcular dias no período filtrado (que interceptam com vigência)
-      const diasFiltrados = Math.ceil(
-        (dataFimCalculo.getTime() - dataInicioCalculo.getTime()) / (1000 * 60 * 60 * 24)
-      ) + 1;
+      const diasFiltrados =
+        Math.ceil(
+          (dataFimCalculo.getTime() - dataInicioCalculo.getTime()) /
+            (1000 * 60 * 60 * 24)
+        ) + 1;
 
       // Calcular horas por dia: quantidade total / dias de vigência
       const horasPorDia = item.quantidade / diasVigenciaTotal;
@@ -1839,9 +2021,18 @@ const Dashboard: React.FC = () => {
     });
 
     return totalHoras;
-  }, [contratoItems, contratos, filtroDataInicio, filtroDataFim, filtroContrato]);
+  }, [
+    contratoItems,
+    contratos,
+    filtroDataInicio,
+    filtroDataFim,
+    filtroContrato,
+    filtroNome,
+    horasCalculadas,
+    usuarios,
+  ]);
 
-  // Cálculo da Carga Horária Escalada (com filtros de data aplicados)
+  // Cálculo da Carga Horária Escalada (com filtros de data e nome aplicados)
   // Soma de (horario_saida - horario_entrada) × número de médicos para cada escala
   const cargaHorariaEscalada = escalas.reduce((sum, escala) => {
     try {
@@ -1861,12 +2052,25 @@ const Dashboard: React.FC = () => {
         if (dataEscala > fimNormalizado) return sum;
       }
 
+      // Filtro de nome: contar apenas médicos que estão no filtro
+      let medicosParaContar = escala.medicos || [];
+      if (filtroNome.length > 0) {
+        medicosParaContar = medicosParaContar.filter((medico) =>
+          filtroNome.includes(medico.nome)
+        );
+        // Se nenhum médico desta escala está no filtro, pular
+        if (medicosParaContar.length === 0) return sum;
+      }
+
       // Parse dos horários (formato: "HH:mm")
-      const [horaEntrada, minEntrada] = escala.horario_entrada.split(":").map(Number);
+      const [horaEntrada, minEntrada] = escala.horario_entrada
+        .split(":")
+        .map(Number);
       const [horaSaida, minSaida] = escala.horario_saida.split(":").map(Number);
 
       // Calcular diferença em minutos
-      let minutosTotais = (horaSaida * 60 + minSaida) - (horaEntrada * 60 + minEntrada);
+      let minutosTotais =
+        horaSaida * 60 + minSaida - (horaEntrada * 60 + minEntrada);
 
       // Se horário de saída é menor que entrada, significa que passou da meia-noite
       if (minutosTotais < 0) {
@@ -1876,10 +2080,10 @@ const Dashboard: React.FC = () => {
       // Converter para horas
       const horas = minutosTotais / 60;
 
-      // Multiplicar pela quantidade de médicos
-      const numMedicos = escala.medicos?.length || 0;
+      // Multiplicar pela quantidade de médicos filtrados
+      const numMedicos = medicosParaContar.length;
 
-      return sum + (horas * numMedicos);
+      return sum + horas * numMedicos;
     } catch (err) {
       console.error("Erro ao calcular horas da escala:", err);
       return sum;
@@ -2122,7 +2326,7 @@ const Dashboard: React.FC = () => {
                 >
                   <Box>
                     <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                      Total de Horas
+                      Total de Horas na Unidade
                     </Typography>
                     <Typography variant="h3" fontWeight={700}>
                       {totalHorasGeral.toFixed(0)}h
@@ -2505,7 +2709,9 @@ const Dashboard: React.FC = () => {
                   </Box>
                 </Box>
 
-                {(filtroNome.length > 0 || filtroDataInicio || filtroDataFim) && (
+                {(filtroNome.length > 0 ||
+                  filtroDataInicio ||
+                  filtroDataFim) && (
                   <Box sx={{ mb: 2 }}>
                     <Chip
                       icon={<FilterList />}
@@ -2536,82 +2742,87 @@ const Dashboard: React.FC = () => {
                   </Box>
                 ) : (
                   <Box sx={{ maxHeight: 400, overflow: "auto" }}>
-                    {inconsistencias.prodSemAcesso.slice(0, 10).map((item, index) => (
-                      <Paper
-                        key={index}
-                        sx={{
-                          p: 2,
-                          mb: 1.5,
-                          cursor: "pointer",
-                          transition: "all 0.2s",
-                          "&:hover": {
-                            transform: "translateX(4px)",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            bgcolor: "info.50",
-                          },
-                        }}
-                        onClick={() =>
-                          handleOpenInconsistenciaModal(
-                            item.nome,
-                            "prodSemAcesso",
-                            item.datas
-                          )
-                        }
-                      >
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
+                    {inconsistencias.prodSemAcesso
+                      .slice(0, 10)
+                      .map((item, index) => (
+                        <Paper
+                          key={index}
+                          sx={{
+                            p: 2,
+                            mb: 1.5,
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            "&:hover": {
+                              transform: "translateX(4px)",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                              bgcolor: "info.50",
+                            },
+                          }}
+                          onClick={() =>
+                            handleOpenInconsistenciaModal(
+                              item.nome,
+                              "prodSemAcesso",
+                              item.datas
+                            )
+                          }
                         >
-                          <Box display="flex" alignItems="center" gap={1.5}>
-                            <Box
+                          <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <Box display="flex" alignItems="center" gap={1.5}>
+                              <Box
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: "8px",
+                                  bgcolor: "#3b82f6",
+                                  color: "white",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: 700,
+                                  fontSize: 14,
+                                }}
+                              >
+                                {index + 1}
+                              </Box>
+                              <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                sx={{
+                                  maxWidth: 200,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {item.nome}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              label={`${item.count} ${
+                                item.count === 1 ? "dia" : "dias"
+                              }`}
+                              size="small"
                               sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: "8px",
                                 bgcolor: "#3b82f6",
                                 color: "white",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontWeight: 700,
-                                fontSize: 14,
+                                fontWeight: 600,
                               }}
-                            >
-                              {index + 1}
-                            </Box>
-                            <Typography
-                              variant="body2"
-                              fontWeight={600}
-                              sx={{
-                                maxWidth: 200,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {item.nome}
-                            </Typography>
+                            />
                           </Box>
-                          <Chip
-                            label={`${item.count} ${item.count === 1 ? "dia" : "dias"}`}
-                            size="small"
-                            sx={{
-                              bgcolor: "#3b82f6",
-                              color: "white",
-                              fontWeight: 600,
-                            }}
-                          />
-                        </Box>
-                      </Paper>
-                    ))}
+                        </Paper>
+                      ))}
                     {inconsistencias.prodSemAcesso.length > 10 && (
                       <Typography
                         variant="caption"
                         color="text.secondary"
                         sx={{ display: "block", textAlign: "center", mt: 2 }}
                       >
-                        +{inconsistencias.prodSemAcesso.length - 10} profissionais
+                        +{inconsistencias.prodSemAcesso.length - 10}{" "}
+                        profissionais
                       </Typography>
                     )}
                   </Box>
@@ -2656,7 +2867,9 @@ const Dashboard: React.FC = () => {
                   </Box>
                 </Box>
 
-                {(filtroNome.length > 0 || filtroDataInicio || filtroDataFim) && (
+                {(filtroNome.length > 0 ||
+                  filtroDataInicio ||
+                  filtroDataFim) && (
                   <Box sx={{ mb: 2 }}>
                     <Chip
                       icon={<FilterList />}
@@ -2687,82 +2900,87 @@ const Dashboard: React.FC = () => {
                   </Box>
                 ) : (
                   <Box sx={{ maxHeight: 400, overflow: "auto" }}>
-                    {inconsistencias.acessoSemProd.slice(0, 10).map((item, index) => (
-                      <Paper
-                        key={index}
-                        sx={{
-                          p: 2,
-                          mb: 1.5,
-                          cursor: "pointer",
-                          transition: "all 0.2s",
-                          "&:hover": {
-                            transform: "translateX(4px)",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            bgcolor: "info.50",
-                          },
-                        }}
-                        onClick={() =>
-                          handleOpenInconsistenciaModal(
-                            item.nome,
-                            "acessoSemProd",
-                            item.datas
-                          )
-                        }
-                      >
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
+                    {inconsistencias.acessoSemProd
+                      .slice(0, 10)
+                      .map((item, index) => (
+                        <Paper
+                          key={index}
+                          sx={{
+                            p: 2,
+                            mb: 1.5,
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            "&:hover": {
+                              transform: "translateX(4px)",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                              bgcolor: "info.50",
+                            },
+                          }}
+                          onClick={() =>
+                            handleOpenInconsistenciaModal(
+                              item.nome,
+                              "acessoSemProd",
+                              item.datas
+                            )
+                          }
                         >
-                          <Box display="flex" alignItems="center" gap={1.5}>
-                            <Box
+                          <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <Box display="flex" alignItems="center" gap={1.5}>
+                              <Box
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: "8px",
+                                  bgcolor: "#3b82f6",
+                                  color: "white",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: 700,
+                                  fontSize: 14,
+                                }}
+                              >
+                                {index + 1}
+                              </Box>
+                              <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                sx={{
+                                  maxWidth: 200,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {item.nome}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              label={`${item.count} ${
+                                item.count === 1 ? "dia" : "dias"
+                              }`}
+                              size="small"
                               sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: "8px",
                                 bgcolor: "#3b82f6",
                                 color: "white",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontWeight: 700,
-                                fontSize: 14,
+                                fontWeight: 600,
                               }}
-                            >
-                              {index + 1}
-                            </Box>
-                            <Typography
-                              variant="body2"
-                              fontWeight={600}
-                              sx={{
-                                maxWidth: 200,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {item.nome}
-                            </Typography>
+                            />
                           </Box>
-                          <Chip
-                            label={`${item.count} ${item.count === 1 ? "dia" : "dias"}`}
-                            size="small"
-                            sx={{
-                              bgcolor: "#3b82f6",
-                              color: "white",
-                              fontWeight: 600,
-                            }}
-                          />
-                        </Box>
-                      </Paper>
-                    ))}
+                        </Paper>
+                      ))}
                     {inconsistencias.acessoSemProd.length > 10 && (
                       <Typography
                         variant="caption"
                         color="text.secondary"
                         sx={{ display: "block", textAlign: "center", mt: 2 }}
                       >
-                        +{inconsistencias.acessoSemProd.length - 10} profissionais
+                        +{inconsistencias.acessoSemProd.length - 10}{" "}
+                        profissionais
                       </Typography>
                     )}
                   </Box>
@@ -2810,7 +3028,9 @@ const Dashboard: React.FC = () => {
                   </Box>
                 </Box>
 
-                {(filtroNome.length > 0 || filtroDataInicio || filtroDataFim) && (
+                {(filtroNome.length > 0 ||
+                  filtroDataInicio ||
+                  filtroDataFim) && (
                   <Box sx={{ mb: 2 }}>
                     <Chip
                       icon={<FilterList />}
@@ -2841,73 +3061,87 @@ const Dashboard: React.FC = () => {
                   </Box>
                 ) : (
                   <Box sx={{ maxHeight: 400, overflow: "auto" }}>
-                    {indicadoresEscalas.pontualidade.slice(0, 10).map((item, index) => (
-                      <Paper
-                        key={item.cpf}
-                        sx={{
-                          p: 2,
-                          mb: 1.5,
-                          cursor: "pointer",
-                          transition: "all 0.2s",
-                          "&:hover": {
-                            transform: "translateX(4px)",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            bgcolor: "info.50",
-                          },
-                        }}
-                        onClick={() => handleOpenPontualidadeModal(item.cpf, item.nome)}
-                      >
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
+                    {indicadoresEscalas.pontualidade
+                      .slice(0, 10)
+                      .map((item, index) => (
+                        <Paper
+                          key={item.cpf}
+                          sx={{
+                            p: 2,
+                            mb: 1.5,
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            "&:hover": {
+                              transform: "translateX(4px)",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                              bgcolor: "info.50",
+                            },
+                          }}
+                          onClick={() =>
+                            handleOpenPontualidadeModal(item.cpf, item.nome)
+                          }
                         >
-                          <Box display="flex" alignItems="center" gap={1.5} flex={1}>
+                          <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
                             <Box
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: "8px",
-                                bgcolor: "#3b82f6",
-                                color: "white",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontWeight: 700,
-                                fontSize: 14,
-                              }}
+                              display="flex"
+                              alignItems="center"
+                              gap={1.5}
+                              flex={1}
                             >
-                              {index + 1}
-                            </Box>
-                            <Box flex={1}>
-                              <Typography
-                                variant="body2"
-                                fontWeight={600}
+                              <Box
                                 sx={{
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: "8px",
+                                  bgcolor: "#3b82f6",
+                                  color: "white",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: 700,
+                                  fontSize: 14,
                                 }}
                               >
-                                {item.nome}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Pontualidade: {item.indice}%
-                              </Typography>
+                                {index + 1}
+                              </Box>
+                              <Box flex={1}>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={600}
+                                  sx={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {item.nome}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Pontualidade: {item.indice}%
+                                </Typography>
+                              </Box>
                             </Box>
+                            <Chip
+                              label={`${item.atrasos} ${
+                                item.atrasos === 1 ? "atraso" : "atrasos"
+                              }`}
+                              size="small"
+                              sx={{
+                                bgcolor: "#3b82f6",
+                                color: "white",
+                                fontWeight: 600,
+                              }}
+                            />
                           </Box>
-                          <Chip
-                            label={`${item.atrasos} ${item.atrasos === 1 ? "atraso" : "atrasos"}`}
-                            size="small"
-                            sx={{
-                              bgcolor: "#3b82f6",
-                              color: "white",
-                              fontWeight: 600,
-                            }}
-                          />
-                        </Box>
-                      </Paper>
-                    ))}
+                        </Paper>
+                      ))}
                     {indicadoresEscalas.pontualidade.length > 10 && (
                       <Typography
                         variant="caption"
@@ -2959,7 +3193,9 @@ const Dashboard: React.FC = () => {
                   </Box>
                 </Box>
 
-                {(filtroNome.length > 0 || filtroDataInicio || filtroDataFim) && (
+                {(filtroNome.length > 0 ||
+                  filtroDataInicio ||
+                  filtroDataFim) && (
                   <Box sx={{ mb: 2 }}>
                     <Chip
                       icon={<FilterList />}
@@ -2990,73 +3226,87 @@ const Dashboard: React.FC = () => {
                   </Box>
                 ) : (
                   <Box sx={{ maxHeight: 400, overflow: "auto" }}>
-                    {indicadoresEscalas.absenteismo.slice(0, 10).map((item, index) => (
-                      <Paper
-                        key={item.cpf}
-                        sx={{
-                          p: 2,
-                          mb: 1.5,
-                          cursor: "pointer",
-                          transition: "all 0.2s",
-                          "&:hover": {
-                            transform: "translateX(4px)",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            bgcolor: "info.50",
-                          },
-                        }}
-                        onClick={() => handleOpenAbsenteismoModal(item.cpf, item.nome)}
-                      >
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
+                    {indicadoresEscalas.absenteismo
+                      .slice(0, 10)
+                      .map((item, index) => (
+                        <Paper
+                          key={item.cpf}
+                          sx={{
+                            p: 2,
+                            mb: 1.5,
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            "&:hover": {
+                              transform: "translateX(4px)",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                              bgcolor: "info.50",
+                            },
+                          }}
+                          onClick={() =>
+                            handleOpenAbsenteismoModal(item.cpf, item.nome)
+                          }
                         >
-                          <Box display="flex" alignItems="center" gap={1.5} flex={1}>
+                          <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
                             <Box
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: "8px",
-                                bgcolor: "#3b82f6",
-                                color: "white",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontWeight: 700,
-                                fontSize: 14,
-                              }}
+                              display="flex"
+                              alignItems="center"
+                              gap={1.5}
+                              flex={1}
                             >
-                              {index + 1}
-                            </Box>
-                            <Box flex={1}>
-                              <Typography
-                                variant="body2"
-                                fontWeight={600}
+                              <Box
                                 sx={{
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: "8px",
+                                  bgcolor: "#3b82f6",
+                                  color: "white",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: 700,
+                                  fontSize: 14,
                                 }}
                               >
-                                {item.nome}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Absenteísmo: {item.indice}%
-                              </Typography>
+                                {index + 1}
+                              </Box>
+                              <Box flex={1}>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={600}
+                                  sx={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {item.nome}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Absenteísmo: {item.indice}%
+                                </Typography>
+                              </Box>
                             </Box>
+                            <Chip
+                              label={`${item.ausencias} ${
+                                item.ausencias === 1 ? "ausência" : "ausências"
+                              }`}
+                              size="small"
+                              sx={{
+                                bgcolor: "#3b82f6",
+                                color: "white",
+                                fontWeight: 600,
+                              }}
+                            />
                           </Box>
-                          <Chip
-                            label={`${item.ausencias} ${item.ausencias === 1 ? "ausência" : "ausências"}`}
-                            size="small"
-                            sx={{
-                              bgcolor: "#3b82f6",
-                              color: "white",
-                              fontWeight: 600,
-                            }}
-                          />
-                        </Box>
-                      </Paper>
-                    ))}
+                        </Paper>
+                      ))}
                     {indicadoresEscalas.absenteismo.length > 10 && (
                       <Typography
                         variant="caption"
@@ -3253,7 +3503,7 @@ const Dashboard: React.FC = () => {
                           color="text.secondary"
                           gutterBottom
                         >
-                          Total de Horas
+                          Total de Horas na Unidade
                         </Typography>
                         <Typography variant="h6" fontWeight={600}>
                           {selectedPerson.totalHoras}h
@@ -3559,28 +3809,76 @@ const Dashboard: React.FC = () => {
                         <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50" }}>
                           Especialidade
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            bgcolor: "grey.50",
+                            textAlign: "center",
+                          }}
+                        >
                           Proced.
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            bgcolor: "grey.50",
+                            textAlign: "center",
+                          }}
+                        >
                           Pareceres Sol.
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            bgcolor: "grey.50",
+                            textAlign: "center",
+                          }}
+                        >
                           Pareceres Real.
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            bgcolor: "grey.50",
+                            textAlign: "center",
+                          }}
+                        >
                           Cirurgias
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            bgcolor: "grey.50",
+                            textAlign: "center",
+                          }}
+                        >
                           Prescrições
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            bgcolor: "grey.50",
+                            textAlign: "center",
+                          }}
+                        >
                           Evoluções
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            bgcolor: "grey.50",
+                            textAlign: "center",
+                          }}
+                        >
                           Urgências
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            bgcolor: "grey.50",
+                            textAlign: "center",
+                          }}
+                        >
                           Ambulatórios
                         </TableCell>
                       </TableRow>
@@ -3596,9 +3894,11 @@ const Dashboard: React.FC = () => {
                         >
                           <TableCell>
                             <Typography variant="body2">
-                              {prod.data ? format(parseISO(prod.data), "dd/MM/yyyy", {
-                                locale: ptBR,
-                              }) : "-"}
+                              {prod.data
+                                ? format(parseISO(prod.data), "dd/MM/yyyy", {
+                                    locale: ptBR,
+                                  })
+                                : "-"}
                             </Typography>
                           </TableCell>
                           <TableCell>
@@ -3825,31 +4125,85 @@ const Dashboard: React.FC = () => {
                         </TableCell>
                         {inconsistenciaSelecionada.tipo === "prodSemAcesso" && (
                           <>
-                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                            <TableCell
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: "grey.50",
+                                textAlign: "center",
+                              }}
+                            >
                               Proced.
                             </TableCell>
-                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                            <TableCell
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: "grey.50",
+                                textAlign: "center",
+                              }}
+                            >
                               Parec. S.
                             </TableCell>
-                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                            <TableCell
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: "grey.50",
+                                textAlign: "center",
+                              }}
+                            >
                               Parec. R.
                             </TableCell>
-                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                            <TableCell
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: "grey.50",
+                                textAlign: "center",
+                              }}
+                            >
                               Cirurg.
                             </TableCell>
-                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                            <TableCell
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: "grey.50",
+                                textAlign: "center",
+                              }}
+                            >
                               Prescr.
                             </TableCell>
-                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                            <TableCell
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: "grey.50",
+                                textAlign: "center",
+                              }}
+                            >
                               Evol.
                             </TableCell>
-                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                            <TableCell
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: "grey.50",
+                                textAlign: "center",
+                              }}
+                            >
                               Urg.
                             </TableCell>
-                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                            <TableCell
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: "grey.50",
+                                textAlign: "center",
+                              }}
+                            >
                               Ambul.
                             </TableCell>
-                            <TableCell sx={{ fontWeight: 600, bgcolor: "grey.50", textAlign: "center" }}>
+                            <TableCell
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: "grey.50",
+                                textAlign: "center",
+                              }}
+                            >
                               Total
                             </TableCell>
                           </>
@@ -3858,7 +4212,10 @@ const Dashboard: React.FC = () => {
                     </TableHead>
                     <TableBody>
                       {inconsistenciaSelecionada.datas
-                        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+                        .sort(
+                          (a, b) =>
+                            new Date(b).getTime() - new Date(a).getTime()
+                        )
                         .map((data, index) => {
                           // Calcular totais de produtividade para esta data (se aplicável)
                           let totaisProd = {
@@ -3873,16 +4230,25 @@ const Dashboard: React.FC = () => {
                           };
 
                           if (
-                            inconsistenciaSelecionada.tipo === "prodSemAcesso" &&
+                            inconsistenciaSelecionada.tipo ===
+                              "prodSemAcesso" &&
                             inconsistenciaSelecionada.detalhes
                           ) {
-                            const registros = inconsistenciaSelecionada.detalhes.get(data) || [];
+                            const registros =
+                              inconsistenciaSelecionada.detalhes.get(data) ||
+                              [];
                             totaisProd = registros.reduce(
                               (acc, reg) => ({
-                                procedimento: acc.procedimento + reg.procedimento,
-                                parecer_solicitado: acc.parecer_solicitado + reg.parecer_solicitado,
-                                parecer_realizado: acc.parecer_realizado + reg.parecer_realizado,
-                                cirurgia_realizada: acc.cirurgia_realizada + reg.cirurgia_realizada,
+                                procedimento:
+                                  acc.procedimento + reg.procedimento,
+                                parecer_solicitado:
+                                  acc.parecer_solicitado +
+                                  reg.parecer_solicitado,
+                                parecer_realizado:
+                                  acc.parecer_realizado + reg.parecer_realizado,
+                                cirurgia_realizada:
+                                  acc.cirurgia_realizada +
+                                  reg.cirurgia_realizada,
                                 prescricao: acc.prescricao + reg.prescricao,
                                 evolucao: acc.evolucao + reg.evolucao,
                                 urgencia: acc.urgencia + reg.urgencia,
@@ -3917,7 +4283,8 @@ const Dashboard: React.FC = () => {
                                     height: 28,
                                     borderRadius: "6px",
                                     bgcolor:
-                                      inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                                      inconsistenciaSelecionada.tipo ===
+                                      "prodSemAcesso"
                                         ? "warning.main"
                                         : "info.main",
                                     color: "white",
@@ -3941,58 +4308,85 @@ const Dashboard: React.FC = () => {
                               <TableCell>
                                 <Chip
                                   label={
-                                    inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                                    inconsistenciaSelecionada.tipo ===
+                                    "prodSemAcesso"
                                       ? "Produção sem Acesso"
                                       : "Acesso sem Produção"
                                   }
                                   size="small"
                                   color={
-                                    inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                                    inconsistenciaSelecionada.tipo ===
+                                    "prodSemAcesso"
                                       ? "warning"
                                       : "info"
                                   }
                                   sx={{ fontWeight: 600 }}
                                 />
                               </TableCell>
-                              {inconsistenciaSelecionada.tipo === "prodSemAcesso" && (
+                              {inconsistenciaSelecionada.tipo ===
+                                "prodSemAcesso" && (
                                 <>
                                   <TableCell sx={{ textAlign: "center" }}>
-                                    <Typography variant="body2" fontWeight={600}>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                    >
                                       {totaisProd.procedimento}
                                     </Typography>
                                   </TableCell>
                                   <TableCell sx={{ textAlign: "center" }}>
-                                    <Typography variant="body2" fontWeight={600}>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                    >
                                       {totaisProd.parecer_solicitado}
                                     </Typography>
                                   </TableCell>
                                   <TableCell sx={{ textAlign: "center" }}>
-                                    <Typography variant="body2" fontWeight={600}>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                    >
                                       {totaisProd.parecer_realizado}
                                     </Typography>
                                   </TableCell>
                                   <TableCell sx={{ textAlign: "center" }}>
-                                    <Typography variant="body2" fontWeight={600}>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                    >
                                       {totaisProd.cirurgia_realizada}
                                     </Typography>
                                   </TableCell>
                                   <TableCell sx={{ textAlign: "center" }}>
-                                    <Typography variant="body2" fontWeight={600}>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                    >
                                       {totaisProd.prescricao}
                                     </Typography>
                                   </TableCell>
                                   <TableCell sx={{ textAlign: "center" }}>
-                                    <Typography variant="body2" fontWeight={600}>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                    >
                                       {totaisProd.evolucao}
                                     </Typography>
                                   </TableCell>
                                   <TableCell sx={{ textAlign: "center" }}>
-                                    <Typography variant="body2" fontWeight={600}>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                    >
                                       {totaisProd.urgencia}
                                     </Typography>
                                   </TableCell>
                                   <TableCell sx={{ textAlign: "center" }}>
-                                    <Typography variant="body2" fontWeight={600}>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                    >
                                       {totaisProd.ambulatorio}
                                     </Typography>
                                   </TableCell>
@@ -4117,7 +4511,11 @@ const Dashboard: React.FC = () => {
           fullWidth
         >
           <DialogTitle sx={{ pb: 1 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+            >
               <Box display="flex" alignItems="center" gap={2}>
                 <Box
                   sx={{
@@ -4145,11 +4543,18 @@ const Dashboard: React.FC = () => {
           <DialogContent>
             {pontualidadeSelecionada && (
               <>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 3 }}
+                >
                   Total de atrasos: {pontualidadeSelecionada.atrasos.length}
                 </Typography>
 
-                <TableContainer component={Paper} sx={{ boxShadow: "none", border: "1px solid #e5e7eb" }}>
+                <TableContainer
+                  component={Paper}
+                  sx={{ boxShadow: "none", border: "1px solid #e5e7eb" }}
+                >
                   <Table>
                     <TableHead>
                       <TableRow sx={{ bgcolor: "#f9fafb" }}>
@@ -4162,7 +4567,10 @@ const Dashboard: React.FC = () => {
                     </TableHead>
                     <TableBody>
                       {pontualidadeSelecionada.atrasos.map((atraso, index) => (
-                        <TableRow key={index} sx={{ "&:hover": { bgcolor: "#f9fafb" } }}>
+                        <TableRow
+                          key={index}
+                          sx={{ "&:hover": { bgcolor: "#f9fafb" } }}
+                        >
                           <TableCell>
                             <Box
                               sx={{
@@ -4183,21 +4591,33 @@ const Dashboard: React.FC = () => {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" fontWeight={600}>
-                              {format(parseISO(atraso.data), "dd/MM/yyyy - EEEE", { locale: ptBR })}
+                              {format(
+                                parseISO(atraso.data),
+                                "dd/MM/yyyy - EEEE",
+                                { locale: ptBR }
+                              )}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Chip
                               label={atraso.horarioEscalado}
                               size="small"
-                              sx={{ bgcolor: "#dbeafe", color: "#1e40af", fontWeight: 600 }}
+                              sx={{
+                                bgcolor: "#dbeafe",
+                                color: "#1e40af",
+                                fontWeight: 600,
+                              }}
                             />
                           </TableCell>
                           <TableCell>
                             <Chip
                               label={atraso.horarioEntrada}
                               size="small"
-                              sx={{ bgcolor: "#fef3c7", color: "#92400e", fontWeight: 600 }}
+                              sx={{
+                                bgcolor: "#fef3c7",
+                                color: "#92400e",
+                                fontWeight: 600,
+                              }}
                             />
                           </TableCell>
                           <TableCell>
@@ -4205,8 +4625,14 @@ const Dashboard: React.FC = () => {
                               label={`${atraso.atrasoMinutos} min`}
                               size="small"
                               sx={{
-                                bgcolor: atraso.atrasoMinutos > 30 ? "#fecaca" : "#fed7aa",
-                                color: atraso.atrasoMinutos > 30 ? "#991b1b" : "#92400e",
+                                bgcolor:
+                                  atraso.atrasoMinutos > 30
+                                    ? "#fecaca"
+                                    : "#fed7aa",
+                                color:
+                                  atraso.atrasoMinutos > 30
+                                    ? "#991b1b"
+                                    : "#92400e",
                                 fontWeight: 600,
                               }}
                             />
@@ -4235,7 +4661,11 @@ const Dashboard: React.FC = () => {
           fullWidth
         >
           <DialogTitle sx={{ pb: 1 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+            >
               <Box display="flex" alignItems="center" gap={2}>
                 <Box
                   sx={{
@@ -4263,11 +4693,18 @@ const Dashboard: React.FC = () => {
           <DialogContent>
             {absenteismoSelecionado && (
               <>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 3 }}
+                >
                   Total de ausências: {absenteismoSelecionado.ausencias.length}
                 </Typography>
 
-                <TableContainer component={Paper} sx={{ boxShadow: "none", border: "1px solid #e5e7eb" }}>
+                <TableContainer
+                  component={Paper}
+                  sx={{ boxShadow: "none", border: "1px solid #e5e7eb" }}
+                >
                   <Table>
                     <TableHead>
                       <TableRow sx={{ bgcolor: "#f9fafb" }}>
@@ -4278,47 +4715,64 @@ const Dashboard: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {absenteismoSelecionado.ausencias.map((ausencia, index) => (
-                        <TableRow key={index} sx={{ "&:hover": { bgcolor: "#f9fafb" } }}>
-                          <TableCell>
-                            <Box
-                              sx={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: "6px",
-                                bgcolor: "#ef4444",
-                                color: "white",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontWeight: 700,
-                                fontSize: 12,
-                              }}
-                            >
-                              {index + 1}
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>
-                              {format(parseISO(ausencia.data), "dd/MM/yyyy - EEEE", { locale: ptBR })}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={ausencia.horarioEscalado}
-                              size="small"
-                              sx={{ bgcolor: "#dbeafe", color: "#1e40af", fontWeight: 600 }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label="Sem acesso registrado"
-                              size="small"
-                              sx={{ bgcolor: "#fecaca", color: "#991b1b", fontWeight: 600 }}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {absenteismoSelecionado.ausencias.map(
+                        (ausencia, index) => (
+                          <TableRow
+                            key={index}
+                            sx={{ "&:hover": { bgcolor: "#f9fafb" } }}
+                          >
+                            <TableCell>
+                              <Box
+                                sx={{
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: "6px",
+                                  bgcolor: "#ef4444",
+                                  color: "white",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: 700,
+                                  fontSize: 12,
+                                }}
+                              >
+                                {index + 1}
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={600}>
+                                {format(
+                                  parseISO(ausencia.data),
+                                  "dd/MM/yyyy - EEEE",
+                                  { locale: ptBR }
+                                )}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={ausencia.horarioEscalado}
+                                size="small"
+                                sx={{
+                                  bgcolor: "#dbeafe",
+                                  color: "#1e40af",
+                                  fontWeight: 600,
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label="Sem acesso registrado"
+                                size="small"
+                                sx={{
+                                  bgcolor: "#fecaca",
+                                  color: "#991b1b",
+                                  fontWeight: 600,
+                                }}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        )
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -4341,7 +4795,11 @@ const Dashboard: React.FC = () => {
           fullWidth
         >
           <DialogTitle sx={{ pb: 1 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+            >
               <Box display="flex" alignItems="center" gap={2}>
                 <Box
                   sx={{
@@ -4372,9 +4830,19 @@ const Dashboard: React.FC = () => {
                 {/* Resumo */}
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                   <Grid item xs={12} sm={4}>
-                    <Paper sx={{ p: 2, bgcolor: "#eff6ff", border: "1px solid #bfdbfe" }}>
-                      <Typography variant="caption" color="text.secondary" gutterBottom>
-                        Total de Horas Trabalhadas
+                    <Paper
+                      sx={{
+                        p: 2,
+                        bgcolor: "#eff6ff",
+                        border: "1px solid #bfdbfe",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        Total de Horas na Unidade
                       </Typography>
                       <Typography variant="h5" fontWeight={700} color="#1e40af">
                         {diferencaHorasSelecionada.totalHoras.toFixed(1)}h
@@ -4382,30 +4850,67 @@ const Dashboard: React.FC = () => {
                     </Paper>
                   </Grid>
                   <Grid item xs={12} sm={4}>
-                    <Paper sx={{ p: 2, bgcolor: "#f3f4f6", border: "1px solid #d1d5db" }}>
-                      <Typography variant="caption" color="text.secondary" gutterBottom>
+                    <Paper
+                      sx={{
+                        p: 2,
+                        bgcolor: "#f3f4f6",
+                        border: "1px solid #d1d5db",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        gutterBottom
+                      >
                         Carga Horária Escalada
                       </Typography>
                       <Typography variant="h5" fontWeight={700} color="#374151">
-                        {diferencaHorasSelecionada.cargaHorariaEscalada.toFixed(1)}h
+                        {diferencaHorasSelecionada.cargaHorariaEscalada.toFixed(
+                          1
+                        )}
+                        h
                       </Typography>
                     </Paper>
                   </Grid>
                   <Grid item xs={12} sm={4}>
-                    <Paper sx={{
-                      p: 2,
-                      bgcolor: diferencaHorasSelecionada.diferenca > 0 ? "#f0fdf4" : diferencaHorasSelecionada.diferenca < 0 ? "#fef2f2" : "#f9fafb",
-                      border: `1px solid ${diferencaHorasSelecionada.diferenca > 0 ? "#bbf7d0" : diferencaHorasSelecionada.diferenca < 0 ? "#fecaca" : "#e5e7eb"}`
-                    }}>
-                      <Typography variant="caption" color="text.secondary" gutterBottom>
+                    <Paper
+                      sx={{
+                        p: 2,
+                        bgcolor:
+                          diferencaHorasSelecionada.diferenca > 0
+                            ? "#f0fdf4"
+                            : diferencaHorasSelecionada.diferenca < 0
+                            ? "#fef2f2"
+                            : "#f9fafb",
+                        border: `1px solid ${
+                          diferencaHorasSelecionada.diferenca > 0
+                            ? "#bbf7d0"
+                            : diferencaHorasSelecionada.diferenca < 0
+                            ? "#fecaca"
+                            : "#e5e7eb"
+                        }`,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        gutterBottom
+                      >
                         Diferença
                       </Typography>
                       <Typography
                         variant="h5"
                         fontWeight={700}
-                        color={diferencaHorasSelecionada.diferenca > 0 ? "#16a34a" : diferencaHorasSelecionada.diferenca < 0 ? "#dc2626" : "#6b7280"}
+                        color={
+                          diferencaHorasSelecionada.diferenca > 0
+                            ? "#16a34a"
+                            : diferencaHorasSelecionada.diferenca < 0
+                            ? "#dc2626"
+                            : "#6b7280"
+                        }
                       >
-                        {diferencaHorasSelecionada.diferenca > 0 ? '+' : ''}{diferencaHorasSelecionada.diferenca.toFixed(1)}h
+                        {diferencaHorasSelecionada.diferenca > 0 ? "+" : ""}
+                        {diferencaHorasSelecionada.diferenca.toFixed(1)}h
                       </Typography>
                     </Paper>
                   </Grid>
@@ -4413,10 +4918,22 @@ const Dashboard: React.FC = () => {
 
                 {/* Detalhamento Diário */}
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                  Detalhamento Diário ({diferencaHorasSelecionada.detalhamentoDiario.length} {diferencaHorasSelecionada.detalhamentoDiario.length === 1 ? 'dia' : 'dias'})
+                  Detalhamento Diário (
+                  {diferencaHorasSelecionada.detalhamentoDiario.length}{" "}
+                  {diferencaHorasSelecionada.detalhamentoDiario.length === 1
+                    ? "dia"
+                    : "dias"}
+                  )
                 </Typography>
 
-                <TableContainer component={Paper} sx={{ boxShadow: "none", border: "1px solid #e5e7eb", maxHeight: 400 }}>
+                <TableContainer
+                  component={Paper}
+                  sx={{
+                    boxShadow: "none",
+                    border: "1px solid #e5e7eb",
+                    maxHeight: 400,
+                  }}
+                >
                   <Table stickyHeader>
                     <TableHead>
                       <TableRow sx={{ bgcolor: "#f9fafb" }}>
@@ -4428,58 +4945,87 @@ const Dashboard: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {diferencaHorasSelecionada.detalhamentoDiario.map((dia, index) => (
-                        <TableRow key={index} sx={{ "&:hover": { bgcolor: "#f9fafb" } }}>
-                          <TableCell>
-                            <Box
-                              sx={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: "6px",
-                                bgcolor: "#3b82f6",
-                                color: "white",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontWeight: 700,
-                                fontSize: 12,
-                              }}
-                            >
-                              {index + 1}
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>
-                              {format(parseISO(dia.data), "dd/MM/yyyy - EEEE", { locale: ptBR })}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Chip
-                              label={`${dia.horasTrabalhadas.toFixed(1)}h`}
-                              size="small"
-                              sx={{ bgcolor: "#eff6ff", color: "#1e40af", fontWeight: 600 }}
-                            />
-                          </TableCell>
-                          <TableCell align="right">
-                            <Chip
-                              label={`${dia.cargaEscalada.toFixed(1)}h`}
-                              size="small"
-                              sx={{ bgcolor: "#f3f4f6", color: "#374151", fontWeight: 600 }}
-                            />
-                          </TableCell>
-                          <TableCell align="right">
-                            <Chip
-                              label={`${dia.diferenca > 0 ? '+' : ''}${dia.diferenca.toFixed(1)}h`}
-                              size="small"
-                              sx={{
-                                bgcolor: dia.diferenca > 0 ? 'rgba(34, 197, 94, 0.1)' : dia.diferenca < 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(156, 163, 175, 0.1)',
-                                color: dia.diferenca > 0 ? '#16a34a' : dia.diferenca < 0 ? '#dc2626' : '#6b7280',
-                                fontWeight: 700,
-                              }}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {diferencaHorasSelecionada.detalhamentoDiario.map(
+                        (dia, index) => (
+                          <TableRow
+                            key={index}
+                            sx={{ "&:hover": { bgcolor: "#f9fafb" } }}
+                          >
+                            <TableCell>
+                              <Box
+                                sx={{
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: "6px",
+                                  bgcolor: "#3b82f6",
+                                  color: "white",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: 700,
+                                  fontSize: 12,
+                                }}
+                              >
+                                {index + 1}
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={600}>
+                                {format(
+                                  parseISO(dia.data),
+                                  "dd/MM/yyyy - EEEE",
+                                  { locale: ptBR }
+                                )}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Chip
+                                label={`${dia.horasTrabalhadas.toFixed(1)}h`}
+                                size="small"
+                                sx={{
+                                  bgcolor: "#eff6ff",
+                                  color: "#1e40af",
+                                  fontWeight: 600,
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <Chip
+                                label={`${dia.cargaEscalada.toFixed(1)}h`}
+                                size="small"
+                                sx={{
+                                  bgcolor: "#f3f4f6",
+                                  color: "#374151",
+                                  fontWeight: 600,
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <Chip
+                                label={`${
+                                  dia.diferenca > 0 ? "+" : ""
+                                }${dia.diferenca.toFixed(1)}h`}
+                                size="small"
+                                sx={{
+                                  bgcolor:
+                                    dia.diferenca > 0
+                                      ? "rgba(34, 197, 94, 0.1)"
+                                      : dia.diferenca < 0
+                                      ? "rgba(239, 68, 68, 0.1)"
+                                      : "rgba(156, 163, 175, 0.1)",
+                                  color:
+                                    dia.diferenca > 0
+                                      ? "#16a34a"
+                                      : dia.diferenca < 0
+                                      ? "#dc2626"
+                                      : "#6b7280",
+                                  fontWeight: 700,
+                                }}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        )
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
