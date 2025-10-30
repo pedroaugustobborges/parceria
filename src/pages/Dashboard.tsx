@@ -46,6 +46,7 @@ import {
   CalendarMonth,
   Schedule,
   PersonOff,
+  Assignment,
 } from "@mui/icons-material";
 import {
   BarChart,
@@ -68,6 +69,7 @@ const Dashboard: React.FC = () => {
   const [acessosFiltrados, setAcessosFiltrados] = useState<Acesso[]>([]); // Novo state para acessos filtrados
   const [horasCalculadas, setHorasCalculadas] = useState<HorasCalculadas[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [contratoItems, setContratoItems] = useState<ContratoItem[]>([]);
   const [produtividade, setProdutividade] = useState<Produtividade[]>([]);
   const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -138,6 +140,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     loadAcessos();
     loadContratos();
+    loadContratoItems();
     loadProdutividade();
     loadEscalas();
     loadUsuarios();
@@ -174,6 +177,19 @@ const Dashboard: React.FC = () => {
       setContratos(data || []);
     } catch (err: any) {
       console.error("Erro ao carregar contratos:", err);
+    }
+  };
+
+  const loadContratoItems = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("contrato_itens")
+        .select("*");
+
+      if (fetchError) throw fetchError;
+      setContratoItems(data || []);
+    } catch (err: any) {
+      console.error("Erro ao carregar itens de contrato:", err);
     }
   };
 
@@ -1611,6 +1627,74 @@ const Dashboard: React.FC = () => {
   }, 0);
   const produtividadeMedia = totalHorasGeral > 0 ? (totalProdutividade / totalHorasGeral).toFixed(2) : "0";
 
+  // Cálculo da Carga Horária Contratada (com filtros de data aplicados)
+  const cargaHorariaContratada = useMemo(() => {
+    let totalHoras = 0;
+
+    contratoItems.forEach((item) => {
+      // Filtro de contrato
+      if (filtroContrato && item.contrato_id !== filtroContrato.id) {
+        return;
+      }
+
+      // Encontrar o contrato associado
+      const contrato = contratos.find((c) => c.id === item.contrato_id);
+      if (!contrato) return;
+
+      // Parsear datas de vigência do contrato
+      const dataInicioContrato = parseISO(contrato.data_inicio);
+      const dataFimContrato = contrato.data_fim ? parseISO(contrato.data_fim) : new Date(2099, 11, 31);
+
+      // Calcular total de dias de vigência do contrato
+      const diasVigenciaTotal = Math.ceil(
+        (dataFimContrato.getTime() - dataInicioContrato.getTime()) / (1000 * 60 * 60 * 24)
+      ) + 1;
+
+      // Determinar o período para calcular (interseção entre filtro e vigência)
+      let dataInicioCalculo = dataInicioContrato;
+      let dataFimCalculo = dataFimContrato;
+
+      // Se há filtro de data início, usar o maior entre filtro e início do contrato
+      if (filtroDataInicio) {
+        const filtroInicio = new Date(filtroDataInicio);
+        filtroInicio.setHours(0, 0, 0, 0);
+        if (filtroInicio > dataInicioCalculo) {
+          dataInicioCalculo = filtroInicio;
+        }
+      }
+
+      // Se há filtro de data fim, usar o menor entre filtro e fim do contrato
+      if (filtroDataFim) {
+        const filtroFim = new Date(filtroDataFim);
+        filtroFim.setHours(0, 0, 0, 0);
+        if (filtroFim < dataFimCalculo) {
+          dataFimCalculo = filtroFim;
+        }
+      }
+
+      // Verificar se há interseção entre o período do filtro e a vigência
+      if (dataInicioCalculo > dataFimCalculo) {
+        // Não há interseção
+        return;
+      }
+
+      // Calcular dias no período filtrado (que interceptam com vigência)
+      const diasFiltrados = Math.ceil(
+        (dataFimCalculo.getTime() - dataInicioCalculo.getTime()) / (1000 * 60 * 60 * 24)
+      ) + 1;
+
+      // Calcular horas por dia: quantidade total / dias de vigência
+      const horasPorDia = item.quantidade / diasVigenciaTotal;
+
+      // Calcular horas no período filtrado
+      const horasPeriodo = horasPorDia * diasFiltrados;
+
+      totalHoras += horasPeriodo;
+    });
+
+    return totalHoras;
+  }, [contratoItems, contratos, filtroDataInicio, filtroDataFim, filtroContrato]);
+
   // Cálculo da Carga Horária Escalada (com filtros de data aplicados)
   // Soma de (horario_saida - horario_entrada) × número de médicos para cada escala
   const cargaHorariaEscalada = escalas.reduce((sum, escala) => {
@@ -1959,6 +2043,36 @@ const Dashboard: React.FC = () => {
                     </Typography>
                   </Box>
                   <LocalHospital sx={{ fontSize: 48, opacity: 0.3 }} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={6}>
+            <Card
+              sx={{
+                height: "100%",
+                background: "linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)",
+              }}
+            >
+              <CardContent>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    color: "white",
+                  }}
+                >
+                  <Box>
+                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                      Carga Horária Contratada
+                    </Typography>
+                    <Typography variant="h3" fontWeight={700}>
+                      {cargaHorariaContratada.toFixed(0)}h
+                    </Typography>
+                  </Box>
+                  <Assignment sx={{ fontSize: 48, opacity: 0.3 }} />
                 </Box>
               </CardContent>
             </Card>
