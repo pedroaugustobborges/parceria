@@ -389,10 +389,76 @@ const EscalasMedicas: React.FC = () => {
     }
   };
 
-  const handleOpenDialog = (escala?: EscalaMedica) => {
+  const handleOpenDialog = async (escala?: EscalaMedica) => {
     if (escala) {
       setEditingEscala(escala);
-      // TODO: Populate form for editing
+
+      // Find associated contract
+      const contratoAssociado = contratos.find(c => c.id === escala.contrato_id);
+
+      // Load usuarios for this contract inline to use immediately
+      let medicosUsuarios: Usuario[] = [];
+      if (contratoAssociado) {
+        try {
+          const { data: usuarioContratos } = await supabase
+            .from("usuario_contrato")
+            .select("usuario_id")
+            .eq("contrato_id", escala.contrato_id);
+
+          if (usuarioContratos && usuarioContratos.length > 0) {
+            const usuarioIds = usuarioContratos.map((uc) => uc.usuario_id);
+
+            const { data: usuariosData } = await supabase
+              .from("usuarios")
+              .select("*")
+              .in("id", usuarioIds)
+              .eq("tipo", "terceiro");
+
+            medicosUsuarios = usuariosData || [];
+            setUsuarios(medicosUsuarios);
+          }
+        } catch (err: any) {
+          console.error("Erro ao carregar usuários:", err);
+        }
+
+        // Also load contract items
+        await loadItensContrato(contratoAssociado.id);
+      }
+
+      // Map medicos from escala to Usuario objects
+      const medicosEscalados = escala.medicos.map(medicoEscala => {
+        return medicosUsuarios.find(u => u.cpf === medicoEscala.cpf);
+      }).filter(Boolean) as Usuario[];
+
+      // Parse date using parseISO to avoid timezone issues
+      const dataInicio = parseISO(escala.data_inicio);
+
+      // Parse time strings (format "HH:mm:ss") to Date objects
+      const [horaE, minE] = escala.horario_entrada.split(':').map(Number);
+      const [horaS, minS] = escala.horario_saida.split(':').map(Number);
+
+      const horarioEntrada = new Date();
+      horarioEntrada.setHours(horaE, minE, 0, 0);
+
+      const horarioSaida = new Date();
+      horarioSaida.setHours(horaS, minS, 0, 0);
+
+      // Populate form with escala data
+      setFormData({
+        contrato_id: escala.contrato_id,
+        item_contrato_id: escala.item_contrato_id,
+        data_inicio: dataInicio,
+        horario_entrada: horarioEntrada,
+        horario_saida: horarioSaida,
+        medicos_selecionados: medicosEscalados,
+        observacoes: escala.observacoes || "",
+      });
+
+      // Set preview data
+      setPreviewData({
+        contrato: contratoAssociado || null,
+        medicos: escala.medicos,
+      });
     } else {
       setEditingEscala(null);
       setFormData({
