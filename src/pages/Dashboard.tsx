@@ -3775,7 +3775,20 @@ const Dashboard: React.FC = () => {
                           Registros
                         </Typography>
                         <Typography variant="h6" fontWeight={600}>
-                          {personProdutividade.length}
+                          {personProdutividade.reduce((sum, p) => sum +
+                            p.procedimento +
+                            p.parecer_solicitado +
+                            p.parecer_realizado +
+                            p.cirurgia_realizada +
+                            p.prescricao +
+                            p.evolucao +
+                            p.urgencia +
+                            p.ambulatorio +
+                            p.auxiliar +
+                            p.encaminhamento +
+                            p.folha_objetivo_diario +
+                            p.evolucao_diurna_cti +
+                            p.evolucao_noturna_cti, 0)}
                         </Typography>
                       </CardContent>
                     </Card>
