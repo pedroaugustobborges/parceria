@@ -2279,183 +2279,499 @@ const Dashboard: React.FC = () => {
         {/* Estatísticas */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={4}>
-            <Card
-              sx={{
-                height: "100%",
-                background: "linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)",
+            <Tooltip
+              title={
+                <Box sx={{ p: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 700, mb: 1 }}
+                  >
+                    Como é calculado?
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1.5 }}>
+                    Número total de pessoas que possuem cadastro no ParcerIA e
+                    que registraram pelo menos 1 entrada na unidade hospitalar.
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.7)" }}
+                  >
+                    💡 Aplica os filtros de Nome e Período selecionados
+                  </Typography>
+                </Box>
+              }
+              arrow
+              placement="top"
+              enterDelay={200}
+              leaveDelay={0}
+              componentsProps={{
+                tooltip: {
+                  sx: {
+                    bgcolor: "rgba(15, 23, 42, 0.95)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 2,
+                    maxWidth: 320,
+                  },
+                },
+                arrow: {
+                  sx: {
+                    color: "rgba(15, 23, 42, 0.95)",
+                  },
+                },
               }}
             >
-              <CardContent>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    color: "white",
-                  }}
-                >
-                  <Box>
-                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                      Total de Pessoas
-                    </Typography>
-                    <Typography variant="h3" fontWeight={700}>
-                      {totalPessoas}
-                    </Typography>
+              <Card
+                sx={{
+                  height: "100%",
+                  background:
+                    "linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)",
+                  cursor: "help",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 12px 24px rgba(14, 165, 233, 0.4)",
+                  },
+                }}
+              >
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      color: "white",
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                        Total de Pessoas
+                      </Typography>
+                      <Typography variant="h3" fontWeight={700}>
+                        {totalPessoas}
+                      </Typography>
+                    </Box>
+                    <People sx={{ fontSize: 48, opacity: 0.3 }} />
                   </Box>
-                  <People sx={{ fontSize: 48, opacity: 0.3 }} />
-                </Box>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Tooltip>
           </Grid>
 
           <Grid item xs={12} sm={6} md={4}>
-            <Card
-              sx={{
-                height: "100%",
-                background: "linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)",
+            <Tooltip
+              title={
+                <Box sx={{ p: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 700, mb: 1 }}
+                  >
+                    Como é calculado?
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1.5 }}>
+                    Soma total das horas trabalhadas por todas as pessoas.
+                    Calculado pela diferença entre a última saída e primeira
+                    entrada de cada profissional por dia.
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.7)" }}
+                  >
+                    💡 Fórmula: Σ (Última Saída - Primeira Entrada)
+                  </Typography>
+                </Box>
+              }
+              arrow
+              placement="top"
+              enterDelay={200}
+              leaveDelay={0}
+              componentsProps={{
+                tooltip: {
+                  sx: {
+                    bgcolor: "rgba(15, 23, 42, 0.95)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 2,
+                    maxWidth: 320,
+                  },
+                },
+                arrow: {
+                  sx: {
+                    color: "rgba(15, 23, 42, 0.95)",
+                  },
+                },
               }}
             >
-              <CardContent>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    color: "white",
-                  }}
-                >
-                  <Box>
-                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                      Total de Horas na Unidade
-                    </Typography>
-                    <Typography variant="h3" fontWeight={700}>
-                      {totalHorasGeral.toFixed(0)}h
-                    </Typography>
+              <Card
+                sx={{
+                  height: "100%",
+                  background:
+                    "linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)",
+                  cursor: "help",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 12px 24px rgba(139, 92, 246, 0.4)",
+                  },
+                }}
+              >
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      color: "white",
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                        Total de Horas na Unidade
+                      </Typography>
+                      <Typography variant="h3" fontWeight={700}>
+                        {totalHorasGeral.toFixed(0)}h
+                      </Typography>
+                    </Box>
+                    <AccessTime sx={{ fontSize: 48, opacity: 0.3 }} />
                   </Box>
-                  <AccessTime sx={{ fontSize: 48, opacity: 0.3 }} />
-                </Box>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Tooltip>
           </Grid>
 
           <Grid item xs={12} sm={6} md={4}>
-            <Card
-              sx={{
-                height: "100%",
-                background: "linear-gradient(135deg, #10b981 0%, #34d399 100%)",
+            <Tooltip
+              title={
+                <Box sx={{ p: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 700, mb: 1 }}
+                  >
+                    Como é calculado?
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1.5 }}>
+                    Média de horas trabalhadas por dia, calculada dividindo o
+                    Total de Horas na Unidade pelo número total de dias com
+                    registro de acesso.
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.7)" }}
+                  >
+                    💡 Fórmula: Total de Horas ÷ Total de Dias com Registro
+                  </Typography>
+                </Box>
+              }
+              arrow
+              placement="top"
+              enterDelay={200}
+              leaveDelay={0}
+              componentsProps={{
+                tooltip: {
+                  sx: {
+                    bgcolor: "rgba(15, 23, 42, 0.95)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 2,
+                    maxWidth: 320,
+                  },
+                },
+                arrow: {
+                  sx: {
+                    color: "rgba(15, 23, 42, 0.95)",
+                  },
+                },
               }}
             >
-              <CardContent>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    color: "white",
-                  }}
-                >
-                  <Box>
-                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                      Média de Horas por Dia
-                    </Typography>
-                    <Typography variant="h3" fontWeight={700}>
-                      {mediaHoras}h
-                    </Typography>
+              <Card
+                sx={{
+                  height: "100%",
+                  background:
+                    "linear-gradient(135deg, #10b981 0%, #34d399 100%)",
+                  cursor: "help",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 12px 24px rgba(16, 185, 129, 0.4)",
+                  },
+                }}
+              >
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      color: "white",
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                        Média de Horas por Dia
+                      </Typography>
+                      <Typography variant="h3" fontWeight={700}>
+                        {mediaHoras}h
+                      </Typography>
+                    </Box>
+                    <TrendingUp sx={{ fontSize: 48, opacity: 0.3 }} />
                   </Box>
-                  <TrendingUp sx={{ fontSize: 48, opacity: 0.3 }} />
-                </Box>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Tooltip>
           </Grid>
 
           <Grid item xs={12} sm={6} md={4}>
-            <Card
-              sx={{
-                height: "100%",
-                background: "linear-gradient(135deg, #ec4899 0%, #f472b6 100%)",
+            <Tooltip
+              title={
+                <Box sx={{ p: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 700, mb: 1 }}
+                  >
+                    Como é calculado?
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1.5 }}>
+                    Indicador de eficiência médica calculado pela soma de todos
+                    os procedimentos realizados (procedimentos, pareceres,
+                    cirurgias, prescrições, evoluções, etc.) dividido pelo Total
+                    de Horas na Unidade.
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.7)" }}
+                  >
+                    💡 Fórmula: Total de Procedimentos ÷ Total de Horas
+                  </Typography>
+                </Box>
+              }
+              arrow
+              placement="top"
+              enterDelay={200}
+              leaveDelay={0}
+              componentsProps={{
+                tooltip: {
+                  sx: {
+                    bgcolor: "rgba(15, 23, 42, 0.95)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 2,
+                    maxWidth: 320,
+                  },
+                },
+                arrow: {
+                  sx: {
+                    color: "rgba(15, 23, 42, 0.95)",
+                  },
+                },
               }}
             >
-              <CardContent>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    color: "white",
-                  }}
-                >
-                  <Box>
-                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                      Produtividade Médica
-                    </Typography>
-                    <Typography variant="h3" fontWeight={700}>
-                      {produtividadeMedia}
-                    </Typography>
+              <Card
+                sx={{
+                  height: "100%",
+                  background:
+                    "linear-gradient(135deg, #ec4899 0%, #f472b6 100%)",
+                  cursor: "help",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 12px 24px rgba(236, 72, 153, 0.4)",
+                  },
+                }}
+              >
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      color: "white",
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                        Produtividade Médica
+                      </Typography>
+                      <Typography variant="h3" fontWeight={700}>
+                        {produtividadeMedia}
+                      </Typography>
+                    </Box>
+                    <LocalHospital sx={{ fontSize: 48, opacity: 0.3 }} />
                   </Box>
-                  <LocalHospital sx={{ fontSize: 48, opacity: 0.3 }} />
-                </Box>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Tooltip>
           </Grid>
 
           <Grid item xs={12} sm={6} md={4}>
-            <Card
-              sx={{
-                height: "100%",
-                background: "linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)",
+            <Tooltip
+              title={
+                <Box sx={{ p: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 700, mb: 1 }}
+                  >
+                    Como é calculado?
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1.5 }}>
+                    Total de horas contratadas para o período e o contrato
+                    selecionados. O cálculo considera a carga horária diária do
+                    contrato proporcional aos dias dentro do período de vigência
+                    em análise.
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.7)" }}
+                  >
+                    💡 Considera apenas os dias em que o contrato estava ativo
+                    no período
+                  </Typography>
+                </Box>
+              }
+              arrow
+              placement="top"
+              enterDelay={200}
+              leaveDelay={0}
+              componentsProps={{
+                tooltip: {
+                  sx: {
+                    bgcolor: "rgba(15, 23, 42, 0.95)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 2,
+                    maxWidth: 320,
+                  },
+                },
+                arrow: {
+                  sx: {
+                    color: "rgba(15, 23, 42, 0.95)",
+                  },
+                },
               }}
             >
-              <CardContent>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    color: "white",
-                  }}
-                >
-                  <Box>
-                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                      Carga Horária Contratada
-                    </Typography>
-                    <Typography variant="h3" fontWeight={700}>
-                      {cargaHorariaContratada.toFixed(0)}h
-                    </Typography>
+              <Card
+                sx={{
+                  height: "100%",
+                  background:
+                    "linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)",
+                  cursor: "help",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 12px 24px rgba(139, 92, 246, 0.4)",
+                  },
+                }}
+              >
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      color: "white",
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                        Carga Horária Contratada
+                      </Typography>
+                      <Typography variant="h3" fontWeight={700}>
+                        {cargaHorariaContratada.toFixed(0)}h
+                      </Typography>
+                    </Box>
+                    <Assignment sx={{ fontSize: 48, opacity: 0.3 }} />
                   </Box>
-                  <Assignment sx={{ fontSize: 48, opacity: 0.3 }} />
-                </Box>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Tooltip>
           </Grid>
 
           <Grid item xs={12} sm={6} md={4}>
-            <Card
-              sx={{
-                height: "100%",
-                background: "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
+            <Tooltip
+              title={
+                <Box sx={{ p: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 700, mb: 1 }}
+                  >
+                    Como é calculado?
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1.5 }}>
+                    Total de horas em que o profissional foi programado/escalado
+                    para trabalhar no período. Calculado pela soma das
+                    diferenças entre horário de saída e entrada de cada plantão
+                    escalado.
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.7)" }}
+                  >
+                    💡 Fórmula: Σ (Horário Saída - Horário Entrada) para cada
+                    escala no período
+                  </Typography>
+                </Box>
+              }
+              arrow
+              placement="top"
+              enterDelay={200}
+              leaveDelay={0}
+              componentsProps={{
+                tooltip: {
+                  sx: {
+                    bgcolor: "rgba(15, 23, 42, 0.95)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 2,
+                    maxWidth: 320,
+                  },
+                },
+                arrow: {
+                  sx: {
+                    color: "rgba(15, 23, 42, 0.95)",
+                  },
+                },
               }}
             >
-              <CardContent>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    color: "white",
-                  }}
-                >
-                  <Box>
-                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                      Carga Horária Escalada
-                    </Typography>
-                    <Typography variant="h3" fontWeight={700}>
-                      {cargaHorariaEscalada.toFixed(0)}h
-                    </Typography>
+              <Card
+                sx={{
+                  height: "100%",
+                  background:
+                    "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
+                  cursor: "help",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 12px 24px rgba(245, 158, 11, 0.4)",
+                  },
+                }}
+              >
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      color: "white",
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                        Carga Horária Escalada
+                      </Typography>
+                      <Typography variant="h3" fontWeight={700}>
+                        {cargaHorariaEscalada.toFixed(0)}h
+                      </Typography>
+                    </Box>
+                    <CalendarMonth sx={{ fontSize: 48, opacity: 0.3 }} />
                   </Box>
-                  <CalendarMonth sx={{ fontSize: 48, opacity: 0.3 }} />
-                </Box>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Tooltip>
           </Grid>
         </Grid>
 
@@ -3775,20 +4091,24 @@ const Dashboard: React.FC = () => {
                           Registros
                         </Typography>
                         <Typography variant="h6" fontWeight={600}>
-                          {personProdutividade.reduce((sum, p) => sum +
-                            p.procedimento +
-                            p.parecer_solicitado +
-                            p.parecer_realizado +
-                            p.cirurgia_realizada +
-                            p.prescricao +
-                            p.evolucao +
-                            p.urgencia +
-                            p.ambulatorio +
-                            p.auxiliar +
-                            p.encaminhamento +
-                            p.folha_objetivo_diario +
-                            p.evolucao_diurna_cti +
-                            p.evolucao_noturna_cti, 0)}
+                          {personProdutividade.reduce(
+                            (sum, p) =>
+                              sum +
+                              p.procedimento +
+                              p.parecer_solicitado +
+                              p.parecer_realizado +
+                              p.cirurgia_realizada +
+                              p.prescricao +
+                              p.evolucao +
+                              p.urgencia +
+                              p.ambulatorio +
+                              p.auxiliar +
+                              p.encaminhamento +
+                              p.folha_objetivo_diario +
+                              p.evolucao_diurna_cti +
+                              p.evolucao_noturna_cti,
+                            0
+                          )}
                         </Typography>
                       </CardContent>
                     </Card>

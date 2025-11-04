@@ -129,7 +129,7 @@ const prepararResumoEstatistico = (dados: DadosAnalise): string => {
       : "0.0";
 
   return `
-# DADOS PARA ANÁLISE - SISTEMA ParecerIA
+# DADOS PARA ANÁLISE - SISTEMA ParcerIA
 ## Período: Últimos 30 dias
 ## Data da Análise: ${new Date().toLocaleDateString("pt-BR")}
 
@@ -187,7 +187,7 @@ export const gerarAnaliseIA = async (): Promise<string> => {
     // 3. Preparar prompt para a IA
     const prompt = `Você é um analista de dados especializado em gestão de contratos médicos e saúde digital.
 
-Analise os dados abaixo do sistema ParecerIA e forneça um diagnóstico completo e profissional sobre:
+Analise os dados abaixo do sistema ParcerIA e forneça um diagnóstico completo e profissional sobre:
 
 1. **Principais Insights**: Identifique padrões, tendências e anomalias nos dados
 2. **Indicadores de Performance**: Avalie a eficiência operacional e produtividade
