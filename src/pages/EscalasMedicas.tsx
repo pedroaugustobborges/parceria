@@ -409,6 +409,14 @@ const EscalasMedicas: React.FC = () => {
 
   const handleOpenDialog = async (escala?: EscalaMedica) => {
     if (escala) {
+      // Bloquear edição se status não for "Programado"
+      if (escala.status !== "Programado") {
+        setError(
+          `Não é possível editar uma escala com status "${escala.status}". Apenas escalas com status "Programado" podem ser editadas.`
+        );
+        return;
+      }
+
       setEditingEscala(escala);
 
       // Find associated contract
@@ -502,6 +510,14 @@ const EscalasMedicas: React.FC = () => {
   };
 
   const handleDelete = async (escala: EscalaMedica) => {
+    // Bloquear exclusão se status não for "Programado"
+    if (escala.status !== "Programado") {
+      setError(
+        `Não é possível excluir uma escala com status "${escala.status}". Apenas escalas com status "Programado" podem ser excluídas.`
+      );
+      return;
+    }
+
     if (!window.confirm("Tem certeza que deseja excluir esta escala?")) return;
 
     try {
@@ -884,25 +900,53 @@ const EscalasMedicas: React.FC = () => {
                         </Tooltip>
                       </Box>
                       <Box>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDialog(escala);
-                          }}
+                        <Tooltip
+                          title={
+                            escala.status !== "Programado"
+                              ? `Não é possível editar. Escala está ${escala.status.toLowerCase()}.`
+                              : "Editar escala"
+                          }
                         >
-                          <Edit fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(escala);
-                          }}
+                          <span>
+                            <IconButton
+                              size="small"
+                              disabled={escala.status !== "Programado"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDialog(escala);
+                              }}
+                              sx={{
+                                opacity: escala.status !== "Programado" ? 0.5 : 1,
+                              }}
+                            >
+                              <Edit fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip
+                          title={
+                            escala.status !== "Programado"
+                              ? `Não é possível excluir. Escala está ${escala.status.toLowerCase()}.`
+                              : "Excluir escala"
+                          }
                         >
-                          <Delete fontSize="small" />
-                        </IconButton>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              disabled={escala.status !== "Programado"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(escala);
+                              }}
+                              sx={{
+                                opacity: escala.status !== "Programado" ? 0.5 : 1,
+                              }}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                       </Box>
                     </Box>
 
@@ -1719,16 +1763,27 @@ const EscalasMedicas: React.FC = () => {
             </Button>
             {isAdminAgir && escalaDetalhes && (
               <>
-                <Button
-                  onClick={() => {
-                    handleCloseDetailsDialog();
-                    handleOpenDialog(escalaDetalhes);
-                  }}
-                  variant="outlined"
-                  startIcon={<Edit />}
+                <Tooltip
+                  title={
+                    escalaDetalhes.status !== "Programado"
+                      ? `Não é possível editar. Escala está ${escalaDetalhes.status.toLowerCase()}.`
+                      : ""
+                  }
                 >
-                  Editar
-                </Button>
+                  <span>
+                    <Button
+                      onClick={() => {
+                        handleCloseDetailsDialog();
+                        handleOpenDialog(escalaDetalhes);
+                      }}
+                      variant="outlined"
+                      startIcon={<Edit />}
+                      disabled={escalaDetalhes.status !== "Programado"}
+                    >
+                      Editar
+                    </Button>
+                  </span>
+                </Tooltip>
                 <Button
                   onClick={() => {
                     handleCloseDetailsDialog();

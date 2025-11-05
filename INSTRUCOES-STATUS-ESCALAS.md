@@ -19,6 +19,7 @@ Foi implementado um sistema completo de aprovação/reprovação para escalas m�
 ✅ Tooltip mostrando justificativa para usuários não-admin
 ✅ **NOVO**: Clique no card da escala para ver todos os detalhes
 ✅ **NOVO**: Diálogo de detalhes mostra quem aprovou/reprovou a escala
+✅ **NOVO**: 🔒 Bloqueio de edição e exclusão de escalas aprovadas/reprovadas
 
 ---
 
@@ -136,8 +137,37 @@ UPDATE escalas_medicas SET status = 'Programado' WHERE status IS NULL;
 - 🕒 **Metadados**: Data de criação e última atualização
 
 **Ações disponíveis no diálogo (apenas admins):**
-- Botão "Editar": Abre o formulário de edição da escala
-- Botão "Alterar Status": Abre o diálogo de alteração de status
+- Botão "Editar": Abre o formulário de edição da escala (desabilitado se status ≠ Programado)
+- Botão "Alterar Status": Abre o diálogo de alteração de status (sempre disponível)
+
+### 5. **🔒 Bloqueio de Edição e Exclusão**
+
+**Regra de Bloqueio:**
+- ⚠️ Escalas com status **"Aprovado"** ou **"Reprovado"** **NÃO PODEM** ser editadas ou excluídas
+- ✅ Apenas escalas com status **"Programado"** podem ser editadas ou excluídas
+
+**Comportamento Visual:**
+- 🔘 **Botões desabilitados**: Nos cards, os botões de editar e excluir ficam semi-transparentes (opacity 0.5)
+- 💬 **Tooltips informativos**: Ao passar o mouse sobre os botões desabilitados, aparece a mensagem:
+  - "Não é possível editar. Escala está aprovada/reprovada."
+  - "Não é possível excluir. Escala está aprovada/reprovada."
+- ❌ **Mensagens de erro**: Se tentar editar/excluir via função (improvável), aparece um Alert vermelho
+
+**Locais onde o bloqueio está implementado:**
+1. Botões de editar/excluir nos **cards de escala**
+2. Botão "Editar" no **diálogo de detalhes**
+3. Validação nas **funções handleOpenDialog e handleDelete**
+
+**Por que esse bloqueio existe?**
+- 🔐 **Integridade de dados**: Escalas aprovadas/reprovadas são consideradas finalizadas
+- 📜 **Auditoria**: Mantém o histórico de quem aprovou/reprovou
+- 🛡️ **Segurança**: Evita alterações acidentais em escalas já processadas
+
+**Como editar uma escala aprovada/reprovada?**
+1. Altere o status de volta para "Programado" (apenas admins)
+2. Após isso, os botões de editar/excluir serão habilitados
+3. Faça as alterações necessárias
+4. Aprove/reprove novamente se necessário
 
 ---
 
@@ -154,13 +184,24 @@ UPDATE escalas_medicas SET status = 'Programado' WHERE status IS NULL;
 - Adicionados imports: `CheckCircle`, `Cancel`, `HourglassEmpty`, `StatusEscala`
 - Adicionado hook `useAuth` para verificar permissões
 - Adicionados estados para controle do diálogo de status
+- Adicionados estados para controle do diálogo de detalhes
 - Função `getStatusConfig()` - Retorna configuração visual por status
 - Função `handleOpenStatusDialog()` - Abre diálogo de edição
 - Função `handleCloseStatusDialog()` - Fecha diálogo
-- Função `handleSaveStatus()` - Salva alteração com validação
+- Função `handleSaveStatus()` - Salva alteração com validação e registro de usuário
+- Função `handleOpenDetailsDialog()` - Abre diálogo de detalhes e carrega usuário
+- Função `handleCloseDetailsDialog()` - Fecha diálogo de detalhes
+- **NOVO**: Validação em `handleOpenDialog()` - Bloqueia edição se status ≠ Programado
+- **NOVO**: Validação em `handleDelete()` - Bloqueia exclusão se status ≠ Programado
+- **NOVO**: Botões Edit/Delete desabilitados nos cards quando status ≠ Programado
+- **NOVO**: Tooltips explicativos nos botões desabilitados
+- **NOVO**: Botão Editar desabilitado no diálogo de detalhes quando status ≠ Programado
+- **NOVO**: stopPropagation nos botões para não abrir detalhes ao clicar
+- **NOVO**: onClick no card para abrir diálogo de detalhes
 - Atualizado `handleSave()` - Define status padrão "Programado" ao criar
 - Atualizado card de exibição - Exibe chip de status clicável (admins)
 - Adicionado novo Dialog "Alterar Status"
+- Adicionado novo Dialog "Detalhes Completos da Escala"
 
 ---
 
@@ -221,6 +262,42 @@ UPDATE escalas_medicas SET status = 'Programado' WHERE status IS NULL;
    - "Data da Alteração: [Data e hora atual]"
 5. Verifique que essas informações estão corretas
 
+### Cenário 8: Bloqueio de Edição em Escala Aprovada
+1. Como admin, crie uma nova escala (status inicial: Programado)
+2. Altere o status para "Aprovado"
+3. Retorne à lista de escalas
+4. **Resultado esperado**: No card da escala:
+   - Botão de editar (✏️) está semi-transparente e desabilitado
+   - Ao passar o mouse, tooltip mostra: "Não é possível editar. Escala está aprovada."
+5. Tente clicar no botão de editar
+6. **Resultado esperado**: Nada acontece (botão está desabilitado)
+
+### Cenário 9: Bloqueio de Exclusão em Escala Reprovada
+1. Como admin, selecione uma escala com status "Programado"
+2. Altere o status para "Reprovado" com justificativa
+3. Retorne à lista de escalas
+4. **Resultado esperado**: No card da escala:
+   - Botão de excluir (🗑️) está semi-transparente e desabilitado
+   - Ao passar o mouse, tooltip mostra: "Não é possível excluir. Escala está reprovada."
+5. Tente clicar no botão de excluir
+6. **Resultado esperado**: Nada acontece (botão está desabilitado)
+
+### Cenário 10: Bloqueio no Diálogo de Detalhes
+1. Como admin, clique em uma escala com status "Aprovado"
+2. No diálogo de detalhes, observe os botões na parte inferior
+3. **Resultado esperado**:
+   - Botão "Editar" está desabilitado (acinzentado)
+   - Botão "Alterar Status" está habilitado (azul)
+4. Passe o mouse sobre o botão "Editar" desabilitado
+5. **Resultado esperado**: Tooltip mostra "Não é possível editar. Escala está aprovada."
+
+### Cenário 11: Desbloqueio ao Voltar para Programado
+1. Como admin, selecione uma escala com status "Aprovado"
+2. Altere o status de volta para "Programado"
+3. Retorne à lista de escalas
+4. **Resultado esperado**: Botões de editar e excluir estão habilitados novamente
+5. Verifique que agora é possível editar a escala normalmente
+
 ---
 
 ## 🐛 Troubleshooting
@@ -255,6 +332,28 @@ USING (
 **Solução**:
 - Se o status selecionado é "Reprovado", preencha o campo de justificativa
 - A justificativa é obrigatória apenas para status "Reprovado"
+
+### Botões de editar/excluir não funcionam
+**Solução**:
+1. Verifique o status da escala:
+   - Se status = "Aprovado" ou "Reprovado", os botões estarão desabilitados (comportamento correto)
+   - Isso é uma medida de segurança para proteger escalas finalizadas
+2. Se precisar editar:
+   - Altere o status de volta para "Programado"
+   - Os botões serão habilitados automaticamente
+3. Se os botões ainda não funcionam com status "Programado":
+   - Atualize a página (F5)
+   - Verifique o console do navegador (F12) para erros
+
+### Não consigo editar uma escala que deveria estar editável
+**Solução**:
+- Verifique se a escala tem status "Programado"
+- Se aparecer mensagem de erro, leia o motivo na mensagem
+- Apenas escalas com status "Programado" podem ser editadas
+- Para editar uma escala aprovada/reprovada:
+  1. Altere o status para "Programado"
+  2. Edite a escala
+  3. Aprove/reprove novamente se necessário
 
 ---
 
