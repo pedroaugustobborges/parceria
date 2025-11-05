@@ -18,6 +18,8 @@ import {
   useMediaQuery,
   useTheme,
   Chip,
+  Badge,
+  Tooltip,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -36,10 +38,14 @@ import {
   Psychology,
   CorporateFare,
   CalendarMonth,
+  Warning,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import { useThemeMode } from "../../contexts/ThemeContext";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useContractExpirationAlert } from "../../hooks/useContractExpirationAlert";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const drawerWidth = 280;
 const collapsedDrawerWidth = 72;
@@ -62,6 +68,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const { count: expiringContractsCount, contracts: expiringContracts } =
+    useContractExpirationAlert();
 
   const handleSidebarToggle = () => {
     const newState = !sidebarCollapsed;
@@ -304,6 +312,109 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </IconButton>
 
           <Box sx={{ flexGrow: 1 }} />
+
+          {/* Badge de Contratos Próximos ao Vencimento */}
+          {isAdminAgir && expiringContractsCount > 0 && (
+            <Tooltip
+              title={
+                <Box sx={{ p: 0.5 }}>
+                  <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                    Contratos próximos ao vencimento
+                  </Typography>
+                  <Typography variant="body2" gutterBottom>
+                    {expiringContractsCount}{" "}
+                    {expiringContractsCount === 1
+                      ? "contrato vence"
+                      : "contratos vencem"}{" "}
+                    nos próximos 90 dias
+                  </Typography>
+                  {expiringContracts.slice(0, 3).map((contract) => (
+                    <Box
+                      key={contract.id}
+                      sx={{
+                        mt: 1,
+                        p: 1,
+                        borderRadius: 1,
+                        bgcolor: "rgba(255, 255, 255, 0.1)",
+                      }}
+                    >
+                      <Typography variant="caption" fontWeight={600}>
+                        {contract.nome}
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        Vence em:{" "}
+                        {contract.data_fim
+                          ? format(new Date(contract.data_fim), "dd/MM/yyyy", {
+                              locale: ptBR,
+                            })
+                          : "N/A"}
+                      </Typography>
+                    </Box>
+                  ))}
+                  {expiringContractsCount > 3 && (
+                    <Typography variant="caption" sx={{ mt: 1, display: "block" }}>
+                      + {expiringContractsCount - 3} outros contratos
+                    </Typography>
+                  )}
+                  <Typography
+                    variant="caption"
+                    sx={{ mt: 1, display: "block", fontStyle: "italic" }}
+                  >
+                    Clique para ver todos os contratos
+                  </Typography>
+                </Box>
+              }
+              arrow
+              placement="bottom"
+            >
+              <IconButton
+                onClick={() => navigate("/contratos")}
+                sx={{
+                  mr: 1,
+                  background: mode === "dark"
+                    ? "rgba(245, 158, 11, 0.15)"
+                    : "rgba(245, 158, 11, 0.1)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid",
+                  borderColor: mode === "dark"
+                    ? "rgba(245, 158, 11, 0.3)"
+                    : "rgba(245, 158, 11, 0.2)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: mode === "dark"
+                      ? "rgba(245, 158, 11, 0.25)"
+                      : "rgba(245, 158, 11, 0.2)",
+                    borderColor: "warning.main",
+                    transform: "scale(1.05)",
+                  },
+                }}
+              >
+                <Badge
+                  badgeContent={expiringContractsCount}
+                  color="warning"
+                  sx={{
+                    "& .MuiBadge-badge": {
+                      fontWeight: 700,
+                      fontSize: "0.7rem",
+                      minWidth: 20,
+                      height: 20,
+                      animation: "pulse 2s ease-in-out infinite",
+                      "@keyframes pulse": {
+                        "0%, 100%": {
+                          transform: "scale(1)",
+                        },
+                        "50%": {
+                          transform: "scale(1.1)",
+                        },
+                      },
+                    },
+                  }}
+                >
+                  <Warning sx={{ color: "warning.main" }} />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          )}
 
           <IconButton
             onClick={toggleTheme}
