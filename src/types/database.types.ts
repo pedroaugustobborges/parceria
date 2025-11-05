@@ -258,6 +258,8 @@ export interface MedicoEscala {
   cpf: string;
 }
 
+export type StatusEscala = 'Programado' | 'Aprovado' | 'Reprovado';
+
 export interface EscalaMedica {
   id: string;
   contrato_id: string;
@@ -267,6 +269,8 @@ export interface EscalaMedica {
   horario_saida: string;
   medicos: MedicoEscala[];
   observacoes: string | null;
+  status: StatusEscala;
+  justificativa: string | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;

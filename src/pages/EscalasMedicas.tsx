@@ -43,6 +43,9 @@ import {
   Person,
   FilterList,
   Refresh,
+  CheckCircle,
+  Cancel,
+  HourglassEmpty,
 } from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
 import {
@@ -53,10 +56,13 @@ import {
   UnidadeHospitalar,
   ItemContrato,
   ContratoItem,
+  StatusEscala,
 } from "../types/database.types";
 import { format, parseISO } from "date-fns";
+import { useAuth } from "../contexts/AuthContext";
 
 const EscalasMedicas: React.FC = () => {
+  const { isAdminAgir } = useAuth();
   const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
   const [escalasFiltradas, setEscalasFiltradas] = useState<EscalaMedica[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
@@ -67,6 +73,12 @@ const EscalasMedicas: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Status dialog state
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [escalaParaStatus, setEscalaParaStatus] = useState<EscalaMedica | null>(null);
+  const [novoStatus, setNovoStatus] = useState<StatusEscala>("Programado");
+  const [novaJustificativa, setNovaJustificativa] = useState("");
 
   // Filtros
   const [filtroParceiro, setFiltroParceiro] = useState<string[]>([]);
@@ -363,6 +375,7 @@ const EscalasMedicas: React.FC = () => {
         horario_saida: format(formData.horario_saida!, "HH:mm:ss"),
         medicos: previewData.medicos,
         observacoes: formData.observacoes || null,
+        status: "Programado" as StatusEscala,
       };
 
       if (editingEscala) {
@@ -494,6 +507,68 @@ const EscalasMedicas: React.FC = () => {
 
       if (deleteError) throw deleteError;
       setSuccess("Escala excluída com sucesso!");
+      loadData();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  // Funções auxiliares para Status
+  const getStatusConfig = (status: StatusEscala) => {
+    const configs = {
+      Programado: {
+        color: "info" as const,
+        icon: <HourglassEmpty />,
+        label: "Programado",
+      },
+      Aprovado: {
+        color: "success" as const,
+        icon: <CheckCircle />,
+        label: "Aprovado",
+      },
+      Reprovado: {
+        color: "error" as const,
+        icon: <Cancel />,
+        label: "Reprovado",
+      },
+    };
+    return configs[status] || configs.Programado;
+  };
+
+  const handleOpenStatusDialog = (escala: EscalaMedica) => {
+    setEscalaParaStatus(escala);
+    setNovoStatus(escala.status);
+    setNovaJustificativa(escala.justificativa || "");
+    setStatusDialogOpen(true);
+  };
+
+  const handleCloseStatusDialog = () => {
+    setStatusDialogOpen(false);
+    setEscalaParaStatus(null);
+    setNovoStatus("Programado");
+    setNovaJustificativa("");
+  };
+
+  const handleSaveStatus = async () => {
+    try {
+      // Validar justificativa obrigatória para status "Reprovado"
+      if (novoStatus === "Reprovado" && !novaJustificativa.trim()) {
+        setError("Justificativa é obrigatória para status Reprovado");
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from("escalas_medicas")
+        .update({
+          status: novoStatus,
+          justificativa: novaJustificativa.trim() || null,
+        })
+        .eq("id", escalaParaStatus!.id);
+
+      if (updateError) throw updateError;
+
+      setSuccess("Status atualizado com sucesso!");
+      handleCloseStatusDialog();
       loadData();
     } catch (err: any) {
       setError(err.message);
@@ -707,30 +782,63 @@ const EscalasMedicas: React.FC = () => {
                       alignItems="start"
                       mb={2}
                     >
-                      <Chip
-                        icon={<CalendarMonth />}
-                        label={format(
-                          parseISO(escala.data_inicio),
-                          "dd/MM/yyyy"
-                        )}
-                        size="small"
-                        sx={{
-                          bgcolor: (theme) =>
-                            theme.palette.mode === "dark"
-                              ? "#1e3a8a"
-                              : "#dbeafe",
-                          color: (theme) =>
-                            theme.palette.mode === "dark"
-                              ? "#93c5fd"
-                              : "#1e40af",
-                          "& .MuiChip-icon": {
+                      <Box display="flex" flexDirection="column" gap={1}>
+                        <Chip
+                          icon={<CalendarMonth />}
+                          label={format(
+                            parseISO(escala.data_inicio),
+                            "dd/MM/yyyy"
+                          )}
+                          size="small"
+                          sx={{
+                            bgcolor: (theme) =>
+                              theme.palette.mode === "dark"
+                                ? "#1e3a8a"
+                                : "#dbeafe",
                             color: (theme) =>
                               theme.palette.mode === "dark"
                                 ? "#93c5fd"
                                 : "#1e40af",
-                          },
-                        }}
-                      />
+                            "& .MuiChip-icon": {
+                              color: (theme) =>
+                                theme.palette.mode === "dark"
+                                  ? "#93c5fd"
+                                  : "#1e40af",
+                            },
+                          }}
+                        />
+                        <Tooltip
+                          title={
+                            isAdminAgir
+                              ? "Clique para alterar o status"
+                              : escala.justificativa
+                              ? `Justificativa: ${escala.justificativa}`
+                              : ""
+                          }
+                        >
+                          <Chip
+                            icon={getStatusConfig(escala.status).icon}
+                            label={getStatusConfig(escala.status).label}
+                            color={getStatusConfig(escala.status).color}
+                            size="small"
+                            onClick={
+                              isAdminAgir
+                                ? () => handleOpenStatusDialog(escala)
+                                : undefined
+                            }
+                            sx={{
+                              cursor: isAdminAgir ? "pointer" : "default",
+                              transition: "all 0.2s",
+                              "&:hover": isAdminAgir
+                                ? {
+                                    transform: "scale(1.05)",
+                                    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                                  }
+                                : {},
+                            }}
+                          />
+                        </Tooltip>
+                      </Box>
                       <Box>
                         <IconButton
                           size="small"
@@ -1122,6 +1230,140 @@ const EscalasMedicas: React.FC = () => {
                 Salvar
               </Button>
             )}
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog - Alterar Status */}
+        <Dialog
+          open={statusDialogOpen}
+          onClose={handleCloseStatusDialog}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            <Typography variant="h6" fontWeight={700}>
+              Alterar Status da Escala
+            </Typography>
+          </DialogTitle>
+
+          <DialogContent>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
+              {/* Informações da Escala */}
+              {escalaParaStatus && (
+                <Card
+                  sx={{
+                    bgcolor: "primary.50",
+                    borderLeft: "4px solid",
+                    borderColor: "primary.main",
+                  }}
+                >
+                  <CardContent>
+                    <Typography variant="subtitle2" fontWeight={600}>
+                      {contratos.find((c) => c.id === escalaParaStatus.contrato_id)?.nome}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Data:{" "}
+                      {format(parseISO(escalaParaStatus.data_inicio), "dd/MM/yyyy")}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Médicos: {escalaParaStatus.medicos.length}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Seletor de Status */}
+              <Box>
+                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                  Novo Status
+                </Typography>
+                <Box display="flex" gap={1} flexWrap="wrap">
+                  {(["Programado", "Aprovado", "Reprovado"] as StatusEscala[]).map(
+                    (status) => {
+                      const config = getStatusConfig(status);
+                      return (
+                        <Chip
+                          key={status}
+                          icon={config.icon}
+                          label={config.label}
+                          color={config.color}
+                          variant={novoStatus === status ? "filled" : "outlined"}
+                          onClick={() => setNovoStatus(status)}
+                          sx={{
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            "&:hover": {
+                              transform: "scale(1.05)",
+                            },
+                          }}
+                        />
+                      );
+                    }
+                  )}
+                </Box>
+              </Box>
+
+              {/* Campo de Justificativa */}
+              <TextField
+                label="Justificativa"
+                value={novaJustificativa}
+                onChange={(e) => setNovaJustificativa(e.target.value)}
+                multiline
+                rows={4}
+                fullWidth
+                required={novoStatus === "Reprovado"}
+                error={novoStatus === "Reprovado" && !novaJustificativa.trim()}
+                helperText={
+                  novoStatus === "Reprovado"
+                    ? "Justificativa obrigatória para status Reprovado"
+                    : "Opcional para outros status"
+                }
+                placeholder="Digite a justificativa para a alteração de status..."
+              />
+
+              {/* Exibir status atual */}
+              {escalaParaStatus && (
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 1,
+                    bgcolor: "background.default",
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    Status Atual
+                  </Typography>
+                  <Box display="flex" alignItems="center" gap={1} mt={0.5}>
+                    <Chip
+                      icon={getStatusConfig(escalaParaStatus.status).icon}
+                      label={getStatusConfig(escalaParaStatus.status).label}
+                      color={getStatusConfig(escalaParaStatus.status).color}
+                      size="small"
+                    />
+                    {escalaParaStatus.justificativa && (
+                      <Typography variant="caption" color="text.secondary">
+                        {escalaParaStatus.justificativa}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={handleCloseStatusDialog}>Cancelar</Button>
+            <Button
+              onClick={handleSaveStatus}
+              variant="contained"
+              color="primary"
+              startIcon={<Check />}
+              disabled={novoStatus === "Reprovado" && !novaJustificativa.trim()}
+            >
+              Salvar Status
+            </Button>
           </DialogActions>
         </Dialog>
       </Box>
