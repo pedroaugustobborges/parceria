@@ -271,6 +271,8 @@ export interface EscalaMedica {
   observacoes: string | null;
   status: StatusEscala;
   justificativa: string | null;
+  status_alterado_por: string | null;
+  status_alterado_em: string | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;

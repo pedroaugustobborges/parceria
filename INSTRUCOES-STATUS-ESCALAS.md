@@ -2,17 +2,23 @@
 
 ## 📋 Resumo da Funcionalidade
 
-Foi implementado um sistema de aprovação/reprovação para escalas médicas com os seguintes atributos:
+Foi implementado um sistema completo de aprovação/reprovação para escalas médicas com os seguintes atributos:
 
 - **Status**: Programado (padrão), Aprovado, Reprovado
 - **Justificativa**: Campo obrigatório quando status = Reprovado
+- **Rastreamento**: Registro de quem e quando alterou o status
+- **Detalhes Completos**: Diálogo com todas as informações da escala
 
 ### Características:
 ✅ Apenas **administradores** podem alterar o status
 ✅ Status "Programado" é atribuído automaticamente ao criar uma nova escala
 ✅ Justificativa obrigatória para status "Reprovado"
+✅ Registro automático do usuário que alterou o status
+✅ Registro automático da data/hora da alteração
 ✅ UI moderna com chips coloridos e interativos
 ✅ Tooltip mostrando justificativa para usuários não-admin
+✅ **NOVO**: Clique no card da escala para ver todos os detalhes
+✅ **NOVO**: Diálogo de detalhes mostra quem aprovou/reprovou a escala
 
 ---
 
@@ -47,12 +53,25 @@ CHECK (status IN ('Programado', 'Aprovado', 'Reprovado'));
 ALTER TABLE escalas_medicas
 ADD COLUMN IF NOT EXISTS justificativa TEXT;
 
+-- Adicionar coluna para registrar quem alterou o status
+ALTER TABLE escalas_medicas
+ADD COLUMN IF NOT EXISTS status_alterado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL;
+
+-- Adicionar coluna para registrar quando o status foi alterado
+ALTER TABLE escalas_medicas
+ADD COLUMN IF NOT EXISTS status_alterado_em TIMESTAMPTZ;
+
 -- Criar índice para melhor performance nas queries por status
 CREATE INDEX IF NOT EXISTS idx_escalas_medicas_status ON escalas_medicas(status);
+
+-- Criar índice para consultas por usuário que alterou
+CREATE INDEX IF NOT EXISTS idx_escalas_medicas_status_alterado_por ON escalas_medicas(status_alterado_por);
 
 -- Comentários explicativos
 COMMENT ON COLUMN escalas_medicas.status IS 'Status da escala: Programado (padrão), Aprovado, Reprovado';
 COMMENT ON COLUMN escalas_medicas.justificativa IS 'Justificativa obrigatória quando status = Reprovado';
+COMMENT ON COLUMN escalas_medicas.status_alterado_por IS 'ID do usuário que alterou o status';
+COMMENT ON COLUMN escalas_medicas.status_alterado_em IS 'Data e hora da última alteração de status';
 
 -- Atualizar escalas existentes para status 'Programado' (caso já existam)
 UPDATE escalas_medicas SET status = 'Programado' WHERE status IS NULL;
@@ -95,6 +114,30 @@ UPDATE escalas_medicas SET status = 'Programado' WHERE status IS NULL;
 - Visualizam o status em cada card (chip colorido)
 - Podem ver a justificativa ao passar o mouse sobre o chip (tooltip)
 - **Não podem** alterar o status (chip não é clicável)
+- **Podem** clicar no card para ver detalhes completos da escala
+
+### 4. **Visualizar Detalhes Completos** (todos os usuários)
+
+**Como acessar:**
+- Clique em qualquer área do card da escala (exceto nos botões de ação)
+- Um diálogo modal será aberto com informações detalhadas
+
+**Informações exibidas:**
+- ℹ️ **Contrato**: Nome, empresa, número do contrato
+- 📅 **Data e Horário**: Data da escala e horário de entrada/saída
+- 📋 **Item de Contrato**: Nome e unidade de medida
+- 👥 **Médicos Escalados**: Lista completa com nome e CPF
+- ✅ **Status e Aprovação**:
+  - Status atual
+  - **Quem alterou o status** (nome e e-mail do administrador)
+  - **Quando foi alterado** (data e hora)
+  - Justificativa (se houver)
+- 📝 **Observações**: Observações gerais da escala
+- 🕒 **Metadados**: Data de criação e última atualização
+
+**Ações disponíveis no diálogo (apenas admins):**
+- Botão "Editar": Abre o formulário de edição da escala
+- Botão "Alterar Status": Abre o diálogo de alteração de status
 
 ---
 
@@ -154,6 +197,30 @@ UPDATE escalas_medicas SET status = 'Programado' WHERE status IS NULL;
 1. Como usuário não-admin, tente clicar em um chip de status
 2. **Resultado esperado**: Nada acontece (chip não é clicável)
 
+### Cenário 6: Visualizar Detalhes Completos
+1. Na página de Escalas Médicas, clique em qualquer card de escala
+2. **Resultado esperado**: Abre diálogo modal com todas as informações
+3. Verifique se as seguintes informações estão presentes:
+   - Dados do contrato
+   - Data e horário da escala
+   - Item de contrato
+   - Lista de médicos escalados
+   - **Status atual** com chip colorido
+   - **Quem alterou o status** (se aplicável)
+   - **Quando foi alterado** (se aplicável)
+   - Justificativa (se houver)
+   - Observações (se houver)
+   - Metadados (criado em, atualizado em)
+
+### Cenário 7: Rastreamento de Alteração
+1. Como admin, altere o status de uma escala para "Aprovado"
+2. Feche o diálogo de status
+3. Clique no card da escala para ver detalhes
+4. **Resultado esperado**: Na seção "Informações de Status" deve aparecer:
+   - "Alterado por: [Seu Nome]"
+   - "Data da Alteração: [Data e hora atual]"
+5. Verifique que essas informações estão corretas
+
 ---
 
 ## 🐛 Troubleshooting
@@ -199,10 +266,14 @@ USING (
 |--------|------|-----------|-------------|
 | `status` | TEXT | Status da escala (Programado, Aprovado, Reprovado) | Sim (padrão: Programado) |
 | `justificativa` | TEXT | Justificativa da alteração de status | Não (obrigatório se status = Reprovado) |
+| `status_alterado_por` | UUID | ID do usuário que alterou o status (FK para usuarios) | Não |
+| `status_alterado_em` | TIMESTAMPTZ | Data e hora da última alteração de status | Não |
 
 ### Constraints:
 - `status` deve ser um dos valores: 'Programado', 'Aprovado', 'Reprovado'
+- `status_alterado_por` é chave estrangeira para `usuarios(id)` com `ON DELETE SET NULL`
 - Índice criado em `status` para melhor performance
+- Índice criado em `status_alterado_por` para consultas por usuário
 
 ---
 

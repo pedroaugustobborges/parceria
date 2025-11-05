@@ -62,7 +62,7 @@ import { format, parseISO } from "date-fns";
 import { useAuth } from "../contexts/AuthContext";
 
 const EscalasMedicas: React.FC = () => {
-  const { isAdminAgir } = useAuth();
+  const { isAdminAgir, userProfile } = useAuth();
   const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
   const [escalasFiltradas, setEscalasFiltradas] = useState<EscalaMedica[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
@@ -79,6 +79,11 @@ const EscalasMedicas: React.FC = () => {
   const [escalaParaStatus, setEscalaParaStatus] = useState<EscalaMedica | null>(null);
   const [novoStatus, setNovoStatus] = useState<StatusEscala>("Programado");
   const [novaJustificativa, setNovaJustificativa] = useState("");
+
+  // Details dialog state
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [escalaDetalhes, setEscalaDetalhes] = useState<EscalaMedica | null>(null);
+  const [usuarioAlterouStatus, setUsuarioAlterouStatus] = useState<Usuario | null>(null);
 
   // Filtros
   const [filtroParceiro, setFiltroParceiro] = useState<string[]>([]);
@@ -562,6 +567,8 @@ const EscalasMedicas: React.FC = () => {
         .update({
           status: novoStatus,
           justificativa: novaJustificativa.trim() || null,
+          status_alterado_por: userProfile?.id || null,
+          status_alterado_em: new Date().toISOString(),
         })
         .eq("id", escalaParaStatus!.id);
 
@@ -573,6 +580,38 @@ const EscalasMedicas: React.FC = () => {
     } catch (err: any) {
       setError(err.message);
     }
+  };
+
+  // Funções para Details Dialog
+  const handleOpenDetailsDialog = async (escala: EscalaMedica) => {
+    setEscalaDetalhes(escala);
+
+    // Carregar usuário que alterou o status (se houver)
+    if (escala.status_alterado_por) {
+      try {
+        const { data: usuario, error } = await supabase
+          .from("usuarios")
+          .select("*")
+          .eq("id", escala.status_alterado_por)
+          .single();
+
+        if (!error && usuario) {
+          setUsuarioAlterouStatus(usuario);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar usuário:", err);
+      }
+    } else {
+      setUsuarioAlterouStatus(null);
+    }
+
+    setDetailsDialogOpen(true);
+  };
+
+  const handleCloseDetailsDialog = () => {
+    setDetailsDialogOpen(false);
+    setEscalaDetalhes(null);
+    setUsuarioAlterouStatus(null);
   };
 
   return (
@@ -769,11 +808,13 @@ const EscalasMedicas: React.FC = () => {
                   sx={{
                     height: "100%",
                     transition: "all 0.3s",
+                    cursor: "pointer",
                     "&:hover": {
                       transform: "translateY(-4px)",
                       boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
                     },
                   }}
+                  onClick={() => handleOpenDetailsDialog(escala)}
                 >
                   <CardContent>
                     <Box
@@ -823,7 +864,10 @@ const EscalasMedicas: React.FC = () => {
                             size="small"
                             onClick={
                               isAdminAgir
-                                ? () => handleOpenStatusDialog(escala)
+                                ? (e) => {
+                                    e.stopPropagation();
+                                    handleOpenStatusDialog(escala);
+                                  }
                                 : undefined
                             }
                             sx={{
@@ -842,14 +886,20 @@ const EscalasMedicas: React.FC = () => {
                       <Box>
                         <IconButton
                           size="small"
-                          onClick={() => handleOpenDialog(escala)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDialog(escala);
+                          }}
                         >
                           <Edit fontSize="small" />
                         </IconButton>
                         <IconButton
                           size="small"
                           color="error"
-                          onClick={() => handleDelete(escala)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(escala);
+                          }}
                         >
                           <Delete fontSize="small" />
                         </IconButton>
@@ -1364,6 +1414,333 @@ const EscalasMedicas: React.FC = () => {
             >
               Salvar Status
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog - Detalhes Completos da Escala */}
+        <Dialog
+          open={detailsDialogOpen}
+          onClose={handleCloseDetailsDialog}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Typography variant="h6" fontWeight={700}>
+                Detalhes da Escala Médica
+              </Typography>
+              {escalaDetalhes && (
+                <Chip
+                  icon={getStatusConfig(escalaDetalhes.status).icon}
+                  label={getStatusConfig(escalaDetalhes.status).label}
+                  color={getStatusConfig(escalaDetalhes.status).color}
+                  size="small"
+                />
+              )}
+            </Box>
+          </DialogTitle>
+
+          <DialogContent>
+            {escalaDetalhes && (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
+                {/* Informações do Contrato */}
+                <Card
+                  sx={{
+                    bgcolor: "primary.50",
+                    borderLeft: "4px solid",
+                    borderColor: "primary.main",
+                  }}
+                >
+                  <CardContent>
+                    <Typography variant="overline" color="text.secondary">
+                      Contrato
+                    </Typography>
+                    <Typography variant="h6" fontWeight={600} gutterBottom>
+                      {contratos.find((c) => c.id === escalaDetalhes.contrato_id)
+                        ?.nome || "Não encontrado"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Empresa:{" "}
+                      {contratos.find((c) => c.id === escalaDetalhes.contrato_id)
+                        ?.empresa || "Não encontrado"}
+                    </Typography>
+                    {contratos.find((c) => c.id === escalaDetalhes.contrato_id)
+                      ?.numero_contrato && (
+                      <Typography variant="body2" color="text.secondary">
+                        Nº Contrato:{" "}
+                        {
+                          contratos.find((c) => c.id === escalaDetalhes.contrato_id)
+                            ?.numero_contrato
+                        }
+                      </Typography>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Informações da Escala */}
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="overline" color="text.secondary">
+                          Data da Escala
+                        </Typography>
+                        <Box display="flex" alignItems="center" gap={1} mt={1}>
+                          <CalendarMonth color="primary" />
+                          <Typography variant="h6">
+                            {format(
+                              parseISO(escalaDetalhes.data_inicio),
+                              "dd/MM/yyyy"
+                            )}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="overline" color="text.secondary">
+                          Horário
+                        </Typography>
+                        <Box display="flex" alignItems="center" gap={1} mt={1}>
+                          <Schedule color="primary" />
+                          <Typography variant="h6">
+                            {escalaDetalhes.horario_entrada.substring(0, 5)} -{" "}
+                            {escalaDetalhes.horario_saida.substring(0, 5)}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="overline" color="text.secondary">
+                          Item de Contrato
+                        </Typography>
+                        <Typography variant="body1" fontWeight={600} mt={1}>
+                          {todosItensContrato.find(
+                            (i) => i.id === escalaDetalhes.item_contrato_id
+                          )?.nome || "Não encontrado"}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Unidade de medida:{" "}
+                          {todosItensContrato.find(
+                            (i) => i.id === escalaDetalhes.item_contrato_id
+                          )?.unidade_medida || "N/A"}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {/* Médicos Escalados */}
+                <Box>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Médicos Escalados ({escalaDetalhes.medicos.length})
+                  </Typography>
+                  <TableContainer
+                    component={Paper}
+                    elevation={0}
+                    sx={{ border: "1px solid #e0e0e0" }}
+                  >
+                    <Table>
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: "grey.50" }}>
+                          <TableCell>
+                            <strong>Nome</strong>
+                          </TableCell>
+                          <TableCell>
+                            <strong>CPF</strong>
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {escalaDetalhes.medicos.map((medico, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                <Person color="primary" />
+                                {medico.nome}
+                              </Box>
+                            </TableCell>
+                            <TableCell>{medico.cpf}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+
+                {/* Status e Aprovação */}
+                <Card
+                  sx={{
+                    bgcolor: "background.default",
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  <CardContent>
+                    <Typography variant="h6" fontWeight={600} gutterBottom>
+                      Informações de Status
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="caption" color="text.secondary">
+                          Status Atual
+                        </Typography>
+                        <Box mt={1}>
+                          <Chip
+                            icon={getStatusConfig(escalaDetalhes.status).icon}
+                            label={getStatusConfig(escalaDetalhes.status).label}
+                            color={getStatusConfig(escalaDetalhes.status).color}
+                          />
+                        </Box>
+                      </Grid>
+
+                      {usuarioAlterouStatus && (
+                        <Grid item xs={12} sm={6}>
+                          <Typography variant="caption" color="text.secondary">
+                            Alterado por
+                          </Typography>
+                          <Typography variant="body1" fontWeight={600} mt={1}>
+                            {usuarioAlterouStatus.nome}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {usuarioAlterouStatus.email}
+                          </Typography>
+                        </Grid>
+                      )}
+
+                      {escalaDetalhes.status_alterado_em && (
+                        <Grid item xs={12} sm={6}>
+                          <Typography variant="caption" color="text.secondary">
+                            Data da Alteração
+                          </Typography>
+                          <Typography variant="body1" mt={1}>
+                            {format(
+                              parseISO(escalaDetalhes.status_alterado_em),
+                              "dd/MM/yyyy 'às' HH:mm",
+                              { locale: ptBR }
+                            )}
+                          </Typography>
+                        </Grid>
+                      )}
+
+                      {escalaDetalhes.justificativa && (
+                        <Grid item xs={12}>
+                          <Typography variant="caption" color="text.secondary">
+                            Justificativa
+                          </Typography>
+                          <Paper
+                            sx={{
+                              p: 2,
+                              mt: 1,
+                              bgcolor: "grey.50",
+                              border: "1px solid",
+                              borderColor: "divider",
+                            }}
+                          >
+                            <Typography variant="body2">
+                              {escalaDetalhes.justificativa}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      )}
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Observações */}
+                {escalaDetalhes.observacoes && (
+                  <Box>
+                    <Typography variant="h6" fontWeight={600} gutterBottom>
+                      Observações
+                    </Typography>
+                    <Paper
+                      sx={{
+                        p: 2,
+                        bgcolor: "grey.50",
+                        border: "1px solid",
+                        borderColor: "divider",
+                      }}
+                    >
+                      <Typography variant="body2">
+                        {escalaDetalhes.observacoes}
+                      </Typography>
+                    </Paper>
+                  </Box>
+                )}
+
+                {/* Metadados */}
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 1,
+                    bgcolor: "grey.50",
+                    border: "1px dashed",
+                    borderColor: "divider",
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    <strong>Criado em:</strong>{" "}
+                    {format(
+                      parseISO(escalaDetalhes.created_at),
+                      "dd/MM/yyyy 'às' HH:mm"
+                    )}
+                  </Typography>
+                  {escalaDetalhes.updated_at && (
+                    <>
+                      {" • "}
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        component="span"
+                      >
+                        <strong>Atualizado em:</strong>{" "}
+                        {format(
+                          parseISO(escalaDetalhes.updated_at),
+                          "dd/MM/yyyy 'às' HH:mm"
+                        )}
+                      </Typography>
+                    </>
+                  )}
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={handleCloseDetailsDialog} variant="outlined">
+              Fechar
+            </Button>
+            {isAdminAgir && escalaDetalhes && (
+              <>
+                <Button
+                  onClick={() => {
+                    handleCloseDetailsDialog();
+                    handleOpenDialog(escalaDetalhes);
+                  }}
+                  variant="outlined"
+                  startIcon={<Edit />}
+                >
+                  Editar
+                </Button>
+                <Button
+                  onClick={() => {
+                    handleCloseDetailsDialog();
+                    handleOpenStatusDialog(escalaDetalhes);
+                  }}
+                  variant="contained"
+                  color="primary"
+                >
+                  Alterar Status
+                </Button>
+              </>
+            )}
           </DialogActions>
         </Dialog>
       </Box>
