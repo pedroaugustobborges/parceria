@@ -46,7 +46,11 @@ import {
   CheckCircle,
   Cancel,
   HourglassEmpty,
+  FileDownload,
+  PictureAsPdf,
 } from "@mui/icons-material";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { supabase } from "../lib/supabase";
 import {
   EscalaMedica,
@@ -69,21 +73,28 @@ const EscalasMedicas: React.FC = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
   const [itensContrato, setItensContrato] = useState<ItemContrato[]>([]);
-  const [todosItensContrato, setTodosItensContrato] = useState<ItemContrato[]>([]);
+  const [todosItensContrato, setTodosItensContrato] = useState<ItemContrato[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   // Status dialog state
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
-  const [escalaParaStatus, setEscalaParaStatus] = useState<EscalaMedica | null>(null);
+  const [escalaParaStatus, setEscalaParaStatus] = useState<EscalaMedica | null>(
+    null
+  );
   const [novoStatus, setNovoStatus] = useState<StatusEscala>("Programado");
   const [novaJustificativa, setNovaJustificativa] = useState("");
 
   // Details dialog state
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [escalaDetalhes, setEscalaDetalhes] = useState<EscalaMedica | null>(null);
-  const [usuarioAlterouStatus, setUsuarioAlterouStatus] = useState<Usuario | null>(null);
+  const [escalaDetalhes, setEscalaDetalhes] = useState<EscalaMedica | null>(
+    null
+  );
+  const [usuarioAlterouStatus, setUsuarioAlterouStatus] =
+    useState<Usuario | null>(null);
 
   // Filtros
   const [filtroParceiro, setFiltroParceiro] = useState<string[]>([]);
@@ -143,23 +154,24 @@ const EscalasMedicas: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [{ data: escal }, { data: contr }, { data: unid }, { data: itens }] =
-        await Promise.all([
-          supabase
-            .from("escalas_medicas")
-            .select("*")
-            .order("data_inicio", { ascending: false }),
-          supabase.from("contratos").select("*").eq("ativo", true),
-          supabase
-            .from("unidades_hospitalares")
-            .select("*")
-            .eq("ativo", true)
-            .order("codigo"),
-          supabase
-            .from("itens_contrato")
-            .select("*")
-            .eq("ativo", true),
-        ]);
+      const [
+        { data: escal },
+        { data: contr },
+        { data: unid },
+        { data: itens },
+      ] = await Promise.all([
+        supabase
+          .from("escalas_medicas")
+          .select("*")
+          .order("data_inicio", { ascending: false }),
+        supabase.from("contratos").select("*").eq("ativo", true),
+        supabase
+          .from("unidades_hospitalares")
+          .select("*")
+          .eq("ativo", true)
+          .order("codigo"),
+        supabase.from("itens_contrato").select("*").eq("ativo", true),
+      ]);
 
       setEscalas(escal || []);
       setContratos(contr || []);
@@ -429,7 +441,9 @@ const EscalasMedicas: React.FC = () => {
       setEditingEscala(escala);
 
       // Find associated contract
-      const contratoAssociado = contratos.find(c => c.id === escala.contrato_id);
+      const contratoAssociado = contratos.find(
+        (c) => c.id === escala.contrato_id
+      );
 
       // Load usuarios for this contract inline to use immediately
       let medicosUsuarios: Usuario[] = [];
@@ -461,16 +475,18 @@ const EscalasMedicas: React.FC = () => {
       }
 
       // Map medicos from escala to Usuario objects
-      const medicosEscalados = escala.medicos.map(medicoEscala => {
-        return medicosUsuarios.find(u => u.cpf === medicoEscala.cpf);
-      }).filter(Boolean) as Usuario[];
+      const medicosEscalados = escala.medicos
+        .map((medicoEscala) => {
+          return medicosUsuarios.find((u) => u.cpf === medicoEscala.cpf);
+        })
+        .filter(Boolean) as Usuario[];
 
       // Parse date using parseISO to avoid timezone issues
       const dataInicio = parseISO(escala.data_inicio);
 
       // Parse time strings (format "HH:mm:ss") to Date objects
-      const [horaE, minE] = escala.horario_entrada.split(':').map(Number);
-      const [horaS, minS] = escala.horario_saida.split(':').map(Number);
+      const [horaE, minE] = escala.horario_entrada.split(":").map(Number);
+      const [horaS, minS] = escala.horario_saida.split(":").map(Number);
 
       const horarioEntrada = new Date();
       horarioEntrada.setHours(horaE, minE, 0, 0);
@@ -643,8 +659,255 @@ const EscalasMedicas: React.FC = () => {
 
   const handleCloseDetailsDialog = () => {
     setDetailsDialogOpen(false);
-    setEscalaDetalhes(null);
-    setUsuarioAlterouStatus(null);
+  };
+
+  // Funções de Exportação
+  const exportarCSV = () => {
+    try {
+      if (escalasFiltradas.length === 0) {
+        setError("Nenhuma escala filtrada para exportar");
+        return;
+      }
+
+      // Criar cabeçalho CSV
+      const headers = [
+        "Data",
+        "Horário Entrada",
+        "Horário Saída",
+        "Contrato",
+        "Parceiro",
+        "Unidade",
+        "Item Contrato",
+        "Status",
+        "Médicos",
+        "CPFs",
+        "Observações",
+        "Justificativa",
+        "Alterado Por",
+        "Data Alteração",
+      ];
+
+      // Criar linhas CSV
+      const linhas = escalasFiltradas.map((escala) => {
+        const contrato = contratos.find((c) => c.id === escala.contrato_id);
+        const unidade = unidades.find(
+          (u) => u.id === contrato?.unidade_hospitalar_id
+        );
+        const itemContrato = todosItensContrato.find(
+          (i) => i.id === escala.item_contrato_id
+        );
+        const medicos = escala.medicos.map((m) => m.nome).join("; ");
+        const cpfs = escala.medicos.map((m) => m.cpf).join("; ");
+
+        return [
+          format(parseISO(escala.data_inicio), "dd/MM/yyyy"),
+          escala.horario_entrada.substring(0, 5),
+          escala.horario_saida.substring(0, 5),
+          contrato?.nome || "N/A",
+          contrato?.empresa || "N/A",
+          unidade?.nome || "N/A",
+          itemContrato?.nome || "N/A",
+          escala.status,
+          medicos,
+          cpfs,
+          escala.observacoes || "",
+          escala.justificativa || "",
+          escala.status_alterado_por || "",
+          escala.status_alterado_em
+            ? format(parseISO(escala.status_alterado_em), "dd/MM/yyyy HH:mm")
+            : "",
+        ];
+      });
+
+      // Criar conteúdo CSV
+      const csvContent = [
+        headers.join(","),
+        ...linhas.map((linha) => linha.map((campo) => `"${campo}"`).join(",")),
+      ].join("\n");
+
+      // Download CSV
+      const blob = new Blob(["\ufeff" + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `escalas_medicas_${format(new Date(), "yyyy-MM-dd_HHmmss")}.csv`
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setSuccess(
+        `${escalasFiltradas.length} escala(s) exportada(s) com sucesso!`
+      );
+    } catch (err: any) {
+      setError("Erro ao exportar CSV: " + err.message);
+    }
+  };
+
+  const exportarPDF = () => {
+    try {
+      if (escalasFiltradas.length === 0) {
+        setError("Nenhuma escala filtrada para exportar");
+        return;
+      }
+
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      // Cores do tema da aplicação
+      const primaryColor = [14, 165, 233]; // #0ea5e9
+      const secondaryColor = [139, 92, 246]; // #8b5cf6
+      const goldColor = [251, 191, 36]; // #fbbf24
+
+      // Header do PDF
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Gradiente simulado com retângulos
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(0, 0, pageWidth, 35, "F");
+
+      // Logo/Nome da aplicação
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(24);
+      doc.setFont("helvetica", "bold");
+      doc.text("Parcer", 15, 15);
+
+      doc.setTextColor(goldColor[0], goldColor[1], goldColor[2]);
+
+      doc.text("IA", 42, 15);
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Gestão Inteligente de Acessos e Parcerias", 15, 22);
+
+      // Título do relatório
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("Relatório de Escalas Médicas", 15, 32);
+
+      // Informações do relatório
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(255, 255, 255);
+      const dataRelatorio = format(new Date(), "dd/MM/yyyy 'às' HH:mm", {
+        locale: ptBR,
+      });
+      doc.text(`Gerado em: ${dataRelatorio}`, pageWidth - 15, 15, {
+        align: "right",
+      });
+      doc.text(
+        `Total de escalas: ${escalasFiltradas.length}`,
+        pageWidth - 15,
+        22,
+        { align: "right" }
+      );
+      doc.text(`Powered by Daher.lab - Agir`, pageWidth - 15, 29, {
+        align: "right",
+      });
+
+      // Preparar dados da tabela
+      const tableData = escalasFiltradas.map((escala) => {
+        const contrato = contratos.find((c) => c.id === escala.contrato_id);
+        const unidade = unidades.find(
+          (u) => u.id === contrato?.unidade_hospitalar_id
+        );
+        const itemContrato = todosItensContrato.find(
+          (i) => i.id === escala.item_contrato_id
+        );
+        const medicos = escala.medicos.map((m) => m.nome).join("\n");
+
+        return [
+          format(parseISO(escala.data_inicio), "dd/MM/yyyy"),
+          `${escala.horario_entrada.substring(
+            0,
+            5
+          )} - ${escala.horario_saida.substring(0, 5)}`,
+          contrato?.nome || "N/A",
+          contrato?.empresa || "N/A",
+          unidade?.nome || "N/A",
+          itemContrato?.nome || "N/A",
+          medicos,
+          escala.status,
+        ];
+      });
+
+      // Criar tabela
+      autoTable(doc, {
+        startY: 40,
+        head: [
+          [
+            "Data",
+            "Horário",
+            "Contrato",
+            "Parceiro",
+            "Unidade",
+            "Item",
+            "Médicos",
+            "Status",
+          ],
+        ],
+        body: tableData,
+        theme: "grid",
+        headStyles: {
+          fillColor: primaryColor,
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 9,
+          halign: "center",
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 3,
+          overflow: "linebreak",
+        },
+        columnStyles: {
+          0: { cellWidth: 22, halign: "center" },
+          1: { cellWidth: 25, halign: "center" },
+          2: { cellWidth: 40 },
+          3: { cellWidth: 35 },
+          4: { cellWidth: 35 },
+          5: { cellWidth: 35 },
+          6: { cellWidth: 45 },
+          7: { cellWidth: 20, halign: "center" },
+        },
+        alternateRowStyles: {
+          fillColor: [245, 247, 250],
+        },
+        margin: { left: 15, right: 15 },
+      });
+
+      // Footer com numeração de páginas
+      const pageCount = doc.getNumberOfPages();
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.text(
+          `Página ${i} de ${pageCount}`,
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 10,
+          { align: "center" }
+        );
+      }
+
+      // Download PDF
+      doc.save(
+        `escalas_medicas_${format(new Date(), "yyyy-MM-dd_HHmmss")}.pdf`
+      );
+
+      setSuccess(`PDF gerado com ${escalasFiltradas.length} escala(s)!`);
+    } catch (err: any) {
+      setError("Erro ao gerar PDF: " + err.message);
+    }
   };
 
   return (
@@ -667,21 +930,64 @@ const EscalasMedicas: React.FC = () => {
               Gerencie as escalas médicas por contrato
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpenDialog()}
-            sx={{
-              height: 42,
-              background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
-              color: "white",
-              "&:hover": {
-                background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
-              },
-            }}
-          >
-            Nova Escala
-          </Button>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Tooltip title="Exportar dados filtrados em CSV">
+              <Button
+                variant="outlined"
+                startIcon={<FileDownload />}
+                onClick={exportarCSV}
+                disabled={escalasFiltradas.length === 0}
+                sx={{
+                  height: 42,
+                  borderColor: "primary.main",
+                  color: "primary.main",
+                  "&:hover": {
+                    borderColor: "primary.dark",
+                    bgcolor: "primary.50",
+                  },
+                }}
+              >
+                CSV
+              </Button>
+            </Tooltip>
+
+            <Tooltip title="Exportar dados filtrados em PDF">
+              <Button
+                variant="outlined"
+                startIcon={<PictureAsPdf />}
+                onClick={exportarPDF}
+                disabled={escalasFiltradas.length === 0}
+                sx={{
+                  height: 42,
+                  borderColor: "error.main",
+                  color: "error.main",
+                  "&:hover": {
+                    borderColor: "error.dark",
+                    bgcolor: "error.50",
+                  },
+                }}
+              >
+                PDF
+              </Button>
+            </Tooltip>
+
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => handleOpenDialog()}
+              sx={{
+                height: 42,
+                background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+                color: "white",
+                "&:hover": {
+                  background:
+                    "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
+                },
+              }}
+            >
+              Nova Escala
+            </Button>
+          </Box>
         </Box>
 
         {/* Messages */}
@@ -814,8 +1120,12 @@ const EscalasMedicas: React.FC = () => {
                 <Autocomplete
                   multiple
                   value={filtroStatus}
-                  onChange={(_, newValue) => setFiltroStatus(newValue as StatusEscala[])}
-                  options={["Programado", "Aprovado", "Reprovado"] as StatusEscala[]}
+                  onChange={(_, newValue) =>
+                    setFiltroStatus(newValue as StatusEscala[])
+                  }
+                  options={
+                    ["Programado", "Aprovado", "Reprovado"] as StatusEscala[]
+                  }
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -938,15 +1248,22 @@ const EscalasMedicas: React.FC = () => {
                                 : undefined
                             }
                             sx={{
-                              cursor: isAdminAgir && escala.status === "Programado" ? "pointer" : "default",
-                              opacity: escala.status !== "Programado" && isAdminAgir ? 0.9 : 1,
+                              cursor:
+                                isAdminAgir && escala.status === "Programado"
+                                  ? "pointer"
+                                  : "default",
+                              opacity:
+                                escala.status !== "Programado" && isAdminAgir
+                                  ? 0.9
+                                  : 1,
                               transition: "all 0.2s",
-                              "&:hover": isAdminAgir && escala.status === "Programado"
-                                ? {
-                                    transform: "scale(1.05)",
-                                    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                                  }
-                                : {},
+                              "&:hover":
+                                isAdminAgir && escala.status === "Programado"
+                                  ? {
+                                      transform: "scale(1.05)",
+                                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                                    }
+                                  : {},
                             }}
                           />
                         </Tooltip>
@@ -968,7 +1285,8 @@ const EscalasMedicas: React.FC = () => {
                                 handleOpenDialog(escala);
                               }}
                               sx={{
-                                opacity: escala.status !== "Programado" ? 0.5 : 1,
+                                opacity:
+                                  escala.status !== "Programado" ? 0.5 : 1,
                               }}
                             >
                               <Edit fontSize="small" />
@@ -992,7 +1310,8 @@ const EscalasMedicas: React.FC = () => {
                                 handleDelete(escala);
                               }}
                               sx={{
-                                opacity: escala.status !== "Programado" ? 0.5 : 1,
+                                opacity:
+                                  escala.status !== "Programado" ? 0.5 : 1,
                               }}
                             >
                               <Delete fontSize="small" />
@@ -1036,8 +1355,9 @@ const EscalasMedicas: React.FC = () => {
                       </Typography>
                       <Chip
                         label={
-                          todosItensContrato.find((i) => i.id === escala.item_contrato_id)?.nome ||
-                          "Item não encontrado"
+                          todosItensContrato.find(
+                            (i) => i.id === escala.item_contrato_id
+                          )?.nome || "Item não encontrado"
                         }
                         size="small"
                         color="secondary"
@@ -1124,10 +1444,15 @@ const EscalasMedicas: React.FC = () => {
 
                 <Autocomplete
                   value={
-                    itensContrato.find((i) => i.id === formData.item_contrato_id) || null
+                    itensContrato.find(
+                      (i) => i.id === formData.item_contrato_id
+                    ) || null
                   }
                   onChange={(_, newValue) =>
-                    setFormData({ ...formData, item_contrato_id: newValue?.id || "" })
+                    setFormData({
+                      ...formData,
+                      item_contrato_id: newValue?.id || "",
+                    })
                   }
                   options={itensContrato}
                   getOptionLabel={(option) =>
@@ -1275,8 +1600,9 @@ const EscalasMedicas: React.FC = () => {
                       />
                       <Chip
                         label={
-                          itensContrato.find((i) => i.id === formData.item_contrato_id)
-                            ?.nome || "Item não encontrado"
+                          itensContrato.find(
+                            (i) => i.id === formData.item_contrato_id
+                          )?.nome || "Item não encontrado"
                         }
                         color="secondary"
                         variant="outlined"
@@ -1393,7 +1719,9 @@ const EscalasMedicas: React.FC = () => {
           </DialogTitle>
 
           <DialogContent>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
+            <Box
+              sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}
+            >
               {/* Informações da Escala */}
               {escalaParaStatus && (
                 <Card
@@ -1405,11 +1733,18 @@ const EscalasMedicas: React.FC = () => {
                 >
                   <CardContent>
                     <Typography variant="subtitle2" fontWeight={600}>
-                      {contratos.find((c) => c.id === escalaParaStatus.contrato_id)?.nome}
+                      {
+                        contratos.find(
+                          (c) => c.id === escalaParaStatus.contrato_id
+                        )?.nome
+                      }
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Data:{" "}
-                      {format(parseISO(escalaParaStatus.data_inicio), "dd/MM/yyyy")}
+                      {format(
+                        parseISO(escalaParaStatus.data_inicio),
+                        "dd/MM/yyyy"
+                      )}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Médicos: {escalaParaStatus.medicos.length}
@@ -1424,28 +1759,28 @@ const EscalasMedicas: React.FC = () => {
                   Novo Status
                 </Typography>
                 <Box display="flex" gap={1} flexWrap="wrap">
-                  {(["Programado", "Aprovado", "Reprovado"] as StatusEscala[]).map(
-                    (status) => {
-                      const config = getStatusConfig(status);
-                      return (
-                        <Chip
-                          key={status}
-                          icon={config.icon}
-                          label={config.label}
-                          color={config.color}
-                          variant={novoStatus === status ? "filled" : "outlined"}
-                          onClick={() => setNovoStatus(status)}
-                          sx={{
-                            cursor: "pointer",
-                            transition: "all 0.2s",
-                            "&:hover": {
-                              transform: "scale(1.05)",
-                            },
-                          }}
-                        />
-                      );
-                    }
-                  )}
+                  {(
+                    ["Programado", "Aprovado", "Reprovado"] as StatusEscala[]
+                  ).map((status) => {
+                    const config = getStatusConfig(status);
+                    return (
+                      <Chip
+                        key={status}
+                        icon={config.icon}
+                        label={config.label}
+                        color={config.color}
+                        variant={novoStatus === status ? "filled" : "outlined"}
+                        onClick={() => setNovoStatus(status)}
+                        sx={{
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          "&:hover": {
+                            transform: "scale(1.05)",
+                          },
+                        }}
+                      />
+                    );
+                  })}
                 </Box>
               </Box>
 
@@ -1521,7 +1856,11 @@ const EscalasMedicas: React.FC = () => {
           fullWidth
         >
           <DialogTitle>
-            <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+            >
               <Typography variant="h6" fontWeight={700}>
                 Detalhes da Escala Médica
               </Typography>
@@ -1538,7 +1877,9 @@ const EscalasMedicas: React.FC = () => {
 
           <DialogContent>
             {escalaDetalhes && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
+              <Box
+                sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}
+              >
                 {/* Informações do Contrato */}
                 <Card
                   sx={{
@@ -1552,21 +1893,24 @@ const EscalasMedicas: React.FC = () => {
                       Contrato
                     </Typography>
                     <Typography variant="h6" fontWeight={600} gutterBottom>
-                      {contratos.find((c) => c.id === escalaDetalhes.contrato_id)
-                        ?.nome || "Não encontrado"}
+                      {contratos.find(
+                        (c) => c.id === escalaDetalhes.contrato_id
+                      )?.nome || "Não encontrado"}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Empresa:{" "}
-                      {contratos.find((c) => c.id === escalaDetalhes.contrato_id)
-                        ?.empresa || "Não encontrado"}
+                      {contratos.find(
+                        (c) => c.id === escalaDetalhes.contrato_id
+                      )?.empresa || "Não encontrado"}
                     </Typography>
                     {contratos.find((c) => c.id === escalaDetalhes.contrato_id)
                       ?.numero_contrato && (
                       <Typography variant="body2" color="text.secondary">
                         Nº Contrato:{" "}
                         {
-                          contratos.find((c) => c.id === escalaDetalhes.contrato_id)
-                            ?.numero_contrato
+                          contratos.find(
+                            (c) => c.id === escalaDetalhes.contrato_id
+                          )?.numero_contrato
                         }
                       </Typography>
                     )}
