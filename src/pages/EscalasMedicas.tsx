@@ -91,6 +91,7 @@ const EscalasMedicas: React.FC = () => {
   const [filtroUnidade, setFiltroUnidade] = useState<string[]>([]);
   const [filtroNome, setFiltroNome] = useState<string[]>([]);
   const [filtroCpf, setFiltroCpf] = useState<string[]>([]);
+  const [filtroStatus, setFiltroStatus] = useState<StatusEscala[]>([]);
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
 
@@ -134,6 +135,7 @@ const EscalasMedicas: React.FC = () => {
     filtroUnidade,
     filtroNome,
     filtroCpf,
+    filtroStatus,
     filtroDataInicio,
     filtroDataFim,
   ]);
@@ -266,6 +268,13 @@ const EscalasMedicas: React.FC = () => {
       filtered = filtered.filter((escala) => {
         return escala.medicos.some((medico) => filtroCpf.includes(medico.cpf));
       });
+    }
+
+    // Filtro por Status
+    if (filtroStatus.length > 0) {
+      filtered = filtered.filter((escala) =>
+        filtroStatus.includes(escala.status)
+      );
     }
 
     // Filtro por data início
@@ -557,6 +566,14 @@ const EscalasMedicas: React.FC = () => {
   };
 
   const handleOpenStatusDialog = (escala: EscalaMedica) => {
+    // Bloquear alteração de status se já estiver Aprovado ou Reprovado
+    if (escala.status !== "Programado") {
+      setError(
+        `Não é possível alterar o status. A escala já está ${escala.status.toLowerCase()}. Apenas escalas com status "Programado" podem ter o status alterado.`
+      );
+      return;
+    }
+
     setEscalaParaStatus(escala);
     setNovoStatus(escala.status);
     setNovaJustificativa(escala.justificativa || "");
@@ -794,6 +811,38 @@ const EscalasMedicas: React.FC = () => {
               </Grid>
 
               <Grid item xs={12} sm={6} md={3}>
+                <Autocomplete
+                  multiple
+                  value={filtroStatus}
+                  onChange={(_, newValue) => setFiltroStatus(newValue as StatusEscala[])}
+                  options={["Programado", "Aprovado", "Reprovado"] as StatusEscala[]}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Status"
+                      placeholder="Selecione um ou mais"
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const config = getStatusConfig(option);
+                      return (
+                        <Chip
+                          {...getTagProps({ index })}
+                          label={config.label}
+                          color={config.color}
+                          size="small"
+                          icon={config.icon}
+                        />
+                      );
+                    })
+                  }
+                  size="small"
+                  limitTags={2}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
                 <DatePicker
                   label="Data Início"
                   value={filtroDataInicio}
@@ -866,8 +915,10 @@ const EscalasMedicas: React.FC = () => {
                         />
                         <Tooltip
                           title={
-                            isAdminAgir
+                            isAdminAgir && escala.status === "Programado"
                               ? "Clique para alterar o status"
+                              : isAdminAgir && escala.status !== "Programado"
+                              ? `Status bloqueado. Escalas ${escala.status.toLowerCase()}s não podem ter o status alterado.`
                               : escala.justificativa
                               ? `Justificativa: ${escala.justificativa}`
                               : ""
@@ -879,7 +930,7 @@ const EscalasMedicas: React.FC = () => {
                             color={getStatusConfig(escala.status).color}
                             size="small"
                             onClick={
-                              isAdminAgir
+                              isAdminAgir && escala.status === "Programado"
                                 ? (e) => {
                                     e.stopPropagation();
                                     handleOpenStatusDialog(escala);
@@ -887,9 +938,10 @@ const EscalasMedicas: React.FC = () => {
                                 : undefined
                             }
                             sx={{
-                              cursor: isAdminAgir ? "pointer" : "default",
+                              cursor: isAdminAgir && escala.status === "Programado" ? "pointer" : "default",
+                              opacity: escala.status !== "Programado" && isAdminAgir ? 0.9 : 1,
                               transition: "all 0.2s",
-                              "&:hover": isAdminAgir
+                              "&:hover": isAdminAgir && escala.status === "Programado"
                                 ? {
                                     transform: "scale(1.05)",
                                     boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
@@ -1784,16 +1836,27 @@ const EscalasMedicas: React.FC = () => {
                     </Button>
                   </span>
                 </Tooltip>
-                <Button
-                  onClick={() => {
-                    handleCloseDetailsDialog();
-                    handleOpenStatusDialog(escalaDetalhes);
-                  }}
-                  variant="contained"
-                  color="primary"
+                <Tooltip
+                  title={
+                    escalaDetalhes.status !== "Programado"
+                      ? `Status bloqueado. Escalas ${escalaDetalhes.status.toLowerCase()}s não podem ter o status alterado.`
+                      : ""
+                  }
                 >
-                  Alterar Status
-                </Button>
+                  <span>
+                    <Button
+                      onClick={() => {
+                        handleCloseDetailsDialog();
+                        handleOpenStatusDialog(escalaDetalhes);
+                      }}
+                      variant="contained"
+                      color="primary"
+                      disabled={escalaDetalhes.status !== "Programado"}
+                    >
+                      Alterar Status
+                    </Button>
+                  </span>
+                </Tooltip>
               </>
             )}
           </DialogActions>

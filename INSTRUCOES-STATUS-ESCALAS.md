@@ -20,6 +20,8 @@ Foi implementado um sistema completo de aprovação/reprovação para escalas m�
 ✅ **NOVO**: Clique no card da escala para ver todos os detalhes
 ✅ **NOVO**: Diálogo de detalhes mostra quem aprovou/reprovou a escala
 ✅ **NOVO**: 🔒 Bloqueio de edição e exclusão de escalas aprovadas/reprovadas
+✅ **NOVO**: 🔒 Bloqueio de alteração de status após aprovação/reprovação
+✅ **NOVO**: 🔍 Filtro multi-select por Status nos Filtros Avançados
 
 ---
 
@@ -164,10 +166,32 @@ UPDATE escalas_medicas SET status = 'Programado' WHERE status IS NULL;
 - 🛡️ **Segurança**: Evita alterações acidentais em escalas já processadas
 
 **Como editar uma escala aprovada/reprovada?**
-1. Altere o status de volta para "Programado" (apenas admins)
-2. Após isso, os botões de editar/excluir serão habilitados
-3. Faça as alterações necessárias
-4. Aprove/reprove novamente se necessário
+1. **NÃO É POSSÍVEL** voltar o status de uma escala já aprovada/reprovada
+2. Escalas aprovadas/reprovadas são **imutáveis** para garantir integridade
+3. Se precisar fazer alterações:
+   - Crie uma nova escala com os dados corretos
+   - Mantenha a escala original para fins de auditoria
+
+### 6. **🔍 Filtro por Status**
+
+**Localização:**
+- Seção "Filtros Avançados" na página Escalas Médicas
+- Campo "Status" com multi-select
+
+**Como usar:**
+1. Clique no campo "Status" nos Filtros Avançados
+2. Selecione um ou mais status para filtrar:
+   - 🔵 **Programado**
+   - ✅ **Aprovado**
+   - ❌ **Reprovado**
+3. Os chips aparecem coloridos no campo com ícones
+4. A lista de escalas é filtrada automaticamente
+5. Combine com outros filtros para pesquisas mais específicas
+
+**Exemplos de uso:**
+- Ver apenas escalas pendentes de aprovação → Selecione "Programado"
+- Ver escalas já processadas → Selecione "Aprovado" e "Reprovado"
+- Auditoria de reprovações → Selecione apenas "Reprovado"
 
 ---
 
@@ -291,12 +315,43 @@ UPDATE escalas_medicas SET status = 'Programado' WHERE status IS NULL;
 4. Passe o mouse sobre o botão "Editar" desabilitado
 5. **Resultado esperado**: Tooltip mostra "Não é possível editar. Escala está aprovada."
 
-### Cenário 11: Desbloqueio ao Voltar para Programado
-1. Como admin, selecione uma escala com status "Aprovado"
-2. Altere o status de volta para "Programado"
-3. Retorne à lista de escalas
-4. **Resultado esperado**: Botões de editar e excluir estão habilitados novamente
-5. Verifique que agora é possível editar a escala normalmente
+### Cenário 11: Bloqueio Permanente de Status
+1. Como admin, crie uma nova escala (status: Programado)
+2. Clique no chip de status para alterar
+3. Altere para "Aprovado"
+4. Retorne à lista de escalas
+5. **Resultado esperado**: Chip de status NÃO é mais clicável
+6. Passe o mouse sobre o chip
+7. **Resultado esperado**: Tooltip mostra "Status bloqueado. Escalas aprovadas não podem ter o status alterado."
+8. Tente clicar no chip de status
+9. **Resultado esperado**: Nada acontece (chip não é clicável)
+
+### Cenário 12: Tentativa de Alterar Status Aprovado
+1. Como admin, abra o diálogo de detalhes de uma escala aprovada
+2. Observe o botão "Alterar Status"
+3. **Resultado esperado**: Botão está desabilitado (acinzentado)
+4. Passe o mouse sobre o botão
+5. **Resultado esperado**: Tooltip mostra "Status bloqueado. Escalas aprovadas não podem ter o status alterado."
+
+### Cenário 13: Filtro por Status - Selecionar Programado
+1. Na seção "Filtros Avançados", clique no campo "Status"
+2. Selecione "Programado"
+3. **Resultado esperado**: Lista mostra apenas escalas com status Programado (chip azul)
+4. Verifique que outras escalas não aparecem na lista
+
+### Cenário 14: Filtro por Status - Múltipla Seleção
+1. No filtro "Status", selecione "Aprovado" e "Reprovado"
+2. **Resultado esperado**:
+   - Lista mostra apenas escalas aprovadas e reprovadas
+   - Escalas com status "Programado" não aparecem
+3. Observe que os chips no campo de filtro estão coloridos (verde e vermelho) com ícones
+
+### Cenário 15: Combinação de Filtros
+1. Selecione um parceiro específico no filtro "Parceiro"
+2. Selecione "Aprovado" no filtro "Status"
+3. **Resultado esperado**: Lista mostra apenas escalas aprovadas daquele parceiro
+4. Limpe os filtros (remova as seleções)
+5. **Resultado esperado**: Todas as escalas voltam a aparecer
 
 ---
 
