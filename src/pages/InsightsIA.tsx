@@ -43,6 +43,7 @@ import {
   jaTemAnaliseHoje,
 } from "../services/deepseekService";
 import { InsightIA } from "../types/database.types";
+import ChatBot from "../components/ChatBot";
 
 const InsightsIA: React.FC = () => {
   const [insightAtual, setInsightAtual] = useState<InsightIA | null>(null);
@@ -443,6 +444,9 @@ const InsightsIA: React.FC = () => {
           <Button onClick={() => setHistoricoOpen(false)}>Fechar</Button>
         </DialogActions>
       </Dialog>
+
+      {/* ChatBot */}
+      <ChatBot />
     </Container>
   );
 };
