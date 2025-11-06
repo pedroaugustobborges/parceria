@@ -749,7 +749,7 @@ const EscalasMedicas: React.FC = () => {
     }
   };
 
-  const exportarPDF = () => {
+  const exportarPDF = async () => {
     try {
       if (escalasFiltradas.length === 0) {
         setError("Nenhuma escala filtrada para exportar");
@@ -885,6 +885,63 @@ const EscalasMedicas: React.FC = () => {
         margin: { left: 15, right: 15 },
       });
 
+      // Calcular valor total das escalas aprovadas
+      const calcularValorTotal = async () => {
+        let valorTotal = 0;
+
+        for (const escala of escalasFiltradas) {
+          if (escala.status === "Aprovado") {
+            try {
+              // Buscar valor unitário do item de contrato
+              const { data: contratoItens } = await supabase
+                .from("contrato_itens")
+                .select("valor_unitario, quantidade")
+                .eq("contrato_id", escala.contrato_id)
+                .eq("item_id", escala.item_contrato_id)
+                .single();
+
+              if (contratoItens && contratoItens.valor_unitario) {
+                // Calcular duração da escala em horas
+                const [horaE, minE] = escala.horario_entrada
+                  .split(":")
+                  .map(Number);
+                const [horaS, minS] = escala.horario_saida
+                  .split(":")
+                  .map(Number);
+
+                const minutosEntrada = horaE * 60 + minE;
+                const minutosSaida = horaS * 60 + minS;
+
+                // Se horário de saída é menor, passou da meia-noite
+                const duracaoMinutos =
+                  minutosSaida >= minutosEntrada
+                    ? minutosSaida - minutosEntrada
+                    : 1440 - minutosEntrada + minutosSaida;
+
+                const duracaoHoras = duracaoMinutos / 60;
+
+                // Multiplicar duração pelo valor unitário e número de médicos
+                const valorEscala =
+                  duracaoHoras *
+                  contratoItens.valor_unitario *
+                  escala.medicos.length;
+                valorTotal += valorEscala;
+              }
+            } catch (error) {
+              console.error("Erro ao calcular valor da escala:", error);
+            }
+          }
+        }
+
+        return valorTotal;
+      };
+
+      // Executar cálculo antes de gerar o PDF
+      const valorTotalAprovadas = await calcularValorTotal();
+      const escalasAprovadas = escalasFiltradas.filter(
+        (e) => e.status === "Aprovado"
+      );
+
       // Footer com numeração de páginas
       const pageCount = doc.getNumberOfPages();
       doc.setFontSize(8);
@@ -897,6 +954,57 @@ const EscalasMedicas: React.FC = () => {
           doc.internal.pageSize.getHeight() - 10,
           { align: "center" }
         );
+
+        // Adicionar valor total apenas na última página
+        if (i === pageCount && escalasAprovadas.length > 0) {
+          const pageHeight = doc.internal.pageSize.getHeight();
+
+          // Box com informações das escalas aprovadas
+          doc.setFillColor(46, 204, 113); // Verde para aprovadas
+          doc.roundedRect(pageWidth - 110, pageHeight - 25, 95, 20, 3, 3, "F");
+
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
+          doc.text("ESCALAS APROVADAS", pageWidth - 62.5, pageHeight - 19, {
+            align: "center",
+          });
+
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "normal");
+          doc.text(
+            `Quantidade: ${escalasAprovadas.length} escala${
+              escalasAprovadas.length !== 1 ? "s" : ""
+            }`,
+            pageWidth - 62.5,
+            pageHeight - 14.5,
+            { align: "center" }
+          );
+
+          // Valor total formatado
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "bold");
+          const valorFormatado = valorTotalAprovadas.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+          doc.text(
+            `Valor Total: R$ ${valorFormatado}`,
+            pageWidth - 62.5,
+            pageHeight - 9,
+            { align: "center" }
+          );
+
+          // Nota explicativa
+          doc.setFontSize(7);
+          doc.setTextColor(100, 100, 100);
+          doc.setFont("helvetica", "italic");
+          doc.text(
+            "* Cálculo: Horas trabalhadas × Valor unitário × Número de médicos",
+            15,
+            pageHeight - 18
+          );
+        }
       }
 
       // Download PDF
