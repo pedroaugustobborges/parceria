@@ -22,6 +22,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableFooter,
   Paper,
   Divider,
 } from "@mui/material";
@@ -69,7 +70,9 @@ const Contratos: React.FC = () => {
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [contratoToDelete, setContratoToDelete] = useState<Contrato | null>(null);
+  const [contratoToDelete, setContratoToDelete] = useState<Contrato | null>(
+    null
+  );
   const [deleteRelatedItems, setDeleteRelatedItems] = useState<any[]>([]);
   const [deleting, setDeleting] = useState(false);
 
@@ -240,7 +243,7 @@ const Contratos: React.FC = () => {
       {
         item: itemParaAdicionar,
         quantidade: 1,
-        valor_unitario: 0,
+        valor_unitario: 10,
         observacoes: "",
       },
     ]);
@@ -282,6 +285,17 @@ const Contratos: React.FC = () => {
       ) {
         setError(
           "Preencha todos os campos obrigatórios (incluindo Unidade Hospitalar)"
+        );
+        return;
+      }
+
+      // Validar que todos os itens tenham valor unitário preenchido
+      const itemSemValor = itensSelecionados.find(
+        (is) => !is.valor_unitario || is.valor_unitario <= 0
+      );
+      if (itemSemValor) {
+        setError(
+          `O item "${itemSemValor.item.nome}" precisa ter um valor unitário maior que zero`
         );
         return;
       }
@@ -358,24 +372,21 @@ const Contratos: React.FC = () => {
 
     try {
       // Buscar informações sobre vínculos (escalas, usuários, etc.)
-      const [
-        { data: escalas },
-        { data: usuarios },
-        { data: itens }
-      ] = await Promise.all([
-        supabase
-          .from("escalas_medicas")
-          .select("id")
-          .eq("contrato_id", contrato.id),
-        supabase
-          .from("usuario_contrato")
-          .select("usuarios(nome)")
-          .eq("contrato_id", contrato.id),
-        supabase
-          .from("contrato_itens")
-          .select("itens_contrato(nome)")
-          .eq("contrato_id", contrato.id),
-      ]);
+      const [{ data: escalas }, { data: usuarios }, { data: itens }] =
+        await Promise.all([
+          supabase
+            .from("escalas_medicas")
+            .select("id")
+            .eq("contrato_id", contrato.id),
+          supabase
+            .from("usuario_contrato")
+            .select("usuarios(nome)")
+            .eq("contrato_id", contrato.id),
+          supabase
+            .from("contrato_itens")
+            .select("itens_contrato(nome)")
+            .eq("contrato_id", contrato.id),
+        ]);
 
       const relatedItems = [];
 
@@ -623,7 +634,7 @@ const Contratos: React.FC = () => {
         <Dialog
           open={openDialog}
           onClose={handleCloseDialog}
-          maxWidth="sm"
+          maxWidth="md"
           fullWidth
         >
           <DialogTitle>
@@ -784,57 +795,194 @@ const Contratos: React.FC = () => {
                   <TableContainer
                     component={Paper}
                     variant="outlined"
-                    sx={{ maxHeight: 300 }}
+                    sx={{ maxHeight: 400 }}
                   >
                     <Table size="small">
                       <TableHead>
-                        <TableRow>
-                          <TableCell>Item</TableCell>
-                          <TableCell width={100}>Quantidade</TableCell>
-                          <TableCell width={50}>Ações</TableCell>
+                        <TableRow sx={{ bgcolor: "action.hover" }}>
+                          <TableCell>
+                            <Typography variant="subtitle2" fontWeight={700}>
+                              Item
+                            </Typography>
+                          </TableCell>
+                          <TableCell width={250}>
+                            <Typography variant="subtitle2" fontWeight={700}>
+                              Quantidade
+                            </Typography>
+                          </TableCell>
+                          <TableCell width={200}>
+                            <Typography variant="subtitle2" fontWeight={700}>
+                              Valor Unitário (R$)
+                            </Typography>
+                          </TableCell>
+                          <TableCell width={150}>
+                            <Typography variant="subtitle2" fontWeight={700}>
+                              Valor Total (R$)
+                            </Typography>
+                          </TableCell>
+                          <TableCell width={60} align="center">
+                            <Typography variant="subtitle2" fontWeight={700}>
+                              Ações
+                            </Typography>
+                          </TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {itensSelecionados.map((is) => (
-                          <TableRow key={is.item.id}>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={600}>
-                                {is.item.nome}
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                {is.item.unidade_medida}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <TextField
-                                type="number"
-                                value={is.quantidade}
-                                onChange={(e) =>
-                                  handleUpdateItemQuantidade(
-                                    is.item.id,
-                                    parseFloat(e.target.value) || 0
-                                  )
-                                }
-                                size="small"
-                                inputProps={{ min: 0, step: 0.01 }}
-                                fullWidth
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => handleRemoverItem(is.item.id)}
-                              >
-                                <Remove fontSize="small" />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {itensSelecionados.map((is) => {
+                          const valorTotal = is.quantidade * is.valor_unitario;
+                          return (
+                            <TableRow
+                              key={is.item.id}
+                              sx={{
+                                "&:hover": { bgcolor: "action.hover" },
+                              }}
+                            >
+                              <TableCell>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {is.item.nome}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {is.item.unidade_medida}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <TextField
+                                  type="number"
+                                  value={is.quantidade}
+                                  onChange={(e) =>
+                                    handleUpdateItemQuantidade(
+                                      is.item.id,
+                                      parseFloat(e.target.value) || 0
+                                    )
+                                  }
+                                  size="small"
+                                  inputProps={{ min: 0, step: 0.01 }}
+                                  fullWidth
+                                  sx={{
+                                    "& .MuiOutlinedInput-root": {
+                                      bgcolor: "background.paper",
+                                    },
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <TextField
+                                  type="number"
+                                  value={is.valor_unitario}
+                                  onChange={(e) =>
+                                    handleUpdateItemValor(
+                                      is.item.id,
+                                      parseFloat(e.target.value) || 0
+                                    )
+                                  }
+                                  size="small"
+                                  inputProps={{
+                                    min: 0,
+                                    step: 0.01,
+                                  }}
+                                  required
+                                  fullWidth
+                                  sx={{
+                                    "& .MuiOutlinedInput-root": {
+                                      bgcolor: "background.paper",
+                                    },
+                                  }}
+                                  placeholder="0,00"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Box
+                                  sx={{
+                                    p: 1,
+                                    borderRadius: 1,
+                                    bgcolor: "success.50",
+                                    border: "1px solid",
+                                    borderColor: "success.200",
+                                    textAlign: "right",
+                                  }}
+                                >
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight={700}
+                                    color="success.dark"
+                                  >
+                                    {valorTotal.toLocaleString("pt-BR", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}
+                                  </Typography>
+                                </Box>
+                              </TableCell>
+                              <TableCell align="center">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => handleRemoverItem(is.item.id)}
+                                  sx={{
+                                    "&:hover": {
+                                      bgcolor: "error.50",
+                                    },
+                                  }}
+                                >
+                                  <Remove fontSize="small" />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
+                      <TableFooter>
+                        <TableRow
+                          sx={{
+                            bgcolor: "primary.50",
+                            borderTop: "2px solid",
+                            borderColor: "primary.main",
+                          }}
+                        >
+                          <TableCell colSpan={3}>
+                            <Typography
+                              variant="subtitle1"
+                              fontWeight={700}
+                              color="primary"
+                              align="center"
+                            >
+                              VALOR TOTAL DO CONTRATO:
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box
+                              sx={{
+                                p: 1.5,
+                                borderRadius: 1,
+                                bgcolor: "primary.main",
+                                textAlign: "center",
+                              }}
+                            >
+                              <Typography
+                                variant="h6"
+                                fontWeight={700}
+                                color="white"
+                              >
+                                R${" "}
+                                {itensSelecionados
+                                  .reduce(
+                                    (total, is) =>
+                                      total + is.quantidade * is.valor_unitario,
+                                    0
+                                  )
+                                  .toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell />
+                        </TableRow>
+                      </TableFooter>
                     </Table>
                   </TableContainer>
                 )}
