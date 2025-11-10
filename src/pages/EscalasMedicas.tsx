@@ -26,6 +26,7 @@ import {
   TableRow,
   IconButton,
   Tooltip,
+  CircularProgress,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -48,6 +49,9 @@ import {
   HourglassEmpty,
   FileDownload,
   PictureAsPdf,
+  ThumbUpAlt,
+  Warning,
+  Analytics,
 } from "@mui/icons-material";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -64,6 +68,7 @@ import {
 } from "../types/database.types";
 import { format, parseISO } from "date-fns";
 import { useAuth } from "../contexts/AuthContext";
+import { recalcularStatusEscalas } from "../services/statusAnalysisService";
 
 const EscalasMedicas: React.FC = () => {
   const { isAdminAgir, userProfile } = useAuth();
@@ -79,6 +84,7 @@ const EscalasMedicas: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [recalculando, setRecalculando] = useState(false);
 
   // Status dialog state
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -95,6 +101,9 @@ const EscalasMedicas: React.FC = () => {
   );
   const [usuarioAlterouStatus, setUsuarioAlterouStatus] =
     useState<Usuario | null>(null);
+  const [acessosMedico, setAcessosMedico] = useState<any[]>([]);
+  const [produtividadeMedico, setProdutividadeMedico] = useState<any | null>(null);
+  const [loadingDetalhes, setLoadingDetalhes] = useState(false);
 
   // Filtros
   const [filtroParceiro, setFiltroParceiro] = useState<string[]>([]);
@@ -118,7 +127,7 @@ const EscalasMedicas: React.FC = () => {
     data_inicio: null as Date | null,
     horario_entrada: null as Date | null,
     horario_saida: null as Date | null,
-    medicos_selecionados: [] as Usuario[],
+    medico_selecionado: null as Usuario | null,
     observacoes: "",
   });
 
@@ -339,7 +348,7 @@ const EscalasMedicas: React.FC = () => {
       ...formData,
       contrato_id: contrato?.id || "",
       item_contrato_id: "",
-      medicos_selecionados: [],
+      medico_selecionado: null,
     });
     if (contrato) {
       loadUsuariosByContrato(contrato.id);
@@ -363,19 +372,17 @@ const EscalasMedicas: React.FC = () => {
         setError("Preencha todos os campos obrigatórios");
         return;
       }
-      if (formData.medicos_selecionados.length === 0) {
-        setError("Selecione pelo menos um médico");
+      if (!formData.medico_selecionado) {
+        setError("Selecione um médico");
         return;
       }
 
       // Preparar preview
       const contrato = contratos.find((c) => c.id === formData.contrato_id);
-      const medicos: MedicoEscala[] = formData.medicos_selecionados.map(
-        (u) => ({
-          nome: u.nome,
-          cpf: u.cpf,
-        })
-      );
+      const medicos: MedicoEscala[] = [{
+        nome: formData.medico_selecionado.nome,
+        cpf: formData.medico_selecionado.cpf,
+      }];
 
       setPreviewData({ contrato: contrato || null, medicos });
       setError("");
@@ -474,12 +481,10 @@ const EscalasMedicas: React.FC = () => {
         await loadItensContrato(contratoAssociado.id);
       }
 
-      // Map medicos from escala to Usuario objects
-      const medicosEscalados = escala.medicos
-        .map((medicoEscala) => {
-          return medicosUsuarios.find((u) => u.cpf === medicoEscala.cpf);
-        })
-        .filter(Boolean) as Usuario[];
+      // Get the first (and only) medico from escala
+      const medicoEscalado = escala.medicos[0]
+        ? medicosUsuarios.find((u) => u.cpf === escala.medicos[0].cpf)
+        : null;
 
       // Parse date using parseISO to avoid timezone issues
       const dataInicio = parseISO(escala.data_inicio);
@@ -501,7 +506,7 @@ const EscalasMedicas: React.FC = () => {
         data_inicio: dataInicio,
         horario_entrada: horarioEntrada,
         horario_saida: horarioSaida,
-        medicos_selecionados: medicosEscalados,
+        medico_selecionado: medicoEscalado || null,
         observacoes: escala.observacoes || "",
       });
 
@@ -518,7 +523,7 @@ const EscalasMedicas: React.FC = () => {
         data_inicio: null,
         horario_entrada: null,
         horario_saida: null,
-        medicos_selecionados: [],
+        medico_selecionado: null,
         observacoes: "",
       });
       setPreviewData({ contrato: null, medicos: [] });
@@ -559,6 +564,34 @@ const EscalasMedicas: React.FC = () => {
     }
   };
 
+  const handleRecalcularStatus = async () => {
+    if (
+      !window.confirm(
+        "Deseja recalcular automaticamente o status de todas as escalas não finalizadas com base nos registros de acesso?"
+      )
+    )
+      return;
+
+    try {
+      setRecalculando(true);
+      setError("");
+      setSuccess("");
+
+      const resultado = await recalcularStatusEscalas();
+
+      if (resultado.success) {
+        setSuccess(resultado.mensagem);
+        loadData(); // Recarregar os dados
+      } else {
+        setError(resultado.mensagem);
+      }
+    } catch (err: any) {
+      setError(`Erro ao recalcular status: ${err.message}`);
+    } finally {
+      setRecalculando(false);
+    }
+  };
+
   // Funções auxiliares para Status
   const getStatusConfig = (status: StatusEscala) => {
     const configs = {
@@ -566,6 +599,16 @@ const EscalasMedicas: React.FC = () => {
         color: "info" as const,
         icon: <HourglassEmpty />,
         label: "Programado",
+      },
+      "Pré-Aprovado": {
+        color: "warning" as const,
+        icon: <ThumbUpAlt />,
+        label: "Pré-Aprovado",
+      },
+      Atenção: {
+        color: "error" as const,
+        icon: <Warning />,
+        label: "Atenção",
       },
       Aprovado: {
         color: "success" as const,
@@ -582,10 +625,10 @@ const EscalasMedicas: React.FC = () => {
   };
 
   const handleOpenStatusDialog = (escala: EscalaMedica) => {
-    // Bloquear alteração de status se já estiver Aprovado ou Reprovado
-    if (escala.status !== "Programado") {
+    // Bloquear alteração de status se já estiver Aprovado ou Reprovado (finalizados)
+    if (escala.status === "Aprovado" || escala.status === "Reprovado") {
       setError(
-        `Não é possível alterar o status. A escala já está ${escala.status.toLowerCase()}. Apenas escalas com status "Programado" podem ter o status alterado.`
+        `Não é possível alterar o status. A escala já está ${escala.status.toLowerCase()}. Apenas escalas não finalizadas podem ter o status alterado.`
       );
       return;
     }
@@ -634,27 +677,72 @@ const EscalasMedicas: React.FC = () => {
   // Funções para Details Dialog
   const handleOpenDetailsDialog = async (escala: EscalaMedica) => {
     setEscalaDetalhes(escala);
-
-    // Carregar usuário que alterou o status (se houver)
-    if (escala.status_alterado_por) {
-      try {
-        const { data: usuario, error } = await supabase
-          .from("usuarios")
-          .select("*")
-          .eq("id", escala.status_alterado_por)
-          .single();
-
-        if (!error && usuario) {
-          setUsuarioAlterouStatus(usuario);
-        }
-      } catch (err) {
-        console.error("Erro ao carregar usuário:", err);
-      }
-    } else {
-      setUsuarioAlterouStatus(null);
-    }
-
+    setLoadingDetalhes(true);
     setDetailsDialogOpen(true);
+
+    try {
+      // Carregar usuário que alterou o status (se houver)
+      if (escala.status_alterado_por) {
+        try {
+          const { data: usuario, error } = await supabase
+            .from("usuarios")
+            .select("*")
+            .eq("id", escala.status_alterado_por)
+            .single();
+
+          if (!error && usuario) {
+            setUsuarioAlterouStatus(usuario);
+          }
+        } catch (err) {
+          console.error("Erro ao carregar usuário:", err);
+        }
+      } else {
+        setUsuarioAlterouStatus(null);
+      }
+
+      // Buscar CPF do médico (primeiro médico da escala)
+      const medicoCPF = escala.medicos[0]?.cpf;
+      if (!medicoCPF) {
+        setLoadingDetalhes(false);
+        return;
+      }
+
+      // Formatar data da escala
+      const dataEscala = format(parseISO(escala.data_inicio), "yyyy-MM-dd");
+
+      // Buscar acessos do médico no dia
+      const { data: acessos, error: acessosError } = await supabase
+        .from("acessos")
+        .select("*")
+        .eq("cpf", medicoCPF)
+        .gte("data_acesso", `${dataEscala}T00:00:00`)
+        .lte("data_acesso", `${dataEscala}T23:59:59`)
+        .order("data_acesso", { ascending: true });
+
+      if (!acessosError && acessos) {
+        setAcessosMedico(acessos);
+      } else {
+        setAcessosMedico([]);
+      }
+
+      // Buscar produtividade do médico no dia
+      const { data: produtividade, error: prodError } = await supabase
+        .from("produtividade")
+        .select("*")
+        .eq("data", dataEscala)
+        .ilike("nome", `%${escala.medicos[0].nome}%`)
+        .maybeSingle();
+
+      if (!prodError && produtividade) {
+        setProdutividadeMedico(produtividade);
+      } else {
+        setProdutividadeMedico(null);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar detalhes:", err);
+    } finally {
+      setLoadingDetalhes(false);
+    }
   };
 
   const handleCloseDetailsDialog = () => {
@@ -1079,6 +1167,54 @@ const EscalasMedicas: React.FC = () => {
               </Button>
             </Tooltip>
 
+            {isAdminAgir && (
+              <Tooltip title="Recalcular status automaticamente baseado nos registros de acesso">
+                <Button
+                  variant="outlined"
+                  startIcon={
+                    recalculando ? (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Refresh
+                          sx={{
+                            animation: "spin 1s linear infinite",
+                            "@keyframes spin": {
+                              "0%": {
+                                transform: "rotate(0deg)",
+                              },
+                              "100%": {
+                                transform: "rotate(360deg)",
+                              },
+                            },
+                          }}
+                        />
+                      </Box>
+                    ) : (
+                      <Analytics />
+                    )
+                  }
+                  onClick={handleRecalcularStatus}
+                  disabled={recalculando}
+                  sx={{
+                    height: 42,
+                    borderColor: "primary.main",
+                    color: "primary.main",
+                    "&:hover": {
+                      borderColor: "primary.dark",
+                      bgcolor: "primary.50",
+                    },
+                  }}
+                >
+                  {recalculando ? "Recalculando..." : "Recalcular Status"}
+                </Button>
+              </Tooltip>
+            )}
+
             <Button
               variant="contained"
               startIcon={<Add />}
@@ -1232,7 +1368,7 @@ const EscalasMedicas: React.FC = () => {
                     setFiltroStatus(newValue as StatusEscala[])
                   }
                   options={
-                    ["Programado", "Aprovado", "Reprovado"] as StatusEscala[]
+                    ["Programado", "Pré-Aprovado", "Atenção", "Aprovado", "Reprovado"] as StatusEscala[]
                   }
                   renderInput={(params) => (
                     <TextField
@@ -1333,9 +1469,9 @@ const EscalasMedicas: React.FC = () => {
                         />
                         <Tooltip
                           title={
-                            isAdminAgir && escala.status === "Programado"
+                            isAdminAgir && escala.status !== "Aprovado" && escala.status !== "Reprovado"
                               ? "Clique para alterar o status"
-                              : isAdminAgir && escala.status !== "Programado"
+                              : isAdminAgir && (escala.status === "Aprovado" || escala.status === "Reprovado")
                               ? `Status bloqueado. Escalas ${escala.status.toLowerCase()}s não podem ter o status alterado.`
                               : escala.justificativa
                               ? `Justificativa: ${escala.justificativa}`
@@ -1348,7 +1484,7 @@ const EscalasMedicas: React.FC = () => {
                             color={getStatusConfig(escala.status).color}
                             size="small"
                             onClick={
-                              isAdminAgir && escala.status === "Programado"
+                              isAdminAgir && escala.status !== "Aprovado" && escala.status !== "Reprovado"
                                 ? (e) => {
                                     e.stopPropagation();
                                     handleOpenStatusDialog(escala);
@@ -1357,16 +1493,16 @@ const EscalasMedicas: React.FC = () => {
                             }
                             sx={{
                               cursor:
-                                isAdminAgir && escala.status === "Programado"
+                                isAdminAgir && escala.status !== "Aprovado" && escala.status !== "Reprovado"
                                   ? "pointer"
                                   : "default",
                               opacity:
-                                escala.status !== "Programado" && isAdminAgir
+                                (escala.status === "Aprovado" || escala.status === "Reprovado") && isAdminAgir
                                   ? 0.9
                                   : 1,
                               transition: "all 0.2s",
                               "&:hover":
-                                isAdminAgir && escala.status === "Programado"
+                                isAdminAgir && escala.status !== "Aprovado" && escala.status !== "Reprovado"
                                   ? {
                                       transform: "scale(1.05)",
                                       boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
@@ -1379,7 +1515,7 @@ const EscalasMedicas: React.FC = () => {
                       <Box>
                         <Tooltip
                           title={
-                            escala.status !== "Programado"
+                            escala.status === "Aprovado" || escala.status === "Reprovado"
                               ? `Não é possível editar. Escala está ${escala.status.toLowerCase()}.`
                               : "Editar escala"
                           }
@@ -1387,14 +1523,14 @@ const EscalasMedicas: React.FC = () => {
                           <span>
                             <IconButton
                               size="small"
-                              disabled={escala.status !== "Programado"}
+                              disabled={escala.status === "Aprovado" || escala.status === "Reprovado"}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleOpenDialog(escala);
                               }}
                               sx={{
                                 opacity:
-                                  escala.status !== "Programado" ? 0.5 : 1,
+                                  escala.status === "Aprovado" || escala.status === "Reprovado" ? 0.5 : 1,
                               }}
                             >
                               <Edit fontSize="small" />
@@ -1403,7 +1539,7 @@ const EscalasMedicas: React.FC = () => {
                         </Tooltip>
                         <Tooltip
                           title={
-                            escala.status !== "Programado"
+                            escala.status === "Aprovado" || escala.status === "Reprovado"
                               ? `Não é possível excluir. Escala está ${escala.status.toLowerCase()}.`
                               : "Excluir escala"
                           }
@@ -1412,14 +1548,14 @@ const EscalasMedicas: React.FC = () => {
                             <IconButton
                               size="small"
                               color="error"
-                              disabled={escala.status !== "Programado"}
+                              disabled={escala.status === "Aprovado" || escala.status === "Reprovado"}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDelete(escala);
                               }}
                               sx={{
                                 opacity:
-                                  escala.status !== "Programado" ? 0.5 : 1,
+                                  escala.status === "Aprovado" || escala.status === "Reprovado" ? 0.5 : 1,
                               }}
                             >
                               <Delete fontSize="small" />
@@ -1617,10 +1753,9 @@ const EscalasMedicas: React.FC = () => {
                 </Grid>
 
                 <Autocomplete
-                  multiple
-                  value={formData.medicos_selecionados}
+                  value={formData.medico_selecionado}
                   onChange={(_, newValue) =>
-                    setFormData({ ...formData, medicos_selecionados: newValue })
+                    setFormData({ ...formData, medico_selecionado: newValue })
                   }
                   options={usuarios}
                   getOptionLabel={(option) =>
@@ -1629,21 +1764,11 @@ const EscalasMedicas: React.FC = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Médicos"
+                      label="Médico"
                       required
-                      helperText="Selecione um ou mais médicos vinculados a este contrato"
+                      helperText="Selecione o médico vinculado a este contrato"
                     />
                   )}
-                  renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip
-                        label={option.nome}
-                        {...getTagProps({ index })}
-                        size="small"
-                        color="primary"
-                      />
-                    ))
-                  }
                   disabled={!formData.contrato_id}
                   fullWidth
                 />
@@ -1868,7 +1993,7 @@ const EscalasMedicas: React.FC = () => {
                 </Typography>
                 <Box display="flex" gap={1} flexWrap="wrap">
                   {(
-                    ["Programado", "Aprovado", "Reprovado"] as StatusEscala[]
+                    ["Programado", "Pré-Aprovado", "Atenção", "Aprovado", "Reprovado"] as StatusEscala[]
                   ).map((status) => {
                     const config = getStatusConfig(status);
                     return (
@@ -2221,6 +2346,176 @@ const EscalasMedicas: React.FC = () => {
                       </Typography>
                     </Paper>
                   </Box>
+                )}
+
+                {/* Acessos do Médico */}
+                {loadingDetalhes ? (
+                  <Box display="flex" justifyContent="center" py={4}>
+                    <CircularProgress />
+                  </Box>
+                ) : (
+                  <>
+                    <Card
+                      sx={{
+                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        color: "white",
+                      }}
+                    >
+                      <CardContent>
+                        <Typography variant="h6" fontWeight={700} gutterBottom>
+                          Registros de Acesso do Médico
+                        </Typography>
+                        {acessosMedico.length > 0 ? (
+                          <TableContainer
+                            component={Paper}
+                            sx={{ mt: 2, borderRadius: "8px" }}
+                          >
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow sx={{ bgcolor: "grey.100" }}>
+                                  <TableCell>
+                                    <strong>Horário</strong>
+                                  </TableCell>
+                                  <TableCell>
+                                    <strong>Sentido</strong>
+                                  </TableCell>
+                                  <TableCell>
+                                    <strong>Planta</strong>
+                                  </TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {acessosMedico.map((acesso, idx) => (
+                                  <TableRow key={idx}>
+                                    <TableCell>
+                                      {format(
+                                        parseISO(acesso.data_acesso),
+                                        "HH:mm:ss"
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Chip
+                                        label={acesso.sentido === "E" ? "Entrada" : "Saída"}
+                                        size="small"
+                                        color={acesso.sentido === "E" ? "success" : "error"}
+                                      />
+                                    </TableCell>
+                                    <TableCell>{acesso.planta || "N/A"}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        ) : (
+                          <Paper
+                            sx={{
+                              p: 3,
+                              mt: 2,
+                              textAlign: "center",
+                              bgcolor: "rgba(255,255,255,0.1)",
+                              color: "white",
+                            }}
+                          >
+                            <Typography>
+                              Nenhum registro de acesso encontrado para este médico nesta data
+                            </Typography>
+                          </Paper>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Produtividade do Médico */}
+                    <Card
+                      sx={{
+                        background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                        color: "white",
+                      }}
+                    >
+                      <CardContent>
+                        <Typography variant="h6" fontWeight={700} gutterBottom>
+                          Produtividade do Médico
+                        </Typography>
+                        {produtividadeMedico ? (
+                          <Grid container spacing={2} sx={{ mt: 1 }}>
+                            <Grid item xs={6} sm={4}>
+                              <Paper sx={{ p: 2, textAlign: "center" }}>
+                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                  {produtividadeMedico.procedimento}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Procedimentos
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                              <Paper sx={{ p: 2, textAlign: "center" }}>
+                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                  {produtividadeMedico.cirurgia_realizada}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Cirurgias
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                              <Paper sx={{ p: 2, textAlign: "center" }}>
+                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                  {produtividadeMedico.evolucao}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Evoluções
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                              <Paper sx={{ p: 2, textAlign: "center" }}>
+                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                  {produtividadeMedico.parecer_realizado}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Pareceres
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                              <Paper sx={{ p: 2, textAlign: "center" }}>
+                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                  {produtividadeMedico.urgencia}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Urgências
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                              <Paper sx={{ p: 2, textAlign: "center" }}>
+                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                  {produtividadeMedico.ambulatorio}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Ambulatórios
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                          </Grid>
+                        ) : (
+                          <Paper
+                            sx={{
+                              p: 3,
+                              mt: 2,
+                              textAlign: "center",
+                              bgcolor: "rgba(255,255,255,0.1)",
+                              color: "white",
+                            }}
+                          >
+                            <Typography>
+                              Nenhum registro de produtividade encontrado para este médico nesta data
+                            </Typography>
+                          </Paper>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </>
                 )}
 
                 {/* Metadados */}

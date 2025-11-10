@@ -7,7 +7,7 @@ ES_SYSTEM_REQUIRED = 0x00000001
 ES_DISPLAY_REQUIRED = 0x00000002
 
 # Configuração
-DURACAO_TOTAL_SEGUNDOS = 11 * 60 * 60  # 11 horas
+DURACAO_TOTAL_SEGUNDOS = 48 * 60 * 60  # 11 horas
 
 def prevenir_suspensao():
     """Informa ao Windows para não dormir."""
