@@ -710,20 +710,57 @@ const EscalasMedicas: React.FC = () => {
       // Formatar data da escala
       const dataEscala = format(parseISO(escala.data_inicio), "yyyy-MM-dd");
 
-      // Buscar acessos do médico no dia
-      const { data: acessos, error: acessosError } = await supabase
-        .from("acessos")
-        .select("*")
-        .eq("cpf", medicoCPF)
-        .gte("data_acesso", `${dataEscala}T00:00:00`)
-        .lte("data_acesso", `${dataEscala}T23:59:59`)
-        .order("data_acesso", { ascending: true });
+      // Verificar se a escala atravessa meia-noite
+      const [horaE, minE] = escala.horario_entrada.split(":").map(Number);
+      const [horaS, minS] = escala.horario_saida.split(":").map(Number);
+      const minutosEntrada = horaE * 60 + minE;
+      const minutosSaida = horaS * 60 + minS;
+      const atravessaMeiaNoite = minutosSaida < minutosEntrada;
 
-      if (!acessosError && acessos) {
-        setAcessosMedico(acessos);
+      // Buscar acessos do médico - considerar dois dias se atravessa meia-noite
+      let acessos: any[] = [];
+
+      if (atravessaMeiaNoite) {
+        // Buscar acessos de dois dias
+        const diaSeguinte = new Date(parseISO(escala.data_inicio));
+        diaSeguinte.setDate(diaSeguinte.getDate() + 1);
+        const diaSeguinteFormatado = format(diaSeguinte, "yyyy-MM-dd");
+
+        const { data: acessosDia1, error: error1 } = await supabase
+          .from("acessos")
+          .select("*")
+          .eq("cpf", medicoCPF)
+          .gte("data_acesso", `${dataEscala}T00:00:00`)
+          .lte("data_acesso", `${dataEscala}T23:59:59`)
+          .order("data_acesso", { ascending: true });
+
+        const { data: acessosDia2, error: error2 } = await supabase
+          .from("acessos")
+          .select("*")
+          .eq("cpf", medicoCPF)
+          .gte("data_acesso", `${diaSeguinteFormatado}T00:00:00`)
+          .lte("data_acesso", `${diaSeguinteFormatado}T23:59:59`)
+          .order("data_acesso", { ascending: true });
+
+        if (!error1 && !error2) {
+          acessos = [...(acessosDia1 || []), ...(acessosDia2 || [])];
+        }
       } else {
-        setAcessosMedico([]);
+        // Buscar acessos de um único dia
+        const { data: acessosData, error: acessosError } = await supabase
+          .from("acessos")
+          .select("*")
+          .eq("cpf", medicoCPF)
+          .gte("data_acesso", `${dataEscala}T00:00:00`)
+          .lte("data_acesso", `${dataEscala}T23:59:59`)
+          .order("data_acesso", { ascending: true });
+
+        if (!acessosError && acessosData) {
+          acessos = acessosData;
+        }
       }
+
+      setAcessosMedico(acessos);
 
       // Buscar produtividade do médico no dia
       const { data: produtividade, error: prodError } = await supabase
