@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Box,
   Button,
@@ -27,6 +27,10 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -55,9 +59,14 @@ import {
   Search,
   AttachMoney,
   AccessTime,
+  UploadFile,
+  CloudUpload,
+  Info,
+  Close,
 } from "@mui/icons-material";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import Papa from "papaparse";
 import { supabase } from "../lib/supabase";
 import {
   EscalaMedica,
@@ -146,6 +155,21 @@ const EscalasMedicas: React.FC = () => {
     contrato: null,
     medicos: [],
   });
+
+  // CSV Import state
+  const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [csvPreviewData, setCsvPreviewData] = useState<Array<{
+    cpf: string;
+    nome: string;
+    data_inicio: string;
+    horario_entrada: string;
+    horario_saida: string;
+  }>>([]);
+  const [csvPreviewOpen, setCsvPreviewOpen] = useState(false);
+  const [importingCsv, setImportingCsv] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const steps = ["Dados Básicos", "Visualizar Escala", "Confirmar"];
 
@@ -972,6 +996,254 @@ const EscalasMedicas: React.FC = () => {
     } catch (err: any) {
       setError("Erro ao exportar CSV: " + err.message);
     }
+  };
+
+  // CSV Import Functions
+  const handleOpenCsvDialog = () => {
+    setCsvDialogOpen(true);
+    setCsvFile(null);
+    setCsvErrors([]);
+    setCsvPreviewData([]);
+  };
+
+  const handleCloseCsvDialog = () => {
+    setCsvDialogOpen(false);
+    setCsvFile(null);
+    setCsvErrors([]);
+    setCsvPreviewData([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setCsvFile(file);
+      setCsvErrors([]);
+    }
+  };
+
+  const handleProcessCsv = async () => {
+    if (!csvFile) {
+      setCsvErrors(["Nenhum arquivo selecionado"]);
+      return;
+    }
+
+    setImportingCsv(true);
+    setCsvErrors([]);
+
+    try {
+      Papa.parse(csvFile, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          const errors: string[] = [];
+          const previewData: Array<{
+            cpf: string;
+            nome: string;
+            data_inicio: string;
+            horario_entrada: string;
+            horario_saida: string;
+          }> = [];
+
+          // Validar colunas obrigatórias
+          const requiredColumns = ["cpf", "data_inicio", "horario_entrada", "horario_saida"];
+          const headers = results.meta.fields || [];
+          const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+
+          if (missingColumns.length > 0) {
+            errors.push(`Colunas obrigatórias ausentes: ${missingColumns.join(", ")}`);
+            setCsvErrors(errors);
+            setImportingCsv(false);
+            return;
+          }
+
+          // Validar cada linha
+          for (let i = 0; i < results.data.length; i++) {
+            const row: any = results.data[i];
+            const lineNumber = i + 2; // +2 porque tem header e índice começa em 0
+
+            // Validar CPF
+            const cpf = row.cpf?.toString().trim();
+            if (!cpf) {
+              errors.push(`Linha ${lineNumber}: CPF não informado`);
+              continue;
+            }
+
+            // Validar formato de CPF (8 a 13 dígitos numéricos)
+            const cpfLimpo = cpf.replace(/\D/g, "");
+            if (cpfLimpo.length < 8 || cpfLimpo.length > 13) {
+              errors.push(`Linha ${lineNumber}: CPF "${cpf}" em formato inválido (deve ter entre 8 e 13 dígitos)`);
+              continue;
+            }
+
+            // Buscar médico no banco
+            const { data: usuario, error: userError } = await supabase
+              .from("usuarios")
+              .select("nome, cpf")
+              .eq("cpf", cpfLimpo)
+              .single();
+
+            if (userError || !usuario) {
+              errors.push(`Linha ${lineNumber}: CPF "${cpf}" não encontrado na base de usuários`);
+              continue;
+            }
+
+            // Validar data_inicio (formato YYYY-MM-DD)
+            const dataInicio = row.data_inicio?.toString().trim();
+            if (!dataInicio) {
+              errors.push(`Linha ${lineNumber}: data_inicio não informada`);
+              continue;
+            }
+
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(dataInicio)) {
+              errors.push(`Linha ${lineNumber}: data_inicio "${dataInicio}" em formato inválido (use YYYY-MM-DD)`);
+              continue;
+            }
+
+            // Validar se é uma data válida
+            const dataParsed = parseISO(dataInicio);
+            if (isNaN(dataParsed.getTime())) {
+              errors.push(`Linha ${lineNumber}: data_inicio "${dataInicio}" é uma data inválida`);
+              continue;
+            }
+
+            // Validar horario_entrada (formato HH:MM ou HH:MM:SS)
+            const horarioEntrada = row.horario_entrada?.toString().trim();
+            if (!horarioEntrada) {
+              errors.push(`Linha ${lineNumber}: horario_entrada não informado`);
+              continue;
+            }
+
+            const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
+            if (!timeRegex.test(horarioEntrada)) {
+              errors.push(`Linha ${lineNumber}: horario_entrada "${horarioEntrada}" em formato inválido (use HH:MM ou HH:MM:SS)`);
+              continue;
+            }
+
+            // Normalizar para HH:MM (remover segundos se existirem)
+            const horarioEntradaNormalizado = horarioEntrada.substring(0, 5);
+
+            // Validar horario_saida (formato HH:MM ou HH:MM:SS)
+            const horarioSaida = row.horario_saida?.toString().trim();
+            if (!horarioSaida) {
+              errors.push(`Linha ${lineNumber}: horario_saida não informado`);
+              continue;
+            }
+
+            if (!timeRegex.test(horarioSaida)) {
+              errors.push(`Linha ${lineNumber}: horario_saida "${horarioSaida}" em formato inválido (use HH:MM ou HH:MM:SS)`);
+              continue;
+            }
+
+            // Normalizar para HH:MM (remover segundos se existirem)
+            const horarioSaidaNormalizado = horarioSaida.substring(0, 5);
+
+            // Se chegou aqui, linha está válida
+            previewData.push({
+              cpf: cpfLimpo,
+              nome: usuario.nome,
+              data_inicio: dataInicio,
+              horario_entrada: horarioEntradaNormalizado,
+              horario_saida: horarioSaidaNormalizado,
+            });
+          }
+
+          if (errors.length > 0) {
+            setCsvErrors(errors);
+            setImportingCsv(false);
+            return;
+          }
+
+          if (previewData.length === 0) {
+            setCsvErrors(["Nenhum dado válido encontrado no arquivo"]);
+            setImportingCsv(false);
+            return;
+          }
+
+          // Tudo válido, mostrar preview
+          setCsvPreviewData(previewData);
+          setCsvDialogOpen(false);
+          setCsvPreviewOpen(true);
+          setImportingCsv(false);
+        },
+        error: (error) => {
+          setCsvErrors([`Erro ao processar arquivo: ${error.message}`]);
+          setImportingCsv(false);
+        },
+      });
+    } catch (err: any) {
+      setCsvErrors([`Erro inesperado: ${err.message}`]);
+      setImportingCsv(false);
+    }
+  };
+
+  const handleConfirmCsvImport = async () => {
+    if (!formData.contrato_id || !formData.item_contrato_id) {
+      setError("Contrato e item do contrato devem estar selecionados");
+      return;
+    }
+
+    setImportingCsv(true);
+
+    try {
+      // Preparar escalas para inserção
+      const escalasParaInserir = csvPreviewData.map((row) => ({
+        contrato_id: formData.contrato_id,
+        item_contrato_id: formData.item_contrato_id,
+        data_inicio: row.data_inicio,
+        horario_entrada: row.horario_entrada,
+        horario_saida: row.horario_saida,
+        medicos: [{ nome: row.nome, cpf: row.cpf }],
+        observacoes: null,
+        status: "Programado" as StatusEscala,
+        justificativa: null,
+        status_alterado_por: null,
+        status_alterado_em: null,
+        ativo: true,
+        created_by: userProfile?.id || null,
+      }));
+
+      // Inserir todas as escalas
+      const { error: insertError } = await supabase
+        .from("escalas_medicas")
+        .insert(escalasParaInserir);
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      setSuccess(`${csvPreviewData.length} escala(s) importada(s) com sucesso!`);
+      setCsvPreviewOpen(false);
+      setCsvPreviewData([]);
+      setCsvFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      // Recarregar escalas
+      await carregarEscalas();
+
+      // Fechar dialog de nova escala
+      handleCloseDialog();
+    } catch (err: any) {
+      console.error("Erro ao importar escalas:", err);
+      setError(`Erro ao importar escalas: ${err.message}`);
+    } finally {
+      setImportingCsv(false);
+    }
+  };
+
+  const handleCancelCsvImport = () => {
+    setCsvPreviewOpen(false);
+    setCsvPreviewData([]);
+    setCsvFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    setCsvDialogOpen(true); // Voltar para o dialog de upload
   };
 
   const exportarPDF = async () => {
@@ -2311,6 +2583,56 @@ const EscalasMedicas: React.FC = () => {
                   fullWidth
                 />
 
+                {/* Botão Importar CSV - Aparece após selecionar contrato e item */}
+                {!editingEscala &&
+                  formData.contrato_id &&
+                  formData.item_contrato_id && (
+                    <Box
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        bgcolor: "#f0f9ff",
+                        border: "1px dashed #0ea5e9",
+                      }}
+                    >
+                      <Box
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        gap={2}
+                      >
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Info sx={{ color: "#0ea5e9" }} />
+                          <Typography variant="body2" color="text.secondary">
+                            Deseja importar múltiplas escalas de uma vez?
+                          </Typography>
+                        </Box>
+                        <Button
+                          variant="outlined"
+                          startIcon={<UploadFile />}
+                          onClick={handleOpenCsvDialog}
+                          sx={{
+                            borderColor: "#0ea5e9",
+                            color: "#0ea5e9",
+                            "&:hover": {
+                              borderColor: "#0284c7",
+                              bgcolor: "#f0f9ff",
+                            },
+                          }}
+                        >
+                          Importar CSV
+                        </Button>
+                      </Box>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ mt: 1, display: "block" }}
+                      >
+                        Formato do CSV: cpf (8-13 dígitos), data_inicio (YYYY-MM-DD), horario_entrada, horario_saida (HH:MM ou HH:MM:SS)
+                      </Typography>
+                    </Box>
+                  )}
+
                 <DatePicker
                   label="Data de Início"
                   value={formData.data_inicio}
@@ -3303,6 +3625,259 @@ const EscalasMedicas: React.FC = () => {
                 </Tooltip>
               </>
             )}
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog de Upload CSV */}
+        <Dialog
+          open={csvDialogOpen}
+          onClose={handleCloseCsvDialog}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box display="flex" alignItems="center" gap={1}>
+              <CloudUpload sx={{ color: "primary.main" }} />
+              <Typography variant="h6" fontWeight={700}>
+                Importar Escalas via CSV
+              </Typography>
+            </Box>
+          </DialogTitle>
+
+          <DialogContent>
+            <Box sx={{ mt: 2 }}>
+              <Alert severity="info" sx={{ mb: 3 }}>
+                <Typography variant="body2" fontWeight={600} gutterBottom>
+                  Formato do arquivo CSV:
+                </Typography>
+                <Typography variant="body2" component="div">
+                  <strong>Colunas obrigatórias:</strong> cpf, data_inicio,
+                  horario_entrada, horario_saida
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  <strong>Formatos:</strong>
+                </Typography>
+                <List dense>
+                  <ListItem sx={{ py: 0 }}>
+                    <ListItemText
+                      primary="• CPF: 8 a 13 dígitos numéricos (deve existir na base de usuários)"
+                      primaryTypographyProps={{ variant: "body2" }}
+                    />
+                  </ListItem>
+                  <ListItem sx={{ py: 0 }}>
+                    <ListItemText
+                      primary="• data_inicio: YYYY-MM-DD (ex: 2025-01-15)"
+                      primaryTypographyProps={{ variant: "body2" }}
+                    />
+                  </ListItem>
+                  <ListItem sx={{ py: 0 }}>
+                    <ListItemText
+                      primary="• horario_entrada e horario_saida: HH:MM ou HH:MM:SS (ex: 08:00 ou 08:00:00)"
+                      primaryTypographyProps={{ variant: "body2" }}
+                    />
+                  </ListItem>
+                </List>
+              </Alert>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                style={{ display: "none" }}
+                onChange={handleFileSelect}
+              />
+
+              {/* Upload area */}
+              <Box
+                sx={{
+                  border: "2px dashed",
+                  borderColor: csvFile ? "success.main" : "grey.300",
+                  borderRadius: 2,
+                  p: 4,
+                  textAlign: "center",
+                  bgcolor: csvFile ? "success.50" : "grey.50",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  "&:hover": {
+                    borderColor: "primary.main",
+                    bgcolor: "primary.50",
+                  },
+                }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <CloudUpload
+                  sx={{
+                    fontSize: 48,
+                    color: csvFile ? "success.main" : "grey.400",
+                    mb: 1,
+                  }}
+                />
+                <Typography variant="body1" fontWeight={600}>
+                  {csvFile ? csvFile.name : "Clique para selecionar um arquivo"}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {csvFile ? "Arquivo selecionado" : "Formatos aceitos: .csv"}
+                </Typography>
+              </Box>
+
+              {/* Error messages */}
+              {csvErrors.length > 0 && (
+                <Alert severity="error" sx={{ mt: 3 }}>
+                  <Typography variant="body2" fontWeight={600} gutterBottom>
+                    Erros encontrados:
+                  </Typography>
+                  <List dense>
+                    {csvErrors.map((error, index) => (
+                      <ListItem key={index} sx={{ py: 0 }}>
+                        <ListItemText
+                          primary={`• ${error}`}
+                          primaryTypographyProps={{ variant: "body2" }}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Alert>
+              )}
+            </Box>
+          </DialogContent>
+
+          <DialogActions>
+            <Button onClick={handleCloseCsvDialog} disabled={importingCsv}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleProcessCsv}
+              variant="contained"
+              disabled={!csvFile || importingCsv}
+              startIcon={
+                importingCsv ? (
+                  <CircularProgress size={20} sx={{ color: "white" }} />
+                ) : (
+                  <Analytics />
+                )
+              }
+            >
+              {importingCsv ? "Validando..." : "Validar e Continuar"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog de Preview das Escalas */}
+        <Dialog
+          open={csvPreviewOpen}
+          onClose={handleCancelCsvImport}
+          maxWidth="lg"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box display="flex" alignItems="center" gap={1}>
+              <Analytics sx={{ color: "primary.main" }} />
+              <Typography variant="h6" fontWeight={700}>
+                Confirmar Importação - {csvPreviewData.length} Escala(s)
+              </Typography>
+            </Box>
+          </DialogTitle>
+
+          <DialogContent>
+            <Alert severity="success" sx={{ mb: 3 }}>
+              <Typography variant="body2">
+                <strong>Validação concluída!</strong> Os dados abaixo serão
+                importados para o contrato e item selecionados. Revise as
+                informações antes de confirmar.
+              </Typography>
+            </Alert>
+
+            {/* Informações do contrato e item */}
+            <Card sx={{ mb: 3, bgcolor: "primary.50" }}>
+              <CardContent>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Contrato:
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600}>
+                      {contratos.find((c) => c.id === formData.contrato_id)
+                        ?.nome || "-"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Item de Contrato:
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600}>
+                      {itensContrato.find(
+                        (i) => i.id === formData.item_contrato_id
+                      )?.nome || "-"}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+
+            {/* Tabela de preview */}
+            <TableContainer
+              component={Paper}
+              sx={{ maxHeight: "400px", overflow: "auto" }}
+            >
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>#</TableCell>
+                    <TableCell>Médico</TableCell>
+                    <TableCell>CPF</TableCell>
+                    <TableCell>Data</TableCell>
+                    <TableCell>Horário Entrada</TableCell>
+                    <TableCell>Horário Saída</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {csvPreviewData.map((row, index) => (
+                    <TableRow
+                      key={index}
+                      sx={{
+                        "&:nth-of-type(odd)": { bgcolor: "grey.50" },
+                      }}
+                    >
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{row.nome}</TableCell>
+                      <TableCell>{row.cpf}</TableCell>
+                      <TableCell>
+                        {format(parseISO(row.data_inicio), "dd/MM/yyyy")}
+                      </TableCell>
+                      <TableCell>{row.horario_entrada}</TableCell>
+                      <TableCell>{row.horario_saida}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </DialogContent>
+
+          <DialogActions>
+            <Button
+              onClick={handleCancelCsvImport}
+              disabled={importingCsv}
+              startIcon={<Close />}
+            >
+              Voltar
+            </Button>
+            <Button
+              onClick={handleConfirmCsvImport}
+              variant="contained"
+              disabled={importingCsv}
+              startIcon={
+                importingCsv ? (
+                  <CircularProgress size={20} sx={{ color: "white" }} />
+                ) : (
+                  <CheckCircle />
+                )
+              }
+            >
+              {importingCsv
+                ? "Importando..."
+                : `Confirmar Importação (${csvPreviewData.length})`}
+            </Button>
           </DialogActions>
         </Dialog>
       </Box>
