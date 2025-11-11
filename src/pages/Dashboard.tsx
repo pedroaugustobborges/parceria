@@ -47,6 +47,7 @@ import {
   Schedule,
   PersonOff,
   Assignment,
+  Search,
 } from "@mui/icons-material";
 import {
   BarChart,
@@ -82,8 +83,9 @@ const Dashboard: React.FC = () => {
   const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [buscaRealizada, setBuscaRealizada] = useState(false);
 
   // Filtros - Agora com múltiplas seleções
   const [filtroTipo, setFiltroTipo] = useState<string[]>([]);
@@ -165,13 +167,9 @@ const Dashboard: React.FC = () => {
   } | null>(null);
 
   useEffect(() => {
-    loadAcessos();
-    loadContratos();
-    loadContratoItems();
-    loadProdutividade();
-    loadEscalas();
-    loadUsuarios();
-    loadUnidades();
+    // Load only auxiliary data (contracts, items, productivity, schedules, users, units)
+    // Access data will be loaded only when user clicks "Buscar Acessos"
+    loadAuxiliaryData();
   }, []);
 
   useEffect(() => {
@@ -277,12 +275,43 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const loadAcessos = async () => {
+  const loadAuxiliaryData = async () => {
+    try {
+      await Promise.all([
+        loadContratos(),
+        loadContratoItems(),
+        loadProdutividade(),
+        loadEscalas(),
+        loadUsuarios(),
+        loadUnidades(),
+      ]);
+    } catch (err: any) {
+      console.error("Erro ao carregar dados auxiliares:", err);
+    }
+  };
+
+  const handleBuscarAcessos = async () => {
+    // Validate required dates
+    if (!filtroDataInicio || !filtroDataFim) {
+      setError(
+        "Por favor, selecione uma data de início e uma data de fim para buscar os acessos."
+      );
+      return;
+    }
+
+    if (filtroDataInicio > filtroDataFim) {
+      setError("A data de início não pode ser maior que a data de fim.");
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
 
-      // Carregar todos os registros usando paginação
+      const dataInicioFormatada = format(filtroDataInicio, "yyyy-MM-dd");
+      const dataFimFormatada = format(filtroDataFim, "yyyy-MM-dd");
+
+      // Carregar registros de acesso com paginação e filtro de datas
       const pageSize = 1000;
       let allAcessos: Acesso[] = [];
       let from = 0;
@@ -292,6 +321,8 @@ const Dashboard: React.FC = () => {
         let query = supabase
           .from("acessos")
           .select("*")
+          .gte("data_acesso", `${dataInicioFormatada}T00:00:00`)
+          .lte("data_acesso", `${dataFimFormatada}T23:59:59`)
           .order("data_acesso", { ascending: false })
           .range(from, from + pageSize - 1);
 
@@ -325,6 +356,7 @@ const Dashboard: React.FC = () => {
       }
 
       setAcessos(allAcessos);
+      setBuscaRealizada(true);
     } catch (err: any) {
       setError(err.message || "Erro ao carregar acessos");
       console.error("Erro:", err);
@@ -2116,12 +2148,13 @@ const Dashboard: React.FC = () => {
               <Typography variant="h6" fontWeight={600}>
                 Filtros Avançados
               </Typography>
+              <Chip
+                label="Datas obrigatórias"
+                size="small"
+                color="warning"
+                sx={{ ml: 1 }}
+              />
               <Box sx={{ flexGrow: 1 }} />
-              <Tooltip title="Atualizar dados">
-                <IconButton onClick={loadAcessos} color="primary">
-                  <Refresh />
-                </IconButton>
-              </Tooltip>
             </Box>
 
             <Grid container spacing={2}>
@@ -2257,27 +2290,145 @@ const Dashboard: React.FC = () => {
 
               <Grid item xs={12} sm={6} md={4}>
                 <DatePicker
-                  label="Data Início"
+                  label="Data Início *"
                   value={filtroDataInicio}
                   onChange={(newValue) => setFiltroDataInicio(newValue)}
-                  slotProps={{ textField: { size: "small", fullWidth: true } }}
+                  slotProps={{
+                    textField: {
+                      size: "small",
+                      fullWidth: true,
+                      required: true,
+                      error: !filtroDataInicio && buscaRealizada,
+                      helperText:
+                        !filtroDataInicio && buscaRealizada
+                          ? "Campo obrigatório"
+                          : "",
+                    },
+                  }}
                 />
               </Grid>
 
               <Grid item xs={12} sm={6} md={4}>
                 <DatePicker
-                  label="Data Fim"
+                  label="Data Fim *"
                   value={filtroDataFim}
                   onChange={(newValue) => setFiltroDataFim(newValue)}
-                  slotProps={{ textField: { size: "small", fullWidth: true } }}
+                  slotProps={{
+                    textField: {
+                      size: "small",
+                      fullWidth: true,
+                      required: true,
+                      error: !filtroDataFim && buscaRealizada,
+                      helperText:
+                        !filtroDataFim && buscaRealizada
+                          ? "Campo obrigatório"
+                          : "",
+                    },
+                  }}
                 />
               </Grid>
             </Grid>
+
+            {/* Botão de Busca */}
+            <Box
+              sx={{ display: "flex", gap: 2, mt: 3, justifyContent: "center" }}
+            >
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<Search />}
+                onClick={handleBuscarAcessos}
+                disabled={loading}
+                sx={{
+                  minWidth: 200,
+                  background:
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  color: "white",
+                  fontWeight: 600,
+                  "&:hover": {
+                    background:
+                      "linear-gradient(135deg, #5568d3 0%, #63397d 100%)",
+                  },
+                }}
+              >
+                {loading ? "Buscando..." : "Buscar Acessos"}
+              </Button>
+
+              {buscaRealizada && (
+                <Button
+                  variant="outlined"
+                  size="large"
+                  startIcon={<Refresh />}
+                  onClick={handleBuscarAcessos}
+                  disabled={loading}
+                >
+                  Atualizar
+                </Button>
+              )}
+            </Box>
           </CardContent>
         </Card>
 
-        {/* Estatísticas */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
+        {/* Empty State quando nenhuma busca foi realizada */}
+        {!buscaRealizada ? (
+          <Card
+            sx={{
+              textAlign: "center",
+              py: 8,
+              px: 4,
+              background: "linear-gradient(135deg, #667eea15 0%, #764ba215 100%)",
+            }}
+          >
+            <AccessTime
+              sx={{ fontSize: 120, color: "primary.main", opacity: 0.3, mb: 3 }}
+            />
+            <Typography variant="h5" fontWeight={700} gutterBottom>
+              Nenhuma busca realizada
+            </Typography>
+            <Typography variant="body1" color="text.secondary" paragraph>
+              Para visualizar os acessos e estatísticas, selecione uma data de
+              início e uma data de fim nos filtros acima e clique em "Buscar
+              Acessos".
+            </Typography>
+            <Box
+              sx={{ display: "flex", gap: 2, justifyContent: "center", mt: 4 }}
+            >
+              <Box
+                sx={{
+                  bgcolor: "background.paper",
+                  p: 2,
+                  borderRadius: 2,
+                  boxShadow: 1,
+                }}
+              >
+                <Typography variant="body2" fontWeight={600} color="primary">
+                  Passo 1
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Selecione as datas
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  bgcolor: "background.paper",
+                  p: 2,
+                  borderRadius: 2,
+                  boxShadow: 1,
+                }}
+              >
+                <Typography variant="body2" fontWeight={600} color="primary">
+                  Passo 2
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Clique em "Buscar Acessos"
+                </Typography>
+              </Box>
+            </Box>
+          </Card>
+        ) : (
+          <Box>
+            {/* Estatísticas */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={4}>
             <Tooltip
               title={
@@ -5372,6 +5523,8 @@ const Dashboard: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+          </Box>
+        )}
       </Box>
     </LocalizationProvider>
   );

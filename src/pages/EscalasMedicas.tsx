@@ -52,6 +52,7 @@ import {
   ThumbUpAlt,
   Warning,
   Analytics,
+  Search,
 } from "@mui/icons-material";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -81,7 +82,7 @@ const EscalasMedicas: React.FC = () => {
   const [todosItensContrato, setTodosItensContrato] = useState<ItemContrato[]>(
     []
   );
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [recalculando, setRecalculando] = useState(false);
@@ -114,6 +115,7 @@ const EscalasMedicas: React.FC = () => {
   const [filtroStatus, setFiltroStatus] = useState<StatusEscala[]>([]);
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
+  const [buscaRealizada, setBuscaRealizada] = useState(false);
 
   // Wizard state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -143,7 +145,8 @@ const EscalasMedicas: React.FC = () => {
   const steps = ["Dados Básicos", "Visualizar Escala", "Confirmar"];
 
   useEffect(() => {
-    loadData();
+    // Carregar apenas dados auxiliares (contratos, unidades, itens)
+    loadAuxiliaryData();
   }, []);
 
   useEffect(() => {
@@ -160,19 +163,14 @@ const EscalasMedicas: React.FC = () => {
     filtroDataFim,
   ]);
 
-  const loadData = async () => {
+  // Carregar apenas dados auxiliares (contratos, unidades, itens)
+  const loadAuxiliaryData = async () => {
     try {
-      setLoading(true);
       const [
-        { data: escal },
         { data: contr },
         { data: unid },
         { data: itens },
       ] = await Promise.all([
-        supabase
-          .from("escalas_medicas")
-          .select("*")
-          .order("data_inicio", { ascending: false }),
         supabase.from("contratos").select("*").eq("ativo", true),
         supabase
           .from("unidades_hospitalares")
@@ -182,10 +180,45 @@ const EscalasMedicas: React.FC = () => {
         supabase.from("itens_contrato").select("*").eq("ativo", true),
       ]);
 
-      setEscalas(escal || []);
       setContratos(contr || []);
       setUnidades(unid || []);
       setTodosItensContrato(itens || []);
+    } catch (err: any) {
+      console.error("Erro ao carregar dados auxiliares:", err);
+    }
+  };
+
+  // Buscar escalas com filtro de datas obrigatório
+  const handleBuscarEscalas = async () => {
+    // Validar datas obrigatórias
+    if (!filtroDataInicio || !filtroDataFim) {
+      setError("Por favor, selecione uma data de início e uma data de fim para buscar as escalas.");
+      return;
+    }
+
+    if (filtroDataInicio > filtroDataFim) {
+      setError("A data de início não pode ser maior que a data de fim.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const dataInicioFormatada = format(filtroDataInicio, "yyyy-MM-dd");
+      const dataFimFormatada = format(filtroDataFim, "yyyy-MM-dd");
+
+      const { data: escal, error: escalasError } = await supabase
+        .from("escalas_medicas")
+        .select("*")
+        .gte("data_inicio", dataInicioFormatada)
+        .lte("data_inicio", dataFimFormatada)
+        .order("data_inicio", { ascending: false });
+
+      if (escalasError) throw escalasError;
+
+      setEscalas(escal || []);
+      setBuscaRealizada(true);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -1295,12 +1328,12 @@ const EscalasMedicas: React.FC = () => {
               <Typography variant="h6" fontWeight={600}>
                 Filtros Avançados
               </Typography>
-              <Box sx={{ flexGrow: 1 }} />
-              <Tooltip title="Atualizar dados">
-                <IconButton onClick={loadData} color="primary">
-                  <Refresh />
-                </IconButton>
-              </Tooltip>
+              <Chip
+                label="Datas obrigatórias"
+                size="small"
+                color="warning"
+                sx={{ ml: 1 }}
+              />
             </Box>
 
             <Grid container spacing={2}>
@@ -1435,31 +1468,136 @@ const EscalasMedicas: React.FC = () => {
 
               <Grid item xs={12} sm={6} md={3}>
                 <DatePicker
-                  label="Data Início"
+                  label="Data Início *"
                   value={filtroDataInicio}
                   onChange={(newValue) => setFiltroDataInicio(newValue)}
-                  slotProps={{ textField: { size: "small", fullWidth: true } }}
+                  slotProps={{
+                    textField: {
+                      size: "small",
+                      fullWidth: true,
+                      required: true,
+                      error: !filtroDataInicio && buscaRealizada,
+                      helperText: !filtroDataInicio && buscaRealizada ? "Campo obrigatório" : ""
+                    }
+                  }}
                 />
               </Grid>
 
               <Grid item xs={12} sm={6} md={3}>
                 <DatePicker
-                  label="Data Fim"
+                  label="Data Fim *"
                   value={filtroDataFim}
                   onChange={(newValue) => setFiltroDataFim(newValue)}
-                  slotProps={{ textField: { size: "small", fullWidth: true } }}
+                  slotProps={{
+                    textField: {
+                      size: "small",
+                      fullWidth: true,
+                      required: true,
+                      error: !filtroDataFim && buscaRealizada,
+                      helperText: !filtroDataFim && buscaRealizada ? "Campo obrigatório" : ""
+                    }
+                  }}
                 />
               </Grid>
             </Grid>
+
+            {/* Botão de Busca */}
+            <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 2 }}>
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<Search />}
+                onClick={handleBuscarEscalas}
+                disabled={loading}
+                sx={{
+                  minWidth: 200,
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  color: "white",
+                  fontWeight: 600,
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #5568d3 0%, #63397d 100%)",
+                  },
+                }}
+              >
+                {loading ? "Buscando..." : "Buscar Escalas"}
+              </Button>
+
+              {buscaRealizada && (
+                <Button
+                  variant="outlined"
+                  size="large"
+                  startIcon={<Refresh />}
+                  onClick={handleBuscarEscalas}
+                  disabled={loading}
+                >
+                  Atualizar
+                </Button>
+              )}
+            </Box>
           </CardContent>
         </Card>
 
-        {/* Escalas List */}
-        <Grid container spacing={3}>
-          {escalasFiltradas.map((escala) => {
-            const contrato = contratos.find((c) => c.id === escala.contrato_id);
-            return (
-              <Grid item xs={12} md={6} lg={4} key={escala.id}>
+        {/* Tela de Estado Vazio */}
+        {!buscaRealizada ? (
+          <Card
+            sx={{
+              textAlign: "center",
+              py: 8,
+              px: 4,
+              background: "linear-gradient(135deg, #667eea15 0%, #764ba215 100%)",
+            }}
+          >
+            <CalendarMonth
+              sx={{ fontSize: 120, color: "primary.main", opacity: 0.3, mb: 3 }}
+            />
+            <Typography variant="h5" fontWeight={700} gutterBottom>
+              Nenhuma busca realizada
+            </Typography>
+            <Typography variant="body1" color="text.secondary" paragraph>
+              Para visualizar as escalas médicas, selecione uma data de início e
+              uma data de fim nos filtros acima e clique em "Buscar Escalas".
+            </Typography>
+            <Box sx={{ display: "flex", gap: 2, justifyContent: "center", mt: 4 }}>
+              <Box
+                sx={{
+                  bgcolor: "background.paper",
+                  p: 2,
+                  borderRadius: 2,
+                  boxShadow: 1,
+                }}
+              >
+                <Typography variant="body2" fontWeight={600} color="primary">
+                  Passo 1
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Selecione as datas
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  bgcolor: "background.paper",
+                  p: 2,
+                  borderRadius: 2,
+                  boxShadow: 1,
+                }}
+              >
+                <Typography variant="body2" fontWeight={600} color="primary">
+                  Passo 2
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Clique em "Buscar Escalas"
+                </Typography>
+              </Box>
+            </Box>
+          </Card>
+        ) : (
+          <Box>
+            {/* Escalas List */}
+            <Grid container spacing={3}>
+              {escalasFiltradas.map((escala) => {
+                const contrato = contratos.find((c) => c.id === escala.contrato_id);
+                return (
+                  <Grid item xs={12} md={6} lg={4} key={escala.id}>
                 <Card
                   sx={{
                     height: "100%",
@@ -1676,10 +1814,12 @@ const EscalasMedicas: React.FC = () => {
                     </Box>
                   </CardContent>
                 </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          </Box>
+        )}
 
         {/* Dialog - Wizard Form */}
         <Dialog
