@@ -2856,7 +2856,8 @@ const EscalasMedicas: React.FC = () => {
               <>
                 <Tooltip
                   title={
-                    escalaDetalhes.status !== "Programado"
+                    escalaDetalhes.status === "Aprovado" ||
+                    escalaDetalhes.status === "Reprovado"
                       ? `Não é possível editar. Escala está ${escalaDetalhes.status.toLowerCase()}.`
                       : ""
                   }
@@ -2869,7 +2870,10 @@ const EscalasMedicas: React.FC = () => {
                       }}
                       variant="outlined"
                       startIcon={<Edit />}
-                      disabled={escalaDetalhes.status !== "Programado"}
+                      disabled={
+                        escalaDetalhes.status === "Aprovado" ||
+                        escalaDetalhes.status === "Reprovado"
+                      }
                     >
                       Editar
                     </Button>
@@ -2877,7 +2881,8 @@ const EscalasMedicas: React.FC = () => {
                 </Tooltip>
                 <Tooltip
                   title={
-                    escalaDetalhes.status !== "Programado"
+                    escalaDetalhes.status === "Aprovado" ||
+                    escalaDetalhes.status === "Reprovado"
                       ? `Status bloqueado. Escalas ${escalaDetalhes.status.toLowerCase()}s não podem ter o status alterado.`
                       : ""
                   }
@@ -2890,7 +2895,10 @@ const EscalasMedicas: React.FC = () => {
                       }}
                       variant="contained"
                       color="primary"
-                      disabled={escalaDetalhes.status !== "Programado"}
+                      disabled={
+                        escalaDetalhes.status === "Aprovado" ||
+                        escalaDetalhes.status === "Reprovado"
+                      }
                     >
                       Alterar Status
                     </Button>

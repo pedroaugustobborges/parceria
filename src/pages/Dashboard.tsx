@@ -1115,15 +1115,33 @@ const Dashboard: React.FC = () => {
         const absentInfo = absenteismoPorMedico.get(medico.cpf)!;
         absentInfo.totalEscalas++;
 
-        // Verificar acessos do médico nesta data
+        // Detectar se a escala atravessa meia-noite
+        const [horaE, minE] = escala.horario_entrada.split(":").map(Number);
+        const [horaS, minS] = escala.horario_saida.split(":").map(Number);
+        const minutosEntrada = horaE * 60 + minE;
+        const minutosSaida = horaS * 60 + minS;
+        const atravessaMeiaNoite = minutosSaida < minutosEntrada;
+
+        // Determinar as datas onde buscar acessos
+        const datasParaBuscar = [dataStr];
+        if (atravessaMeiaNoite) {
+          // Se cruza meia-noite, também buscar no dia seguinte
+          const diaSeguinte = parseISO(dataStr);
+          diaSeguinte.setDate(diaSeguinte.getDate() + 1);
+          const diaSeguinteStr = format(diaSeguinte, "yyyy-MM-dd");
+          datasParaBuscar.push(diaSeguinteStr);
+        }
+
+        // Verificar acessos do médico nas datas relevantes
         const acessosDoDia = acessos.filter((acesso) => {
           if (acesso.cpf !== medico.cpf) return false;
+          if (acesso.sentido !== "E") return false;
           // Extrair data do acesso (formato: YYYY-MM-DD)
           const acessoDataStr = acesso.data_acesso.split("T")[0];
-          return acessoDataStr === dataStr && acesso.sentido === "E";
+          return datasParaBuscar.includes(acessoDataStr);
         });
 
-        // Se não há acesso neste dia, conta como ausência
+        // Se não há acesso nas datas relevantes, conta como ausência
         if (acessosDoDia.length === 0) {
           absentInfo.ausencias++;
           absentInfo.detalhesAusencias.push({
