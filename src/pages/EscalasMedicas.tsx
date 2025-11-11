@@ -2232,23 +2232,53 @@ const EscalasMedicas: React.FC = () => {
                     ] as StatusEscala[]
                   ).map((status) => {
                     const config = getStatusConfig(status);
-                    return (
+
+                    // Verificar se a escala é no passado
+                    const dataEscala = escalaParaStatus
+                      ? parseISO(escalaParaStatus.data_inicio)
+                      : new Date();
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    dataEscala.setHours(0, 0, 0, 0);
+                    const escalaNoPassado = dataEscala < hoje;
+
+                    // "Programado" só pode ser usado para datas futuras
+                    const isDisabled =
+                      status === "Programado" && escalaNoPassado;
+
+                    const chip = (
                       <Chip
                         key={status}
                         icon={config.icon}
                         label={config.label}
                         color={config.color}
                         variant={novoStatus === status ? "filled" : "outlined"}
-                        onClick={() => setNovoStatus(status)}
+                        onClick={() => !isDisabled && setNovoStatus(status)}
+                        disabled={isDisabled}
                         sx={{
-                          cursor: "pointer",
+                          cursor: isDisabled ? "not-allowed" : "pointer",
                           transition: "all 0.2s",
+                          opacity: isDisabled ? 0.5 : 1,
                           "&:hover": {
-                            transform: "scale(1.05)",
+                            transform: isDisabled ? "none" : "scale(1.05)",
                           },
                         }}
                       />
                     );
+
+                    // Adicionar Tooltip para explicar por que está desabilitado
+                    if (isDisabled) {
+                      return (
+                        <Tooltip
+                          key={status}
+                          title="Status 'Programado' só pode ser usado para escalas futuras"
+                        >
+                          <span>{chip}</span>
+                        </Tooltip>
+                      );
+                    }
+
+                    return chip;
                   })}
                 </Box>
               </Box>
