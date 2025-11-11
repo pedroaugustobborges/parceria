@@ -103,7 +103,9 @@ const EscalasMedicas: React.FC = () => {
   const [usuarioAlterouStatus, setUsuarioAlterouStatus] =
     useState<Usuario | null>(null);
   const [acessosMedico, setAcessosMedico] = useState<any[]>([]);
-  const [produtividadeMedico, setProdutividadeMedico] = useState<any | null>(null);
+  const [produtividadeMedico, setProdutividadeMedico] = useState<any | null>(
+    null
+  );
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
 
   // Filtros
@@ -166,19 +168,16 @@ const EscalasMedicas: React.FC = () => {
   // Carregar apenas dados auxiliares (contratos, unidades, itens)
   const loadAuxiliaryData = async () => {
     try {
-      const [
-        { data: contr },
-        { data: unid },
-        { data: itens },
-      ] = await Promise.all([
-        supabase.from("contratos").select("*").eq("ativo", true),
-        supabase
-          .from("unidades_hospitalares")
-          .select("*")
-          .eq("ativo", true)
-          .order("codigo"),
-        supabase.from("itens_contrato").select("*").eq("ativo", true),
-      ]);
+      const [{ data: contr }, { data: unid }, { data: itens }] =
+        await Promise.all([
+          supabase.from("contratos").select("*").eq("ativo", true),
+          supabase
+            .from("unidades_hospitalares")
+            .select("*")
+            .eq("ativo", true)
+            .order("codigo"),
+          supabase.from("itens_contrato").select("*").eq("ativo", true),
+        ]);
 
       setContratos(contr || []);
       setUnidades(unid || []);
@@ -192,7 +191,9 @@ const EscalasMedicas: React.FC = () => {
   const handleBuscarEscalas = async () => {
     // Validar datas obrigatórias
     if (!filtroDataInicio || !filtroDataFim) {
-      setError("Por favor, selecione uma data de início e uma data de fim para buscar as escalas.");
+      setError(
+        "Por favor, selecione uma data de início e uma data de fim para buscar as escalas."
+      );
       return;
     }
 
@@ -412,10 +413,12 @@ const EscalasMedicas: React.FC = () => {
 
       // Preparar preview
       const contrato = contratos.find((c) => c.id === formData.contrato_id);
-      const medicos: MedicoEscala[] = [{
-        nome: formData.medico_selecionado.nome,
-        cpf: formData.medico_selecionado.cpf,
-      }];
+      const medicos: MedicoEscala[] = [
+        {
+          nome: formData.medico_selecionado.nome,
+          cpf: formData.medico_selecionado.cpf,
+        },
+      ];
 
       setPreviewData({ contrato: contrato || null, medicos });
       setError("");
@@ -1438,7 +1441,13 @@ const EscalasMedicas: React.FC = () => {
                     setFiltroStatus(newValue as StatusEscala[])
                   }
                   options={
-                    ["Programado", "Pré-Aprovado", "Atenção", "Aprovado", "Reprovado"] as StatusEscala[]
+                    [
+                      "Programado",
+                      "Pré-Aprovado",
+                      "Atenção",
+                      "Aprovado",
+                      "Reprovado",
+                    ] as StatusEscala[]
                   }
                   renderInput={(params) => (
                     <TextField
@@ -1477,8 +1486,11 @@ const EscalasMedicas: React.FC = () => {
                       fullWidth: true,
                       required: true,
                       error: !filtroDataInicio && buscaRealizada,
-                      helperText: !filtroDataInicio && buscaRealizada ? "Campo obrigatório" : ""
-                    }
+                      helperText:
+                        !filtroDataInicio && buscaRealizada
+                          ? "Campo obrigatório"
+                          : "",
+                    },
                   }}
                 />
               </Grid>
@@ -1494,15 +1506,20 @@ const EscalasMedicas: React.FC = () => {
                       fullWidth: true,
                       required: true,
                       error: !filtroDataFim && buscaRealizada,
-                      helperText: !filtroDataFim && buscaRealizada ? "Campo obrigatório" : ""
-                    }
+                      helperText:
+                        !filtroDataFim && buscaRealizada
+                          ? "Campo obrigatório"
+                          : "",
+                    },
                   }}
                 />
               </Grid>
             </Grid>
 
             {/* Botão de Busca */}
-            <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 2 }}>
+            <Box
+              sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 2 }}
+            >
               <Button
                 variant="contained"
                 size="large"
@@ -1511,11 +1528,13 @@ const EscalasMedicas: React.FC = () => {
                 disabled={loading}
                 sx={{
                   minWidth: 200,
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  background:
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                   color: "white",
                   fontWeight: 600,
                   "&:hover": {
-                    background: "linear-gradient(135deg, #5568d3 0%, #63397d 100%)",
+                    background:
+                      "linear-gradient(135deg, #5568d3 0%, #63397d 100%)",
                   },
                 }}
               >
@@ -1544,7 +1563,8 @@ const EscalasMedicas: React.FC = () => {
               textAlign: "center",
               py: 8,
               px: 4,
-              background: "linear-gradient(135deg, #667eea15 0%, #764ba215 100%)",
+              background:
+                "linear-gradient(135deg, #667eea15 0%, #764ba215 100%)",
             }}
           >
             <CalendarMonth
@@ -1557,13 +1577,16 @@ const EscalasMedicas: React.FC = () => {
               Para visualizar as escalas médicas, selecione uma data de início e
               uma data de fim nos filtros acima e clique em "Buscar Escalas".
             </Typography>
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "center", mt: 4 }}>
+            <Box
+              sx={{ display: "flex", gap: 2, justifyContent: "center", mt: 4 }}
+            >
               <Box
                 sx={{
                   bgcolor: "background.paper",
                   p: 2,
                   borderRadius: 2,
                   boxShadow: 1,
+                  flex: 1,
                 }}
               >
                 <Typography variant="body2" fontWeight={600} color="primary">
@@ -1579,6 +1602,7 @@ const EscalasMedicas: React.FC = () => {
                   p: 2,
                   borderRadius: 2,
                   boxShadow: 1,
+                  flex: 1,
                 }}
               >
                 <Typography variant="body2" fontWeight={600} color="primary">
@@ -1595,225 +1619,254 @@ const EscalasMedicas: React.FC = () => {
             {/* Escalas List */}
             <Grid container spacing={3}>
               {escalasFiltradas.map((escala) => {
-                const contrato = contratos.find((c) => c.id === escala.contrato_id);
+                const contrato = contratos.find(
+                  (c) => c.id === escala.contrato_id
+                );
                 return (
                   <Grid item xs={12} md={6} lg={4} key={escala.id}>
-                <Card
-                  sx={{
-                    height: "100%",
-                    transition: "all 0.3s",
-                    cursor: "pointer",
-                    "&:hover": {
-                      transform: "translateY(-4px)",
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                    },
-                  }}
-                  onClick={() => handleOpenDetailsDialog(escala)}
-                >
-                  <CardContent>
-                    <Box
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="start"
-                      mb={2}
+                    <Card
+                      sx={{
+                        height: "100%",
+                        transition: "all 0.3s",
+                        cursor: "pointer",
+                        "&:hover": {
+                          transform: "translateY(-4px)",
+                          boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                        },
+                      }}
+                      onClick={() => handleOpenDetailsDialog(escala)}
                     >
-                      <Box display="flex" flexDirection="column" gap={1}>
-                        <Chip
-                          icon={<CalendarMonth />}
-                          label={format(
-                            parseISO(escala.data_inicio),
-                            "dd/MM/yyyy"
-                          )}
-                          size="small"
-                          sx={{
-                            bgcolor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "#1e3a8a"
-                                : "#dbeafe",
-                            color: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "#93c5fd"
-                                : "#1e40af",
-                            "& .MuiChip-icon": {
-                              color: (theme) =>
-                                theme.palette.mode === "dark"
-                                  ? "#93c5fd"
-                                  : "#1e40af",
-                            },
-                          }}
-                        />
-                        <Tooltip
-                          title={
-                            isAdminAgir && escala.status !== "Aprovado" && escala.status !== "Reprovado"
-                              ? "Clique para alterar o status"
-                              : isAdminAgir && (escala.status === "Aprovado" || escala.status === "Reprovado")
-                              ? `Status bloqueado. Escalas ${escala.status.toLowerCase()}s não podem ter o status alterado.`
-                              : escala.justificativa
-                              ? `Justificativa: ${escala.justificativa}`
-                              : ""
-                          }
+                      <CardContent>
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="start"
+                          mb={2}
                         >
-                          <Chip
-                            icon={getStatusConfig(escala.status).icon}
-                            label={getStatusConfig(escala.status).label}
-                            color={getStatusConfig(escala.status).color}
-                            size="small"
-                            onClick={
-                              isAdminAgir && escala.status !== "Aprovado" && escala.status !== "Reprovado"
-                                ? (e) => {
-                                    e.stopPropagation();
-                                    handleOpenStatusDialog(escala);
+                          <Box display="flex" flexDirection="column" gap={1}>
+                            <Chip
+                              icon={<CalendarMonth />}
+                              label={format(
+                                parseISO(escala.data_inicio),
+                                "dd/MM/yyyy"
+                              )}
+                              size="small"
+                              sx={{
+                                bgcolor: (theme) =>
+                                  theme.palette.mode === "dark"
+                                    ? "#1e3a8a"
+                                    : "#dbeafe",
+                                color: (theme) =>
+                                  theme.palette.mode === "dark"
+                                    ? "#93c5fd"
+                                    : "#1e40af",
+                                "& .MuiChip-icon": {
+                                  color: (theme) =>
+                                    theme.palette.mode === "dark"
+                                      ? "#93c5fd"
+                                      : "#1e40af",
+                                },
+                              }}
+                            />
+                            <Tooltip
+                              title={
+                                isAdminAgir &&
+                                escala.status !== "Aprovado" &&
+                                escala.status !== "Reprovado"
+                                  ? "Clique para alterar o status"
+                                  : isAdminAgir &&
+                                    (escala.status === "Aprovado" ||
+                                      escala.status === "Reprovado")
+                                  ? `Status bloqueado. Escalas ${escala.status.toLowerCase()}s não podem ter o status alterado.`
+                                  : escala.justificativa
+                                  ? `Justificativa: ${escala.justificativa}`
+                                  : ""
+                              }
+                            >
+                              <Chip
+                                icon={getStatusConfig(escala.status).icon}
+                                label={getStatusConfig(escala.status).label}
+                                color={getStatusConfig(escala.status).color}
+                                size="small"
+                                onClick={
+                                  isAdminAgir &&
+                                  escala.status !== "Aprovado" &&
+                                  escala.status !== "Reprovado"
+                                    ? (e) => {
+                                        e.stopPropagation();
+                                        handleOpenStatusDialog(escala);
+                                      }
+                                    : undefined
+                                }
+                                sx={{
+                                  cursor:
+                                    isAdminAgir &&
+                                    escala.status !== "Aprovado" &&
+                                    escala.status !== "Reprovado"
+                                      ? "pointer"
+                                      : "default",
+                                  opacity:
+                                    (escala.status === "Aprovado" ||
+                                      escala.status === "Reprovado") &&
+                                    isAdminAgir
+                                      ? 0.9
+                                      : 1,
+                                  transition: "all 0.2s",
+                                  "&:hover":
+                                    isAdminAgir &&
+                                    escala.status !== "Aprovado" &&
+                                    escala.status !== "Reprovado"
+                                      ? {
+                                          transform: "scale(1.05)",
+                                          boxShadow:
+                                            "0 2px 8px rgba(0,0,0,0.15)",
+                                        }
+                                      : {},
+                                }}
+                              />
+                            </Tooltip>
+                          </Box>
+                          <Box>
+                            <Tooltip
+                              title={
+                                escala.status === "Aprovado" ||
+                                escala.status === "Reprovado"
+                                  ? `Não é possível editar. Escala está ${escala.status.toLowerCase()}.`
+                                  : "Editar escala"
+                              }
+                            >
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={
+                                    escala.status === "Aprovado" ||
+                                    escala.status === "Reprovado"
                                   }
-                                : undefined
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenDialog(escala);
+                                  }}
+                                  sx={{
+                                    opacity:
+                                      escala.status === "Aprovado" ||
+                                      escala.status === "Reprovado"
+                                        ? 0.5
+                                        : 1,
+                                  }}
+                                >
+                                  <Edit fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                            <Tooltip
+                              title={
+                                escala.status === "Aprovado" ||
+                                escala.status === "Reprovado"
+                                  ? `Não é possível excluir. Escala está ${escala.status.toLowerCase()}.`
+                                  : "Excluir escala"
+                              }
+                            >
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  disabled={
+                                    escala.status === "Aprovado" ||
+                                    escala.status === "Reprovado"
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(escala);
+                                  }}
+                                  sx={{
+                                    opacity:
+                                      escala.status === "Aprovado" ||
+                                      escala.status === "Reprovado"
+                                        ? 0.5
+                                        : 1,
+                                  }}
+                                >
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </Box>
+                        </Box>
+
+                        <Typography variant="h6" fontWeight={600} gutterBottom>
+                          {contrato?.nome || "Contrato não encontrado"}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          gutterBottom
+                        >
+                          {contrato?.empresa}
+                        </Typography>
+
+                        <Box display="flex" gap={1} my={2} flexWrap="wrap">
+                          <Chip
+                            icon={<Schedule />}
+                            label={`${escala.horario_entrada.substring(
+                              0,
+                              5
+                            )} - ${escala.horario_saida.substring(0, 5)}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </Box>
+
+                        <Box mb={2}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            gutterBottom
+                          >
+                            Item de Contrato:
+                          </Typography>
+                          <Chip
+                            label={
+                              todosItensContrato.find(
+                                (i) => i.id === escala.item_contrato_id
+                              )?.nome || "Item não encontrado"
                             }
-                            sx={{
-                              cursor:
-                                isAdminAgir && escala.status !== "Aprovado" && escala.status !== "Reprovado"
-                                  ? "pointer"
-                                  : "default",
-                              opacity:
-                                (escala.status === "Aprovado" || escala.status === "Reprovado") && isAdminAgir
-                                  ? 0.9
-                                  : 1,
-                              transition: "all 0.2s",
-                              "&:hover":
-                                isAdminAgir && escala.status !== "Aprovado" && escala.status !== "Reprovado"
-                                  ? {
-                                      transform: "scale(1.05)",
-                                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                                    }
-                                  : {},
-                            }}
-                          />
-                        </Tooltip>
-                      </Box>
-                      <Box>
-                        <Tooltip
-                          title={
-                            escala.status === "Aprovado" || escala.status === "Reprovado"
-                              ? `Não é possível editar. Escala está ${escala.status.toLowerCase()}.`
-                              : "Editar escala"
-                          }
-                        >
-                          <span>
-                            <IconButton
-                              size="small"
-                              disabled={escala.status === "Aprovado" || escala.status === "Reprovado"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenDialog(escala);
-                              }}
-                              sx={{
-                                opacity:
-                                  escala.status === "Aprovado" || escala.status === "Reprovado" ? 0.5 : 1,
-                              }}
-                            >
-                              <Edit fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip
-                          title={
-                            escala.status === "Aprovado" || escala.status === "Reprovado"
-                              ? `Não é possível excluir. Escala está ${escala.status.toLowerCase()}.`
-                              : "Excluir escala"
-                          }
-                        >
-                          <span>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              disabled={escala.status === "Aprovado" || escala.status === "Reprovado"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(escala);
-                              }}
-                              sx={{
-                                opacity:
-                                  escala.status === "Aprovado" || escala.status === "Reprovado" ? 0.5 : 1,
-                              }}
-                            >
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </Box>
-                    </Box>
-
-                    <Typography variant="h6" fontWeight={600} gutterBottom>
-                      {contrato?.nome || "Contrato não encontrado"}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      gutterBottom
-                    >
-                      {contrato?.empresa}
-                    </Typography>
-
-                    <Box display="flex" gap={1} my={2} flexWrap="wrap">
-                      <Chip
-                        icon={<Schedule />}
-                        label={`${escala.horario_entrada.substring(
-                          0,
-                          5
-                        )} - ${escala.horario_saida.substring(0, 5)}`}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </Box>
-
-                    <Box mb={2}>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        display="block"
-                        gutterBottom
-                      >
-                        Item de Contrato:
-                      </Typography>
-                      <Chip
-                        label={
-                          todosItensContrato.find(
-                            (i) => i.id === escala.item_contrato_id
-                          )?.nome || "Item não encontrado"
-                        }
-                        size="small"
-                        color="secondary"
-                        variant="outlined"
-                      />
-                    </Box>
-
-                    <Box>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        gutterBottom
-                        display="block"
-                      >
-                        Médicos ({escala.medicos.length}):
-                      </Typography>
-                      <Box display="flex" flexWrap="wrap" gap={0.5}>
-                        {escala.medicos.slice(0, 3).map((medico, idx) => (
-                          <Chip
-                            key={idx}
-                            icon={<Person />}
-                            label={medico.nome.split(" ")[0]}
                             size="small"
-                            sx={{ fontSize: "0.7rem" }}
+                            color="secondary"
+                            variant="outlined"
                           />
-                        ))}
-                        {escala.medicos.length > 3 && (
-                          <Chip
-                            label={`+${escala.medicos.length - 3}`}
-                            size="small"
-                            sx={{ fontSize: "0.7rem" }}
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
+                        </Box>
+
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            gutterBottom
+                            display="block"
+                          >
+                            Médicos ({escala.medicos.length}):
+                          </Typography>
+                          <Box display="flex" flexWrap="wrap" gap={0.5}>
+                            {escala.medicos.slice(0, 3).map((medico, idx) => (
+                              <Chip
+                                key={idx}
+                                icon={<Person />}
+                                label={medico.nome.split(" ")[0]}
+                                size="small"
+                                sx={{ fontSize: "0.7rem" }}
+                              />
+                            ))}
+                            {escala.medicos.length > 3 && (
+                              <Chip
+                                label={`+${escala.medicos.length - 3}`}
+                                size="small"
+                                sx={{ fontSize: "0.7rem" }}
+                              />
+                            )}
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
                   </Grid>
                 );
               })}
@@ -2170,7 +2223,13 @@ const EscalasMedicas: React.FC = () => {
                 </Typography>
                 <Box display="flex" gap={1} flexWrap="wrap">
                   {(
-                    ["Programado", "Pré-Aprovado", "Atenção", "Aprovado", "Reprovado"] as StatusEscala[]
+                    [
+                      "Programado",
+                      "Pré-Aprovado",
+                      "Atenção",
+                      "Aprovado",
+                      "Reprovado",
+                    ] as StatusEscala[]
                   ).map((status) => {
                     const config = getStatusConfig(status);
                     return (
@@ -2534,7 +2593,8 @@ const EscalasMedicas: React.FC = () => {
                   <>
                     <Card
                       sx={{
-                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        background:
+                          "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                         color: "white",
                       }}
                     >
@@ -2572,12 +2632,22 @@ const EscalasMedicas: React.FC = () => {
                                     </TableCell>
                                     <TableCell>
                                       <Chip
-                                        label={acesso.sentido === "E" ? "Entrada" : "Saída"}
+                                        label={
+                                          acesso.sentido === "E"
+                                            ? "Entrada"
+                                            : "Saída"
+                                        }
                                         size="small"
-                                        color={acesso.sentido === "E" ? "success" : "error"}
+                                        color={
+                                          acesso.sentido === "E"
+                                            ? "success"
+                                            : "error"
+                                        }
                                       />
                                     </TableCell>
-                                    <TableCell>{acesso.planta || "N/A"}</TableCell>
+                                    <TableCell>
+                                      {acesso.planta || "N/A"}
+                                    </TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
@@ -2594,7 +2664,8 @@ const EscalasMedicas: React.FC = () => {
                             }}
                           >
                             <Typography>
-                              Nenhum registro de acesso encontrado para este médico nesta data
+                              Nenhum registro de acesso encontrado para este
+                              médico nesta data
                             </Typography>
                           </Paper>
                         )}
@@ -2604,7 +2675,8 @@ const EscalasMedicas: React.FC = () => {
                     {/* Produtividade do Médico */}
                     <Card
                       sx={{
-                        background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                        background:
+                          "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
                         color: "white",
                       }}
                     >
@@ -2616,60 +2688,102 @@ const EscalasMedicas: React.FC = () => {
                           <Grid container spacing={2} sx={{ mt: 1 }}>
                             <Grid item xs={6} sm={4}>
                               <Paper sx={{ p: 2, textAlign: "center" }}>
-                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                <Typography
+                                  variant="h4"
+                                  color="primary"
+                                  fontWeight={700}
+                                >
                                   {produtividadeMedico.procedimento}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   Procedimentos
                                 </Typography>
                               </Paper>
                             </Grid>
                             <Grid item xs={6} sm={4}>
                               <Paper sx={{ p: 2, textAlign: "center" }}>
-                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                <Typography
+                                  variant="h4"
+                                  color="primary"
+                                  fontWeight={700}
+                                >
                                   {produtividadeMedico.cirurgia_realizada}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   Cirurgias
                                 </Typography>
                               </Paper>
                             </Grid>
                             <Grid item xs={6} sm={4}>
                               <Paper sx={{ p: 2, textAlign: "center" }}>
-                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                <Typography
+                                  variant="h4"
+                                  color="primary"
+                                  fontWeight={700}
+                                >
                                   {produtividadeMedico.evolucao}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   Evoluções
                                 </Typography>
                               </Paper>
                             </Grid>
                             <Grid item xs={6} sm={4}>
                               <Paper sx={{ p: 2, textAlign: "center" }}>
-                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                <Typography
+                                  variant="h4"
+                                  color="primary"
+                                  fontWeight={700}
+                                >
                                   {produtividadeMedico.parecer_realizado}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   Pareceres
                                 </Typography>
                               </Paper>
                             </Grid>
                             <Grid item xs={6} sm={4}>
                               <Paper sx={{ p: 2, textAlign: "center" }}>
-                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                <Typography
+                                  variant="h4"
+                                  color="primary"
+                                  fontWeight={700}
+                                >
                                   {produtividadeMedico.urgencia}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   Urgências
                                 </Typography>
                               </Paper>
                             </Grid>
                             <Grid item xs={6} sm={4}>
                               <Paper sx={{ p: 2, textAlign: "center" }}>
-                                <Typography variant="h4" color="primary" fontWeight={700}>
+                                <Typography
+                                  variant="h4"
+                                  color="primary"
+                                  fontWeight={700}
+                                >
                                   {produtividadeMedico.ambulatorio}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   Ambulatórios
                                 </Typography>
                               </Paper>
@@ -2686,7 +2800,8 @@ const EscalasMedicas: React.FC = () => {
                             }}
                           >
                             <Typography>
-                              Nenhum registro de produtividade encontrado para este médico nesta data
+                              Nenhum registro de produtividade encontrado para
+                              este médico nesta data
                             </Typography>
                           </Paper>
                         )}

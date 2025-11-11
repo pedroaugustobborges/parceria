@@ -474,7 +474,7 @@ const Contratos: React.FC = () => {
   const columns: GridColDef[] = [
     {
       field: "nome",
-      headerName: "Nome do Contrato",
+      headerName: "Objeto do Contrato",
       flex: 1,
       minWidth: 250,
       renderCell: (params) => (
@@ -648,7 +648,7 @@ const Contratos: React.FC = () => {
               sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}
             >
               <TextField
-                label="Nome do Contrato"
+                label="Objeto do Contrato"
                 value={formData.nome}
                 onChange={(e) =>
                   setFormData({ ...formData, nome: e.target.value })
