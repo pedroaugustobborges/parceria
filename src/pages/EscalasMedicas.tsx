@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Button,
@@ -53,6 +53,8 @@ import {
   Warning,
   Analytics,
   Search,
+  AttachMoney,
+  AccessTime,
 } from "@mui/icons-material";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -82,6 +84,7 @@ const EscalasMedicas: React.FC = () => {
   const [todosItensContrato, setTodosItensContrato] = useState<ItemContrato[]>(
     []
   );
+  const [contratoItens, setContratoItens] = useState<ContratoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -165,10 +168,69 @@ const EscalasMedicas: React.FC = () => {
     filtroDataFim,
   ]);
 
+  // Calcular métricas dos scorecards
+  const scorecardMetrics = useMemo(() => {
+    const metrics = {
+      aprovado: { valor: 0, horas: 0 },
+      preAprovado: { valor: 0, horas: 0 },
+      programado: { valor: 0, horas: 0 },
+      atencao: { valor: 0, horas: 0 },
+    };
+
+    escalasFiltradas.forEach((escala) => {
+      // Buscar o item de contrato para obter o valor
+      const contratoItem = contratoItens.find(
+        (ci) => ci.item_id === escala.item_contrato_id
+      );
+
+      if (!contratoItem || !contratoItem.valor_unitario) return;
+
+      // Calcular horas da escala
+      const [horaE, minE] = escala.horario_entrada.split(":").map(Number);
+      const [horaS, minS] = escala.horario_saida.split(":").map(Number);
+      const minutosEntrada = horaE * 60 + minE;
+      const minutosSaida = horaS * 60 + minS;
+
+      let horas = 0;
+      if (minutosSaida >= minutosEntrada) {
+        horas = (minutosSaida - minutosEntrada) / 60;
+      } else {
+        // Atravessa meia-noite
+        horas = ((1440 - minutosEntrada) + minutosSaida) / 60;
+      }
+
+      // Multiplicar pelo número de médicos
+      const totalHoras = horas * escala.medicos.length;
+      const valor = contratoItem.valor_unitario * totalHoras;
+
+      // Acumular por status
+      switch (escala.status) {
+        case "Aprovado":
+          metrics.aprovado.valor += valor;
+          metrics.aprovado.horas += totalHoras;
+          break;
+        case "Pré-Aprovado":
+          metrics.preAprovado.valor += valor;
+          metrics.preAprovado.horas += totalHoras;
+          break;
+        case "Programado":
+          metrics.programado.valor += valor;
+          metrics.programado.horas += totalHoras;
+          break;
+        case "Atenção":
+          metrics.atencao.valor += valor;
+          metrics.atencao.horas += totalHoras;
+          break;
+      }
+    });
+
+    return metrics;
+  }, [escalasFiltradas, contratoItens]);
+
   // Carregar apenas dados auxiliares (contratos, unidades, itens)
   const loadAuxiliaryData = async () => {
     try {
-      const [{ data: contr }, { data: unid }, { data: itens }] =
+      const [{ data: contr }, { data: unid }, { data: itens }, { data: contrItens }] =
         await Promise.all([
           supabase.from("contratos").select("*").eq("ativo", true),
           supabase
@@ -177,11 +239,13 @@ const EscalasMedicas: React.FC = () => {
             .eq("ativo", true)
             .order("codigo"),
           supabase.from("itens_contrato").select("*").eq("ativo", true),
+          supabase.from("contrato_itens").select("*"),
         ]);
 
       setContratos(contr || []);
       setUnidades(unid || []);
       setTodosItensContrato(itens || []);
+      setContratoItens(contrItens || []);
     } catch (err: any) {
       console.error("Erro ao carregar dados auxiliares:", err);
     }
@@ -1616,6 +1680,309 @@ const EscalasMedicas: React.FC = () => {
           </Card>
         ) : (
           <Box>
+            {/* Scorecards de Métricas */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              {/* Aprovado */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Card
+                  sx={{
+                    position: "relative",
+                    overflow: "hidden",
+                    borderLeft: "4px solid #10b981",
+                    transition: "all 0.3s",
+                    "&:hover": {
+                      boxShadow: "0 8px 24px rgba(16, 185, 129, 0.15)",
+                      transform: "translateY(-2px)",
+                    },
+                  }}
+                >
+                  <CardContent>
+                    <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
+                      <Box>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "#6b7280",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          Aprovado
+                        </Typography>
+                        <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5}>
+                          <Typography
+                            variant="h4"
+                            sx={{
+                              fontWeight: 700,
+                              color: "#10b981",
+                            }}
+                          >
+                            R$
+                          </Typography>
+                          <Typography
+                            variant="h4"
+                            sx={{
+                              fontWeight: 700,
+                              color: "#10b981",
+                            }}
+                          >
+                            {scorecardMetrics.aprovado.valor.toLocaleString(
+                              "pt-BR",
+                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                            )}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Box
+                        sx={{
+                          bgcolor: "#ecfdf5",
+                          borderRadius: "50%",
+                          p: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <CheckCircle sx={{ color: "#10b981", fontSize: 28 }} />
+                      </Box>
+                    </Box>
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <AccessTime sx={{ fontSize: 16, color: "#9ca3af" }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {scorecardMetrics.aprovado.horas.toFixed(1)}h
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Pré-Aprovado */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Card
+                  sx={{
+                    position: "relative",
+                    overflow: "hidden",
+                    borderLeft: "4px solid #3b82f6",
+                    transition: "all 0.3s",
+                    "&:hover": {
+                      boxShadow: "0 8px 24px rgba(59, 130, 246, 0.15)",
+                      transform: "translateY(-2px)",
+                    },
+                  }}
+                >
+                  <CardContent>
+                    <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
+                      <Box>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "#6b7280",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          Pré-Aprovado
+                        </Typography>
+                        <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5}>
+                          <Typography
+                            variant="h4"
+                            sx={{
+                              fontWeight: 700,
+                              color: "#3b82f6",
+                            }}
+                          >
+                            R$
+                          </Typography>
+                          <Typography
+                            variant="h4"
+                            sx={{
+                              fontWeight: 700,
+                              color: "#3b82f6",
+                            }}
+                          >
+                            {scorecardMetrics.preAprovado.valor.toLocaleString(
+                              "pt-BR",
+                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                            )}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Box
+                        sx={{
+                          bgcolor: "#eff6ff",
+                          borderRadius: "50%",
+                          p: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <ThumbUpAlt sx={{ color: "#3b82f6", fontSize: 28 }} />
+                      </Box>
+                    </Box>
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <AccessTime sx={{ fontSize: 16, color: "#9ca3af" }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {scorecardMetrics.preAprovado.horas.toFixed(1)}h
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Programado */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Card
+                  sx={{
+                    position: "relative",
+                    overflow: "hidden",
+                    borderLeft: "4px solid #8b5cf6",
+                    transition: "all 0.3s",
+                    "&:hover": {
+                      boxShadow: "0 8px 24px rgba(139, 92, 246, 0.15)",
+                      transform: "translateY(-2px)",
+                    },
+                  }}
+                >
+                  <CardContent>
+                    <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
+                      <Box>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "#6b7280",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          Programado
+                        </Typography>
+                        <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5}>
+                          <Typography
+                            variant="h4"
+                            sx={{
+                              fontWeight: 700,
+                              color: "#8b5cf6",
+                            }}
+                          >
+                            R$
+                          </Typography>
+                          <Typography
+                            variant="h4"
+                            sx={{
+                              fontWeight: 700,
+                              color: "#8b5cf6",
+                            }}
+                          >
+                            {scorecardMetrics.programado.valor.toLocaleString(
+                              "pt-BR",
+                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                            )}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Box
+                        sx={{
+                          bgcolor: "#f5f3ff",
+                          borderRadius: "50%",
+                          p: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <HourglassEmpty sx={{ color: "#8b5cf6", fontSize: 28 }} />
+                      </Box>
+                    </Box>
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <AccessTime sx={{ fontSize: 16, color: "#9ca3af" }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {scorecardMetrics.programado.horas.toFixed(1)}h
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Atenção */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Card
+                  sx={{
+                    position: "relative",
+                    overflow: "hidden",
+                    borderLeft: "4px solid #f59e0b",
+                    transition: "all 0.3s",
+                    "&:hover": {
+                      boxShadow: "0 8px 24px rgba(245, 158, 11, 0.15)",
+                      transform: "translateY(-2px)",
+                    },
+                  }}
+                >
+                  <CardContent>
+                    <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
+                      <Box>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "#6b7280",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          Atenção
+                        </Typography>
+                        <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5}>
+                          <Typography
+                            variant="h4"
+                            sx={{
+                              fontWeight: 700,
+                              color: "#f59e0b",
+                            }}
+                          >
+                            R$
+                          </Typography>
+                          <Typography
+                            variant="h4"
+                            sx={{
+                              fontWeight: 700,
+                              color: "#f59e0b",
+                            }}
+                          >
+                            {scorecardMetrics.atencao.valor.toLocaleString(
+                              "pt-BR",
+                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                            )}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Box
+                        sx={{
+                          bgcolor: "#fffbeb",
+                          borderRadius: "50%",
+                          p: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Warning sx={{ color: "#f59e0b", fontSize: 28 }} />
+                      </Box>
+                    </Box>
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <AccessTime sx={{ fontSize: 16, color: "#9ca3af" }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {scorecardMetrics.atencao.horas.toFixed(1)}h
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+
             {/* Escalas List */}
             <Grid container spacing={3}>
               {escalasFiltradas.map((escala) => {
