@@ -98,6 +98,9 @@ const Dashboard: React.FC = () => {
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
   const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
 
+  // CPFs vinculados ao contrato filtrado (para uso em useMemo)
+  const [cpfsDoContratoFiltrado, setCpfsDoContratoFiltrado] = useState<string[]>([]);
+
   // Modal de detalhes
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<HorasCalculadas | null>(
@@ -189,6 +192,49 @@ const Dashboard: React.FC = () => {
     filtroDataInicio,
     filtroDataFim,
   ]);
+
+  // Atualizar CPFs do contrato filtrado sempre que o filtro de contrato mudar
+  useEffect(() => {
+    const fetchCpfsDoContrato = async () => {
+      if (!filtroContrato) {
+        setCpfsDoContratoFiltrado([]);
+        return;
+      }
+
+      try {
+        let cpfs: string[] = [];
+
+        // Buscar CPFs da tabela usuario_contrato (junction table)
+        const { data: usuariosContrato } = await supabase
+          .from("usuario_contrato")
+          .select("cpf")
+          .eq("contrato_id", filtroContrato.id);
+
+        if (usuariosContrato && usuariosContrato.length > 0) {
+          cpfs = usuariosContrato.map((u: any) => u.cpf);
+        }
+
+        // TAMBÉM buscar CPFs da tabela usuarios diretamente (para usuários importados via CSV)
+        const { data: usuariosDirectos } = await supabase
+          .from("usuarios")
+          .select("cpf")
+          .eq("contrato_id", filtroContrato.id);
+
+        if (usuariosDirectos && usuariosDirectos.length > 0) {
+          const cpfsDirectos = usuariosDirectos.map((u: any) => u.cpf);
+          // Combinar os dois arrays sem duplicatas
+          cpfs = [...new Set([...cpfs, ...cpfsDirectos])];
+        }
+
+        setCpfsDoContratoFiltrado(cpfs);
+      } catch (err) {
+        console.error("Erro ao buscar CPFs do contrato:", err);
+        setCpfsDoContratoFiltrado([]);
+      }
+    };
+
+    fetchCpfsDoContrato();
+  }, [filtroContrato]);
 
   const loadContratos = async () => {
     try {
@@ -370,6 +416,7 @@ const Dashboard: React.FC = () => {
     let cpfsDoContrato: string[] = [];
     if (filtroContrato) {
       try {
+        // Buscar CPFs da tabela usuario_contrato (junction table)
         const { data: usuariosContrato } = await supabase
           .from("usuario_contrato")
           .select("cpf")
@@ -377,6 +424,18 @@ const Dashboard: React.FC = () => {
 
         if (usuariosContrato && usuariosContrato.length > 0) {
           cpfsDoContrato = usuariosContrato.map((u: any) => u.cpf);
+        }
+
+        // TAMBÉM buscar CPFs da tabela usuarios diretamente (para usuários importados via CSV)
+        const { data: usuariosDirectos } = await supabase
+          .from("usuarios")
+          .select("cpf")
+          .eq("contrato_id", filtroContrato.id);
+
+        if (usuariosDirectos && usuariosDirectos.length > 0) {
+          const cpfsDirectos = usuariosDirectos.map((u: any) => u.cpf);
+          // Combinar os dois arrays sem duplicatas
+          cpfsDoContrato = [...new Set([...cpfsDoContrato, ...cpfsDirectos])];
         }
       } catch (err) {
         console.error("Erro ao buscar CPFs do contrato:", err);
@@ -738,6 +797,14 @@ const Dashboard: React.FC = () => {
   const chartDataProdutividade = useMemo(() => {
     if (produtividade.length === 0) return [];
 
+    // Mapear codigo_mv para CPF para filtro de contrato
+    const codigoMVToCPF = new Map<string, string>();
+    usuarios.forEach((u) => {
+      if (u.cpf && u.codigomv) {
+        codigoMVToCPF.set(u.codigomv, u.cpf);
+      }
+    });
+
     // Filtrar dados de produtividade baseado nos filtros avançados
     const produtividadeFiltrada = produtividade.filter((item) => {
       // Filtro de Nome
@@ -750,6 +817,14 @@ const Dashboard: React.FC = () => {
           (u) => u.id === item.unidade_hospitalar_id
         );
         if (!unidadeItem || !filtroUnidade.includes(unidadeItem.codigo)) {
+          return false;
+        }
+      }
+
+      // Filtro de contrato (através do codigo_mv -> cpf)
+      if (cpfsDoContratoFiltrado.length > 0) {
+        const cpf = codigoMVToCPF.get(item.codigo_mv);
+        if (!cpf || !cpfsDoContratoFiltrado.includes(cpf)) {
           return false;
         }
       }
@@ -865,6 +940,8 @@ const Dashboard: React.FC = () => {
     filtroDataInicio,
     filtroDataFim,
     unidades,
+    cpfsDoContratoFiltrado,
+    usuarios,
   ]);
 
   // Calcular inconsistências entre produtividade e acessos
@@ -896,6 +973,13 @@ const Dashboard: React.FC = () => {
 
       // Aplicar filtro de unidade hospitalar
       if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta))
+        return;
+
+      // Aplicar filtro de contrato
+      if (
+        cpfsDoContratoFiltrado.length > 0 &&
+        !cpfsDoContratoFiltrado.includes(acesso.cpf)
+      )
         return;
 
       // Aplicar filtros de data
@@ -952,6 +1036,11 @@ const Dashboard: React.FC = () => {
         if (!unidadeItem || !filtroUnidade.includes(unidadeItem.codigo)) {
           return;
         }
+      }
+
+      // Aplicar filtro de contrato
+      if (cpfsDoContratoFiltrado.length > 0 && !cpfsDoContratoFiltrado.includes(cpf)) {
+        return;
       }
 
       // Aplicar filtros de data
@@ -1028,6 +1117,7 @@ const Dashboard: React.FC = () => {
     filtroDataInicio,
     filtroDataFim,
     unidades,
+    cpfsDoContratoFiltrado,
   ]);
 
   // Cálculo de Pontualidade e Absenteísmo
@@ -1090,6 +1180,13 @@ const Dashboard: React.FC = () => {
 
         // Aplicar filtro de nome
         if (filtroNome.length > 0 && !filtroNome.includes(medico.nome)) return;
+
+        // Aplicar filtro de contrato
+        if (
+          cpfsDoContratoFiltrado.length > 0 &&
+          !cpfsDoContratoFiltrado.includes(medico.cpf)
+        )
+          return;
 
         // Inicializar contadores de pontualidade
         if (!pontualidadePorMedico.has(medico.cpf)) {
@@ -1217,7 +1314,7 @@ const Dashboard: React.FC = () => {
       pontualidade: pontualidadeArray,
       absenteismo: absenteismoArray,
     };
-  }, [escalas, acessos, filtroNome, filtroDataInicio, filtroDataFim]);
+  }, [escalas, acessos, filtroNome, filtroDataInicio, filtroDataFim, cpfsDoContratoFiltrado]);
 
   // Calcular dados do heatmap baseado nos acessos filtrados
   const heatmapData = useMemo(() => {
@@ -1236,6 +1333,12 @@ const Dashboard: React.FC = () => {
       if (filtroSentido.length > 0 && !filtroSentido.includes(acesso.sentido))
         return false;
       if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta))
+        return false;
+      // Filtro de contrato
+      if (
+        cpfsDoContratoFiltrado.length > 0 &&
+        !cpfsDoContratoFiltrado.includes(acesso.cpf)
+      )
         return false;
       // Filtros de data - normalizar para comparar apenas o dia (sem hora)
       if (filtroDataInicio) {
@@ -1336,6 +1439,7 @@ const Dashboard: React.FC = () => {
     filtroUnidade,
     filtroDataInicio,
     filtroDataFim,
+    cpfsDoContratoFiltrado,
   ]);
 
   // Função para obter cor do heatmap baseado na intensidade
