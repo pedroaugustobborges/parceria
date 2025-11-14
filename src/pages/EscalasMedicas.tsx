@@ -3507,6 +3507,57 @@ const EscalasMedicas: React.FC = () => {
                                 </Typography>
                               </Paper>
                             </Grid>
+                            <Grid item xs={6} sm={4}>
+                              <Paper sx={{ p: 2, textAlign: "center" }}>
+                                <Typography
+                                  variant="h4"
+                                  color="primary"
+                                  fontWeight={700}
+                                >
+                                  {produtividadeMedico.prescricao}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Prescrição
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                              <Paper sx={{ p: 2, textAlign: "center" }}>
+                                <Typography
+                                  variant="h4"
+                                  color="primary"
+                                  fontWeight={700}
+                                >
+                                  {produtividadeMedico.encaminhamento}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Encaminhamento
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                              <Paper sx={{ p: 2, textAlign: "center" }}>
+                                <Typography
+                                  variant="h4"
+                                  color="primary"
+                                  fontWeight={700}
+                                >
+                                  {produtividadeMedico.auxiliar}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Auxiliar
+                                </Typography>
+                              </Paper>
+                            </Grid>
                           </Grid>
                         ) : (
                           <Paper
