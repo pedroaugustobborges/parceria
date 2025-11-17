@@ -2216,6 +2216,15 @@ const Dashboard: React.FC = () => {
         if (medicosParaContar.length === 0) return sum;
       }
 
+      // Filtro de contrato: contar apenas médicos que estão no contrato filtrado
+      if (cpfsDoContratoFiltrado.length > 0) {
+        medicosParaContar = medicosParaContar.filter((medico) =>
+          cpfsDoContratoFiltrado.includes(medico.cpf)
+        );
+        // Se nenhum médico desta escala está no contrato, pular
+        if (medicosParaContar.length === 0) return sum;
+      }
+
       // Parse dos horários (formato: "HH:mm")
       const [horaEntrada, minEntrada] = escala.horario_entrada
         .split(":")
