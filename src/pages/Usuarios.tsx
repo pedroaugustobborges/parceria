@@ -18,9 +18,29 @@ import {
   Alert,
   Chip,
   Autocomplete,
+  Grid,
+  Paper,
+  Divider,
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Tooltip,
 } from "@mui/material";
-import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
-import { Edit, Delete, PersonAdd } from "@mui/icons-material";
+import {
+  PersonAdd,
+  Search,
+  Close,
+  Email,
+  PersonOff,
+  Delete,
+  Add,
+  Business,
+  LocalHospital,
+  Badge,
+  AdminPanelSettings,
+} from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
 import {
   Usuario,
@@ -29,7 +49,6 @@ import {
   UnidadeHospitalar,
 } from "../types/database.types";
 import { format, parseISO } from "date-fns";
-import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
 const ESPECIALIDADES = [
   "Anestesiologia",
@@ -56,23 +75,42 @@ const ESPECIALIDADES = [
   "Pediatria",
 ];
 
+interface UsuarioContrato {
+  id: string;
+  usuario_id: string;
+  contrato_id: string;
+  cpf: string;
+  contratos?: Contrato;
+}
+
 const Usuarios: React.FC = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [usuariosFiltrados, setUsuariosFiltrados] = useState<Usuario[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null);
+  const [usuarioContratos, setUsuarioContratos] = useState<UsuarioContrato[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchPerformed, setSearchPerformed] = useState(false);
+
+  // Filter states
+  const [filtroNome, setFiltroNome] = useState<string[]>([]);
+  const [filtroCpf, setFiltroCpf] = useState<string[]>([]);
+  const [filtroContrato, setFiltroContrato] = useState<Contrato | null>(null);
+  const [filtroParceiro, setFiltroParceiro] = useState<string[]>([]);
+  const [filtroEspecialidade, setFiltroEspecialidade] = useState<string[]>([]);
+
+  // Dialog states
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
+  const [userContracts, setUserContracts] = useState<UsuarioContrato[]>([]);
+
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+  // Messages
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  // Delete dialog state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [usuarioToDelete, setUsuarioToDelete] = useState<Usuario | null>(null);
-  const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const [deleteBlockReason, setDeleteBlockReason] = useState("");
-  const [deleteRelatedItems, setDeleteRelatedItems] = useState<any[]>([]);
-  const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -80,40 +118,35 @@ const Usuarios: React.FC = () => {
     nome: "",
     cpf: "",
     tipo: "terceiro" as UserRole,
-    contrato_id: "",
+    contrato_ids: [] as string[],
     codigomv: "",
     especialidade: [] as string[],
     unidade_hospitalar_id: "",
     password: "",
+    createAuthUser: false, // New field to control if we create auth user
   });
 
   useEffect(() => {
-    loadData();
+    loadInitialData();
   }, []);
 
-  const loadData = async () => {
+  const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [
-        { data: usuariosData },
-        { data: contratosData },
-        { data: unidadesData },
-      ] = await Promise.all([
-        supabase
-          .from("usuarios")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        supabase.from("contratos").select("*").eq("ativo", true),
-        supabase
-          .from("unidades_hospitalares")
-          .select("*")
-          .eq("ativo", true)
-          .order("codigo"),
-      ]);
+      const [{ data: contratosData }, { data: unidadesData }, { data: usuariosData }] =
+        await Promise.all([
+          supabase.from("contratos").select("*").eq("ativo", true),
+          supabase
+            .from("unidades_hospitalares")
+            .select("*")
+            .eq("ativo", true)
+            .order("codigo"),
+          supabase.from("usuarios").select("*"),
+        ]);
 
-      setUsuarios(usuariosData || []);
       setContratos(contratosData || []);
       setUnidades(unidadesData || []);
+      setUsuarios(usuariosData || []); // Load all users for autocomplete
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -121,431 +154,578 @@ const Usuarios: React.FC = () => {
     }
   };
 
-  const handleOpenDialog = (usuario?: Usuario) => {
-    if (usuario) {
-      setEditingUsuario(usuario);
-      setFormData({
-        email: usuario.email,
-        nome: usuario.nome,
-        cpf: usuario.cpf,
-        tipo: usuario.tipo,
-        contrato_id: usuario.contrato_id || "",
-        codigomv: usuario.codigomv || "",
-        especialidade: usuario.especialidade || [],
-        unidade_hospitalar_id: usuario.unidade_hospitalar_id || "",
-        password: "",
-      });
-    } else {
-      setEditingUsuario(null);
-      setFormData({
-        email: "",
-        nome: "",
-        cpf: "",
-        tipo: "terceiro",
-        contrato_id: "",
-        codigomv: "",
-        especialidade: [],
-        unidade_hospitalar_id: "",
-        password: "",
-      });
+  const handleSearch = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      // Build query
+      let query = supabase.from("usuarios").select("*");
+
+      // Apply filters
+      if (filtroNome.length > 0) {
+        query = query.in("nome", filtroNome);
+      }
+
+      if (filtroCpf.length > 0) {
+        query = query.in("cpf", filtroCpf);
+      }
+
+      if (filtroEspecialidade.length > 0) {
+        // Filter by especialidade array overlap
+        query = query.overlaps("especialidade", filtroEspecialidade);
+      }
+
+      const { data: usuariosData, error: usuariosError } = await query;
+
+      if (usuariosError) throw usuariosError;
+
+      let filteredUsers = usuariosData || [];
+
+      // Filter by contract (need to check usuario_contrato table and usuarios.contrato_id)
+      if (filtroContrato) {
+        // Get users from usuario_contrato table
+        const { data: usuarioContratosData } = await supabase
+          .from("usuario_contrato")
+          .select("usuario_id")
+          .eq("contrato_id", filtroContrato.id);
+
+        const userIdsFromContratos = usuarioContratosData?.map((uc) => uc.usuario_id) || [];
+
+        // Filter users that match contract_id OR are in usuario_contrato table
+        filteredUsers = filteredUsers.filter(
+          (u) => u.contrato_id === filtroContrato.id || userIdsFromContratos.includes(u.id)
+        );
+      }
+
+      // Filter by parceiro (empresa from contract)
+      if (filtroParceiro.length > 0) {
+        const contractsOfParceiro = contratos.filter((c) =>
+          filtroParceiro.includes(c.empresa)
+        );
+        const contratoIds = contractsOfParceiro.map((c) => c.id);
+
+        // Get users from usuario_contrato table
+        const { data: usuarioContratosData } = await supabase
+          .from("usuario_contrato")
+          .select("usuario_id")
+          .in("contrato_id", contratoIds);
+
+        const userIdsFromContratos = usuarioContratosData?.map((uc) => uc.usuario_id) || [];
+
+        filteredUsers = filteredUsers.filter(
+          (u) => (u.contrato_id && contratoIds.includes(u.contrato_id)) || userIdsFromContratos.includes(u.id)
+        );
+      }
+
+      setUsuariosFiltrados(filteredUsers);
+      setSearchPerformed(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    setOpenDialog(true);
   };
 
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setEditingUsuario(null);
+  const handleOpenUserDetails = async (usuario: Usuario) => {
+    setSelectedUser(usuario);
+
+    // Load user contracts from usuario_contrato table
+    try {
+      const { data: contratosFromTable } = await supabase
+        .from("usuario_contrato")
+        .select("*, contratos(*)")
+        .eq("usuario_id", usuario.id);
+
+      let allContracts = contratosFromTable || [];
+
+      // Also check if user has contrato_id in usuarios table (for backward compatibility)
+      if (usuario.contrato_id) {
+        // Check if this contract is already in the list
+        const alreadyExists = allContracts.some(
+          (uc) => uc.contrato_id === usuario.contrato_id
+        );
+
+        if (!alreadyExists) {
+          // Fetch the contract details
+          const { data: contratoData } = await supabase
+            .from("contratos")
+            .select("*")
+            .eq("id", usuario.contrato_id)
+            .single();
+
+          if (contratoData) {
+            // Add it to the list with a synthetic ID
+            allContracts.push({
+              id: `synthetic_${usuario.contrato_id}`,
+              usuario_id: usuario.id,
+              contrato_id: usuario.contrato_id,
+              cpf: usuario.cpf,
+              contratos: contratoData,
+            });
+          }
+        }
+      }
+
+      setUserContracts(allContracts);
+    } catch (err) {
+      console.error("Error loading user contracts:", err);
+    }
+
+    setDetailsDialogOpen(true);
+  };
+
+  const handleCloseUserDetails = () => {
+    setDetailsDialogOpen(false);
+    setSelectedUser(null);
+    setUserContracts([]);
+  };
+
+  const handleOpenCreateDialog = () => {
+    setEditMode(false);
+    setFormData({
+      email: "",
+      nome: "",
+      cpf: "",
+      tipo: "terceiro",
+      contrato_ids: [],
+      codigomv: "",
+      especialidade: [],
+      unidade_hospitalar_id: "",
+      password: "",
+      createAuthUser: false,
+    });
+    setCreateDialogOpen(true);
+  };
+
+  const handleOpenEditDialog = () => {
+    if (!selectedUser) return;
+
+    setEditMode(true);
+    setFormData({
+      email: selectedUser.email,
+      nome: selectedUser.nome,
+      cpf: selectedUser.cpf,
+      tipo: selectedUser.tipo,
+      contrato_ids: userContracts.map((uc) => uc.contrato_id),
+      codigomv: selectedUser.codigomv || "",
+      especialidade: selectedUser.especialidade || [],
+      unidade_hospitalar_id: selectedUser.unidade_hospitalar_id || "",
+      password: "",
+      createAuthUser: false,
+    });
+    setDetailsDialogOpen(false);
+    setCreateDialogOpen(true);
+  };
+
+  const handleCloseCreateDialog = () => {
+    setCreateDialogOpen(false);
+    setEditMode(false);
     setError("");
   };
 
-  const handleSave = async () => {
+  const handleSaveTerceiro = async () => {
     try {
+      setSaving(true);
       setError("");
       setSuccess("");
 
-      if (!formData.email || !formData.nome || !formData.cpf) {
-        setError("Preencha todos os campos obrigatórios");
+      if (!formData.nome || !formData.cpf) {
+        setError("Nome e CPF são obrigatórios");
+        setSaving(false);
         return;
       }
 
-      // Validar unidade para admin de planta
-      if (
-        formData.tipo === "administrador-agir-planta" &&
-        !formData.unidade_hospitalar_id
-      ) {
-        setError(
-          "Selecione uma Unidade Hospitalar para administradores de planta"
-        );
-        return;
+      // Validate email format only if provided
+      if (formData.email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+          setError("Email inválido");
+          setSaving(false);
+          return;
+        }
       }
 
-      // Validar codigomv e especialidade para usuários do tipo "terceiro"
+      // Validar codigomv e especialidade para terceiros
       if (formData.tipo === "terceiro" && !formData.codigomv) {
-        setError(
-          "Código do Prestador no MV é obrigatório para usuários do tipo Terceiro"
-        );
+        setError("Código do Prestador no MV é obrigatório");
+        setSaving(false);
         return;
       }
 
-      if (
-        formData.tipo === "terceiro" &&
-        (!formData.especialidade || formData.especialidade.length === 0)
-      ) {
-        setError(
-          "Selecione pelo menos uma especialidade para usuários do tipo Terceiro"
-        );
+      if (formData.tipo === "terceiro" && formData.especialidade.length === 0) {
+        setError("Selecione pelo menos uma especialidade");
+        setSaving(false);
         return;
       }
 
-      if (editingUsuario) {
-        // Atualizar usuário existente
+      if (editMode && selectedUser) {
+        // Update existing user
         const updateData: any = {
-          email: formData.email,
           nome: formData.nome,
           cpf: formData.cpf,
           tipo: formData.tipo,
-          contrato_id: formData.contrato_id || null,
           codigomv: formData.tipo === "terceiro" ? formData.codigomv : null,
-          especialidade:
-            formData.tipo === "terceiro" ? formData.especialidade : null,
+          especialidade: formData.tipo === "terceiro" ? formData.especialidade : null,
           unidade_hospitalar_id:
             formData.tipo === "administrador-agir-planta"
               ? formData.unidade_hospitalar_id
               : null,
         };
+
+        // Only update email if user has auth account
+        if (selectedUser.email) {
+          updateData.email = formData.email;
+        }
+
         const { error: updateError } = await supabase
           .from("usuarios")
           .update(updateData)
-          .eq("id", editingUsuario.id);
+          .eq("id", selectedUser.id);
 
         if (updateError) throw updateError;
-        setSuccess("Usuário atualizado com sucesso!");
-      } else {
-        // Criar novo usuário no Supabase Auth
-        if (!formData.password) {
-          setError("Senha é obrigatória para novos usuários");
-          return;
+
+        // Update contracts
+        // First, delete existing contracts
+        await supabase
+          .from("usuario_contrato")
+          .delete()
+          .eq("usuario_id", selectedUser.id);
+
+        // Then, insert new contracts
+        if (formData.contrato_ids.length > 0) {
+          const contractInserts = formData.contrato_ids.map((contrato_id) => ({
+            usuario_id: selectedUser.id,
+            contrato_id,
+            cpf: formData.cpf,
+          }));
+
+          await supabase.from("usuario_contrato").insert(contractInserts);
         }
 
-        // Primeiro, verificar se o email ou CPF já existem
-        const { data: existingUsers } = await supabase
-          .from("usuarios")
-          .select("id, email, cpf")
-          .or(`email.eq.${formData.email},cpf.eq.${formData.cpf}`);
-
-        if (existingUsers && existingUsers.length > 0) {
-          const existing = existingUsers[0];
-          if (existing.email === formData.email) {
-            setError("Já existe um usuário com este email");
-          } else if (existing.cpf === formData.cpf) {
-            setError("Já existe um usuário com este CPF");
-          }
-          return;
-        }
-
-        const { data: authData, error: authError } = await supabase.auth.signUp(
-          {
-            email: formData.email,
-            password: formData.password,
-          }
-        );
-
-        if (authError) {
-          // Verificar se o erro é de email já existente
-          if (authError.message.includes("already registered")) {
-            setError("Este email já está registrado no sistema");
-          } else {
-            throw authError;
-          }
-          return;
-        }
-
-        if (authData.user) {
-          // Criar registro na tabela usuarios
-          const { error: insertError } = await supabase
+        // Also update contrato_id in usuarios table (for backward compatibility)
+        if (formData.contrato_ids.length > 0) {
+          await supabase
             .from("usuarios")
-            .insert({
-              id: authData.user.id,
-              email: formData.email,
-              nome: formData.nome,
-              cpf: formData.cpf,
-              tipo: formData.tipo,
-              contrato_id: formData.contrato_id || null,
-              codigomv: formData.tipo === "terceiro" ? formData.codigomv : null,
-              especialidade:
-                formData.tipo === "terceiro" ? formData.especialidade : null,
-              unidade_hospitalar_id:
-                formData.tipo === "administrador-agir-planta"
-                  ? formData.unidade_hospitalar_id
-                  : null,
-            } as any);
+            .update({ contrato_id: formData.contrato_ids[0] })
+            .eq("id", selectedUser.id);
+        }
 
-          if (insertError) {
-            // Se falhar ao inserir na tabela usuarios, precisamos limpar o usuário de auth
-            console.error("Erro ao inserir usuário na tabela:", insertError);
+        setSuccess("Usuário atualizado com sucesso!");
+        setSaving(false);
+        handleCloseCreateDialog();
+        handleSearch(); // Refresh search
+      } else {
+        // Create new terceiro WITHOUT auth account
 
-            // Mostrar erro mais detalhado
-            if (insertError.code === "23505") {
-              // Unique violation
-              setError("Email ou CPF já cadastrado no sistema");
-            } else if (insertError.message.includes("policy")) {
-              setError(
-                "Erro de permissão. Verifique se você tem privilégios de administrador."
-              );
-            } else {
-              setError(`Erro ao criar usuário: ${insertError.message}`);
-            }
-            return;
-          }
+        // First, check if CPF already exists
+        const { data: existingUser } = await supabase
+          .from("usuarios")
+          .select("id, cpf")
+          .eq("cpf", formData.cpf)
+          .maybeSingle();
 
-          // Se for terceiro, criar vínculo com contrato
-          if (formData.tipo !== "administrador-agir" && formData.contrato_id) {
-            const { error: vinculoError } = await supabase
-              .from("usuario_contrato")
-              .insert({
-                usuario_id: authData.user.id,
-                contrato_id: formData.contrato_id,
-                cpf: formData.cpf,
-              } as any);
+        if (existingUser) {
+          setError("Já existe um usuário com este CPF");
+          setSaving(false);
+          return;
+        }
 
-            if (vinculoError) {
-              console.error("Erro ao criar vínculo:", vinculoError);
-              // Não bloquear a criação do usuário, apenas avisar
-              setSuccess(
-                "Usuário criado, mas houve erro ao vincular ao contrato"
-              );
-              handleCloseDialog();
-              loadData();
-              return;
-            }
-          }
+        // Generate a valid UUID for the user (will be replaced when auth is created)
+        const tempUUID = crypto.randomUUID();
 
-          setSuccess("Usuário criado com sucesso!");
+        const insertData: any = {
+          id: tempUUID,
+          email: formData.email || null,
+          nome: formData.nome,
+          cpf: formData.cpf,
+          tipo: formData.tipo,
+          codigomv: formData.tipo === "terceiro" ? formData.codigomv : null,
+          especialidade: formData.tipo === "terceiro" ? formData.especialidade : null,
+          unidade_hospitalar_id:
+            formData.tipo === "administrador-agir-planta"
+              ? formData.unidade_hospitalar_id
+              : null,
+        };
+
+        // Add contrato_id for backward compatibility
+        if (formData.contrato_ids.length > 0) {
+          insertData.contrato_id = formData.contrato_ids[0];
+        }
+
+        console.log("Inserting user data:", insertData);
+
+        const { data: newUser, error: insertError } = await supabase
+          .from("usuarios")
+          .insert(insertData)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error("Insert error details:", insertError);
+          throw insertError;
+        }
+
+        // Create contract links
+        if (formData.contrato_ids.length > 0 && newUser) {
+          const contractInserts = formData.contrato_ids.map((contrato_id) => ({
+            usuario_id: newUser.id,
+            contrato_id,
+            cpf: formData.cpf,
+          }));
+
+          await supabase.from("usuario_contrato").insert(contractInserts);
+        }
+
+        setSuccess("Terceiro criado com sucesso! Use o botão 'Enviar Convite' para criar acesso ao sistema.");
+        setSaving(false);
+        handleCloseCreateDialog();
+        handleSearch(); // Refresh search
+      }
+    } catch (err: any) {
+      setSaving(false);
+      console.error("Error saving terceiro:", err);
+
+      // Provide more specific error messages
+      let errorMessage = "Erro ao salvar terceiro";
+
+      if (err.code === "23505") {
+        errorMessage = "Já existe um usuário com este CPF ou email";
+      } else if (err.code === "23503") {
+        errorMessage = "Erro de referência: verifique se o contrato ou unidade existe";
+      } else if (err.message) {
+        errorMessage = `Erro: ${err.message}`;
+
+        // Add details if available
+        if (err.details) {
+          errorMessage += ` - Detalhes: ${err.details}`;
+        }
+        if (err.hint) {
+          errorMessage += ` - Dica: ${err.hint}`;
         }
       }
 
-      handleCloseDialog();
-      loadData();
-    } catch (err: any) {
-      setError(err.message || "Erro ao salvar usuário");
+      setError(errorMessage);
     }
   };
 
-  const handleOpenDeleteDialog = async (usuario: Usuario) => {
-    setUsuarioToDelete(usuario);
-    setDeleteBlocked(false);
-    setDeleteBlockReason("");
-    setDeleteRelatedItems([]);
-
+  const handleSendInvitation = async (usuario: Usuario) => {
     try {
-      // Verificar vínculos com contratos
-      const { data: vinculos, error: vinculosError } = await supabase
-        .from("usuario_contrato")
-        .select("contrato_id, contratos(nome)")
-        .eq("usuario_id", usuario.id);
+      setError("");
+      setSuccess("");
 
-      if (vinculosError) throw vinculosError;
-
-      const relatedItems = [];
-
-      if (vinculos && vinculos.length > 0) {
-        relatedItems.push({
-          type: "Contrato(s) vinculado(s)",
-          count: vinculos.length,
-          items: vinculos.map((v: any) => v.contratos?.nome || "Contrato"),
-        });
+      if (!usuario.email) {
+        setError("Email é obrigatório para enviar convite. Edite o usuário e adicione um email.");
+        return;
       }
 
-      if (relatedItems.length > 0) {
-        setDeleteBlocked(true);
-        setDeleteBlockReason(
-          "Este usuário não pode ser excluído pois possui contratos vinculados. Remova os vínculos antes de excluir."
-        );
-        setDeleteRelatedItems(relatedItems);
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(usuario.email)) {
+        setError("Email inválido");
+        return;
+      }
+
+      // Check if user might already have access (has email)
+      // Always show confirmation when sending invitation
+      const confirmMessage = usuario.email
+        ? "Usuário(a) já possui acesso ao ParcerIA, ao enviar novo convite você estará também criando uma nova senha. Deseja confirmar o envio?"
+        : "Enviar convite de acesso para este usuário?";
+
+      if (!window.confirm(confirmMessage)) {
+        return; // User cancelled
+      }
+
+      // Generate a temporary password (user should change it on first login)
+      const tempPassword = `Temp@${Math.random().toString(36).substr(2, 9)}`;
+
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: usuario.email,
+        password: tempPassword,
+      });
+
+      if (authError) {
+        if (authError.message.includes("already registered")) {
+          setError("Este email já está registrado no sistema");
+        } else {
+          throw authError;
+        }
+        return;
+      }
+
+      if (authData.user) {
+        // We need to replace the old user record with a new one using the auth ID
+        // 1. Save the old data
+        const userData = {
+          email: usuario.email,
+          nome: usuario.nome,
+          cpf: usuario.cpf,
+          tipo: usuario.tipo,
+          contrato_id: usuario.contrato_id,
+          codigomv: usuario.codigomv,
+          especialidade: usuario.especialidade,
+          unidade_hospitalar_id: usuario.unidade_hospitalar_id,
+        };
+
+        // 2. Get all usuario_contrato records
+        const { data: userContracts } = await supabase
+          .from("usuario_contrato")
+          .select("*")
+          .eq("usuario_id", usuario.id);
+
+        // 3. Delete old usuario record
+        await supabase.from("usuarios").delete().eq("id", usuario.id);
+
+        // 4. Insert new usuario record with auth ID
+        const { error: insertError } = await supabase.from("usuarios").insert({
+          id: authData.user.id,
+          ...userData,
+        });
+
+        if (insertError) {
+          console.error("Error creating user record:", insertError);
+          setError("Conta criada, mas erro ao criar registro. Contate o suporte.");
+          return;
+        }
+
+        // 5. Recreate usuario_contrato records with new ID
+        if (userContracts && userContracts.length > 0) {
+          const newContracts = userContracts.map((uc) => ({
+            usuario_id: authData.user!.id,
+            contrato_id: uc.contrato_id,
+            cpf: uc.cpf,
+          }));
+          await supabase.from("usuario_contrato").insert(newContracts);
+        }
+
+        setSuccess(`Convite enviado para ${usuario.email}. Senha temporária: ${tempPassword}`);
+        handleCloseUserDetails();
+        handleSearch(); // Refresh
       }
     } catch (err: any) {
-      console.error("Erro ao verificar vínculos:", err);
-      setError("Erro ao verificar vínculos do usuário");
+      console.error("Error sending invitation:", err);
+      setError(err.message || "Erro ao enviar convite");
+    }
+  };
+
+  const handleAddContract = async (contratoId: string) => {
+    if (!selectedUser) return;
+
+    try {
+      const { error } = await supabase.from("usuario_contrato").insert({
+        usuario_id: selectedUser.id,
+        contrato_id: contratoId,
+        cpf: selectedUser.cpf,
+      });
+
+      if (error) throw error;
+
+      // Reload contracts
+      const { data: contratos } = await supabase
+        .from("usuario_contrato")
+        .select("*, contratos(*)")
+        .eq("usuario_id", selectedUser.id);
+
+      setUserContracts(contratos || []);
+      setSuccess("Contrato adicionado com sucesso!");
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const handleRemoveContract = async (usuarioContratoId: string) => {
+    try {
+      const { error } = await supabase
+        .from("usuario_contrato")
+        .delete()
+        .eq("id", usuarioContratoId);
+
+      if (error) throw error;
+
+      // Reload contracts
+      const { data: contratos } = await supabase
+        .from("usuario_contrato")
+        .select("*, contratos(*)")
+        .eq("usuario_id", selectedUser!.id);
+
+      setUserContracts(contratos || []);
+      setSuccess("Contrato removido com sucesso!");
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const handleDeleteUser = async (usuario: Usuario) => {
+    if (!window.confirm(`Tem certeza que deseja excluir ${usuario.nome}?`)) {
       return;
     }
 
-    setDeleteDialogOpen(true);
-  };
-
-  const handleCloseDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setUsuarioToDelete(null);
-    setDeleteBlocked(false);
-    setDeleteBlockReason("");
-    setDeleteRelatedItems([]);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!usuarioToDelete || deleteBlocked) return;
-
     try {
-      setDeleting(true);
+      setError("");
 
-      // Usar a função do banco de dados para deletar completamente o usuário
-      const { data, error: rpcError } = await supabase.rpc(
-        "delete_user_completely",
-        {
-          user_id: usuarioToDelete.id,
-        }
-      );
+      // Delete usuario_contrato records
+      await supabase
+        .from("usuario_contrato")
+        .delete()
+        .eq("usuario_id", usuario.id);
 
-      if (rpcError) {
-        console.error("Erro ao deletar usuário:", rpcError);
-        // Se a função não existir, tentar o método antigo
-        if (
-          rpcError.message.includes("function") &&
-          rpcError.message.includes("does not exist")
-        ) {
-          // Fallback: deletar apenas da tabela usuarios
-          const { error: deleteError } = await supabase
-            .from("usuarios")
-            .delete()
-            .eq("id", usuarioToDelete.id);
+      // Delete usuario
+      const { error: deleteError } = await supabase
+        .from("usuarios")
+        .delete()
+        .eq("id", usuario.id);
 
-          if (deleteError) throw deleteError;
-          setSuccess(
-            "Usuário excluído da tabela. Nota: o registro de autenticação pode ainda existir."
-          );
-        } else {
-          throw rpcError;
-        }
-      } else {
-        setSuccess("Usuário excluído completamente do sistema!");
+      if (deleteError) throw deleteError;
+
+      // Try to delete from auth (if user has auth account)
+      // Note: Deleting auth users requires admin privileges
+      // This might fail for non-admin users or if user has no auth account, but we'll continue anyway
+      try {
+        await supabase.auth.admin.deleteUser(usuario.id);
+      } catch (authErr) {
+        console.error("Error deleting auth user (might not exist in auth):", authErr);
       }
 
-      handleCloseDeleteDialog();
-      loadData();
+      setSuccess("Usuário excluído com sucesso!");
+      handleCloseUserDetails();
+      handleSearch(); // Refresh
     } catch (err: any) {
       setError(err.message);
-      handleCloseDeleteDialog();
-    } finally {
-      setDeleting(false);
     }
   };
 
-  const getRoleColor = (
-    tipo: UserRole
-  ): "primary" | "secondary" | "default" | "info" => {
-    const colors: Record<
-      UserRole,
-      "primary" | "secondary" | "default" | "info"
-    > = {
-      "administrador-agir-corporativo": "primary",
-      "administrador-agir-planta": "info",
-      "administrador-terceiro": "secondary",
-      terceiro: "default",
-    };
-    return colors[tipo] || "default";
-  };
+  // Get unique names for autocomplete
+  const nombresDisponiveis = Array.from(
+    new Set(usuarios.map((u) => u.nome))
+  ).sort();
 
-  const columns: GridColDef[] = [
-    {
-      field: "nome",
-      headerName: "Nome",
-      flex: 1,
-      minWidth: 200,
-      renderCell: (params) => (
-        <Box>
-          <Typography variant="body2" fontWeight={600}>
-            {params.value}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {params.row.email}
-          </Typography>
-        </Box>
-      ),
-    },
-    { field: "cpf", headerName: "CPF", width: 140 },
-    {
-      field: "tipo",
-      headerName: "Tipo",
-      width: 200,
-      renderCell: (params) => {
-        const labels: Record<UserRole, string> = {
-          "administrador-agir-corporativo": "Admin Corporativo",
-          "administrador-agir-planta": "Admin Unidade",
-          "administrador-terceiro": "Admin Terceiro",
-          terceiro: "Terceiro",
-        };
-        return (
-          <Chip
-            label={labels[params.value as UserRole] || params.value}
-            color={getRoleColor(params.value)}
-            size="small"
-          />
-        );
-      },
-    },
-    {
-      field: "created_at",
-      headerName: "Cadastro",
-      width: 120,
-      renderCell: (params) => format(parseISO(params.value), "dd/MM/yyyy"),
-    },
-    {
-      field: "actions",
-      headerName: "Ações",
-      width: 120,
-      sortable: false,
-      renderCell: (params) => (
-        <Box>
-          <IconButton
-            size="small"
-            color="primary"
-            onClick={() => handleOpenDialog(params.row)}
-          >
-            <Edit fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            color="error"
-            onClick={() => handleOpenDeleteDialog(params.row)}
-          >
-            <Delete fontSize="small" />
-          </IconButton>
-        </Box>
-      ),
-    },
-  ];
+  // Get unique CPFs for autocomplete
+  const cpfsDisponiveis = Array.from(new Set(usuarios.map((u) => u.cpf))).sort();
+
+  // Get unique parceiros (empresas from contratos)
+  const parceirosDisponiveis = Array.from(
+    new Set(contratos.map((c) => c.empresa))
+  ).sort();
+
+  // Role labels
+  const roleLabels: Record<UserRole, string> = {
+    "administrador-agir-corporativo": "Admin Corporativo",
+    "administrador-agir-planta": "Admin Unidade",
+    "administrador-terceiro": "Admin Terceiro",
+    terceiro: "Terceiro",
+  };
 
   return (
     <Box>
-      <Box
-        sx={{
-          mb: 4,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Box>
-          <Typography variant="h4" fontWeight={700} gutterBottom>
-            Gestão de Usuários
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Cadastre e gerencie os usuários do sistema
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<PersonAdd />}
-          onClick={() => handleOpenDialog()}
-          sx={{
-            height: 42,
-            background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
-            color: "white",
-            "&:hover": {
-              background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
-            },
-          }}
-        >
-          Novo Usuário
-        </Button>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" fontWeight={700} gutterBottom>
+          Gestão de Usuários
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Busque e gerencie os usuários do sistema
+        </Typography>
       </Box>
 
       {error && (
@@ -560,47 +740,400 @@ const Usuarios: React.FC = () => {
         </Alert>
       )}
 
-      <Card>
+      {/* Advanced Filters */}
+      <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ height: 600, width: "100%" }}>
-            <DataGrid
-              rows={usuarios}
-              columns={columns}
-              loading={loading}
-              pageSizeOptions={[10, 25, 50]}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 25 } },
-              }}
-              slots={{ toolbar: GridToolbar }}
-              slotProps={{
-                toolbar: {
-                  showQuickFilter: true,
-                },
-              }}
-              disableRowSelectionOnClick
-            />
-          </Box>
+          <Typography variant="h6" fontWeight={600} gutterBottom>
+            Filtros Avançados
+          </Typography>
+
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} md={6} lg={4}>
+              <Autocomplete
+                multiple
+                options={nombresDisponiveis}
+                value={filtroNome}
+                onChange={(_, newValue) => setFiltroNome(newValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Nome" placeholder="Selecione..." />
+                )}
+                size="small"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6} lg={4}>
+              <Autocomplete
+                multiple
+                options={cpfsDisponiveis}
+                value={filtroCpf}
+                onChange={(_, newValue) => setFiltroCpf(newValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="CPF" placeholder="Selecione..." />
+                )}
+                size="small"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6} lg={4}>
+              <Autocomplete
+                options={contratos}
+                value={filtroContrato}
+                onChange={(_, newValue) => setFiltroContrato(newValue)}
+                getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
+                renderInput={(params) => (
+                  <TextField {...params} label="Contrato" placeholder="Selecione..." />
+                )}
+                size="small"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6} lg={4}>
+              <Autocomplete
+                multiple
+                options={parceirosDisponiveis}
+                value={filtroParceiro}
+                onChange={(_, newValue) => setFiltroParceiro(newValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Parceiro" placeholder="Selecione..." />
+                )}
+                size="small"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6} lg={4}>
+              <Autocomplete
+                multiple
+                options={ESPECIALIDADES}
+                value={filtroEspecialidade}
+                onChange={(_, newValue) => setFiltroEspecialidade(newValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Especialidade" placeholder="Selecione..." />
+                )}
+                size="small"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6} lg={4}>
+              <Box sx={{ display: "flex", gap: 1, height: "100%" }}>
+                <Button
+                  variant="contained"
+                  startIcon={<Search />}
+                  onClick={handleSearch}
+                  disabled={loading}
+                  fullWidth
+                  sx={{
+                    background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
+                    },
+                  }}
+                >
+                  {loading ? "Buscando..." : "Buscar"}
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<PersonAdd />}
+                  onClick={handleOpenCreateDialog}
+                  sx={{
+                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                    },
+                  }}
+                >
+                  Criar
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
         </CardContent>
       </Card>
 
-      {/* Dialog de Cadastro/Edição */}
+      {/* Results */}
+      {searchPerformed && (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" fontWeight={600} gutterBottom>
+              Resultados ({usuariosFiltrados.length})
+            </Typography>
+
+            {loading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : usuariosFiltrados.length === 0 ? (
+              <Box sx={{ textAlign: "center", py: 4 }}>
+                <PersonOff sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
+                <Typography variant="body1" color="text.secondary">
+                  Nenhum usuário encontrado
+                </Typography>
+              </Box>
+            ) : (
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                {usuariosFiltrados.map((usuario) => (
+                  <Grid item xs={12} md={6} lg={4} key={usuario.id}>
+                    <Paper
+                      sx={{
+                        p: 2,
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                        "&:hover": {
+                          transform: "translateY(-4px)",
+                          boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                        },
+                      }}
+                      onClick={() => handleOpenUserDetails(usuario)}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                        <AdminPanelSettings
+                          sx={{ color: "primary.main", fontSize: 28 }}
+                        />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle1" fontWeight={600}>
+                            {usuario.nome}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {usuario.cpf}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Divider sx={{ my: 1 }} />
+
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                        <Chip
+                          label={roleLabels[usuario.tipo]}
+                          size="small"
+                          color="primary"
+                        />
+                        {usuario.email ? (
+                          <Chip
+                            label="Com Acesso"
+                            size="small"
+                            color="success"
+                            icon={<Email />}
+                          />
+                        ) : (
+                          <Chip
+                            label="Sem Acesso"
+                            size="small"
+                            color="warning"
+                            icon={<PersonOff />}
+                          />
+                        )}
+                      </Box>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* User Details Dialog */}
       <Dialog
-        open={openDialog}
-        onClose={handleCloseDialog}
-        maxWidth="sm"
+        open={detailsDialogOpen}
+        onClose={handleCloseUserDetails}
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle>
-          {editingUsuario ? "Editar Usuário" : "Novo Usuário"}
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <Typography variant="h6" fontWeight={600}>
+              Detalhes do Usuário
+            </Typography>
+            <IconButton onClick={handleCloseUserDetails} size="small">
+              <Close />
+            </IconButton>
+          </Box>
         </DialogTitle>
         <DialogContent>
+          {selectedUser && (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {/* User Information */}
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Informações Básicas
+                </Typography>
+                <Paper sx={{ p: 2, bgcolor: "grey.50" }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Nome
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500}>
+                        {selectedUser.nome}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        CPF
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500}>
+                        {selectedUser.cpf}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Email
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500}>
+                        {selectedUser.email || "Não informado"}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Tipo
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500}>
+                        {roleLabels[selectedUser.tipo]}
+                      </Typography>
+                    </Grid>
+                    {selectedUser.codigomv && (
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="caption" color="text.secondary">
+                          Código MV
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                          {selectedUser.codigomv}
+                        </Typography>
+                      </Grid>
+                    )}
+                    {selectedUser.especialidade && selectedUser.especialidade.length > 0 && (
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="text.secondary">
+                          Especialidades
+                        </Typography>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+                          {selectedUser.especialidade.map((esp) => (
+                            <Chip key={esp} label={esp} size="small" color="primary" />
+                          ))}
+                        </Box>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Paper>
+              </Box>
+
+              {/* Contracts */}
+              <Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Contratos Vinculados
+                  </Typography>
+                </Box>
+                <Paper sx={{ p: 2, bgcolor: "grey.50" }}>
+                  {userContracts.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Nenhum contrato vinculado
+                    </Typography>
+                  ) : (
+                    <List dense>
+                      {userContracts.map((uc) => (
+                        <ListItem key={uc.id}>
+                          <ListItemText
+                            primary={uc.contratos?.nome}
+                            secondary={uc.contratos?.empresa}
+                          />
+                          <ListItemSecondaryAction>
+                            <IconButton
+                              edge="end"
+                              size="small"
+                              onClick={() => handleRemoveContract(uc.id)}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+
+                  {/* Add Contract */}
+                  <Autocomplete
+                    options={contratos.filter(
+                      (c) => !userContracts.some((uc) => uc.contrato_id === c.id)
+                    )}
+                    getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Adicionar Contrato"
+                        size="small"
+                        sx={{ mt: 2 }}
+                      />
+                    )}
+                    onChange={(_, newValue) => {
+                      if (newValue) {
+                        handleAddContract(newValue.id);
+                      }
+                    }}
+                    value={null}
+                  />
+                </Paper>
+              </Box>
+
+              {/* Send Invitation */}
+              {!selectedUser.email ? (
+                <Alert severity="info">
+                  Este usuário ainda não possui email cadastrado. Edite o usuário para adicionar um email e depois envie o convite.
+                </Alert>
+              ) : (
+                <Button
+                  variant="contained"
+                  startIcon={<Email />}
+                  onClick={() => handleSendInvitation(selectedUser)}
+                  fullWidth
+                  sx={{
+                    background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
+                    },
+                  }}
+                >
+                  Enviar Convite
+                </Button>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleOpenEditDialog} color="primary">
+            Editar
+          </Button>
+          <Button
+            onClick={() => selectedUser && handleDeleteUser(selectedUser)}
+            color="error"
+          >
+            Excluir
+          </Button>
+          <Button onClick={handleCloseUserDetails}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create/Edit Dialog */}
+      <Dialog
+        open={createDialogOpen}
+        onClose={handleCloseCreateDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editMode ? "Editar Usuário" : "Criar Novo Terceiro"}
+        </DialogTitle>
+        <DialogContent>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
+              {error}
+            </Alert>
+          )}
+
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
             <TextField
               label="Nome Completo"
               value={formData.nome}
-              onChange={(e) =>
-                setFormData({ ...formData, nome: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               fullWidth
               required
             />
@@ -609,37 +1142,18 @@ const Usuarios: React.FC = () => {
               label="Email"
               type="email"
               value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               fullWidth
-              required
-              disabled={!!editingUsuario}
+              helperText="Email opcional. Será necessário para enviar convite de acesso ao sistema"
             />
 
             <TextField
               label="CPF"
               value={formData.cpf}
-              onChange={(e) =>
-                setFormData({ ...formData, cpf: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
               fullWidth
               required
             />
-
-            {!editingUsuario && (
-              <TextField
-                label="Senha"
-                type="password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                fullWidth
-                required
-                helperText="Mínimo 6 caracteres"
-              />
-            )}
 
             <FormControl fullWidth required>
               <InputLabel>Tipo de Usuário</InputLabel>
@@ -665,11 +1179,7 @@ const Usuarios: React.FC = () => {
 
             {formData.tipo === "administrador-agir-planta" && (
               <Autocomplete
-                value={
-                  unidades.find(
-                    (u) => u.id === formData.unidade_hospitalar_id
-                  ) || null
-                }
+                value={unidades.find((u) => u.id === formData.unidade_hospitalar_id) || null}
                 onChange={(_, newValue) =>
                   setFormData({
                     ...formData,
@@ -683,7 +1193,6 @@ const Usuarios: React.FC = () => {
                     {...params}
                     label="Unidade Hospitalar"
                     required
-                    helperText="Selecione a unidade hospitalar para este administrador"
                   />
                 )}
                 fullWidth
@@ -700,7 +1209,6 @@ const Usuarios: React.FC = () => {
                   }
                   fullWidth
                   required
-                  helperText="Código do prestador cadastrado no sistema MV"
                 />
 
                 <Autocomplete
@@ -711,75 +1219,81 @@ const Usuarios: React.FC = () => {
                     setFormData({ ...formData, especialidade: newValue })
                   }
                   renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Especialidade"
-                      required
-                      helperText="Selecione uma ou mais especialidades"
-                    />
+                    <TextField {...params} label="Especialidade" required />
                   )}
                   renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip
-                        label={option}
-                        {...getTagProps({ index })}
-                        size="small"
-                        color="primary"
-                      />
-                    ))
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={option}
+                          {...tagProps}
+                          size="small"
+                          color="primary"
+                        />
+                      );
+                    })
                   }
                 />
               </>
             )}
 
-            {formData.tipo !== "administrador-agir-corporativo" &&
-              formData.tipo !== "administrador-agir-planta" && (
-                <FormControl fullWidth>
-                  <InputLabel>Contrato</InputLabel>
-                  <Select
-                    value={formData.contrato_id}
-                    label="Contrato"
-                    onChange={(e) =>
-                      setFormData({ ...formData, contrato_id: e.target.value })
-                    }
-                  >
-                    <MenuItem value="">Nenhum</MenuItem>
-                    {contratos.map((contrato) => (
-                      <MenuItem key={contrato.id} value={contrato.id}>
-                        {contrato.nome} - {contrato.empresa}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+            <Autocomplete
+              multiple
+              options={contratos}
+              value={contratos.filter((c) => formData.contrato_ids.includes(c.id))}
+              onChange={(_, newValue) =>
+                setFormData({
+                  ...formData,
+                  contrato_ids: newValue.map((c) => c.id),
+                })
+              }
+              getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
+              renderInput={(params) => (
+                <TextField {...params} label="Contratos" />
               )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index });
+                  return (
+                    <Chip
+                      key={key}
+                      label={option.nome}
+                      {...tagProps}
+                      size="small"
+                      color="primary"
+                    />
+                  );
+                })
+              }
+            />
+
+            {!editMode && (
+              <Alert severity="info">
+                O terceiro será criado sem acesso ao sistema. Use o botão "Enviar Convite" nos detalhes do usuário para criar o acesso.
+              </Alert>
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button onClick={handleSave} variant="contained">
-            Salvar
+          <Button onClick={handleCloseCreateDialog} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSaveTerceiro}
+            variant="contained"
+            color="primary"
+            disabled={saving}
+          >
+            {saving
+              ? "Salvando..."
+              : editMode
+              ? "Salvar"
+              : "Criar Terceiro"}
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <DeleteConfirmDialog
-        open={deleteDialogOpen}
-        onClose={handleCloseDeleteDialog}
-        onConfirm={handleConfirmDelete}
-        title="Excluir Usuário"
-        itemName={usuarioToDelete?.nome || ""}
-        severity="warning"
-        isBlocked={deleteBlocked}
-        blockReason={deleteBlockReason}
-        relatedItems={deleteRelatedItems}
-        warningMessage={
-          !deleteBlocked
-            ? "Esta ação não poderá ser desfeita. O usuário e todos os seus dados serão permanentemente removidos do sistema, incluindo o acesso de autenticação."
-            : undefined
-        }
-        loading={deleting}
-      />
     </Box>
   );
 };

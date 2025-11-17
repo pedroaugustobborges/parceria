@@ -15,7 +15,8 @@
       "Bash(git add:*)",
       "Bash(git push:*)",
       "Bash(cat:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(echo \"Please run this SQL command in your Supabase SQL Editor to allow NULL emails:\n\nALTER TABLE usuarios ALTER COLUMN email DROP NOT NULL;\n\nThis will allow creating terceiros without email addresses.\")"
     ],
     "deny": [],
     "ask": []
