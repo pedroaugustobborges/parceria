@@ -823,8 +823,16 @@ const Usuarios: React.FC = () => {
                   fullWidth
                   sx={{
                     background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+                    color: "#ffffff",
+                    fontWeight: 600,
+                    boxShadow: "0 4px 12px rgba(14, 165, 233, 0.3)",
                     "&:hover": {
                       background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
+                      boxShadow: "0 6px 16px rgba(14, 165, 233, 0.4)",
+                    },
+                    "&:disabled": {
+                      background: "linear-gradient(135deg, #94a3b8 0%, #cbd5e1 100%)",
+                      color: "#ffffff",
                     },
                   }}
                 >
@@ -836,8 +844,12 @@ const Usuarios: React.FC = () => {
                   onClick={handleOpenCreateDialog}
                   sx={{
                     background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                    color: "#ffffff",
+                    fontWeight: 600,
+                    boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
                     "&:hover": {
                       background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                      boxShadow: "0 6px 16px rgba(16, 185, 129, 0.4)",
                     },
                   }}
                 >
