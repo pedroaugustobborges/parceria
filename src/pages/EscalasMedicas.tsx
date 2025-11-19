@@ -1859,18 +1859,30 @@ const EscalasMedicas: React.FC = () => {
               <Button
                 variant="contained"
                 size="large"
-                startIcon={<Search />}
+                startIcon={
+                  loading ? (
+                    <CircularProgress size={20} sx={{ color: "white" }} />
+                  ) : (
+                    <Search />
+                  )
+                }
                 onClick={handleBuscarEscalas}
                 disabled={loading}
                 sx={{
                   minWidth: 200,
                   background:
                     "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  color: "white",
+                  color: "white !important",
                   fontWeight: 600,
                   "&:hover": {
                     background:
                       "linear-gradient(135deg, #5568d3 0%, #63397d 100%)",
+                  },
+                  "&.Mui-disabled": {
+                    background:
+                      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "white !important",
+                    opacity: 0.8,
                   },
                 }}
               >
