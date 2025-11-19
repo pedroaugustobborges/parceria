@@ -3342,6 +3342,9 @@ const EscalasMedicas: React.FC = () => {
                               <TableHead>
                                 <TableRow sx={{ bgcolor: "grey.100" }}>
                                   <TableCell>
+                                    <strong>Data</strong>
+                                  </TableCell>
+                                  <TableCell>
                                     <strong>Horário</strong>
                                   </TableCell>
                                   <TableCell>
@@ -3355,6 +3358,12 @@ const EscalasMedicas: React.FC = () => {
                               <TableBody>
                                 {acessosMedico.map((acesso, idx) => (
                                   <TableRow key={idx}>
+                                    <TableCell>
+                                      {format(
+                                        parseISO(acesso.data_acesso),
+                                        "dd/MM/yyyy"
+                                      )}
+                                    </TableCell>
                                     <TableCell>
                                       {format(
                                         parseISO(acesso.data_acesso),
