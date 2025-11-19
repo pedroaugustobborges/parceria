@@ -48,6 +48,8 @@ import {
   PersonOff,
   Assignment,
   Search,
+  ArrowBackIos,
+  ArrowForwardIos,
 } from "@mui/icons-material";
 import {
   BarChart,
@@ -200,6 +202,13 @@ const Dashboard: React.FC = () => {
       saidas: number;
     }>;
   } | null>(null);
+
+  // Pagination state for each section
+  const [pageProdSemAcesso, setPageProdSemAcesso] = useState(0);
+  const [pageAcessoSemProd, setPageAcessoSemProd] = useState(0);
+  const [pagePontualidade, setPagePontualidade] = useState(0);
+  const [pageAbsenteismo, setPageAbsenteismo] = useState(0);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     // Load only auxiliary data (contracts, items, productivity, schedules, users, units)
@@ -3605,99 +3614,166 @@ const Dashboard: React.FC = () => {
                         </Typography>
                       </Box>
                     ) : (
-                      <Box sx={{ maxHeight: 400, overflow: "auto" }}>
-                        {inconsistencias.prodSemAcesso
-                          .slice(0, 10)
-                          .map((item, index) => (
-                            <Paper
-                              key={index}
-                              sx={{
-                                p: 2,
-                                mb: 1.5,
-                                cursor: "pointer",
-                                transition: "all 0.2s",
-                                "&:hover": {
-                                  transform: "translateX(4px)",
-                                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                                  bgcolor: "info.50",
-                                },
-                              }}
-                              onClick={() =>
-                                handleOpenInconsistenciaModal(
-                                  item.nome,
-                                  "prodSemAcesso",
-                                  item.datas
-                                )
-                              }
-                            >
-                              <Box
-                                display="flex"
-                                justifyContent="space-between"
-                                alignItems="center"
+                      <>
+                        <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+                          {inconsistencias.prodSemAcesso
+                            .slice(
+                              pageProdSemAcesso * itemsPerPage,
+                              pageProdSemAcesso * itemsPerPage + itemsPerPage
+                            )
+                            .map((item, index) => (
+                              <Paper
+                                key={index}
+                                sx={{
+                                  p: 2,
+                                  mb: 1.5,
+                                  cursor: "pointer",
+                                  transition: "all 0.2s",
+                                  "&:hover": {
+                                    transform: "translateX(4px)",
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                    bgcolor: "info.50",
+                                  },
+                                }}
+                                onClick={() =>
+                                  handleOpenInconsistenciaModal(
+                                    item.nome,
+                                    "prodSemAcesso",
+                                    item.datas
+                                  )
+                                }
                               >
                                 <Box
                                   display="flex"
+                                  justifyContent="space-between"
                                   alignItems="center"
-                                  gap={1.5}
                                 >
                                   <Box
+                                    display="flex"
+                                    alignItems="center"
+                                    gap={1.5}
+                                  >
+                                    <Box
+                                      sx={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: "8px",
+                                        bgcolor: "#3b82f6",
+                                        color: "white",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontWeight: 700,
+                                        fontSize: 14,
+                                      }}
+                                    >
+                                      {pageProdSemAcesso * itemsPerPage + index + 1}
+                                    </Box>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                      sx={{
+                                        maxWidth: 200,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {item.nome}
+                                    </Typography>
+                                  </Box>
+                                  <Chip
+                                    label={`${item.count} ${
+                                      item.count === 1 ? "dia" : "dias"
+                                    }`}
+                                    size="small"
                                     sx={{
-                                      width: 32,
-                                      height: 32,
-                                      borderRadius: "8px",
                                       bgcolor: "#3b82f6",
                                       color: "white",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      fontWeight: 700,
-                                      fontSize: 14,
+                                      fontWeight: 600,
                                     }}
-                                  >
-                                    {index + 1}
-                                  </Box>
-                                  <Typography
-                                    variant="body2"
-                                    fontWeight={600}
-                                    sx={{
-                                      maxWidth: 200,
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                    }}
-                                  >
-                                    {item.nome}
-                                  </Typography>
+                                  />
                                 </Box>
-                                <Chip
-                                  label={`${item.count} ${
-                                    item.count === 1 ? "dia" : "dias"
-                                  }`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "#3b82f6",
-                                    color: "white",
-                                    fontWeight: 600,
-                                  }}
-                                />
-                              </Box>
-                            </Paper>
-                          ))}
-                        {inconsistencias.prodSemAcesso.length > 10 && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
+                              </Paper>
+                            ))}
+                        </Box>
+                        {inconsistencias.prodSemAcesso.length > itemsPerPage && (
+                          <Box
                             sx={{
-                              display: "block",
-                              textAlign: "center",
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              gap: 2,
                               mt: 2,
+                              pt: 2,
+                              borderTop: "1px solid #e5e7eb",
                             }}
                           >
-                            +{inconsistencias.prodSemAcesso.length - 10}{" "}
-                            profissionais
-                          </Typography>
+                            <IconButton
+                              onClick={() => setPageProdSemAcesso(Math.max(0, pageProdSemAcesso - 1))}
+                              disabled={pageProdSemAcesso === 0}
+                              size="small"
+                              sx={{
+                                bgcolor: pageProdSemAcesso === 0 ? "#f3f4f6" : "#3b82f6",
+                                color: pageProdSemAcesso === 0 ? "#9ca3af" : "white",
+                                "&:hover": {
+                                  bgcolor: pageProdSemAcesso === 0 ? "#f3f4f6" : "#2563eb",
+                                },
+                                "&:disabled": {
+                                  bgcolor: "#f3f4f6",
+                                  color: "#9ca3af",
+                                },
+                              }}
+                            >
+                              <ArrowBackIos sx={{ fontSize: 14, ml: 0.5 }} />
+                            </IconButton>
+                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                              {pageProdSemAcesso + 1} /{" "}
+                              {Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage)}
+                            </Typography>
+                            <IconButton
+                              onClick={() =>
+                                setPageProdSemAcesso(
+                                  Math.min(
+                                    Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage) - 1,
+                                    pageProdSemAcesso + 1
+                                  )
+                                )
+                              }
+                              disabled={
+                                pageProdSemAcesso >=
+                                Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage) - 1
+                              }
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  pageProdSemAcesso >=
+                                  Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage) - 1
+                                    ? "#f3f4f6"
+                                    : "#3b82f6",
+                                color:
+                                  pageProdSemAcesso >=
+                                  Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage) - 1
+                                    ? "#9ca3af"
+                                    : "white",
+                                "&:hover": {
+                                  bgcolor:
+                                    pageProdSemAcesso >=
+                                    Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage) - 1
+                                      ? "#f3f4f6"
+                                      : "#2563eb",
+                                },
+                                "&:disabled": {
+                                  bgcolor: "#f3f4f6",
+                                  color: "#9ca3af",
+                                },
+                              }}
+                            >
+                              <ArrowForwardIos sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </Box>
                         )}
-                      </Box>
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -3776,99 +3852,166 @@ const Dashboard: React.FC = () => {
                         </Typography>
                       </Box>
                     ) : (
-                      <Box sx={{ maxHeight: 400, overflow: "auto" }}>
-                        {inconsistencias.acessoSemProd
-                          .slice(0, 10)
-                          .map((item, index) => (
-                            <Paper
-                              key={index}
-                              sx={{
-                                p: 2,
-                                mb: 1.5,
-                                cursor: "pointer",
-                                transition: "all 0.2s",
-                                "&:hover": {
-                                  transform: "translateX(4px)",
-                                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                                  bgcolor: "info.50",
-                                },
-                              }}
-                              onClick={() =>
-                                handleOpenInconsistenciaModal(
-                                  item.nome,
-                                  "acessoSemProd",
-                                  item.datas
-                                )
-                              }
-                            >
-                              <Box
-                                display="flex"
-                                justifyContent="space-between"
-                                alignItems="center"
+                      <>
+                        <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+                          {inconsistencias.acessoSemProd
+                            .slice(
+                              pageAcessoSemProd * itemsPerPage,
+                              pageAcessoSemProd * itemsPerPage + itemsPerPage
+                            )
+                            .map((item, index) => (
+                              <Paper
+                                key={index}
+                                sx={{
+                                  p: 2,
+                                  mb: 1.5,
+                                  cursor: "pointer",
+                                  transition: "all 0.2s",
+                                  "&:hover": {
+                                    transform: "translateX(4px)",
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                    bgcolor: "info.50",
+                                  },
+                                }}
+                                onClick={() =>
+                                  handleOpenInconsistenciaModal(
+                                    item.nome,
+                                    "acessoSemProd",
+                                    item.datas
+                                  )
+                                }
                               >
                                 <Box
                                   display="flex"
+                                  justifyContent="space-between"
                                   alignItems="center"
-                                  gap={1.5}
                                 >
                                   <Box
+                                    display="flex"
+                                    alignItems="center"
+                                    gap={1.5}
+                                  >
+                                    <Box
+                                      sx={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: "8px",
+                                        bgcolor: "#3b82f6",
+                                        color: "white",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontWeight: 700,
+                                        fontSize: 14,
+                                      }}
+                                    >
+                                      {pageAcessoSemProd * itemsPerPage + index + 1}
+                                    </Box>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                      sx={{
+                                        maxWidth: 200,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {item.nome}
+                                    </Typography>
+                                  </Box>
+                                  <Chip
+                                    label={`${item.count} ${
+                                      item.count === 1 ? "dia" : "dias"
+                                    }`}
+                                    size="small"
                                     sx={{
-                                      width: 32,
-                                      height: 32,
-                                      borderRadius: "8px",
                                       bgcolor: "#3b82f6",
                                       color: "white",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      fontWeight: 700,
-                                      fontSize: 14,
+                                      fontWeight: 600,
                                     }}
-                                  >
-                                    {index + 1}
-                                  </Box>
-                                  <Typography
-                                    variant="body2"
-                                    fontWeight={600}
-                                    sx={{
-                                      maxWidth: 200,
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                    }}
-                                  >
-                                    {item.nome}
-                                  </Typography>
+                                  />
                                 </Box>
-                                <Chip
-                                  label={`${item.count} ${
-                                    item.count === 1 ? "dia" : "dias"
-                                  }`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "#3b82f6",
-                                    color: "white",
-                                    fontWeight: 600,
-                                  }}
-                                />
-                              </Box>
-                            </Paper>
-                          ))}
-                        {inconsistencias.acessoSemProd.length > 10 && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
+                              </Paper>
+                            ))}
+                        </Box>
+                        {inconsistencias.acessoSemProd.length > itemsPerPage && (
+                          <Box
                             sx={{
-                              display: "block",
-                              textAlign: "center",
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              gap: 2,
                               mt: 2,
+                              pt: 2,
+                              borderTop: "1px solid #e5e7eb",
                             }}
                           >
-                            +{inconsistencias.acessoSemProd.length - 10}{" "}
-                            profissionais
-                          </Typography>
+                            <IconButton
+                              onClick={() => setPageAcessoSemProd(Math.max(0, pageAcessoSemProd - 1))}
+                              disabled={pageAcessoSemProd === 0}
+                              size="small"
+                              sx={{
+                                bgcolor: pageAcessoSemProd === 0 ? "#f3f4f6" : "#3b82f6",
+                                color: pageAcessoSemProd === 0 ? "#9ca3af" : "white",
+                                "&:hover": {
+                                  bgcolor: pageAcessoSemProd === 0 ? "#f3f4f6" : "#2563eb",
+                                },
+                                "&:disabled": {
+                                  bgcolor: "#f3f4f6",
+                                  color: "#9ca3af",
+                                },
+                              }}
+                            >
+                              <ArrowBackIos sx={{ fontSize: 14, ml: 0.5 }} />
+                            </IconButton>
+                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                              {pageAcessoSemProd + 1} /{" "}
+                              {Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage)}
+                            </Typography>
+                            <IconButton
+                              onClick={() =>
+                                setPageAcessoSemProd(
+                                  Math.min(
+                                    Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage) - 1,
+                                    pageAcessoSemProd + 1
+                                  )
+                                )
+                              }
+                              disabled={
+                                pageAcessoSemProd >=
+                                Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage) - 1
+                              }
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  pageAcessoSemProd >=
+                                  Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage) - 1
+                                    ? "#f3f4f6"
+                                    : "#3b82f6",
+                                color:
+                                  pageAcessoSemProd >=
+                                  Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage) - 1
+                                    ? "#9ca3af"
+                                    : "white",
+                                "&:hover": {
+                                  bgcolor:
+                                    pageAcessoSemProd >=
+                                    Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage) - 1
+                                      ? "#f3f4f6"
+                                      : "#2563eb",
+                                },
+                                "&:disabled": {
+                                  bgcolor: "#f3f4f6",
+                                  color: "#9ca3af",
+                                },
+                              }}
+                            >
+                              <ArrowForwardIos sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </Box>
                         )}
-                      </Box>
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -3950,103 +4093,170 @@ const Dashboard: React.FC = () => {
                         </Typography>
                       </Box>
                     ) : (
-                      <Box sx={{ maxHeight: 400, overflow: "auto" }}>
-                        {indicadoresEscalas.pontualidade
-                          .slice(0, 10)
-                          .map((item, index) => (
-                            <Paper
-                              key={item.cpf}
-                              sx={{
-                                p: 2,
-                                mb: 1.5,
-                                cursor: "pointer",
-                                transition: "all 0.2s",
-                                "&:hover": {
-                                  transform: "translateX(4px)",
-                                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                                  bgcolor: "info.50",
-                                },
-                              }}
-                              onClick={() =>
-                                handleOpenPontualidadeModal(item.cpf, item.nome)
-                              }
-                            >
-                              <Box
-                                display="flex"
-                                justifyContent="space-between"
-                                alignItems="center"
+                      <>
+                        <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+                          {indicadoresEscalas.pontualidade
+                            .slice(
+                              pagePontualidade * itemsPerPage,
+                              pagePontualidade * itemsPerPage + itemsPerPage
+                            )
+                            .map((item, index) => (
+                              <Paper
+                                key={item.cpf}
+                                sx={{
+                                  p: 2,
+                                  mb: 1.5,
+                                  cursor: "pointer",
+                                  transition: "all 0.2s",
+                                  "&:hover": {
+                                    transform: "translateX(4px)",
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                    bgcolor: "info.50",
+                                  },
+                                }}
+                                onClick={() =>
+                                  handleOpenPontualidadeModal(item.cpf, item.nome)
+                                }
                               >
                                 <Box
                                   display="flex"
+                                  justifyContent="space-between"
                                   alignItems="center"
-                                  gap={1.5}
-                                  flex={1}
                                 >
                                   <Box
-                                    sx={{
-                                      width: 32,
-                                      height: 32,
-                                      borderRadius: "8px",
-                                      bgcolor: "#3b82f6",
-                                      color: "white",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      fontWeight: 700,
-                                      fontSize: 14,
-                                    }}
+                                    display="flex"
+                                    alignItems="center"
+                                    gap={1.5}
+                                    flex={1}
                                   >
-                                    {index + 1}
-                                  </Box>
-                                  <Box flex={1}>
-                                    <Typography
-                                      variant="body2"
-                                      fontWeight={600}
+                                    <Box
                                       sx={{
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: "8px",
+                                        bgcolor: "#3b82f6",
+                                        color: "white",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontWeight: 700,
+                                        fontSize: 14,
                                       }}
                                     >
-                                      {item.nome}
-                                    </Typography>
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                    >
-                                      Pontualidade: {item.indice}%
-                                    </Typography>
+                                      {pagePontualidade * itemsPerPage + index + 1}
+                                    </Box>
+                                    <Box flex={1}>
+                                      <Typography
+                                        variant="body2"
+                                        fontWeight={600}
+                                        sx={{
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {item.nome}
+                                      </Typography>
+                                      <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                      >
+                                        Pontualidade: {item.indice}%
+                                      </Typography>
+                                    </Box>
                                   </Box>
+                                  <Chip
+                                    label={`${item.atrasos} ${
+                                      item.atrasos === 1 ? "atraso" : "atrasos"
+                                    }`}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: "#3b82f6",
+                                      color: "white",
+                                      fontWeight: 600,
+                                    }}
+                                  />
                                 </Box>
-                                <Chip
-                                  label={`${item.atrasos} ${
-                                    item.atrasos === 1 ? "atraso" : "atrasos"
-                                  }`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "#3b82f6",
-                                    color: "white",
-                                    fontWeight: 600,
-                                  }}
-                                />
-                              </Box>
-                            </Paper>
-                          ))}
-                        {indicadoresEscalas.pontualidade.length > 10 && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
+                              </Paper>
+                            ))}
+                        </Box>
+                        {indicadoresEscalas.pontualidade.length > itemsPerPage && (
+                          <Box
                             sx={{
-                              display: "block",
-                              textAlign: "center",
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              gap: 2,
                               mt: 2,
+                              pt: 2,
+                              borderTop: "1px solid #e5e7eb",
                             }}
                           >
-                            +{indicadoresEscalas.pontualidade.length - 10}{" "}
-                            médicos
-                          </Typography>
+                            <IconButton
+                              onClick={() => setPagePontualidade(Math.max(0, pagePontualidade - 1))}
+                              disabled={pagePontualidade === 0}
+                              size="small"
+                              sx={{
+                                bgcolor: pagePontualidade === 0 ? "#f3f4f6" : "#3b82f6",
+                                color: pagePontualidade === 0 ? "#9ca3af" : "white",
+                                "&:hover": {
+                                  bgcolor: pagePontualidade === 0 ? "#f3f4f6" : "#2563eb",
+                                },
+                                "&:disabled": {
+                                  bgcolor: "#f3f4f6",
+                                  color: "#9ca3af",
+                                },
+                              }}
+                            >
+                              <ArrowBackIos sx={{ fontSize: 14, ml: 0.5 }} />
+                            </IconButton>
+                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                              {pagePontualidade + 1} /{" "}
+                              {Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage)}
+                            </Typography>
+                            <IconButton
+                              onClick={() =>
+                                setPagePontualidade(
+                                  Math.min(
+                                    Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage) - 1,
+                                    pagePontualidade + 1
+                                  )
+                                )
+                              }
+                              disabled={
+                                pagePontualidade >=
+                                Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage) - 1
+                              }
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  pagePontualidade >=
+                                  Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage) - 1
+                                    ? "#f3f4f6"
+                                    : "#3b82f6",
+                                color:
+                                  pagePontualidade >=
+                                  Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage) - 1
+                                    ? "#9ca3af"
+                                    : "white",
+                                "&:hover": {
+                                  bgcolor:
+                                    pagePontualidade >=
+                                    Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage) - 1
+                                      ? "#f3f4f6"
+                                      : "#2563eb",
+                                },
+                                "&:disabled": {
+                                  bgcolor: "#f3f4f6",
+                                  color: "#9ca3af",
+                                },
+                              }}
+                            >
+                              <ArrowForwardIos sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </Box>
                         )}
-                      </Box>
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -4125,105 +4335,172 @@ const Dashboard: React.FC = () => {
                         </Typography>
                       </Box>
                     ) : (
-                      <Box sx={{ maxHeight: 400, overflow: "auto" }}>
-                        {indicadoresEscalas.absenteismo
-                          .slice(0, 10)
-                          .map((item, index) => (
-                            <Paper
-                              key={item.cpf}
-                              sx={{
-                                p: 2,
-                                mb: 1.5,
-                                cursor: "pointer",
-                                transition: "all 0.2s",
-                                "&:hover": {
-                                  transform: "translateX(4px)",
-                                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                                  bgcolor: "info.50",
-                                },
-                              }}
-                              onClick={() =>
-                                handleOpenAbsenteismoModal(item.cpf, item.nome)
-                              }
-                            >
-                              <Box
-                                display="flex"
-                                justifyContent="space-between"
-                                alignItems="center"
+                      <>
+                        <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+                          {indicadoresEscalas.absenteismo
+                            .slice(
+                              pageAbsenteismo * itemsPerPage,
+                              pageAbsenteismo * itemsPerPage + itemsPerPage
+                            )
+                            .map((item, index) => (
+                              <Paper
+                                key={item.cpf}
+                                sx={{
+                                  p: 2,
+                                  mb: 1.5,
+                                  cursor: "pointer",
+                                  transition: "all 0.2s",
+                                  "&:hover": {
+                                    transform: "translateX(4px)",
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                    bgcolor: "info.50",
+                                  },
+                                }}
+                                onClick={() =>
+                                  handleOpenAbsenteismoModal(item.cpf, item.nome)
+                                }
                               >
                                 <Box
                                   display="flex"
+                                  justifyContent="space-between"
                                   alignItems="center"
-                                  gap={1.5}
-                                  flex={1}
                                 >
                                   <Box
-                                    sx={{
-                                      width: 32,
-                                      height: 32,
-                                      borderRadius: "8px",
-                                      bgcolor: "#3b82f6",
-                                      color: "white",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      fontWeight: 700,
-                                      fontSize: 14,
-                                    }}
+                                    display="flex"
+                                    alignItems="center"
+                                    gap={1.5}
+                                    flex={1}
                                   >
-                                    {index + 1}
-                                  </Box>
-                                  <Box flex={1}>
-                                    <Typography
-                                      variant="body2"
-                                      fontWeight={600}
+                                    <Box
                                       sx={{
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: "8px",
+                                        bgcolor: "#3b82f6",
+                                        color: "white",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontWeight: 700,
+                                        fontSize: 14,
                                       }}
                                     >
-                                      {item.nome}
-                                    </Typography>
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                    >
-                                      Absenteísmo: {item.indice}%
-                                    </Typography>
+                                      {pageAbsenteismo * itemsPerPage + index + 1}
+                                    </Box>
+                                    <Box flex={1}>
+                                      <Typography
+                                        variant="body2"
+                                        fontWeight={600}
+                                        sx={{
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {item.nome}
+                                      </Typography>
+                                      <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                      >
+                                        Absenteísmo: {item.indice}%
+                                      </Typography>
+                                    </Box>
                                   </Box>
+                                  <Chip
+                                    label={`${item.ausencias} ${
+                                      item.ausencias === 1
+                                        ? "ausência"
+                                        : "ausências"
+                                    }`}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: "#3b82f6",
+                                      color: "white",
+                                      fontWeight: 600,
+                                    }}
+                                  />
                                 </Box>
-                                <Chip
-                                  label={`${item.ausencias} ${
-                                    item.ausencias === 1
-                                      ? "ausência"
-                                      : "ausências"
-                                  }`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "#3b82f6",
-                                    color: "white",
-                                    fontWeight: 600,
-                                  }}
-                                />
-                              </Box>
-                            </Paper>
-                          ))}
-                        {indicadoresEscalas.absenteismo.length > 10 && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
+                              </Paper>
+                            ))}
+                        </Box>
+                        {indicadoresEscalas.absenteismo.length > itemsPerPage && (
+                          <Box
                             sx={{
-                              display: "block",
-                              textAlign: "center",
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              gap: 2,
                               mt: 2,
+                              pt: 2,
+                              borderTop: "1px solid #e5e7eb",
                             }}
                           >
-                            +{indicadoresEscalas.absenteismo.length - 10}{" "}
-                            médicos
-                          </Typography>
+                            <IconButton
+                              onClick={() => setPageAbsenteismo(Math.max(0, pageAbsenteismo - 1))}
+                              disabled={pageAbsenteismo === 0}
+                              size="small"
+                              sx={{
+                                bgcolor: pageAbsenteismo === 0 ? "#f3f4f6" : "#3b82f6",
+                                color: pageAbsenteismo === 0 ? "#9ca3af" : "white",
+                                "&:hover": {
+                                  bgcolor: pageAbsenteismo === 0 ? "#f3f4f6" : "#2563eb",
+                                },
+                                "&:disabled": {
+                                  bgcolor: "#f3f4f6",
+                                  color: "#9ca3af",
+                                },
+                              }}
+                            >
+                              <ArrowBackIos sx={{ fontSize: 14, ml: 0.5 }} />
+                            </IconButton>
+                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                              {pageAbsenteismo + 1} /{" "}
+                              {Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage)}
+                            </Typography>
+                            <IconButton
+                              onClick={() =>
+                                setPageAbsenteismo(
+                                  Math.min(
+                                    Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage) - 1,
+                                    pageAbsenteismo + 1
+                                  )
+                                )
+                              }
+                              disabled={
+                                pageAbsenteismo >=
+                                Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage) - 1
+                              }
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  pageAbsenteismo >=
+                                  Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage) - 1
+                                    ? "#f3f4f6"
+                                    : "#3b82f6",
+                                color:
+                                  pageAbsenteismo >=
+                                  Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage) - 1
+                                    ? "#9ca3af"
+                                    : "white",
+                                "&:hover": {
+                                  bgcolor:
+                                    pageAbsenteismo >=
+                                    Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage) - 1
+                                      ? "#f3f4f6"
+                                      : "#2563eb",
+                                },
+                                "&:disabled": {
+                                  bgcolor: "#f3f4f6",
+                                  color: "#9ca3af",
+                                },
+                              }}
+                            >
+                              <ArrowForwardIos sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </Box>
                         )}
-                      </Box>
+                      </>
                     )}
                   </CardContent>
                 </Card>
