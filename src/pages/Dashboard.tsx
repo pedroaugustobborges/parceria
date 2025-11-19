@@ -169,6 +169,38 @@ const Dashboard: React.FC = () => {
     }>;
   } | null>(null);
 
+  // Modal de detalhes de Horas Escaladas
+  const [horasEscaladasModalOpen, setHorasEscaladasModalOpen] = useState(false);
+  const [horasEscaladasSelecionadas, setHorasEscaladasSelecionadas] = useState<{
+    nome: string;
+    cpf: string;
+    totalHoras: number;
+    detalhamento: Array<{
+      data: string;
+      horarioEntrada: string;
+      horarioSaida: string;
+      horas: number;
+      observacoes: string | null;
+      status: string;
+    }>;
+  } | null>(null);
+
+  // Modal de detalhes de Horas na Unidade
+  const [horasUnidadeModalOpen, setHorasUnidadeModalOpen] = useState(false);
+  const [horasUnidadeSelecionadas, setHorasUnidadeSelecionadas] = useState<{
+    nome: string;
+    cpf: string;
+    totalHoras: number;
+    detalhamento: Array<{
+      data: string;
+      primeiraEntrada: string;
+      ultimaSaida: string;
+      horas: number;
+      entradas: number;
+      saidas: number;
+    }>;
+  } | null>(null);
+
   useEffect(() => {
     // Load only auxiliary data (contracts, items, productivity, schedules, users, units)
     // Access data will be loaded only when user clicks "Buscar Acessos"
@@ -1775,6 +1807,156 @@ const Dashboard: React.FC = () => {
     setDiferencaHorasSelecionada(null);
   };
 
+  const handleOpenHorasEscaladasModal = (cpf: string, nome: string) => {
+    // Filter escalas for this person within the date range
+    const escalasPessoa = escalas.filter(
+      (e) =>
+        e.medicos.some((m) => m.cpf === cpf) &&
+        (!filtroDataInicio ||
+          parseISO(e.data_inicio) >= new Date(filtroDataInicio)) &&
+        (!filtroDataFim || parseISO(e.data_inicio) <= new Date(filtroDataFim))
+    );
+
+    // Calculate details for each escala
+    const detalhamento = escalasPessoa.map((escala) => {
+      const [horaEntrada, minEntrada] = escala.horario_entrada
+        .split(":")
+        .map(Number);
+      const [horaSaida, minSaida] = escala.horario_saida.split(":").map(Number);
+      let minutosTotais =
+        horaSaida * 60 + minSaida - (horaEntrada * 60 + minEntrada);
+      if (minutosTotais < 0) {
+        minutosTotais += 24 * 60;
+      }
+      const horas = minutosTotais / 60;
+
+      return {
+        data: escala.data_inicio,
+        horarioEntrada: escala.horario_entrada,
+        horarioSaida: escala.horario_saida,
+        horas: parseFloat(horas.toFixed(2)),
+        observacoes: escala.observacoes,
+        status: escala.status,
+      };
+    });
+
+    // Calculate total hours
+    const totalHoras = detalhamento.reduce((sum, item) => sum + item.horas, 0);
+
+    setHorasEscaladasSelecionadas({
+      nome,
+      cpf,
+      totalHoras: parseFloat(totalHoras.toFixed(2)),
+      detalhamento: detalhamento.sort((a, b) => b.data.localeCompare(a.data)),
+    });
+    setHorasEscaladasModalOpen(true);
+  };
+
+  const handleCloseHorasEscaladasModal = () => {
+    setHorasEscaladasModalOpen(false);
+    setHorasEscaladasSelecionadas(null);
+  };
+
+  const handleOpenHorasUnidadeModal = (cpf: string, nome: string) => {
+    // Filter accesses for this person
+    const acessosPessoa = acessosFiltrados.filter((a) => a.cpf === cpf);
+
+    // Group accesses by day
+    const acessosPorDia = acessosPessoa.reduce((acc, acesso) => {
+      const dataStr = format(parseISO(acesso.data_acesso), "yyyy-MM-dd");
+      if (!acc[dataStr]) {
+        acc[dataStr] = [];
+      }
+      acc[dataStr].push(acesso);
+      return acc;
+    }, {} as Record<string, Acesso[]>);
+
+    // Calculate hours per day
+    const diasOrdenados = Object.keys(acessosPorDia).sort();
+    const detalhamento = diasOrdenados.map((dataStr, i) => {
+      const acessosDia = acessosPorDia[dataStr];
+      const acessosDiaOrdenados = acessosDia.sort(
+        (a, b) =>
+          new Date(a.data_acesso).getTime() - new Date(b.data_acesso).getTime()
+      );
+
+      const entradasDia = acessosDiaOrdenados.filter((a) => a.sentido === "E");
+      const saidasDia = acessosDiaOrdenados.filter((a) => a.sentido === "S");
+
+      let horasTrabalhadas = 0;
+      let primeiraEntradaStr = "-";
+      let ultimaSaidaStr = "-";
+
+      if (entradasDia.length > 0) {
+        const primeiraEntrada = parseISO(entradasDia[0].data_acesso);
+        primeiraEntradaStr = format(primeiraEntrada, "HH:mm");
+
+        if (saidasDia.length > 0) {
+          const ultimaSaida = parseISO(
+            saidasDia[saidasDia.length - 1].data_acesso
+          );
+          ultimaSaidaStr = format(ultimaSaida, "HH:mm");
+
+          if (ultimaSaida > primeiraEntrada) {
+            const minutos =
+              (ultimaSaida.getTime() - primeiraEntrada.getTime()) / (1000 * 60);
+            horasTrabalhadas = minutos / 60;
+          }
+        } else {
+          // Look for exit on next day
+          for (let j = i + 1; j < diasOrdenados.length; j++) {
+            const proximoDia = diasOrdenados[j];
+            const acessosProximoDia = acessosPorDia[proximoDia];
+            const saidasProximoDia = acessosProximoDia.filter(
+              (a) => a.sentido === "S"
+            );
+
+            if (saidasProximoDia.length > 0) {
+              const primeiraSaidaProximoDia = parseISO(
+                saidasProximoDia[0].data_acesso
+              );
+              ultimaSaidaStr =
+                format(primeiraSaidaProximoDia, "dd/MM") +
+                " " +
+                format(primeiraSaidaProximoDia, "HH:mm");
+              const minutos =
+                (primeiraSaidaProximoDia.getTime() -
+                  primeiraEntrada.getTime()) /
+                (1000 * 60);
+              horasTrabalhadas = minutos / 60;
+              break;
+            }
+          }
+        }
+      }
+
+      return {
+        data: dataStr,
+        primeiraEntrada: primeiraEntradaStr,
+        ultimaSaida: ultimaSaidaStr,
+        horas: parseFloat(horasTrabalhadas.toFixed(2)),
+        entradas: entradasDia.length,
+        saidas: saidasDia.length,
+      };
+    });
+
+    // Calculate total hours
+    const totalHoras = detalhamento.reduce((sum, item) => sum + item.horas, 0);
+
+    setHorasUnidadeSelecionadas({
+      nome,
+      cpf,
+      totalHoras: parseFloat(totalHoras.toFixed(2)),
+      detalhamento: detalhamento.reverse(), // Most recent first
+    });
+    setHorasUnidadeModalOpen(true);
+  };
+
+  const handleCloseHorasUnidadeModal = () => {
+    setHorasUnidadeModalOpen(false);
+    setHorasUnidadeSelecionadas(null);
+  };
+
   const handleExportInconsistenciaCSV = () => {
     if (!inconsistenciaSelecionada) return;
 
@@ -1946,7 +2128,24 @@ const Dashboard: React.FC = () => {
             justifyContent: "center",
             gap: 0.5,
             width: "100%",
+            cursor: "pointer",
+            padding: "4px 8px",
+            borderRadius: "6px",
+            transition: "all 0.2s",
+            "&:hover": {
+              bgcolor: "rgba(237, 108, 2, 0.08)",
+              transform: "scale(1.05)",
+              "& .MuiSvgIcon-root": {
+                color: "warning.main",
+              },
+              "& .MuiTypography-root": {
+                color: "warning.dark",
+              },
+            },
           }}
+          onClick={() =>
+            handleOpenHorasEscaladasModal(params.row.cpf, params.row.nome)
+          }
         >
           <CalendarMonth fontSize="small" color="action" />
           <Typography variant="body2" fontWeight={600} color="warning.main">
@@ -1961,7 +2160,30 @@ const Dashboard: React.FC = () => {
       width: 130,
       type: "number",
       renderCell: (params) => (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            cursor: "pointer",
+            padding: "4px 8px",
+            borderRadius: "6px",
+            transition: "all 0.2s",
+            "&:hover": {
+              bgcolor: "rgba(59, 130, 246, 0.08)",
+              transform: "scale(1.05)",
+              "& .MuiSvgIcon-root": {
+                color: "primary.main",
+              },
+              "& .MuiTypography-root": {
+                color: "primary.dark",
+              },
+            },
+          }}
+          onClick={() =>
+            handleOpenHorasUnidadeModal(params.row.cpf, params.row.nome)
+          }
+        >
           <AccessTime fontSize="small" color="action" />
           <Typography variant="body2" fontWeight={600} color="primary">
             {params.value}h
@@ -5821,6 +6043,452 @@ const Dashboard: React.FC = () => {
               <DialogActions sx={{ px: 3, py: 2 }}>
                 <Button
                   onClick={handleCloseDiferencaHorasModal}
+                  variant="outlined"
+                >
+                  Fechar
+                </Button>
+              </DialogActions>
+            </Dialog>
+
+            {/* Modal de Detalhes de Horas Escaladas */}
+            <Dialog
+              open={horasEscaladasModalOpen}
+              onClose={handleCloseHorasEscaladasModal}
+              maxWidth="md"
+              fullWidth
+            >
+              <DialogTitle sx={{ pb: 1 }}>
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: "10px",
+                        bgcolor: "#ed6c02",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <CalendarMonth sx={{ color: "white", fontSize: 24 }} />
+                    </Box>
+                    <Typography variant="h6" fontWeight={700}>
+                      Horas Escaladas - {horasEscaladasSelecionadas?.nome}
+                    </Typography>
+                  </Box>
+                  <IconButton
+                    onClick={handleCloseHorasEscaladasModal}
+                    size="small"
+                  >
+                    <Close />
+                  </IconButton>
+                </Box>
+              </DialogTitle>
+
+              <DialogContent>
+                {horasEscaladasSelecionadas && (
+                  <>
+                    {/* Resumo */}
+                    <Paper
+                      sx={{
+                        p: 2,
+                        mb: 3,
+                        bgcolor: "#fff7ed",
+                        border: "1px solid #fed7aa",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        Total de Horas Escaladas
+                      </Typography>
+                      <Typography
+                        variant="h4"
+                        fontWeight={700}
+                        color="#ea580c"
+                      >
+                        {horasEscaladasSelecionadas.totalHoras.toFixed(1)}h
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {horasEscaladasSelecionadas.detalhamento.length}{" "}
+                        {horasEscaladasSelecionadas.detalhamento.length === 1
+                          ? "escala"
+                          : "escalas"}
+                      </Typography>
+                    </Paper>
+
+                    {/* Detalhamento */}
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={600}
+                      sx={{ mb: 2 }}
+                    >
+                      Detalhamento das Escalas
+                    </Typography>
+
+                    {horasEscaladasSelecionadas.detalhamento.length > 0 ? (
+                      <TableContainer
+                        component={Paper}
+                        sx={{
+                          boxShadow: "none",
+                          border: "1px solid #e5e7eb",
+                          maxHeight: 400,
+                        }}
+                      >
+                        <Table stickyHeader>
+                          <TableHead>
+                            <TableRow sx={{ bgcolor: "#f9fafb" }}>
+                              <TableCell width={60}>#</TableCell>
+                              <TableCell>Data</TableCell>
+                              <TableCell align="center">Entrada</TableCell>
+                              <TableCell align="center">Saída</TableCell>
+                              <TableCell align="right">Horas</TableCell>
+                              <TableCell align="center">Status</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {horasEscaladasSelecionadas.detalhamento.map(
+                              (escala, index) => (
+                                <TableRow
+                                  key={index}
+                                  sx={{ "&:hover": { bgcolor: "#f9fafb" } }}
+                                >
+                                  <TableCell>
+                                    <Box
+                                      sx={{
+                                        width: 28,
+                                        height: 28,
+                                        borderRadius: "6px",
+                                        bgcolor: "#ed6c02",
+                                        color: "white",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontWeight: 700,
+                                        fontSize: 12,
+                                      }}
+                                    >
+                                      {index + 1}
+                                    </Box>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                    >
+                                      {format(
+                                        parseISO(escala.data),
+                                        "dd/MM/yyyy - EEEE",
+                                        { locale: ptBR }
+                                      )}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    <Chip
+                                      label={escala.horarioEntrada}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: "#dbeafe",
+                                        color: "#1e40af",
+                                        fontWeight: 600,
+                                      }}
+                                    />
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    <Chip
+                                      label={escala.horarioSaida}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: "#fecaca",
+                                        color: "#991b1b",
+                                        fontWeight: 600,
+                                      }}
+                                    />
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={700}
+                                      color="#ea580c"
+                                    >
+                                      {escala.horas.toFixed(1)}h
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    <Chip
+                                      label={escala.status}
+                                      size="small"
+                                      color={
+                                        escala.status === "Aprovado"
+                                          ? "success"
+                                          : escala.status === "Reprovado"
+                                          ? "error"
+                                          : escala.status === "Atenção"
+                                          ? "warning"
+                                          : "default"
+                                      }
+                                    />
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            )}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    ) : (
+                      <Paper
+                        sx={{
+                          p: 3,
+                          textAlign: "center",
+                          bgcolor: "#f9fafb",
+                        }}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Nenhuma escala encontrada no período selecionado
+                        </Typography>
+                      </Paper>
+                    )}
+                  </>
+                )}
+              </DialogContent>
+
+              <DialogActions sx={{ px: 3, py: 2 }}>
+                <Button
+                  onClick={handleCloseHorasEscaladasModal}
+                  variant="outlined"
+                >
+                  Fechar
+                </Button>
+              </DialogActions>
+            </Dialog>
+
+            {/* Modal de Detalhes de Horas na Unidade */}
+            <Dialog
+              open={horasUnidadeModalOpen}
+              onClose={handleCloseHorasUnidadeModal}
+              maxWidth="md"
+              fullWidth
+            >
+              <DialogTitle sx={{ pb: 1 }}>
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: "10px",
+                        bgcolor: "#3b82f6",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <AccessTime sx={{ color: "white", fontSize: 24 }} />
+                    </Box>
+                    <Typography variant="h6" fontWeight={700}>
+                      Horas na Unidade - {horasUnidadeSelecionadas?.nome}
+                    </Typography>
+                  </Box>
+                  <IconButton
+                    onClick={handleCloseHorasUnidadeModal}
+                    size="small"
+                  >
+                    <Close />
+                  </IconButton>
+                </Box>
+              </DialogTitle>
+
+              <DialogContent>
+                {horasUnidadeSelecionadas && (
+                  <>
+                    {/* Resumo */}
+                    <Paper
+                      sx={{
+                        p: 2,
+                        mb: 3,
+                        bgcolor: "#eff6ff",
+                        border: "1px solid #bfdbfe",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        Total de Horas na Unidade
+                      </Typography>
+                      <Typography
+                        variant="h4"
+                        fontWeight={700}
+                        color="#1e40af"
+                      >
+                        {horasUnidadeSelecionadas.totalHoras.toFixed(1)}h
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {horasUnidadeSelecionadas.detalhamento.length}{" "}
+                        {horasUnidadeSelecionadas.detalhamento.length === 1
+                          ? "dia"
+                          : "dias"}{" "}
+                        com registro
+                      </Typography>
+                    </Paper>
+
+                    {/* Detalhamento */}
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={600}
+                      sx={{ mb: 2 }}
+                    >
+                      Detalhamento Diário
+                    </Typography>
+
+                    {horasUnidadeSelecionadas.detalhamento.length > 0 ? (
+                      <TableContainer
+                        component={Paper}
+                        sx={{
+                          boxShadow: "none",
+                          border: "1px solid #e5e7eb",
+                          maxHeight: 400,
+                        }}
+                      >
+                        <Table stickyHeader>
+                          <TableHead>
+                            <TableRow sx={{ bgcolor: "#f9fafb" }}>
+                              <TableCell width={60}>#</TableCell>
+                              <TableCell>Data</TableCell>
+                              <TableCell align="center">
+                                Primeira Entrada
+                              </TableCell>
+                              <TableCell align="center">Última Saída</TableCell>
+                              <TableCell align="center">E/S</TableCell>
+                              <TableCell align="right">Horas</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {horasUnidadeSelecionadas.detalhamento.map(
+                              (dia, index) => (
+                                <TableRow
+                                  key={index}
+                                  sx={{ "&:hover": { bgcolor: "#f9fafb" } }}
+                                >
+                                  <TableCell>
+                                    <Box
+                                      sx={{
+                                        width: 28,
+                                        height: 28,
+                                        borderRadius: "6px",
+                                        bgcolor: "#3b82f6",
+                                        color: "white",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontWeight: 700,
+                                        fontSize: 12,
+                                      }}
+                                    >
+                                      {index + 1}
+                                    </Box>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                    >
+                                      {format(
+                                        parseISO(dia.data),
+                                        "dd/MM/yyyy - EEEE",
+                                        { locale: ptBR }
+                                      )}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    <Chip
+                                      label={dia.primeiraEntrada}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: "#dcfce7",
+                                        color: "#166534",
+                                        fontWeight: 600,
+                                      }}
+                                    />
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    <Chip
+                                      label={dia.ultimaSaida}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: "#fee2e2",
+                                        color: "#991b1b",
+                                        fontWeight: 600,
+                                      }}
+                                    />
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        gap: 1,
+                                        justifyContent: "center",
+                                      }}
+                                    >
+                                      <Chip
+                                        label={`E: ${dia.entradas}`}
+                                        size="small"
+                                        color="success"
+                                      />
+                                      <Chip
+                                        label={`S: ${dia.saidas}`}
+                                        size="small"
+                                        color="error"
+                                      />
+                                    </Box>
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={700}
+                                      color="#1e40af"
+                                    >
+                                      {dia.horas.toFixed(1)}h
+                                    </Typography>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            )}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    ) : (
+                      <Paper
+                        sx={{
+                          p: 3,
+                          textAlign: "center",
+                          bgcolor: "#f9fafb",
+                        }}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Nenhum acesso encontrado no período selecionado
+                        </Typography>
+                      </Paper>
+                    )}
+                  </>
+                )}
+              </DialogContent>
+
+              <DialogActions sx={{ px: 3, py: 2 }}>
+                <Button
+                  onClick={handleCloseHorasUnidadeModal}
                   variant="outlined"
                 >
                   Fechar
