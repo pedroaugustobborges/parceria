@@ -400,7 +400,14 @@ const Usuarios: React.FC = () => {
             cpf: formData.cpf,
           }));
 
-          await supabase.from("usuario_contrato").insert(contractInserts);
+          const { error: contractError } = await supabase
+            .from("usuario_contrato")
+            .insert(contractInserts);
+
+          if (contractError) {
+            console.error("Error inserting contracts:", contractError);
+            throw new Error(`Erro ao vincular contratos: ${contractError.message}`);
+          }
         }
 
         // Also update contrato_id in usuarios table (for backward compatibility)
@@ -408,6 +415,11 @@ const Usuarios: React.FC = () => {
           await supabase
             .from("usuarios")
             .update({ contrato_id: formData.contrato_ids[0] })
+            .eq("id", selectedUser.id);
+        } else {
+          await supabase
+            .from("usuarios")
+            .update({ contrato_id: null })
             .eq("id", selectedUser.id);
         }
 
@@ -474,7 +486,14 @@ const Usuarios: React.FC = () => {
             cpf: formData.cpf,
           }));
 
-          await supabase.from("usuario_contrato").insert(contractInserts);
+          const { error: contractError } = await supabase
+            .from("usuario_contrato")
+            .insert(contractInserts);
+
+          if (contractError) {
+            console.error("Error inserting contracts:", contractError);
+            throw new Error(`Erro ao vincular contratos: ${contractError.message}`);
+          }
         }
 
         setSuccess("Terceiro criado com sucesso! Use o botão 'Enviar Convite' para criar acesso ao sistema.");

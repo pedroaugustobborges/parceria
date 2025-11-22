@@ -95,6 +95,7 @@ const EscalasMedicas: React.FC = () => {
   );
   const [contratoItens, setContratoItens] = useState<ContratoItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [recalculando, setRecalculando] = useState(false);
@@ -316,28 +317,38 @@ const EscalasMedicas: React.FC = () => {
   };
 
   const loadUsuariosByContrato = async (contratoId: string) => {
+    setLoadingUsuarios(true);
     try {
-      const { data: usuarioContratos } = await supabase
-        .from("usuario_contrato")
-        .select("usuario_id")
-        .eq("contrato_id", contratoId);
+      console.log("Carregando usuários para o contrato:", contratoId);
 
-      if (!usuarioContratos || usuarioContratos.length === 0) {
+      const { data: usuariosData, error: usuariosError } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("contrato_id", contratoId)
+        .eq("tipo", "terceiro");
+
+      if (usuariosError) {
+        console.error("Erro ao buscar usuários:", usuariosError);
+        setError("Erro ao carregar dados dos médicos");
         setUsuarios([]);
         return;
       }
 
-      const usuarioIds = usuarioContratos.map((uc) => uc.usuario_id);
+      console.log("Usuários encontrados:", usuariosData);
 
-      const { data: usuariosData } = await supabase
-        .from("usuarios")
-        .select("*")
-        .in("id", usuarioIds)
-        .eq("tipo", "terceiro");
+      if (!usuariosData || usuariosData.length === 0) {
+        console.warn("Nenhum médico vinculado a este contrato");
+        setUsuarios([]);
+        return;
+      }
 
-      setUsuarios(usuariosData || []);
+      setUsuarios(usuariosData);
     } catch (err: any) {
       console.error("Erro ao carregar usuários:", err);
+      setError("Erro inesperado ao carregar médicos");
+      setUsuarios([]);
+    } finally {
+      setLoadingUsuarios(false);
     }
   };
 
@@ -519,6 +530,130 @@ const EscalasMedicas: React.FC = () => {
     setActiveStep((prev) => prev - 1);
   };
 
+  // Função auxiliar para verificar sobreposição de horários
+  const checkTimeOverlap = (
+    start1: string,
+    end1: string,
+    start2: string,
+    end2: string
+  ): boolean => {
+    // Converter strings de horário (HH:mm ou HH:mm:ss) para minutos
+    const timeToMinutes = (time: string): number => {
+      const [hours, minutes] = time.split(":").map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const start1Min = timeToMinutes(start1);
+    const end1Min = timeToMinutes(end1);
+    const start2Min = timeToMinutes(start2);
+    const end2Min = timeToMinutes(end2);
+
+    // Ajustar horários que atravessam meia-noite
+    const end1Adjusted = end1Min < start1Min ? end1Min + 1440 : end1Min;
+    const end2Adjusted = end2Min < start2Min ? end2Min + 1440 : end2Min;
+    const start2Adjusted = start2Min;
+
+    // Se o horário 2 cruza meia-noite, precisamos verificar dois cenários
+    if (end2Min < start2Min) {
+      // Cenário 1: comparar com a parte do horário 2 que vai até meia-noite
+      const overlap1 =
+        (start1Min < 1440 && start2Min < 1440) &&
+        (start1Min < 1440 && end1Adjusted > start2Min);
+
+      // Cenário 2: comparar com a parte do horário 2 após meia-noite (0 até end2Min)
+      const overlap2 =
+        (start1Min < end2Min || end1Min < end2Min) ||
+        (start1Min === 0 && end1Min > 0);
+
+      if (overlap1 || overlap2) return true;
+    }
+
+    // Se o horário 1 cruza meia-noite, precisamos verificar dois cenários
+    if (end1Min < start1Min) {
+      // Cenário 1: comparar com a parte do horário 1 que vai até meia-noite
+      const overlap1 =
+        (start2Min < 1440 && start1Min < 1440) &&
+        (start2Min < 1440 && end2Adjusted > start1Min);
+
+      // Cenário 2: comparar com a parte do horário 1 após meia-noite (0 até end1Min)
+      const overlap2 =
+        (start2Min < end1Min || end2Min < end1Min) ||
+        (start2Min === 0 && end2Min > 0);
+
+      if (overlap1 || overlap2) return true;
+    }
+
+    // Caso padrão: nenhum horário cruza meia-noite
+    // Há sobreposição se: start1 < end2 E end1 > start2
+    return start1Min < end2Adjusted && end1Adjusted > start2Min;
+  };
+
+  // Função para verificar conflitos de agendamento
+  const checkConflictingSchedules = async (
+    cpf: string,
+    dataInicio: string,
+    horarioEntrada: string,
+    horarioSaida: string,
+    excludeEscalaId?: string
+  ): Promise<{ hasConflict: boolean; conflictDetails?: string }> => {
+    try {
+      // Buscar todas as escalas para o mesmo CPF na mesma data
+      let query = supabase
+        .from("escalas_medicas")
+        .select("*")
+        .eq("data_inicio", dataInicio);
+
+      // Se estiver editando, excluir a escala atual da verificação
+      if (excludeEscalaId) {
+        query = query.neq("id", excludeEscalaId);
+      }
+
+      const { data: escalasExistentes, error } = await query;
+
+      if (error) throw error;
+
+      if (!escalasExistentes || escalasExistentes.length === 0) {
+        return { hasConflict: false };
+      }
+
+      // Verificar se alguma escala existente tem o mesmo CPF
+      for (const escala of escalasExistentes) {
+        const medicosComCpf = escala.medicos.filter(
+          (medico: MedicoEscala) => medico.cpf === cpf
+        );
+
+        if (medicosComCpf.length > 0) {
+          // Verificar se há sobreposição de horários
+          const hasOverlap = checkTimeOverlap(
+            horarioEntrada,
+            horarioSaida,
+            escala.horario_entrada,
+            escala.horario_saida
+          );
+
+          if (hasOverlap) {
+            const medico = medicosComCpf[0];
+            return {
+              hasConflict: true,
+              conflictDetails: `O médico ${medico.nome} (CPF: ${cpf}) já possui um agendamento no dia ${format(
+                parseISO(dataInicio),
+                "dd/MM/yyyy"
+              )} das ${escala.horario_entrada.substring(0, 5)} às ${escala.horario_saida.substring(
+                0,
+                5
+              )}, que conflita com o horário ${horarioEntrada.substring(0, 5)} às ${horarioSaida.substring(0, 5)}.`,
+            };
+          }
+        }
+      }
+
+      return { hasConflict: false };
+    } catch (err: any) {
+      console.error("Erro ao verificar conflitos:", err);
+      throw new Error("Erro ao verificar conflitos de agendamento");
+    }
+  };
+
   const handleSave = async () => {
     try {
       setError("");
@@ -534,6 +669,22 @@ const EscalasMedicas: React.FC = () => {
         observacoes: formData.observacoes || null,
         status: "Programado" as StatusEscala,
       };
+
+      // Verificar conflitos de agendamento para cada médico
+      for (const medico of previewData.medicos) {
+        const conflictCheck = await checkConflictingSchedules(
+          medico.cpf,
+          escalaMedica.data_inicio,
+          escalaMedica.horario_entrada,
+          escalaMedica.horario_saida,
+          editingEscala?.id
+        );
+
+        if (conflictCheck.hasConflict) {
+          setError(conflictCheck.conflictDetails || "Conflito de agendamento detectado.");
+          return;
+        }
+      }
 
       if (editingEscala) {
         const { error: updateError } = await supabase
@@ -1141,6 +1292,42 @@ const EscalasMedicas: React.FC = () => {
             // Normalizar para HH:MM (remover segundos se existirem)
             const horarioSaidaNormalizado = horarioSaida.substring(0, 5);
 
+            // Verificar conflitos com agendamentos existentes no banco de dados
+            const conflictCheck = await checkConflictingSchedules(
+              cpfLimpo,
+              dataInicio,
+              horarioEntradaNormalizado + ":00",
+              horarioSaidaNormalizado + ":00"
+            );
+
+            if (conflictCheck.hasConflict) {
+              errors.push(`Linha ${lineNumber}: ${conflictCheck.conflictDetails}`);
+              continue;
+            }
+
+            // Verificar conflitos com outras linhas do CSV já validadas
+            const conflitoDentroCsv = previewData.find((prev) => {
+              if (prev.cpf === cpfLimpo && prev.data_inicio === dataInicio) {
+                return checkTimeOverlap(
+                  horarioEntradaNormalizado + ":00",
+                  horarioSaidaNormalizado + ":00",
+                  prev.horario_entrada + ":00",
+                  prev.horario_saida + ":00"
+                );
+              }
+              return false;
+            });
+
+            if (conflitoDentroCsv) {
+              errors.push(
+                `Linha ${lineNumber}: Conflito detectado dentro do CSV. O médico ${usuario.nome} (CPF: ${cpfLimpo}) já possui outro agendamento no mesmo arquivo para o dia ${format(
+                  parseISO(dataInicio),
+                  "dd/MM/yyyy"
+                )} das ${conflitoDentroCsv.horario_entrada} às ${conflitoDentroCsv.horario_saida}.`
+              );
+              continue;
+            }
+
             // Se chegou aqui, linha está válida
             previewData.push({
               cpf: cpfLimpo,
@@ -1189,6 +1376,52 @@ const EscalasMedicas: React.FC = () => {
     setImportingCsv(true);
 
     try {
+      // Verificação final de conflitos antes de inserir (safety check)
+      const conflictErrors: string[] = [];
+      for (let i = 0; i < csvPreviewData.length; i++) {
+        const row = csvPreviewData[i];
+        const conflictCheck = await checkConflictingSchedules(
+          row.cpf,
+          row.data_inicio,
+          row.horario_entrada + ":00",
+          row.horario_saida + ":00"
+        );
+
+        if (conflictCheck.hasConflict) {
+          conflictErrors.push(`Linha ${i + 1}: ${conflictCheck.conflictDetails}`);
+        }
+
+        // Verificar conflitos dentro do próprio lote de importação
+        for (let j = 0; j < i; j++) {
+          const prevRow = csvPreviewData[j];
+          if (prevRow.cpf === row.cpf && prevRow.data_inicio === row.data_inicio) {
+            const hasOverlap = checkTimeOverlap(
+              row.horario_entrada + ":00",
+              row.horario_saida + ":00",
+              prevRow.horario_entrada + ":00",
+              prevRow.horario_saida + ":00"
+            );
+
+            if (hasOverlap) {
+              conflictErrors.push(
+                `Conflito detectado entre linhas ${j + 1} e ${i + 1}: O médico ${row.nome} (CPF: ${row.cpf}) possui agendamentos conflitantes no dia ${format(
+                  parseISO(row.data_inicio),
+                  "dd/MM/yyyy"
+                )}.`
+              );
+            }
+          }
+        }
+      }
+
+      if (conflictErrors.length > 0) {
+        setError(
+          "Conflitos detectados na importação:\n" + conflictErrors.join("\n")
+        );
+        setImportingCsv(false);
+        return;
+      }
+
       // Preparar escalas para inserção
       const escalasParaInserir = csvPreviewData.map((row) => ({
         contrato_id: formData.contrato_id,
@@ -2532,10 +2765,8 @@ const EscalasMedicas: React.FC = () => {
           maxWidth="md"
           fullWidth
         >
-          <DialogTitle>
-            <Typography variant="h6" fontWeight={700}>
-              {editingEscala ? "Editar Escala Médica" : "Nova Escala Médica"}
-            </Typography>
+          <DialogTitle sx={{ fontWeight: 700 }}>
+            {editingEscala ? "Editar Escala Médica" : "Nova Escala Médica"}
           </DialogTitle>
 
           <DialogContent>
@@ -2692,15 +2923,37 @@ const EscalasMedicas: React.FC = () => {
                   getOptionLabel={(option) =>
                     `${option.nome} - CPF: ${option.cpf}`
                   }
+                  isOptionEqualToValue={(option, value) =>
+                    option.id === value.id
+                  }
+                  loading={loadingUsuarios}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="Médico"
                       required
-                      helperText="Selecione o médico vinculado a este contrato"
+                      helperText={
+                        !formData.contrato_id
+                          ? "Selecione um contrato primeiro"
+                          : loadingUsuarios
+                          ? "Carregando médicos..."
+                          : usuarios.length === 0
+                          ? "Nenhum médico vinculado a este contrato"
+                          : "Selecione o médico vinculado a este contrato"
+                      }
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingUsuarios ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
                     />
                   )}
-                  disabled={!formData.contrato_id}
+                  disabled={!formData.contrato_id || loadingUsuarios}
+                  noOptionsText="Nenhum médico encontrado para este contrato"
                   fullWidth
                 />
 
@@ -2876,10 +3129,8 @@ const EscalasMedicas: React.FC = () => {
           maxWidth="sm"
           fullWidth
         >
-          <DialogTitle>
-            <Typography variant="h6" fontWeight={700}>
-              Alterar Status da Escala
-            </Typography>
+          <DialogTitle sx={{ fontWeight: 700 }}>
+            Alterar Status da Escala
           </DialogTitle>
 
           <DialogContent>
@@ -3061,9 +3312,9 @@ const EscalasMedicas: React.FC = () => {
               justifyContent="space-between"
               alignItems="center"
             >
-              <Typography variant="h6" fontWeight={700}>
+              <span style={{ fontWeight: 700 }}>
                 Detalhes da Escala Médica
-              </Typography>
+              </span>
               {escalaDetalhes && (
                 <Chip
                   icon={getStatusConfig(escalaDetalhes.status).icon}
@@ -3710,9 +3961,9 @@ const EscalasMedicas: React.FC = () => {
           <DialogTitle>
             <Box display="flex" alignItems="center" gap={1}>
               <CloudUpload sx={{ color: "primary.main" }} />
-              <Typography variant="h6" fontWeight={700}>
+              <span style={{ fontWeight: 700 }}>
                 Importar Escalas via CSV
-              </Typography>
+              </span>
             </Box>
           </DialogTitle>
 
@@ -3845,9 +4096,9 @@ const EscalasMedicas: React.FC = () => {
           <DialogTitle>
             <Box display="flex" alignItems="center" gap={1}>
               <Analytics sx={{ color: "primary.main" }} />
-              <Typography variant="h6" fontWeight={700}>
+              <span style={{ fontWeight: 700 }}>
                 Confirmar Importação - {csvPreviewData.length} Escala(s)
-              </Typography>
+              </span>
             </Box>
           </DialogTitle>
 
