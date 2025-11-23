@@ -2778,6 +2778,17 @@ const EscalasMedicas: React.FC = () => {
               ))}
             </Stepper>
 
+            {/* Error message inside dialog */}
+            {error && (
+              <Alert
+                severity="error"
+                sx={{ mb: 3 }}
+                onClose={() => setError("")}
+              >
+                {error}
+              </Alert>
+            )}
+
             {/* Step 0: Dados Básicos */}
             {activeStep === 0 && (
               <Box
