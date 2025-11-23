@@ -107,7 +107,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       path: "/insights-ia",
       adminOnly: true,
     },
-    { text: "Usuários", icon: <People />, path: "/usuarios", adminOnly: true },
+    {
+      text: "Escalas Médicas",
+      icon: <CalendarMonth />,
+      path: "/escalas",
+      adminOnly: true,
+    },
     {
       text: "Unidades Hospitalares",
       icon: <CorporateFare />,
@@ -122,23 +127,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       adminOnly: true,
     },
     {
-      text: "Contratos",
-      icon: <Description />,
-      path: "/contratos",
-      adminOnly: true,
-    },
-    {
       text: "Itens de Contrato",
       icon: <MedicalServices />,
       path: "/itens",
       adminOnly: true,
     },
     {
-      text: "Escalas Médicas",
-      icon: <CalendarMonth />,
-      path: "/escalas",
+      text: "Contratos",
+      icon: <Description />,
+      path: "/contratos",
       adminOnly: true,
     },
+    { text: "Usuários", icon: <People />, path: "/usuarios", adminOnly: true },
   ];
 
   const getRoleLabel = (tipo: string) => {
