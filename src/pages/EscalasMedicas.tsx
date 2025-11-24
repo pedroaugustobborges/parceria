@@ -731,7 +731,7 @@ const EscalasMedicas: React.FC = () => {
       }
 
       handleCloseDialog();
-      loadData();
+      handleBuscarEscalas();
     } catch (err: any) {
       setError(err.message);
     }
@@ -876,7 +876,7 @@ const EscalasMedicas: React.FC = () => {
 
       if (deleteError) throw deleteError;
       setSuccess("Escala excluída com sucesso!");
-      loadData();
+      handleBuscarEscalas();
     } catch (err: any) {
       setError(err.message);
     }
@@ -899,7 +899,7 @@ const EscalasMedicas: React.FC = () => {
 
       if (resultado.success) {
         setSuccess(resultado.mensagem);
-        loadData(); // Recarregar os dados
+        handleBuscarEscalas(); // Recarregar os dados
       } else {
         setError(resultado.mensagem);
       }
@@ -991,7 +991,7 @@ const EscalasMedicas: React.FC = () => {
 
       setSuccess("Status atualizado com sucesso!");
       handleCloseStatusDialog();
-      loadData();
+      handleBuscarEscalas();
     } catch (err: any) {
       setError(err.message);
     }
