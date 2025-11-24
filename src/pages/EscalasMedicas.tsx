@@ -83,7 +83,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { recalcularStatusEscalas } from "../services/statusAnalysisService";
 
 const EscalasMedicas: React.FC = () => {
-  const { isAdminAgir, userProfile } = useAuth();
+  const { isAdminAgir, isAdminTerceiro, isTerceiro, userProfile } = useAuth();
   const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
   const [escalasFiltradas, setEscalasFiltradas] = useState<EscalaMedica[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
@@ -267,7 +267,15 @@ const EscalasMedicas: React.FC = () => {
           supabase.from("contrato_itens").select("*"),
         ]);
 
-      setContratos(contr || []);
+      // Filtrar contratos para administrador-terceiro
+      let contratosDisponiveis = contr || [];
+      if (isAdminTerceiro && userProfile?.contrato_id) {
+        contratosDisponiveis = contratosDisponiveis.filter(
+          (contrato) => contrato.id === userProfile.contrato_id
+        );
+      }
+
+      setContratos(contratosDisponiveis);
       setUnidades(unid || []);
       setTodosItensContrato(itens || []);
       setContratoItens(contrItens || []);
@@ -307,7 +315,22 @@ const EscalasMedicas: React.FC = () => {
 
       if (escalasError) throw escalasError;
 
-      setEscalas(escal || []);
+      let escalasParaExibir = escal || [];
+
+      // Aplicar filtros baseados no tipo de usuário
+      if (isAdminTerceiro && userProfile?.contrato_id) {
+        // Administrador-terceiro: mostrar apenas escalas de contratos vinculados
+        escalasParaExibir = escalasParaExibir.filter(
+          (escala) => escala.contrato_id === userProfile.contrato_id
+        );
+      } else if (isTerceiro && userProfile?.cpf) {
+        // Terceiro: mostrar apenas escalas onde seu CPF está na lista de médicos
+        escalasParaExibir = escalasParaExibir.filter((escala) =>
+          escala.medicos.some((medico) => medico.cpf === userProfile.cpf)
+        );
+      }
+
+      setEscalas(escalasParaExibir);
       setBuscaRealizada(true);
     } catch (err: any) {
       setError(err.message);
@@ -659,6 +682,10 @@ const EscalasMedicas: React.FC = () => {
       setError("");
       setSuccess("");
 
+      // Define o status inicial baseado no tipo de usuário
+      // Admin-Agir cria com "Programado", Admin-Terceiro cria com "Pré-Agendado"
+      const statusInicial = isAdminAgir ? "Programado" : "Pré-Agendado";
+
       const escalaMedica = {
         contrato_id: formData.contrato_id,
         item_contrato_id: formData.item_contrato_id,
@@ -667,7 +694,7 @@ const EscalasMedicas: React.FC = () => {
         horario_saida: format(formData.horario_saida!, "HH:mm:ss"),
         medicos: previewData.medicos,
         observacoes: formData.observacoes || null,
-        status: "Programado" as StatusEscala,
+        status: statusInicial as StatusEscala,
       };
 
       // Verificar conflitos de agendamento para cada médico
@@ -712,10 +739,18 @@ const EscalasMedicas: React.FC = () => {
 
   const handleOpenDialog = async (escala?: EscalaMedica) => {
     if (escala) {
-      // Bloquear edição se status não for "Programado"
-      if (escala.status !== "Programado") {
+      // Bloquear edição se status não for "Programado" ou "Pré-Agendado"
+      if (escala.status !== "Programado" && escala.status !== "Pré-Agendado") {
         setError(
-          `Não é possível editar uma escala com status "${escala.status}". Apenas escalas com status "Programado" podem ser editadas.`
+          `Não é possível editar uma escala com status "${escala.status}". Apenas escalas com status "Programado" ou "Pré-Agendado" podem ser editadas.`
+        );
+        return;
+      }
+
+      // Bloquear edição para administrador-terceiro se não for do seu contrato
+      if (isAdminTerceiro && userProfile?.contrato_id && escala.contrato_id !== userProfile.contrato_id) {
+        setError(
+          "Você não tem permissão para editar escalas de outros contratos."
         );
         return;
       }
@@ -815,10 +850,18 @@ const EscalasMedicas: React.FC = () => {
   };
 
   const handleDelete = async (escala: EscalaMedica) => {
-    // Bloquear exclusão se status não for "Programado"
-    if (escala.status !== "Programado") {
+    // Bloquear exclusão se status não for "Programado" ou "Pré-Agendado"
+    if (escala.status !== "Programado" && escala.status !== "Pré-Agendado") {
       setError(
-        `Não é possível excluir uma escala com status "${escala.status}". Apenas escalas com status "Programado" podem ser excluídas.`
+        `Não é possível excluir uma escala com status "${escala.status}". Apenas escalas com status "Programado" ou "Pré-Agendado" podem ser excluídas.`
+      );
+      return;
+    }
+
+    // Bloquear exclusão para administrador-terceiro se não for do seu contrato
+    if (isAdminTerceiro && userProfile?.contrato_id && escala.contrato_id !== userProfile.contrato_id) {
+      setError(
+        "Você não tem permissão para excluir escalas de outros contratos."
       );
       return;
     }
@@ -870,6 +913,11 @@ const EscalasMedicas: React.FC = () => {
   // Funções auxiliares para Status
   const getStatusConfig = (status: StatusEscala) => {
     const configs = {
+      "Pré-Agendado": {
+        color: "default" as const,
+        icon: <Schedule />,
+        label: "Pré-Agendado",
+      },
       Programado: {
         color: "info" as const,
         icon: <HourglassEmpty />,
@@ -1422,6 +1470,10 @@ const EscalasMedicas: React.FC = () => {
         return;
       }
 
+      // Define o status inicial baseado no tipo de usuário
+      // Admin-Agir cria com "Programado", Admin-Terceiro cria com "Pré-Agendado"
+      const statusInicial = isAdminAgir ? "Programado" : "Pré-Agendado";
+
       // Preparar escalas para inserção
       const escalasParaInserir = csvPreviewData.map((row) => ({
         contrato_id: formData.contrato_id,
@@ -1431,7 +1483,7 @@ const EscalasMedicas: React.FC = () => {
         horario_saida: row.horario_saida,
         medicos: [{ nome: row.nome, cpf: row.cpf }],
         observacoes: null,
-        status: "Programado" as StatusEscala,
+        status: statusInicial as StatusEscala,
         justificativa: null,
         status_alterado_por: null,
         status_alterado_em: null,
@@ -1857,22 +1909,24 @@ const EscalasMedicas: React.FC = () => {
               </Tooltip>
             )}
 
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => handleOpenDialog()}
-              sx={{
-                height: 42,
-                background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
-                color: "white",
-                "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
-                },
-              }}
-            >
-              Nova Escala
-            </Button>
+            {!isTerceiro && (
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => handleOpenDialog()}
+                sx={{
+                  height: 42,
+                  background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+                  color: "white",
+                  "&:hover": {
+                    background:
+                      "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
+                  },
+                }}
+              >
+                Nova Escala
+              </Button>
+            )}
           </Box>
         </Box>
 
@@ -2610,71 +2664,73 @@ const EscalasMedicas: React.FC = () => {
                               />
                             </Tooltip>
                           </Box>
-                          <Box>
-                            <Tooltip
-                              title={
-                                escala.status === "Aprovado" ||
-                                escala.status === "Reprovado"
-                                  ? `Não é possível editar. Escala está ${escala.status.toLowerCase()}.`
-                                  : "Editar escala"
-                              }
-                            >
-                              <span>
-                                <IconButton
-                                  size="small"
-                                  disabled={
-                                    escala.status === "Aprovado" ||
-                                    escala.status === "Reprovado"
-                                  }
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenDialog(escala);
-                                  }}
-                                  sx={{
-                                    opacity:
-                                      escala.status === "Aprovado" ||
-                                      escala.status === "Reprovado"
-                                        ? 0.5
-                                        : 1,
-                                  }}
-                                >
-                                  <Edit fontSize="small" />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
-                            <Tooltip
-                              title={
-                                escala.status === "Aprovado" ||
-                                escala.status === "Reprovado"
-                                  ? `Não é possível excluir. Escala está ${escala.status.toLowerCase()}.`
-                                  : "Excluir escala"
-                              }
-                            >
-                              <span>
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  disabled={
-                                    escala.status === "Aprovado" ||
-                                    escala.status === "Reprovado"
-                                  }
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(escala);
-                                  }}
-                                  sx={{
-                                    opacity:
-                                      escala.status === "Aprovado" ||
-                                      escala.status === "Reprovado"
-                                        ? 0.5
-                                        : 1,
-                                  }}
-                                >
-                                  <Delete fontSize="small" />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
-                          </Box>
+                          {!isTerceiro && (
+                            <Box>
+                              <Tooltip
+                                title={
+                                  escala.status !== "Programado" &&
+                                  escala.status !== "Pré-Agendado"
+                                    ? `Não é possível editar. Apenas escalas com status "Programado" ou "Pré-Agendado" podem ser editadas.`
+                                    : "Editar escala"
+                                }
+                              >
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    disabled={
+                                      escala.status !== "Programado" &&
+                                      escala.status !== "Pré-Agendado"
+                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenDialog(escala);
+                                    }}
+                                    sx={{
+                                      opacity:
+                                        escala.status === "Aprovado" ||
+                                        escala.status === "Reprovado"
+                                          ? 0.5
+                                          : 1,
+                                    }}
+                                  >
+                                    <Edit fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                              <Tooltip
+                                title={
+                                  escala.status !== "Programado" &&
+                                  escala.status !== "Pré-Agendado"
+                                    ? `Não é possível excluir. Apenas escalas com status "Programado" ou "Pré-Agendado" podem ser excluídas.`
+                                    : "Excluir escala"
+                                }
+                              >
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    disabled={
+                                      escala.status !== "Programado" &&
+                                      escala.status !== "Pré-Agendado"
+                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDelete(escala);
+                                    }}
+                                    sx={{
+                                      opacity:
+                                        escala.status === "Aprovado" ||
+                                        escala.status === "Reprovado"
+                                          ? 0.5
+                                          : 1,
+                                    }}
+                                  >
+                                    <Delete fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            </Box>
+                          )}
                         </Box>
 
                         <Typography variant="h6" fontWeight={600} gutterBottom>
@@ -2839,6 +2895,7 @@ const EscalasMedicas: React.FC = () => {
 
                 {/* Botão Importar CSV - Aparece após selecionar contrato e item */}
                 {!editingEscala &&
+                  !isTerceiro &&
                   formData.contrato_id &&
                   formData.item_contrato_id && (
                     <Box
@@ -3909,9 +3966,9 @@ const EscalasMedicas: React.FC = () => {
               <>
                 <Tooltip
                   title={
-                    escalaDetalhes.status === "Aprovado" ||
-                    escalaDetalhes.status === "Reprovado"
-                      ? `Não é possível editar. Escala está ${escalaDetalhes.status.toLowerCase()}.`
+                    escalaDetalhes.status !== "Programado" &&
+                    escalaDetalhes.status !== "Pré-Agendado"
+                      ? `Não é possível editar. Apenas escalas com status "Programado" ou "Pré-Agendado" podem ser editadas.`
                       : ""
                   }
                 >
@@ -3924,8 +3981,8 @@ const EscalasMedicas: React.FC = () => {
                       variant="outlined"
                       startIcon={<Edit />}
                       disabled={
-                        escalaDetalhes.status === "Aprovado" ||
-                        escalaDetalhes.status === "Reprovado"
+                        escalaDetalhes.status !== "Programado" &&
+                        escalaDetalhes.status !== "Pré-Agendado"
                       }
                     >
                       Editar

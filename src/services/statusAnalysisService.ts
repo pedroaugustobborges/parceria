@@ -329,11 +329,11 @@ export async function recalcularStatusEscalas(): Promise<{
   mensagem: string;
 }> {
   try {
-    // Buscar todas as escalas que não estão aprovadas/reprovadas
+    // Buscar apenas escalas com status "Programado" (escalas pré-agendadas não devem ser recalculadas)
     const { data: escalas, error } = await supabase
       .from("escalas_medicas")
       .select("*")
-      .not("status", "in", '("Aprovado","Reprovado")');
+      .eq("status", "Programado");
 
     if (error) throw error;
 

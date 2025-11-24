@@ -61,7 +61,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return saved === "true";
   });
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { userProfile, signOut, isAdminAgir, isAdminAgirCorporativo } =
+  const { userProfile, signOut, isAdminAgir, isAdminAgirCorporativo, isAdminTerceiro, isTerceiro } =
     useAuth();
   const { mode, toggleTheme } = useThemeMode();
   const navigate = useNavigate();
@@ -111,7 +111,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       text: "Escalas Médicas",
       icon: <CalendarMonth />,
       path: "/escalas",
-      adminOnly: true,
+      adminOnly: false,
+      customVisibility: true, // Custom visibility check below
     },
     {
       text: "Unidades Hospitalares",
@@ -190,6 +191,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           if (item.adminOnly && !isAdminAgir) return null;
           if ((item as any).corporativoOnly && !isAdminAgirCorporativo)
             return null;
+
+          // Custom visibility for Escalas Médicas - show for admin, admin-terceiro, and terceiro
+          if ((item as any).customVisibility && item.path === "/escalas") {
+            if (!isAdminAgir && !isAdminTerceiro && !isTerceiro) return null;
+          }
 
           const isActive = location.pathname === item.path;
 

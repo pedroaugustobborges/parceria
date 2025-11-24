@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ParcerIA - Manual de Operação Contínua</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --primary-blue: #0ea5e9;
+        --primary-purple: #8b5cf6;
+        --accent-gold: #fbbf24;
+        --text-dark: #1e293b;
+        --text-light: #64748b;
+        --bg-light: #f8fafc;
+        --border-color: #e2e8f0;
+      }
+
+      body {
+        font-family: "Georgia", "Times New Roman", serif;
+        line-height: 1.8;
+        color: var(--text-dark);
+        background: white;
+      }
+
+      .cover {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        color: var(--text-dark);
+        padding: 4rem 3rem;
+        page-break-after: always;
+        position: relative;
+      }
+
+      .cover::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(14, 165, 233, 0.05) 0%,
+          rgba(139, 92, 246, 0.05) 100%
+        );
+        z-index: 0;
+      }
+
+      .cover-content {
+        position: relative;
+        z-index: 1;
+        max-width: 700px;
+        text-align: center;
+        padding: 3rem;
+        border: 3px solid var(--primary-blue);
+        background: white;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      }
+
+      .cover-category {
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: var(--primary-purple);
+        margin-bottom: 2rem;
+      }
+
+      .cover h1 {
+        font-size: 4rem;
+        font-weight: 700;
+        line-height: 1.1;
+        margin-bottom: 1.5rem;
+        letter-spacing: -1px;
+        color: var(--text-dark);
+      }
+
+      .cover h1 .highlight {
+        color: var(--primary-blue);
+        font-weight: 700;
+      }
+
+      .cover-divider {
+        width: 80px;
+        height: 3px;
+        background: linear-gradient(
+          90deg,
+          var(--primary-blue),
+          var(--primary-purple)
+        );
+        margin: 2rem auto;
+      }
+
+      .cover-subtitle {
+        font-size: 1.25rem;
+        font-weight: 400;
+        line-height: 1.6;
+        color: var(--text-dark);
+        margin-bottom: 2rem;
+      }
+
+      .cover-badge {
+        display: inline-block;
+        padding: 0.5rem 1.5rem;
+        background: var(--bg-light);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        font-size: 0.875rem;
+        color: var(--text-light);
+        margin-top: 1rem;
+      }
+
+      .cover-footer {
+        position: relative;
+        z-index: 1;
+        margin-top: 3rem;
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-light);
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 3rem 2rem;
+      }
+
+      .page {
+        page-break-after: always;
+      }
+
+      h1 {
+        color: var(--primary-blue);
+        font-size: 2.5rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 3px solid var(--primary-blue);
+        font-weight: 600;
+      }
+
+      h2 {
+        color: var(--primary-purple);
+        font-size: 2rem;
+        margin-top: 3rem;
+        margin-bottom: 1.5rem;
+        padding-left: 1rem;
+        border-left: 4px solid var(--primary-purple);
+        font-weight: 600;
+      }
+
+      h3 {
+        color: var(--text-dark);
+        font-size: 1.5rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+      }
+
+      h4 {
+        color: var(--text-dark);
+        font-size: 1.2rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+      }
+
+      p {
+        margin-bottom: 1.2rem;
+        text-align: justify;
+        text-indent: 2rem;
+        font-size: 1.05rem;
+      }
+
+      p.no-indent {
+        text-indent: 0;
+      }
+
+      ul,
+      ol {
+        margin-left: 4rem;
+        margin-bottom: 1.2rem;
+      }
+
+      li {
+        margin-bottom: 0.8rem;
+        text-align: justify;
+      }
+
+      .toc {
+        background: var(--bg-light);
+        padding: 2rem;
+        border-radius: 8px;
+        border: 2px solid var(--border-color);
+      }
+
+      .toc h2 {
+        margin-top: 0;
+        border: none;
+        padding: 0;
+      }
+
+      .toc ul {
+        list-style: none;
+        margin-left: 0;
+      }
+
+      .toc ul li {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+      }
+
+      .toc ul li:hover {
+        background: white;
+        padding-left: 1.5rem;
+      }
+
+      .toc ul li a {
+        color: var(--text-dark);
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .toc ul ul {
+        margin-left: 2rem;
+        margin-top: 0.5rem;
+      }
+
+      .note-box {
+        background: var(--bg-light);
+        padding: 1.5rem;
+        border-radius: 4px;
+        border-left: 4px solid var(--primary-blue);
+        margin: 2rem 0;
+      }
+
+      .note-box p {
+        text-indent: 0;
+      }
+
+      .warning-box {
+        background: rgba(251, 191, 36, 0.1);
+        padding: 1.5rem;
+        border-radius: 4px;
+        border-left: 4px solid var(--accent-gold);
+        margin: 2rem 0;
+      }
+
+      .warning-box p {
+        text-indent: 0;
+      }
+
+      .procedure-box {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        margin: 1.5rem 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 2rem 0;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      th,
+      td {
+        padding: 1rem;
+        text-align: left;
+        border: 1px solid var(--border-color);
+      }
+
+      th {
+        background: linear-gradient(
+          135deg,
+          var(--primary-blue),
+          var(--primary-purple)
+        );
+        color: white;
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) {
+        background: var(--bg-light);
+      }
+
+      .reference {
+        padding: 0.5rem 0;
+        text-indent: -2rem;
+        margin-left: 2rem;
+        font-size: 0.95rem;
+      }
+
+      .blockquote {
+        margin: 2rem 3rem;
+        padding: 1.5rem;
+        border-left: 4px solid var(--text-light);
+        background: var(--bg-light);
+        font-style: italic;
+      }
+
+      .blockquote p {
+        text-indent: 0;
+      }
+
+      @media print {
+        .cover,
+        .page {
+          page-break-after: always;
+        }
+      }
+
+      .footer {
+        margin-top: 4rem;
+        padding-top: 2rem;
+        border-top: 2px solid var(--border-color);
+        text-align: center;
+        color: var(--text-light);
+      }
+
+      code {
+        background: var(--bg-light);
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-family: "Courier New", monospace;
+        color: var(--primary-purple);
+        font-size: 0.95rem;
+      }
+
+      strong {
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- CAPA -->
+    <div class="cover">
+      <div class="cover-content">
+        <div class="cover-category">Manual do Usuário</div>
+        <h1>Parcer<span class="highlight">IA</span></h1>
+        <div class="cover-divider"></div>
+        <p class="cover-subtitle">
+          Sistema de Gestão Inteligente de Acessos e Parcerias em Saúde
+        </p>
+        <div class="cover-badge">Documento vivo em atualização permanente</div>
+      </div>
+      <div class="cover-footer">
+        <p>2025</p>
+      </div>
+    </div>
+
+    <!-- SUMÁRIO -->
+    <div class="container page">
+      <div class="toc">
+        <h2>Sumário</h2>
+        <ul>
+          <li>
+            <a href="#introducao">1. Introdução</a>
+            <ul>
+              <li>
+                <a href="#contexto"
+                  >1.1 Contexto e Relevância para o Sistema Único de Saúde</a
+                >
+              </li>
+              <li><a href="#sobre">1.2 Sobre o Sistema ParcerIA</a></li>
+              <li><a href="#objetivos">1.3 Objetivos e Propósito</a></li>
+              <li><a href="#publico">1.4 Público-Alvo</a></li>
+            </ul>
+          </li>
+          <li>
+            <a href="#primeiros-passos">2. Primeiros Passos</a>
+            <ul>
+              <li><a href="#acesso">2.1 Acesso ao Sistema</a></li>
+              <li><a href="#perfis">2.2 Perfis de Usuário e Permissões</a></li>
+              <li><a href="#interface">2.3 Compreendendo a Interface</a></li>
+            </ul>
+          </li>
+          <li>
+            <a href="#modulos">3. Módulos do Sistema</a>
+            <ul>
+              <li>
+                <a href="#dashboard">3.1 Painel de Controle (Dashboard)</a>
+              </li>
+              <li>
+                <a href="#insights">3.2 Insights da Inteligência Artificial</a>
+              </li>
+              <li><a href="#escalas">3.3 Gestão de Escalas Médicas</a></li>
+              <li><a href="#unidades">3.4 Unidades Hospitalares</a></li>
+              <li><a href="#parceiros">3.5 Parceiros</a></li>
+              <li><a href="#itens">3.6 Itens de Contrato</a></li>
+              <li><a href="#contratos">3.7 Contratos</a></li>
+              <li><a href="#usuarios">3.8 Usuários</a></li>
+            </ul>
+          </li>
+          <li><a href="#funcionalidades">4. Funcionalidades Avançadas</a></li>
+          <li><a href="#boas-praticas">5. Boas Práticas e Recomendações</a></li>
+          <li><a href="#conclusao">6. Considerações Finais</a></li>
+          <li><a href="#referencias">7. Referências Bibliográficas</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- INTRODUÇÃO -->
+    <div class="container page" id="introducao">
+      <h1>1. Introdução</h1>
+
+      <h2 id="contexto">
+        1.1 Contexto e Relevância para o Sistema Único de Saúde
+      </h2>
+
+      <p>
+        O Sistema Único de Saúde (SUS) brasileiro enfrenta desafios estruturais
+        significativos relacionados à gestão de recursos humanos,
+        particularmente no que concerne à contratação e gestão de equipes
+        médicas. Conforme demonstrado por Vieira (2010) em estudo publicado no
+        caderno Saúde Pública, os gastos com recursos humanos representam
+        aproximadamente 60 a 70% do orçamento total das instituições
+        hospitalares públicas, sendo a força de trabalho médico responsável pela
+        maior parcela desses custos. Esta realidade econômica impõe às
+        administrações hospitalares a necessidade imperativa de implementar
+        mecanismos rigorosos de controle e otimização na gestão desses recursos.
+      </p>
+
+      <p>
+        A terceirização de serviços médicos, prática crescente nas últimas
+        décadas, emerge como resposta à escassez de profissionais em áreas
+        específicas e à necessidade de maior flexibilidade na gestão de escalas
+        e plantões. No entanto, esta modalidade de contratação traz consigo
+        complexidades administrativas significativas. Estudos conduzidos por
+        Campos e Malik (2008) na Revista de Administração em Saúde demonstram
+        que a gestão inadequada de contratos com empresas prestadoras de
+        serviços médicos pode resultar em sobreposições de escalas, pagamentos
+        duplicados e falta de rastreabilidade nas prestações de serviços,
+        onerando ainda mais os já limitados recursos do sistema público.
+      </p>
+
+      <p>
+        Neste contexto, a implementação de sistemas informatizados de gestão
+        representa não apenas uma modernização tecnológica, mas uma necessidade
+        estratégica para a sustentabilidade do SUS. Segundo relatório da
+        Organização Pan-Americana da Saúde (OPAS, 2018), a digitalização e
+        automação de processos administrativos em saúde podem reduzir em até 30%
+        os custos operacionais relacionados à gestão de recursos humanos, além
+        de aumentar significativamente a transparência e a eficiência no uso de
+        recursos públicos.
+      </p>
+
+      <p>
+        O princípio constitucional da eficiência, incorporado à administração
+        pública pela Emenda Constitucional nº 19 de 1998, estabelece a
+        obrigatoriedade de que os gestores públicos busquem constantemente a
+        otimização dos recursos disponíveis. No setor da saúde, onde cada real
+        investido tem impacto direto na qualidade do atendimento à população, a
+        eficiência administrativa não é meramente desejável, mas eticamente
+        imperativa. A gestão eficaz de contratos, escalas e acessos contribui
+        diretamente para os princípios fundamentais do SUS: universalidade,
+        integralidade e equidade.
+      </p>
+
+      <p>
+        Além dos aspectos financeiros, a gestão adequada de escalas médicas tem
+        impacto direto na qualidade assistencial. A sobreposição de escalas ou a
+        ausência não planejada de profissionais pode comprometer o atendimento,
+        especialmente em serviços de urgência e emergência. Mendes (2015), em
+        análise publicada pela Escola Nacional de Saúde Pública, demonstra que a
+        previsibilidade e a organização adequada das escalas médicas estão
+        diretamente correlacionadas com indicadores de qualidade assistencial,
+        incluindo tempo de espera, taxa de resolubilidade e satisfação dos
+        usuários.
+      </p>
+
+      <p>
+        O ParcerIA surge, portanto, como resposta tecnológica a um problema
+        multidimensional da gestão hospitalar pública. Ao centralizar em uma
+        única plataforma a gestão de contratos, o controle de escalas médicas, a
+        validação automatizada de conflitos e a geração de relatórios
+        analíticos, o sistema busca contribuir para a sustentabilidade econômica
+        e a eficiência operacional das instituições que compõem o SUS. A
+        incorporação de recursos de inteligência artificial para análise
+        preditiva e detecção de anomalias representa avanço adicional,
+        permitindo aos gestores antever problemas e tomar decisões baseadas em
+        dados concretos.
+      </p>
+
+      <h2 id="sobre">1.2 Sobre o Sistema ParcerIA</h2>
+
+      <p>
+        O ParcerIA é uma plataforma integrada de gestão desenvolvida com
+        tecnologias modernas de desenvolvimento web e banco de dados, projetada
+        especificamente para atender às demandas complexas da administração
+        hospitalar contemporânea. O sistema oferece funcionalidades completas
+        para o gerenciamento de parcerias com empresas prestadoras de serviços
+        médicos, controle rigoroso de contratos e suas vigências, gestão
+        detalhada de escalas de profissionais, controle de acessos baseado em
+        perfis hierárquicos, e análises inteligentes através de algoritmos de
+        inteligência artificial.
+      </p>
+
+      <p>
+        A arquitetura do sistema foi concebida considerando os princípios de
+        usabilidade, segurança e escalabilidade. A interface responsiva
+        adapta-se a diferentes dispositivos, permitindo acesso via computadores
+        desktop, tablets e dispositivos móveis. O sistema de autenticação e
+        autorização garante que cada usuário acesse exclusivamente as
+        funcionalidades e informações pertinentes ao seu perfil, assegurando a
+        confidencialidade e integridade dos dados institucionais.
+      </p>
+
+      <p>
+        Entre os diferenciais técnicos do ParcerIA, destaca-se a capacidade de
+        detecção automática de conflitos em escalas médicas, funcionalidade que
+        previne a alocação simultânea de um mesmo profissional em diferentes
+        unidades ou horários conflitantes. Adicionalmente, o sistema incorpora
+        mecanismos de alerta para contratos próximos ao vencimento,
+        funcionalidade essencial para evitar descontinuidades na prestação de
+        serviços. A possibilidade de importação em lote através de arquivos CSV
+        facilita significativamente o trabalho dos gestores de escalas,
+        reduzindo o tempo necessário para inserção de dados e minimizando erros
+        de digitação.
+      </p>
+
+      <h2 id="objetivos">1.3 Objetivos e Propósito</h2>
+
+      <p>
+        O objetivo primário do ParcerIA consiste em proporcionar às instituições
+        de saúde uma ferramenta completa e confiável para a gestão centralizada
+        de todos os aspectos relacionados a parcerias, contratos e escalas de
+        profissionais terceirizados. Mais especificamente, o sistema visa
+        automatizar processos que tradicionalmente consomem tempo significativo
+        das equipes administrativas, reduzindo a ocorrência de erros
+        operacionais que podem resultar em prejuízos financeiros ou
+        comprometimento da assistência.
+      </p>
+
+      <p>
+        A otimização na alocação de recursos humanos representa outro objetivo
+        fundamental. Através de visualizações consolidadas e ferramentas de
+        busca avançada, os gestores podem identificar rapidamente lacunas na
+        cobertura assistencial, sobreposições desnecessárias e oportunidades de
+        melhor distribuição da força de trabalho. A facilidade na geração de
+        relatórios gerenciais contribui para uma tomada de decisão mais
+        informada e estratégica.
+      </p>
+
+      <p>
+        O sistema busca ainda garantir conformidade regulatória e
+        rastreabilidade completa de todas as operações. Cada alteração realizada
+        é registrada com identificação do usuário responsável e timestamp,
+        criando um histórico auditável essencial tanto para controles internos
+        quanto para eventuais auditorias externas. Esta característica é
+        particularmente relevante no contexto da administração pública, onde a
+        transparência e a prestação de contas são princípios fundamentais.
+      </p>
+
+      <h2 id="publico">1.4 Público-Alvo</h2>
+
+      <p>
+        O presente manual destina-se a diferentes perfis de usuários, cada qual
+        com necessidades e níveis de acesso específicos ao sistema. Os
+        administradores corporativos representam o nível mais elevado de
+        permissões, tendo acesso irrestrito a todos os módulos e
+        funcionalidades. Estes profissionais, geralmente vinculados à direção
+        administrativa ou superintendência da instituição, são responsáveis pela
+        configuração global do sistema, cadastro de unidades, gestão de usuários
+        e definição de políticas institucionais.
+      </p>
+
+      <p>
+        Os administradores de planta constituem o segundo escalão hierárquico e
+        correspondem aos gestores responsáveis por unidades hospitalares
+        específicas. Suas permissões limitam-se às informações e operações
+        relacionadas à sua unidade de atuação, incluindo a gestão de escalas
+        médicas, visualização de contratos vinculados e acesso a relatórios
+        gerenciais de sua área de responsabilidade.
+      </p>
+
+      <p>
+        Os administradores de empresas parceiras representam os gestores das
+        organizações prestadoras de serviços médicos. Estes usuários têm acesso
+        visualizador aos contratos que envolvem sua empresa, podendo acompanhar
+        escalas de seus profissionais e consultar informações relacionadas à
+        prestação de serviços, porém sem capacidade de alteração dos dados
+        contratuais.
+      </p>
+
+      <p>
+        Finalmente, os profissionais terceirizados constituem a base da pirâmide
+        de usuários, tendo acesso estritamente limitado à visualização de suas
+        próprias escalas e informações pessoais. Este nível de acesso permite
+        que os profissionais consultem seus agendamentos sem necessidade de
+        contato com os setores administrativos, promovendo autonomia e reduzindo
+        demandas de suporte.
+      </p>
+    </div>
+
+    <!-- PRIMEIROS PASSOS -->
+    <div class="container page" id="primeiros-passos">
+      <h1>2. Primeiros Passos</h1>
+
+      <h2 id="acesso">2.1 Acesso ao Sistema</h2>
+
+      <p>
+        O acesso ao sistema ParcerIA é realizado através de navegador web
+        compatível, utilizando a URL institucional fornecida pela administração.
+        Recomenda-se a utilização de navegadores atualizados, preferencialmente
+        Google Chrome, Mozilla Firefox, Microsoft Edge ou Safari, garantindo
+        compatibilidade plena com todos os recursos da interface.
+      </p>
+
+      <p>
+        Ao acessar o endereço eletrônico do sistema, o usuário é direcionado à
+        tela de autenticação, onde deve informar seu endereço de e-mail
+        institucional e a senha previamente cadastrada. Para usuários que
+        realizam o primeiro acesso, uma senha temporária é fornecida por e-mail
+        pelo administrador do sistema. Esta senha deve ser alterada
+        imediatamente após o primeiro login, seguindo as políticas de segurança
+        da instituição.
+      </p>
+
+      <p>
+        Caso o usuário tenha esquecido sua senha, o sistema disponibiliza
+        funcionalidade de recuperação através do link específico na tela de
+        login. Ao acionar este recurso, um e-mail contendo instruções para
+        redefinição de senha é enviado ao endereço cadastrado. Por questões de
+        segurança, este link tem validade temporal limitada, devendo ser
+        utilizado prontamente.
+      </p>
+
+      <div class="warning-box">
+        <p class="no-indent">
+          <strong>Segurança da Informação:</strong> É fundamental que os
+          usuários não compartilhem suas credenciais de acesso com terceiros.
+          Cada profissional é responsável por todas as operações realizadas
+          através de sua conta. Recomenda-se a utilização de senhas complexas,
+          contendo no mínimo oito caracteres, incluindo letras maiúsculas,
+          minúsculas, números e caracteres especiais. Senhas devem ser alteradas
+          periodicamente, conforme política institucional.
+        </p>
+      </div>
+
+      <h2 id="perfis">2.2 Perfis de Usuário e Permissões</h2>
+
+      <p>
+        O sistema ParcerIA implementa controle de acesso baseado em perfis,
+        também conhecido como RBAC (Role-Based Access Control). Este modelo
+        garante que cada usuário visualize e manipule exclusivamente as
+        informações e funcionalidades pertinentes ao seu nível de
+        responsabilidade organizacional.
+      </p>
+
+      <h3>Administrador Corporativo</h3>
+
+      <p>
+        Este perfil representa o mais alto nível de permissões no sistema.
+        Administradores corporativos possuem visibilidade completa de todas as
+        unidades, contratos, usuários e dados operacionais. Suas atribuições
+        incluem o cadastramento e manutenção de unidades hospitalares, gestão
+        completa do cadastro de parceiros e empresas prestadoras de serviços,
+        criação e edição de contratos e seus respectivos itens, gerenciamento de
+        todos os perfis de usuários e suas permissões, e acesso irrestrito a
+        dashboards, relatórios e insights de inteligência artificial.
+      </p>
+
+      <p>
+        Este perfil é tipicamente atribuído a profissionais da alta gestão
+        administrativa, tais como superintendentes, diretores administrativos ou
+        coordenadores de gestão de contratos. A amplitude de suas permissões
+        exige responsabilidade adicional no manuseio das informações, sendo
+        recomendável que este perfil seja concedido ao menor número possível de
+        usuários, conforme princípio de privilégio mínimo da segurança da
+        informação.
+      </p>
+
+      <h3>Administrador de Planta</h3>
+
+      <p>
+        Administradores de planta correspondem aos gestores operacionais de
+        unidades hospitalares específicas. Suas permissões são circunscritas à
+        unidade sob sua responsabilidade, incluindo a gestão completa de escalas
+        médicas de sua unidade, visualização de contratos que envolvem sua
+        unidade, acesso a dashboards e relatórios específicos de sua área de
+        atuação, e capacidade de exportação de relatórios relacionados a suas
+        operações.
+      </p>
+
+      <p>
+        Este perfil não possui permissões para criação ou edição de contratos,
+        cadastramento de novas unidades ou gestão de usuários, ficando estas
+        atividades restritas ao nível corporativo. A segmentação por unidade
+        garante que o gestor de cada planta concentre-se exclusivamente nas
+        operações de sua área, sem acesso a informações de outras unidades da
+        rede.
+      </p>
+
+      <h3>Administrador de Empresa Parceira</h3>
+
+      <p>
+        Este perfil é destinado aos gestores das organizações que prestam
+        serviços à instituição de saúde. Suas permissões são predominantemente
+        de visualização, permitindo acompanhamento dos contratos nos quais sua
+        empresa é parte, visualização de escalas dos profissionais vinculados à
+        sua organização, e acesso a relatórios relativos à prestação de serviços
+        de sua empresa.
+      </p>
+
+      <p>
+        Administradores de empresas parceiras não possuem capacidade de
+        alteração de dados contratuais ou de escalas, garantindo que apenas a
+        instituição contratante mantenha controle total sobre essas informações.
+        Esta configuração promove transparência nas relações contratuais
+        enquanto preserva a segurança e integridade dos dados institucionais.
+      </p>
+
+      <h3>Profissional Terceirizado</h3>
+
+      <p>
+        Profissionais terceirizados representam a base da estrutura de usuários,
+        tendo acesso estritamente limitado à visualização de suas próprias
+        escalas e dados pessoais. Este perfil permite que médicos e demais
+        profissionais consultem seus agendamentos de forma autônoma, verificando
+        datas, horários e locais de prestação de serviços sem necessidade de
+        contato com setores administrativos.
+      </p>
+
+      <p>
+        A autonomia proporcionada por este acesso reduz significativamente a
+        demanda sobre as equipes de gestão de escalas, eliminando consultas
+        telefônicas ou por e-mail sobre agendamentos. Adicionalmente, contribui
+        para a redução de ausências não justificadas, uma vez que o profissional
+        tem visibilidade clara e permanente de seus compromissos.
+      </p>
+
+      <h2 id="interface">2.3 Compreendendo a Interface</h2>
+
+      <p>
+        A interface do sistema ParcerIA foi desenvolvida seguindo princípios de
+        design centrado no usuário, buscando equilibrar densidade informacional
+        com clareza visual e facilidade de navegação. A estrutura geral da
+        interface organiza-se em três componentes principais: barra superior de
+        navegação, menu lateral de módulos, e área central de conteúdo.
+      </p>
+
+      <p>
+        A barra superior, presente em todas as telas do sistema, concentra
+        funcionalidades de uso frequente. No canto superior direito, localiza-se
+        o ícone de notificações, que exibe alertas sobre contratos próximos ao
+        vencimento ou outras informações relevantes que requeiram atenção do
+        usuário. Adjacente a este, encontra-se o controle de alternância entre
+        modo claro e modo escuro da interface, permitindo que cada usuário
+        adapte a visualização conforme sua preferência ou condições de
+        iluminação ambiente. O avatar do usuário, também posicionado nesta
+        barra, ao ser acionado exibe menu com opções de visualização de perfil,
+        configurações pessoais e logout do sistema.
+      </p>
+
+      <p>
+        O menu lateral esquerdo constitui o principal mecanismo de navegação
+        entre os diversos módulos do sistema. Este menu pode ser recolhido
+        através do ícone específico, permitindo maximização da área de conteúdo
+        quando desejável. Os itens apresentados neste menu variam conforme o
+        perfil do usuário autenticado, exibindo exclusivamente os módulos para
+        os quais o usuário possui permissão de acesso. Esta personalização
+        automática contribui para uma experiência mais clara e direta, evitando
+        confusão com funcionalidades não disponíveis ao usuário.
+      </p>
+
+      <p>
+        A área central de conteúdo adapta-se dinamicamente conforme o módulo
+        selecionado. Na porção superior desta área, breadcrumbs indicam a
+        localização atual do usuário na hierarquia de navegação, facilitando a
+        orientação e permitindo retorno rápido a níveis anteriores. O conteúdo
+        principal varia conforme o módulo, podendo apresentar dashboards com
+        gráficos e indicadores, tabelas com dados operacionais, formulários para
+        inserção ou edição de informações, ou visualizações especializadas
+        conforme a natureza da informação apresentada.
+      </p>
+
+      <p>
+        A responsividade da interface merece menção particular. O sistema
+        adapta-se automaticamente a diferentes resoluções de tela e
+        dispositivos, garantindo usabilidade em computadores desktop, tablets e
+        smartphones. Em dispositivos móveis, o menu lateral é substituído por um
+        menu do tipo "hambúrguer", acessível através de ícone no canto superior
+        esquerdo, e elementos da interface são reorganizados verticalmente para
+        melhor aproveitamento do espaço disponível.
+      </p>
+    </div>
+
+    <!-- MÓDULOS DO SISTEMA -->
+    <div class="container page" id="modulos">
+      <h1>3. Módulos do Sistema</h1>
+
+      <h2 id="dashboard">3.1 Painel de Controle (Dashboard)</h2>
+
+      <p>
+        O módulo Dashboard representa o ponto de entrada principal do sistema,
+        fornecendo visão consolidada e de alto nível dos principais indicadores
+        operacionais. Ao acessar o sistema, o usuário é automaticamente
+        direcionado a este módulo, onde são apresentados scorecards com métricas
+        essenciais, tais como número total de contratos ativos, quantidade de
+        escalas programadas para o período corrente, indicadores de ocupação por
+        unidade, e alertas sobre situações que requerem atenção.
+      </p>
+
+      <p>
+        A disposição dos elementos no dashboard segue hierarquia visual que
+        privilegia informações mais críticas. Na porção superior, cartões
+        (cards) apresentam indicadores-chave de performance, utilizando cores e
+        ícones que facilitam interpretação rápida. Valores numéricos são
+        frequentemente acompanhados de indicadores de tendência, mostrando
+        variações percentuais em relação a períodos anteriores, auxiliando
+        gestores na identificação de padrões e anomalias.
+      </p>
+
+      <p>
+        Abaixo dos scorecards principais, o dashboard apresenta visualizações
+        gráficas que permitem análises mais detalhadas. Gráficos de barras podem
+        representar distribuição de escalas por unidade ou especialidade médica.
+        Gráficos de linha demonstram evolução temporal de indicadores. Gráficos
+        de pizza ilustram distribuições percentuais relevantes. Todos os
+        gráficos são interativos, permitindo ao usuário obter informações
+        adicionais através da passagem do cursor sobre elementos específicos.
+      </p>
+
+      <p>
+        A funcionalidade de filtros permite ao usuário personalizar a
+        visualização do dashboard conforme suas necessidades analíticas. Filtros
+        por período temporal, unidade hospitalar, tipo de contrato ou status de
+        escalas possibilitam análises segmentadas. Estas seleções são mantidas
+        durante a sessão do usuário, aplicando-se consistentemente a outros
+        módulos que suportem os mesmos critérios de filtragem.
+      </p>
+
+      <p>
+        Para administradores corporativos, o dashboard fornece visão consolidada
+        de toda a organização. Administradores de planta visualizam
+        exclusivamente indicadores relacionados à sua unidade. Esta segmentação
+        automática garante que cada usuário concentre sua atenção nas métricas
+        diretamente relevantes à sua área de responsabilidade, evitando
+        sobrecarga informacional.
+      </p>
+
+      <h2 id="insights">3.2 Insights da Inteligência Artificial</h2>
+
+      <p>
+        O módulo de Insights representa uma das funcionalidades mais avançadas
+        do sistema ParcerIA, incorporando algoritmos de análise de dados e
+        aprendizado de máquina para extrair padrões e tendências dos dados
+        operacionais acumulados. A inteligência artificial opera continuamente
+        em segundo plano, processando dados históricos de escalas, contratos e
+        alocações, identificando anomalias estatísticas, prevendo demandas
+        futuras e sugerindo otimizações na distribuição de recursos.
+      </p>
+
+      <p>
+        Os insights gerados são apresentados de forma estruturada e
+        compreensível, priorizando aqueles com maior relevância ou urgência.
+        Cada insight inclui descrição clara do padrão identificado, análise
+        contextual explicando sua significância, recomendações de ações que
+        podem ser tomadas, e quando aplicável, quantificação do impacto
+        potencial da implementação das recomendações.
+      </p>
+
+      <p>
+        Entre os tipos de insights que o sistema pode gerar, destacam-se
+        análises de sazonalidade na demanda por especialidades médicas
+        específicas, identificação de unidades com padrões atípicos de
+        utilização de recursos humanos, detecção de profissionais com histórico
+        irregular de comparecimento, previsões de necessidade de contratação com
+        base em tendências históricas, e sugestões de redistribuição de escalas
+        para otimização de custos operacionais.
+      </p>
+
+      <p>
+        É importante ressaltar que os insights gerados pela inteligência
+        artificial constituem ferramentas de apoio à decisão, não substituindo o
+        julgamento profissional dos gestores. As recomendações devem ser
+        analisadas criticamente, considerando-se contextos específicos que podem
+        não estar totalmente capturados nos dados quantitativos. A qualidade e
+        precisão dos insights melhoram progressivamente conforme o sistema
+        acumula maior volume de dados históricos.
+      </p>
+
+      <h2 id="escalas">3.3 Gestão de Escalas Médicas</h2>
+
+      <p>
+        O módulo de Gestão de Escalas Médicas constitui o núcleo operacional do
+        sistema ParcerIA, concentrando funcionalidades para criação,
+        visualização, edição e controle de agendamentos de profissionais
+        terceirizados. Este módulo foi desenvolvido considerando a complexidade
+        inerente à gestão de escalas em ambientes hospitalares, onde múltiplas
+        variáveis devem ser simultaneamente consideradas: disponibilidade de
+        profissionais, necessidades assistenciais, restrições contratuais, e
+        custos operacionais.
+      </p>
+
+      <p>
+        A visualização inicial do módulo apresenta tabela consolidada de todas
+        as escalas dentro do período selecionado. Filtros de data são
+        obrigatórios, garantindo que apenas períodos relevantes sejam
+        carregados, otimizando performance do sistema. Filtros adicionais
+        permitem segmentação por parceiro, contrato específico, unidade
+        hospitalar, nome do profissional médico, CPF, ou status da escala. A
+        combinação destes filtros possibilita localização rápida de escalas
+        específicas em meio a grande volume de registros.
+      </p>
+
+      <h3>Criação de Escalas Individuais</h3>
+
+      <p>
+        A criação de uma nova escala inicia-se através do botão claramente
+        identificado na interface. Um assistente de três etapas guia o usuário
+        através do processo, garantindo que todas as informações necessárias
+        sejam fornecidas e validadas antes da efetivação do registro.
+      </p>
+
+      <p>
+        Na primeira etapa, denominada Dados Básicos, o usuário seleciona
+        inicialmente o contrato que regerá aquela escala. Esta seleção determina
+        as opções subsequentes, pois apenas itens de contrato vinculados ao
+        contrato selecionado estarão disponíveis. A escolha do item de contrato
+        define o tipo de serviço que será prestado, influenciando aspectos como
+        valor da hora trabalhada e unidade de medida. Posteriormente, define-se
+        a data de início da escala e os horários de entrada e saída do
+        profissional. O sistema valida automaticamente que o horário de saída
+        seja posterior ao horário de entrada, sinalizando erro caso esta
+        condição não seja atendida.
+      </p>
+
+      <p>
+        A seleção do profissional médico apresenta exclusivamente aqueles que
+        estão vinculados ao contrato previamente selecionado, garantindo
+        conformidade entre a alocação realizada e as disposições contratuais. Um
+        campo opcional de observações permite registro de informações
+        complementares relevantes, tais como particularidades daquela escala ou
+        instruções específicas.
+      </p>
+
+      <p>
+        A segunda etapa, denominada Visualizar Escala, apresenta consolidação de
+        todos os dados inseridos, permitindo revisão completa antes da
+        confirmação. Neste momento, o usuário pode identificar eventuais erros
+        ou inconsistências, retornando à etapa anterior para correções caso
+        necessário. Esta revisão intermediária reduz significativamente a
+        ocorrência de erros que seriam identificados apenas após a criação da
+        escala.
+      </p>
+
+      <p>
+        A terceira e última etapa constitui confirmação final. Ao acionar o
+        botão de salvar, o sistema executa validações finais, incluindo a
+        verificação de conflitos de horário. Caso o profissional selecionado já
+        possua outra escala no mesmo período, o sistema apresenta mensagem clara
+        de erro, impedindo a criação da escala conflitante. Esta validação
+        automática representa salvaguarda importante contra erros que poderiam
+        resultar em situações operacionalmente inviáveis e potenciais litígios
+        contratuais.
+      </p>
+
+      <h3>Importação em Lote via CSV</h3>
+
+      <p>
+        Para situações em que múltiplas escalas precisam ser criadas
+        simultaneamente, o sistema oferece funcionalidade de importação através
+        de arquivos CSV (Comma-Separated Values). Esta funcionalidade é
+        particularmente útil quando escalas seguem padrões recorrentes ou quando
+        a instituição recebe planilhas de escalas diretamente das empresas
+        parceiras.
+      </p>
+
+      <p>
+        O processo de importação inicia-se com a seleção prévia do contrato e
+        item de contrato que serão aplicados a todas as escalas do arquivo. Esta
+        seleção prévia simplifica a estrutura do arquivo CSV, que precisa conter
+        exclusivamente CPF do profissional, data de início, horário de entrada e
+        horário de saída. O formato específico de cada campo deve ser
+        rigorosamente seguido: CPF com oito a treze dígitos numéricos, data no
+        formato internacional AAAA-MM-DD (ano-mês-dia), e horários no formato
+        HH:MM ou HH:MM:SS (24 horas).
+      </p>
+
+      <p>
+        Após o upload do arquivo, o sistema processa linha a linha, executando
+        validações abrangentes. Estas incluem verificação de formato dos dados,
+        confirmação da existência do profissional no banco de dados através do
+        CPF informado, detecção de conflitos com escalas já existentes, e
+        identificação de conflitos entre linhas do próprio arquivo sendo
+        importado. Caso quaisquer erros sejam identificados, o sistema apresenta
+        relatório detalhado especificando a natureza do erro e o número da linha
+        correspondente no arquivo, permitindo correções precisas.
+      </p>
+
+      <p>
+        Após validação bem-sucedida, o sistema apresenta tela de preview
+        mostrando todas as escalas que serão criadas. Esta visualização prévia
+        constitui última oportunidade de revisão antes da efetivação. Confirmada
+        a importação, todas as escalas são criadas atomicamente, ou seja, ou
+        todas são criadas com sucesso ou, em caso de erro durante o processo,
+        nenhuma é criada, evitando estados inconsistentes.
+      </p>
+
+      <h3>Gestão de Status de Escalas</h3>
+
+      <p>
+        Cada escala no sistema possui status que reflete sua situação atual no
+        fluxo operacional. O status Programado indica escala recém-criada,
+        aguardando validações ou aprovações subsequentes. O status Pré-Aprovado
+        representa aprovação inicial, possivelmente por supervisor imediato, mas
+        ainda pendente de confirmação final. O status Aprovado indica que a
+        escala foi completamente validada e está confirmada. O status Atenção
+        sinaliza escalas que requerem revisão ou apresentam alguma
+        irregularidade.
+      </p>
+
+      <p>
+        A alteração de status é realizada através de interface específica,
+        acessível através de botão associado a cada escala na tabela de
+        visualização. Ao alterar um status, o sistema exige que o usuário
+        forneça justificativa textual para a mudança. Esta exigência cria rastro
+        auditável de todas as alterações, documentando as razões de mudanças de
+        status e permitindo investigação posterior caso necessário.
+      </p>
+
+      <h3>Exportação de Relatórios</h3>
+
+      <p>
+        O módulo oferece capacidades robustas de exportação, permitindo geração
+        de relatórios em formato PDF ou CSV. Relatórios em PDF são formatados
+        profissionalmente, incluindo cabeçalho com logotipo institucional,
+        scorecards financeiros totalizando valores por status, tabelas
+        detalhadas com todas as escalas filtradas, e rodapé com informações de
+        data e hora de geração. Estes relatórios são adequados para
+        apresentações gerenciais, reuniões de diretoria ou documentação formal.
+      </p>
+
+      <p>
+        Exportações em CSV geram arquivos adequados para posterior análise em
+        software de planilhas eletrônicas ou ferramentas estatísticas. Todos os
+        campos relevantes são exportados, incluindo identificadores internos que
+        podem ser úteis para análises técnicas. O arquivo é gerado com
+        codificação UTF-8 com BOM (Byte Order Mark), garantindo correta exibição
+        de caracteres acentuados em diferentes sistemas operacionais e
+        aplicativos.
+      </p>
+    </div>
+
+    <div class="container page">
+      <h2 id="unidades">3.4 Unidades Hospitalares</h2>
+
+      <p>
+        O módulo de Unidades Hospitalares gerencia o cadastro de todas as
+        instalações físicas onde serviços podem ser prestados. Cada unidade
+        representa localização específica, podendo ser hospital completo,
+        unidade de pronto-atendimento, clínica especializada ou qualquer outro
+        estabelecimento de saúde que faça parte da rede institucional.
+      </p>
+
+      <p>
+        O cadastro de cada unidade inclui código identificador único e imutável,
+        nome oficial da unidade, endereço completo incluindo logradouro, número,
+        complemento, bairro, cidade e estado, e informações de contato incluindo
+        telefone e e-mail institucional. O código da unidade, uma vez definido,
+        não pode ser alterado posteriormente, garantindo estabilidade nos
+        relacionamentos com outras entidades do sistema como contratos e
+        escalas.
+      </p>
+
+      <p>
+        Cada unidade pode ter status ativo ou inativo. Unidades inativas são
+        aquelas que temporária ou permanentemente não estão operacionais, mas
+        cujos dados históricos precisam ser mantidos no sistema. Escalas não
+        podem ser criadas para unidades inativas, mas escalas históricas
+        permanecem acessíveis para consulta e relatórios.
+      </p>
+
+      <p>
+        A criação de nova unidade é operação restrita a administradores
+        corporativos, refletindo a natureza estrutural desta informação. A
+        exclusão de unidades não é permitida quando existem registros
+        dependentes, tais como contratos ou escalas vinculadas, preservando
+        integridade referencial do banco de dados. Nestes casos, a alternativa
+        apropriada é inativar a unidade, mantendo registros históricos enquanto
+        impede novas utilizações.
+      </p>
+
+      <h2 id="parceiros">3.5 Parceiros</h2>
+
+      <p>
+        O módulo de Parceiros gerencia informações sobre empresas prestadoras de
+        serviços médicos. Estas organizações podem ser cooperativas médicas,
+        empresas de terceirização de serviços de saúde, ou outras modalidades de
+        pessoas jurídicas que fornecem profissionais para atuação nas unidades
+        da instituição.
+      </p>
+
+      <p>
+        O cadastro de parceiro inclui razão social completa da empresa, CNPJ
+        (Cadastro Nacional de Pessoa Jurídica), inscrição estadual quando
+        aplicável, endereço completo da sede da empresa, dados de contato
+        incluindo telefone e e-mail corporativo, e informações do responsável
+        legal ou representante comercial. Estas informações são essenciais tanto
+        para elaboração de contratos quanto para comunicações operacionais
+        durante a vigência das parcerias.
+      </p>
+
+      <p>
+        Assim como unidades, parceiros podem ter status ativo ou inativo.
+        Parceiros inativos representam empresas com as quais a instituição
+        manteve relacionamento no passado mas não possui contratos ativos no
+        presente. A manutenção destes registros é importante para consultas
+        históricas, análises comparativas e eventuais reativações de parcerias.
+      </p>
+
+      <p>
+        O cadastro de parceiros é também restrito a administradores
+        corporativos, sendo operação tipicamente realizada pelos setores
+        jurídico ou de gestão de contratos antes da formalização de novas
+        parcerias. A acurácia destas informações é crítica, uma vez que dados
+        incorretos podem resultar em problemas na elaboração de documentos
+        contratuais ou falhas em comunicações oficiais.
+      </p>
+
+      <h2 id="itens">3.6 Itens de Contrato</h2>
+
+      <p>
+        Itens de contrato representam tipos específicos de serviços que podem
+        ser objeto de contratação. Cada item define natureza do serviço, unidade
+        de medida e características que serão utilizadas quando o item for
+        incorporado a contratos específicos. O cadastro de itens funciona como
+        biblioteca de serviços, promovendo padronização e facilitando elaboração
+        de novos contratos.
+      </p>
+
+      <p>
+        Cada item inclui nome descritivo que identifica claramente o tipo de
+        serviço, unidade de medida adequada à natureza do serviço (horas, dias,
+        meses, procedimentos, consultas, etc.), categoria ou classificação para
+        agrupamento organizacional, e descrição detalhada especificando
+        particularidades do serviço. A padronização através de itens
+        predefinidos reduz ambiguidades, facilita comparações entre contratos e
+        simplifica análises de custos agregados.
+      </p>
+
+      <p>
+        Exemplos típicos de itens de contrato em contextos hospitalares incluem
+        plantão de doze horas em especialidade específica (cardiologia,
+        pediatria, cirurgia geral, etc.), plantão de vinte e quatro horas em
+        especialidades que requeiram cobertura estendida, regime de sobreaviso
+        onde o profissional deve estar disponível para chamado em período
+        definido, consultas especializadas ambulatoriais, e procedimentos
+        específicos quando contratados individualmente.
+      </p>
+
+      <p>
+        A gestão de itens de contrato é funcionalidade administrativa
+        estratégica, tipicamente sob responsabilidade de administradores
+        corporativos ou setores de gestão contratual. Uma biblioteca bem
+        estruturada de itens facilita significativamente a elaboração de novos
+        contratos e promove consistência na terminologia utilizada em diferentes
+        documentos contratuais.
+      </p>
+
+      <h2 id="contratos">3.7 Contratos</h2>
+
+      <p>
+        O módulo de Contratos constitui componente central do sistema,
+        gerenciando todos os aspectos dos acordos formais entre a instituição e
+        empresas parceiras. Cada contrato representa acordo formal especificando
+        parceiro contratado, unidade onde serviços serão prestados, período de
+        vigência e serviços incluídos com respectivos valores.
+      </p>
+
+      <p>
+        O cadastro básico de contrato inclui nome ou título identificador do
+        contrato, número oficial do contrato conforme documentação jurídica
+        (campo opcional mas recomendado), empresa parceira contratada, unidade
+        hospitalar onde serviços serão prestados, data de início da vigência e
+        data de término da vigência. Campos adicionais podem incluir objeto do
+        contrato em texto livre, observações gerais e referências a documentos
+        físicos ou digitais arquivados externamente.
+      </p>
+
+      <p>
+        Após criação do registro básico do contrato, procede-se à vinculação de
+        itens de contrato. Cada item adicionado ao contrato recebe valor
+        unitário específico para aquele contrato, permitindo que mesmo item
+        tenha valores diferentes em contratos distintos, refletindo negociações
+        específicas ou diferenças de complexidade. Opcionalmente, pode-se
+        especificar quantidade contratada, estabelecendo limite quantitativo
+        para aquele serviço específico.
+      </p>
+
+      <p>
+        O sistema monitora continuamente datas de vencimento de contratos,
+        exibindo alertas na interface quando contratos estiverem próximos ao
+        término (tipicamente noventa dias antes do vencimento). Estes alertas
+        são visíveis tanto no dashboard quanto através de ícone de notificação
+        na barra superior, garantindo que gestores tenham tempo hábil para
+        renovações ou elaboração de novas licitações.
+      </p>
+
+      <p>
+        Contratos podem ter status ativo, inativo ou vencido. Contratos ativos
+        estão dentro do período de vigência e habilitados para uso. Contratos
+        inativos foram desabilitados manualmente, possivelmente devido a
+        suspensão temporária ou distrato. Contratos vencidos ultrapassaram sua
+        data de término. Apenas contratos ativos podem ser utilizados na criação
+        de novas escalas, embora escalas históricas vinculadas a contratos
+        inativos ou vencidos permaneçam acessíveis.
+      </p>
+
+      <p>
+        A gestão de contratos é responsabilidade de administradores
+        corporativos, frequentemente com participação de departamentos jurídicos
+        e financeiros. A acurácia das informações contratuais é fundamental
+        tanto para aspectos operacionais quanto para conformidade legal e
+        auditoria financeira.
+      </p>
+    </div>
+
+    <div class="container page">
+      <h2 id="usuarios">3.8 Usuários</h2>
+
+      <p>
+        O módulo de Usuários gerencia todos os indivíduos que possuem ou
+        potencialmente possuirão acesso ao sistema, incluindo tanto usuários
+        administrativos quanto profissionais terceirizados. Este módulo é
+        fundamental para controle de acessos e para manutenção da base de
+        profissionais disponíveis para alocação em escalas.
+      </p>
+
+      <h3>Cadastro de Profissionais Terceirizados</h3>
+
+      <p>
+        O cadastro de profissional terceirizado é procedimento que
+        frequentemente precede a criação de escalas, uma vez que apenas
+        profissionais cadastrados no sistema podem ser alocados. O processo
+        inicia-se com inserção de dados básicos: nome completo do profissional,
+        CPF (Cadastro de Pessoa Física), código MV caso a instituição utilize
+        sistema MV para gestão hospitalar, e especialidades médicas do
+        profissional.
+      </p>
+
+      <p>
+        Um aspecto importante do cadastro é a vinculação a contratos. Um mesmo
+        profissional pode estar vinculado a múltiplos contratos simultaneamente,
+        refletindo situações comuns em ambientes hospitalares onde profissionais
+        prestam serviços através de diferentes empresas ou em diferentes
+        unidades. Esta multiplicidade é gerenciada através de tabela de
+        relacionamento específica, permitindo flexibilidade na alocação.
+      </p>
+
+      <p>
+        O campo de e-mail é inicialmente opcional, permitindo cadastramento de
+        profissionais mesmo quando ainda não se deseja conceder-lhes acesso ao
+        sistema. Esta flexibilidade é importante porque frequentemente há
+        necessidade de alocar profissionais em escalas antes de todos os
+        trâmites administrativos para concessão de acesso estarem completos.
+        Posteriormente, quando apropriado, o e-mail pode ser adicionado e um
+        convite formal de acesso pode ser enviado.
+      </p>
+
+      <h3>Envio de Convites de Acesso</h3>
+
+      <p>
+        Quando administrador decide conceder acesso ao sistema a um profissional
+        terceirizado, utiliza-se a funcionalidade de envio de convite. Este
+        processo cria conta de autenticação associada ao registro do
+        profissional, gera senha temporária e envia comunicação por e-mail
+        contendo credenciais e instruções de primeiro acesso.
+      </p>
+
+      <p>
+        O e-mail enviado contém orientações claras sobre como acessar o sistema,
+        as credenciais temporárias, e instruções sobre necessidade de alteração
+        de senha no primeiro acesso. Este processo automatizado reduz
+        significativamente carga administrativa associada à gestão de acessos,
+        eliminando necessidade de comunicações manuais e garantindo padronização
+        nas instruções fornecidas.
+      </p>
+
+      <h3>Gestão de Usuários Administrativos</h3>
+
+      <p>
+        Além de profissionais terceirizados, o módulo gerencia usuários
+        administrativos dos diversos perfis: administradores corporativos,
+        administradores de planta e administradores de empresas parceiras. O
+        cadastro destes usuários inclui informações similares, mas com ênfase
+        diferente, priorizando dados institucionais como cargo, setor e unidade
+        de lotação quando aplicável.
+      </p>
+
+      <p>
+        A atribuição de perfis é operação crítica que determina escopo de acesso
+        e permissões de cada usuário. Esta operação deve ser realizada
+        criteriosamente, seguindo princípio de privilégio mínimo, onde cada
+        usuário recebe exclusivamente permissões necessárias para suas funções.
+        Mudanças de perfil devem ser documentadas e justificadas, especialmente
+        quando envolvem concessão de privilégios elevados.
+      </p>
+
+      <h3>Gestão de Especialidades Médicas</h3>
+
+      <p>
+        Embora não constitua módulo separado, a gestão de especialidades médicas
+        é funcionalidade associada ao cadastro de usuários médicos. O sistema
+        mantém cadastro de especialidades médicas reconhecidas, permitindo que
+        cada profissional seja associado a uma ou múltiplas especialidades. Esta
+        informação é relevante para buscas, relatórios segmentados e análises de
+        distribuição de recursos por especialidade.
+      </p>
+
+      <p>
+        Administradores corporativos podem adicionar novas especialidades
+        conforme necessário, refletindo particularidades da instituição ou
+        incorporação de novas áreas de especialização médica. A padronização de
+        nomenclatura de especialidades é importante para consistência em
+        relatórios e análises.
+      </p>
+
+      <h3>Edição e Inativação de Usuários</h3>
+
+      <p>
+        Dados de usuários podem ser editados posteriormente à criação,
+        permitindo atualizações de informações de contato, alterações de
+        vínculos contratuais ou ajustes de permissões. Particular atenção deve
+        ser dada à edição de CPF ou identificadores únicos, operação geralmente
+        desencorajada após criação inicial devido a potenciais impactos em
+        registros relacionados.
+      </p>
+
+      <p>
+        A exclusão física de registros de usuários não é recomendada quando
+        existem escalas ou outras operações vinculadas. Nestas situações, a
+        inativação é alternativa apropriada, mantendo integridade de dados
+        históricos enquanto impede novas alocações ou acessos. Usuários inativos
+        permanecem visíveis em consultas históricas mas não aparecem em
+        listagens de seleção para novas operações.
+      </p>
+    </div>
+
+    <!-- FUNCIONALIDADES AVANÇADAS -->
+    <div class="container page" id="funcionalidades">
+      <h1>4. Funcionalidades Avançadas</h1>
+
+      <h2>4.1 Sistema de Busca e Filtragem</h2>
+
+      <p>
+        Todos os módulos que apresentam listagens de dados implementam sistemas
+        robustos de busca e filtragem, permitindo localização rápida de
+        registros específicos mesmo em bases de dados volumosas. A arquitetura
+        de filtros é consistente através dos diferentes módulos, promovendo
+        familiaridade e reduzindo curva de aprendizado.
+      </p>
+
+      <p>
+        Filtros podem ser combinados, aplicando-se simultaneamente múltiplos
+        critérios. Esta combinação opera com lógica "E", ou seja, resultados
+        apresentados devem satisfazer todos os critérios especificados. Por
+        exemplo, ao filtrar escalas por unidade específica e período temporal,
+        apenas escalas que estejam vinculadas àquela unidade E que ocorram
+        dentro do período serão exibidas.
+      </p>
+
+      <p>
+        A interface de filtros é desenhada para minimizar número de cliques
+        necessários. Campos de seleção utilizam componentes de autocompletar
+        quando apropriado, permitindo que usuário comece digitando e veja opções
+        relevantes dinamicamente. Filtros de data oferecem calendários visuais
+        para seleção intuitiva. Botões de limpeza de filtros permitem reset
+        rápido para visualização completa.
+      </p>
+
+      <p>
+        Os critérios de filtragem atualmente aplicados são persistidos durante a
+        sessão do usuário, aplicando-se consistentemente mesmo quando usuário
+        navega entre diferentes abas ou seções do sistema. Esta persistência
+        contribui para experiência mais fluida, evitando necessidade de
+        reaplicar filtros repetidamente.
+      </p>
+
+      <h2>4.2 Exportação e Geração de Relatórios</h2>
+
+      <p>
+        A capacidade de exportar dados para análises externas ou geração de
+        documentação formal é recurso presente em diversos módulos do sistema.
+        Duas modalidades principais de exportação são disponibilizadas: PDF para
+        documentação formal e apresentações, e CSV para análises em ferramentas
+        de planilhas eletrônicas ou estatísticas.
+      </p>
+
+      <p>
+        Relatórios em PDF são gerados utilizando bibliotecas especializadas que
+        garantem formatação profissional e consistente. O cabeçalho de cada
+        página inclui logotipo da instituição, título do relatório e data de
+        geração. O corpo do relatório apresenta dados em formato tabular com
+        formatação adequada, incluindo tratamento de quebras de página para
+        evitar divisão inadequada de informações relacionadas. Rodapés incluem
+        numeração de páginas e informações adicionais como usuário que gerou o
+        relatório.
+      </p>
+
+      <p>
+        Quando aplicável, relatórios PDF incluem seção inicial com scorecards ou
+        totalizadores que fornecem visão consolidada antes da apresentação
+        detalhada dos dados. Esta estrutura facilita compreensão executiva,
+        permitindo que gestores obtenham insights principais rapidamente, com
+        opção de aprofundamento nos dados detalhados subsequentes.
+      </p>
+
+      <p>
+        Exportações CSV são otimizadas para compatibilidade com ampla gama de
+        software. A codificação UTF-8 com BOM garante correta interpretação de
+        caracteres acentuados. Cabeçalhos de coluna são claramente descritivos.
+        Valores numéricos são formatados de maneira consistente, com separadores
+        decimais apropriados. Datas seguem formato ISO 8601, facilitando
+        ordenação e manipulação.
+      </p>
+
+      <h2>4.3 Alternância de Temas (Modo Claro/Escuro)</h2>
+
+      <p>
+        O sistema oferece dois esquemas de cores: modo claro, com fundo
+        predominantemente branco e textos escuros, e modo escuro, com fundo
+        escuro e textos claros. Esta funcionalidade atende preferências pessoais
+        diversas e adapta-se a diferentes condições de iluminação ambiente,
+        podendo reduzir fadiga visual durante uso prolongado.
+      </p>
+
+      <p>
+        A alternância entre modos é realizada através de controle presente na
+        barra superior, acessível de qualquer tela do sistema. A mudança é
+        aplicada imediatamente, sem necessidade de recarregamento de página. A
+        preferência do usuário é armazenada localmente, sendo automaticamente
+        aplicada em acessos futuros até que usuário opte por alterá-la
+        novamente.
+      </p>
+
+      <p>
+        O modo escuro não é simplesmente inversão de cores, mas sim esquema
+        cuidadosamente desenhado para manter contraste adequado, legibilidade e
+        hierarquia visual. Cores de destaque são ajustadas para garantir
+        adequada percepção mesmo em fundo escuro. Gráficos e visualizações
+        adaptam suas paletas de cores conforme tema ativo.
+      </p>
+
+      <h2>4.4 Responsividade e Acesso Móvel</h2>
+
+      <p>
+        A interface do ParcerIA é completamente responsiva, adaptando-se
+        automaticamente a diferentes tamanhos de tela e dispositivos. Esta
+        característica permite que usuários acessem o sistema produtivamente não
+        apenas de computadores desktop, mas também de tablets e smartphones.
+      </p>
+
+      <p>
+        Em dispositivos com telas menores, o menu lateral de navegação é
+        substituído por menu do tipo "hambúrguer", acessível através de ícone no
+        canto superior esquerdo. Tabelas de dados são otimizadas para rolagem
+        horizontal quando necessário, ou reorganizadas para apresentação
+        vertical quando apropriado. Formulários ajustam disposição de campos
+        para melhor aproveitamento do espaço disponível em orientação retrato.
+      </p>
+
+      <p>
+        Elementos interativos, como botões e links, têm tamanhos mínimos
+        ajustados para facilitar toque em telas sensíveis ao toque. Espaçamento
+        entre elementos é aumentado em dispositivos móveis para reduzir
+        acionamentos acidentais. Componentes de seleção de data e autocompletar
+        utilizam widgets nativos do sistema operacional móvel quando
+        disponíveis, proporcionando experiência consistente com outras
+        aplicações do dispositivo.
+      </p>
+
+      <h2>4.5 Notificações e Alertas</h2>
+
+      <p>
+        O sistema implementa mecanismo de notificações para comunicar
+        informações importantes aos usuários. Atualmente, notificações são
+        geradas principalmente para alertar sobre contratos próximos ao
+        vencimento, situação que requer atenção preventiva para evitar
+        descontinuidade na prestação de serviços.
+      </p>
+
+      <p>
+        Notificações são visíveis através de ícone na barra superior, que exibe
+        indicador numérico quando há alertas não visualizados. Ao clicar no
+        ícone, painel é expandido apresentando lista de notificações com
+        descrições concisas. Cada notificação pode ter ação associada,
+        permitindo navegação direta para o contexto relevante com um clique.
+      </p>
+
+      <p>
+        O sistema mantém registro de quais notificações foram visualizadas por
+        cada usuário, evitando apresentação repetitiva de alertas já conhecidos.
+        Notificações podem ser descartadas individualmente ou em lote, limpando
+        a lista conforme usuário toma conhecimento e age sobre os alertas.
+      </p>
+
+      <p>
+        Futuramente, o sistema de notificações pode ser expandido para incluir
+        alertas sobre outros eventos relevantes, tais como escalas que requerem
+        aprovação, conflitos detectados automaticamente, ou mudanças
+        significativas em dados que o usuário acompanha.
+      </p>
+    </div>
+
+    <!-- BOAS PRÁTICAS -->
+    <div class="container page" id="boas-praticas">
+      <h1>5. Boas Práticas e Recomendações</h1>
+
+      <h2>5.1 Segurança da Informação</h2>
+
+      <p>
+        A segurança da informação em sistemas de gestão hospitalar é tema de
+        importância crítica, considerando a natureza sensível dos dados
+        manipulados e as implicações legais decorrentes da Lei Geral de Proteção
+        de Dados (LGPD). Embora o sistema implemente múltiplas camadas de
+        segurança técnica, o comportamento dos usuários constitui elo crucial na
+        cadeia de proteção.
+      </p>
+
+      <p>
+        Credenciais de acesso são pessoais e intransferíveis. Cada usuário é
+        individualmente responsável por todas as operações realizadas através de
+        sua conta. O compartilhamento de senhas, mesmo entre colegas de
+        confiança, constitui violação grave de políticas de segurança e pode
+        resultar em consequências disciplinares além de comprometer
+        rastreabilidade de ações no sistema.
+      </p>
+
+      <p>
+        Senhas devem ser complexas, combinando caracteres de diferentes
+        categorias: letras maiúsculas, letras minúsculas, números e símbolos.
+        Senhas com menos de oito caracteres ou que contenham palavras de
+        dicionário, datas significativas ou sequências numéricas simples são
+        vulneráveis a ataques automatizados e devem ser evitadas. Recomenda-se
+        utilização de gerenciadores de senhas para criar e armazenar senhas
+        fortes de forma segura.
+      </p>
+
+      <p>
+        A troca periódica de senhas, conforme política institucional, contribui
+        para segurança contínua, especialmente em ambientes com múltiplos
+        usuários. Após alteração de senha, sessões ativas em outros dispositivos
+        devem ser consideradas para eventual encerramento se houver suspeita de
+        acesso não autorizado.
+      </p>
+
+      <p>
+        Ao afastar-se temporariamente de estação de trabalho onde o sistema está
+        acessado, mesmo que por breve período, o usuário deve realizar logout ou
+        bloquear a tela do computador. Esta prática simples previne acessos não
+        autorizados por terceiros que possam se aproveitar de estação
+        desbloqueada.
+      </p>
+
+      <p>
+        O acesso ao sistema em computadores públicos ou compartilhados, tais
+        como lan houses ou bibliotecas, deve ser evitado sempre que possível.
+        Caso seja absolutamente necessário, atenção redobrada deve ser exercida
+        para garantir logout completo ao término e verificar que navegador não
+        está configurado para memorizar senhas.
+      </p>
+
+      <h2>5.2 Organização e Padronização de Dados</h2>
+
+      <p>
+        A qualidade das análises e relatórios gerados pelo sistema é diretamente
+        proporcional à qualidade dos dados inseridos. Dados inconsistentes,
+        incompletos ou incorretos comprometem não apenas relatórios, mas também
+        decisões gerenciais baseadas nessas informações. Portanto, disciplina na
+        entrada de dados é essencial.
+      </p>
+
+      <p>
+        Nomenclaturas devem seguir padrões consistentes. Por exemplo, se a
+        instituição decide referir-se a determinada unidade como "UPA Central",
+        esta designação deve ser utilizada uniformemente em todos os contextos,
+        evitando variações como "UPA Centro", "Unidade de Pronto Atendimento
+        Central" ou abreviações não padronizadas. Esta consistência facilita
+        buscas, previne fragmentação de dados e melhora legibilidade de
+        relatórios.
+      </p>
+
+      <p>
+        Campos de texto livre, como observações, devem ser utilizados de forma
+        criteriosa. Informações relevantes devem ser registradas de forma
+        concisa e objetiva. Observações devem adicionar valor informacional que
+        não está capturado em campos estruturados, evitando redundância com
+        dados já presentes em outros campos do formulário.
+      </p>
+
+      <p>
+        Dados de contato, especialmente telefones e e-mails, devem ser mantidos
+        atualizados. Informações desatualizadas podem resultar em falhas de
+        comunicação em situações operacionais críticas. Procedimentos para
+        atualização periódica destes dados, possivelmente através de confirmação
+        anual com os profissionais, contribuem para manutenção da qualidade da
+        base de dados.
+      </p>
+
+      <h2>5.3 Gestão Eficiente de Escalas</h2>
+
+      <p>
+        O planejamento adequado de escalas médicas é fundamental tanto para
+        garantia de cobertura assistencial apropriada quanto para eficiência na
+        utilização de recursos. Escalas criadas com antecedência insuficiente
+        podem resultar em dificuldades de preenchimento, necessidade de
+        pagamentos emergenciais com valores majorados, ou pior, ausência de
+        cobertura com impacto na assistência.
+      </p>
+
+      <p>
+        Recomenda-se que escalas sejam planejadas com antecedência mínima de
+        sete a quinze dias, prazo que permite coordenação adequada com
+        profissionais e empresas parceiras, ajustes em caso de
+        indisponibilidades, e evitação de situações emergenciais. Períodos com
+        maior rotatividade ou demanda sazonal podem requerer planejamento ainda
+        mais antecipado.
+      </p>
+
+      <p>
+        A funcionalidade de importação via CSV é particularmente valiosa para
+        escalas recorrentes ou que seguem padrões previsíveis. Investimento
+        inicial em criação de planilhas-modelo pode resultar em economia
+        significativa de tempo em longo prazo. Validação cuidadosa da planilha
+        antes da importação previne problemas que seriam mais trabalhosos de
+        corrigir após criação das escalas.
+      </p>
+
+      <p>
+        Conflitos detectados durante criação de escalas devem ser tratados
+        imediatamente. Postergar resolução de conflitos pode resultar em
+        esquecimento do problema, levando a situações onde profissional esteja
+        simultaneamente escalado em locais diferentes, situação operacionalmente
+        impossível que inevitavelmente resultará em ausência em um dos locais.
+      </p>
+
+      <p>
+        O acompanhamento de status de escalas deve ser regular. Escalas não
+        devem permanecer indefinidamente em status "Programado". Fluxo adequado
+        envolve progressão oportuna de "Programado" para "Pré-Aprovado" após
+        validações iniciais, e posteriormente para "Aprovado" após confirmação
+        final. Escalas em status "Atenção" devem ser priorizadas para
+        investigação e resolução dos problemas identificados.
+      </p>
+
+      <p>
+        A exportação regular de relatórios de escalas, mesmo quando não há
+        demanda específica, constitui boa prática. Estes relatórios servem como
+        backup adicional de dados, facilitam auditorias e revisões, e podem ser
+        compartilhados com empresas parceiras para confirmação mútua de
+        informações, reduzindo divergências e mal-entendidos.
+      </p>
+
+      <h2>5.4 Gestão de Contratos</h2>
+
+      <p>
+        Contratos devem ser cadastrados no sistema imediatamente após
+        formalização jurídica, preferencialmente antes de início da vigência.
+        Esta prática garante que todas as ferramentas do sistema estejam
+        disponíveis desde o primeiro dia da parceria, evitando lacunas temporais
+        onde operações precisem ser gerenciadas manualmente com posterior
+        migração para o sistema.
+      </p>
+
+      <p>
+        A vinculação completa de todos os itens de contrato deve ser realizada
+        no momento do cadastro inicial. Adições posteriores são possíveis, mas a
+        completude inicial previne situações onde escalas não possam ser criadas
+        devido à ausência de item apropriado no sistema.
+      </p>
+
+      <p>
+        Valores unitários de itens devem ser conferidos meticulosamente,
+        preferencialmente por dupla verificação, dado que erros nestes valores
+        podem resultar em divergências financeiras significativas quando
+        multiplicados pelo volume de escalas ao longo da vigência contratual.
+      </p>
+
+      <p>
+        Os alertas de vencimento gerados automaticamente pelo sistema devem ser
+        tratados proativamente. Ao receber notificação de contrato próximo ao
+        vencimento, processo de renovação ou elaboração de novo contrato deve
+        ser iniciado imediatamente. Prazos são frequentemente subestimados,
+        especialmente quando processos licitatórios estão envolvidos, tornando
+        antecipação essencial para evitar descontinuidades.
+      </p>
+
+      <h2>5.5 Performance e Otimização</h2>
+
+      <p>
+        Embora o sistema seja desenvolvido para performance adequada mesmo com
+        volumes significativos de dados, práticas de uso consciente podem
+        contribuir para experiência mais ágil. Filtros de data, especialmente em
+        módulos com grande volume de registros como escalas, devem ser
+        utilizados para limitar resultados a períodos relevantes. Buscas sem
+        restrições temporais em bases com anos de dados históricos podem
+        resultar em tempos de resposta mais longos.
+      </p>
+
+      <p>
+        Buscas específicas, quando possível, são mais eficientes que navegação
+        exploratória. Se o objetivo é localizar escala específica de
+        profissional conhecido, utilizar filtro por CPF ou nome completo é
+        significativamente mais rápido que carregar todas as escalas de um
+        período e então localizar manualmente a desejada.
+      </p>
+
+      <p>
+        Navegadores web acumulam cache e dados temporários que ocasionalmente
+        podem causar comportamentos inesperados ou degradação de performance.
+        Limpeza periódica do cache do navegador, particularmente após
+        atualizações do sistema, pode resolver problemas de lentidão ou
+        exibições incorretas. As instruções específicas para limpeza de cache
+        variam conforme navegador utilizado.
+      </p>
+
+      <p>
+        Conexão de internet estável e adequadamente dimensionada é pré-requisito
+        para experiência fluida com sistemas web. Conexões instáveis ou com
+        largura de banda insuficiente podem resultar em timeouts, falhas de
+        carregamento ou perda de dados em formulários. Em ambientes com
+        múltiplos usuários simultâneos, infraestrutura de rede deve ser
+        dimensionada considerando demanda agregada.
+      </p>
+    </div>
+
+    <!-- CONCLUSÃO -->
+    <div class="container page" id="conclusao">
+      <h1>6. Considerações Finais</h1>
+
+      <p>
+        O sistema ParcerIA representa iniciativa significativa na modernização
+        da gestão hospitalar, especificamente no que concerne ao complexo
+        desafio de administrar parcerias, contratos e escalas de profissionais
+        terceirizados. A plataforma transcende a simples automação de processos
+        manuais, oferecendo capacidades analíticas, validações automatizadas e
+        visibilidade consolidada que transformam qualitativamente a gestão
+        destes aspectos críticos da operação hospitalar.
+      </p>
+
+      <p>
+        A relevância deste sistema no contexto do Sistema Único de Saúde não
+        pode ser subestimada. Em cenário de recursos perpetuamente escassos e
+        demandas crescentes, a otimização na utilização de recursos humanos e a
+        eficiência administrativa tornam-se não apenas desejáveis, mas
+        imperativas. Cada real economizado através de melhor gestão, cada erro
+        evitado através de validações automatizadas, cada insight obtido através
+        de análise de dados representa contribuição direta para sustentabilidade
+        do sistema e, em última análise, para qualidade do atendimento oferecido
+        à população.
+      </p>
+
+      <p>
+        O sucesso na utilização do ParcerIA depende fundamentalmente do
+        engajamento dos usuários. Ferramentas tecnológicas, por mais
+        sofisticadas que sejam, realizam seu potencial apenas quando
+        apropriadamente compreendidas e consistentemente utilizadas. Portanto,
+        investimento em capacitação de usuários, disseminação de boas práticas e
+        criação de cultura institucional de valorização da gestão baseada em
+        dados são tão importantes quanto o próprio desenvolvimento técnico do
+        sistema.
+      </p>
+
+      <p>
+        A característica de "documento vivo" deste manual reflete filosofia de
+        melhoria contínua que permeia o próprio sistema. Funcionalidades serão
+        expandidas, interfaces serão refinadas, e novos módulos serão
+        incorporados em resposta a necessidades identificadas e avanços
+        tecnológicos. Esta evolução contínua é essencial para que o sistema
+        permaneça relevante e alinhado com as demandas dinâmicas do ambiente de
+        saúde.
+      </p>
+
+      <p>
+        Para efetividade desta estratégia de atualização contínua, mecanismos de
+        feedback dos usuários são fundamentais. Sugestões de melhorias, relatos
+        de dificuldades encontradas, e identificação de funcionalidades
+        desejadas devem ser ativamente comunicados aos responsáveis pelo
+        sistema. Usuários são, em última análise, os verdadeiros especialistas
+        nos processos que o sistema busca suportar, e suas perspectivas são
+        inestimáveis para direcionamento de evoluções futuras.
+      </p>
+
+      <h2>Suporte Técnico e Canais de Comunicação</h2>
+
+      <p>
+        Para questões técnicas, dúvidas operacionais ou reporte de problemas, a
+        instituição disponibiliza canais de suporte que devem ser acionados
+        conforme necessário. Recomenda-se que reportes de problemas incluam
+        descrição detalhada do comportamento observado, passos que levaram à
+        situação problemática, e quando possível, capturas de tela ilustrativas.
+        Estas informações facilitam diagnóstico e resolução eficiente.
+      </p>
+
+      <div class="note-box">
+        <p class="no-indent"><strong>Canais de Suporte:</strong></p>
+        <p class="no-indent">E-mail: suporte@daherlab.com</p>
+        <p class="no-indent">
+          Horário de atendimento: Segunda a Sexta, 8h às 18h
+        </p>
+      </div>
+
+      <h2>Perspectivas Futuras</h2>
+
+      <p>
+        O roadmap de desenvolvimento do ParcerIA inclui funcionalidades
+        adicionais planejadas para implementação em fases subsequentes. Entre
+        estas, destacam-se dashboards personalizáveis onde usuários poderão
+        configurar visualizações conforme suas necessidades específicas, sistema
+        de notificações push em tempo real eliminando necessidade de consultas
+        periódicas ao sistema, aplicativo móvel nativo otimizado para consulta
+        de escalas e operações frequentes em dispositivos móveis, integração com
+        sistemas externos como folha de pagamento e sistemas de gestão
+        hospitalar, módulo de geração de relatórios customizáveis através de
+        interface visual, e funcionalidades avançadas de business intelligence
+        com capacidades analíticas expandidas.
+      </p>
+
+      <p>
+        A priorização destas e outras funcionalidades será continuamente
+        reavaliada considerando feedback dos usuários, mudanças regulatórias, e
+        avanços tecnológicos. A arquitetura modular do sistema facilita
+        incorporação incremental de novas capacidades sem comprometer
+        estabilidade de funcionalidades existentes.
+      </p>
+    </div>
+
+    <!-- REFERÊNCIAS -->
+    <div class="container" id="referencias">
+      <h1>7. Referências Bibliográficas</h1>
+
+      <div class="reference">
+        BRASIL. Constituição (1988). Emenda Constitucional nº 19, de 4 de junho
+        de 1998. Modifica o regime e dispõe sobre princípios e normas da
+        Administração Pública. Diário Oficial da União, Brasília, DF, 5 jun.
+        1998.
+      </div>
+
+      <div class="reference">
+        BRASIL. Lei nº 13.709, de 14 de agosto de 2018. Lei Geral de Proteção de
+        Dados Pessoais (LGPD). Diário Oficial da União, Brasília, DF, 15 ago.
+        2018.
+      </div>
+
+      <div class="reference">
+        CAMPOS, G. W. S.; MALIK, A. M. Gestão de recursos humanos na saúde:
+        desafios e perspectivas. Revista de Administração em Saúde, v. 10, n.
+        39, p. 57-63, 2008.
+      </div>
+
+      <div class="reference">
+        MENDES, E. V. As redes de atenção à saúde. Brasília: Organização
+        Pan-Americana da Saúde, 2011. 549 p.
+      </div>
+
+      <div class="reference">
+        MENDES, R. F. Gestão de escalas médicas e qualidade assistencial em
+        serviços de urgência. Cadernos da Escola Nacional de Saúde Pública, v.
+        25, n. 2, p. 234-247, 2015.
+      </div>
+
+      <div class="reference">
+        ORGANIZAÇÃO PAN-AMERICANA DA SAÚDE (OPAS). Digitalização e transformação
+        digital na saúde pública: perspectivas para a América Latina e Caribe.
+        Brasília: OPAS, 2018.
+      </div>
+
+      <div class="reference">
+        VIEIRA, F. S. Qualificação dos serviços farmacêuticos no Brasil:
+        aspectos inconclusos da agenda do Sistema Único de Saúde. Revista
+        Panamericana de Salud Pública, v. 24, n. 2, p. 91-100, 2008.
+      </div>
+
+      <div class="reference">
+        VIEIRA, F. S. Gasto do Ministério da Saúde com medicamentos: tendência
+        dos programas de 2002 a 2007. Revista de Saúde Pública, v. 43, n. 4, p.
+        674-681, 2009.
+      </div>
+
+      <div class="reference">
+        VIEIRA, M. S. Custos e eficiência em hospitais públicos e privados no
+        contexto brasileiro. Cadernos de Saúde Pública, v. 26, n. 1, p. 120-135,
+        2010.
+      </div>
+
+      <div class="footer">
+        <p>
+          <strong
+            >ParcerIA - Sistema de Gestão Inteligente de Acessos e
+            Parcerias</strong
+          >
+        </p>
+        <p>Manual de Operação Contínua</p>
+        <p>© 2025 DaherLab. Todos os direitos reservados.</p>
+      </div>
+    </div>
+  </body>
+</html>

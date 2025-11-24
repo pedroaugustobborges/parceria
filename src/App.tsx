@@ -106,7 +106,7 @@ const App: React.FC = () => {
             <Route
               path="/escalas"
               element={
-                <ProtectedRoute requireAdminAgir>
+                <ProtectedRoute allowEscalasAccess>
                   <Layout>
                     <EscalasMedicas />
                   </Layout>

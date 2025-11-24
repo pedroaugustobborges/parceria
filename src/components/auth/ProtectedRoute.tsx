@@ -7,14 +7,16 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
   requireAdminAgir?: boolean;
+  allowEscalasAccess?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireAdmin = false,
   requireAdminAgir = false,
+  allowEscalasAccess = false,
 }) => {
-  const { user, userProfile, loading, isAdmin, isAdminAgir } = useAuth();
+  const { user, userProfile, loading, isAdmin, isAdminAgir, isAdminTerceiro, isTerceiro } = useAuth();
 
   if (loading) {
     return (
@@ -41,6 +43,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (requireAdmin && !isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // For Escalas Médicas: allow admin, admin-terceiro, and terceiro users
+  if (allowEscalasAccess && !isAdminAgir && !isAdminTerceiro && !isTerceiro) {
     return <Navigate to="/dashboard" replace />;
   }
 
