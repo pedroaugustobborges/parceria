@@ -307,15 +307,17 @@ const Dashboard: React.FC = () => {
 
   const loadProdutividade = async () => {
     try {
+      console.log('🔄 Carregando dados de produtividade...');
       const { data, error: fetchError } = await supabase
         .from("produtividade")
         .select("*")
         .order("data", { ascending: false });
 
       if (fetchError) throw fetchError;
+      console.log(`✅ Produtividade carregada: ${data?.length || 0} registros`);
       setProdutividade(data || []);
     } catch (err: any) {
-      console.error("Erro ao carregar produtividade:", err);
+      console.error("❌ Erro ao carregar produtividade:", err);
     }
   };
 
@@ -750,60 +752,119 @@ const Dashboard: React.FC = () => {
     setPersonAcessos([]);
   };
 
-  const handleOpenProdutividadeModal = (person: HorasCalculadas) => {
+  const handleOpenProdutividadeModal = async (person: HorasCalculadas) => {
+    console.log('=== INICIANDO BUSCA DE PRODUTIVIDADE ===');
+    console.log(`Pessoa: ${person.nome} (CPF: ${person.cpf})`);
+    console.log(`Período: ${filtroDataInicio ? format(filtroDataInicio, 'dd/MM/yyyy') : 'N/A'} a ${filtroDataFim ? format(filtroDataFim, 'dd/MM/yyyy') : 'N/A'}`);
+
     setSelectedPersonProdutividade(person);
-
-    // Encontrar o codigomv da pessoa através do CPF na tabela usuarios
-    const usuario = usuarios.find((u) => u.cpf === person.cpf);
-
-    if (!usuario || !usuario.codigomv) {
-      console.warn(`Nenhum codigomv encontrado para CPF ${person.cpf}`);
-      setPersonProdutividade([]);
-      setProdutividadeModalOpen(true);
-      return;
-    }
-
-    // Filtrar produtividade por CODIGO_MV encontrado na tabela usuarios
-    let personProdHistory = produtividade.filter(
-      (p) => p.codigo_mv === usuario.codigomv
-    );
-
-    // Aplicar filtros de data se estiverem definidos
-    // Normalizar as datas para comparar apenas o dia (sem hora)
-    if (filtroDataInicio) {
-      const inicioNormalizado = new Date(filtroDataInicio);
-      inicioNormalizado.setHours(0, 0, 0, 0);
-
-      personProdHistory = personProdHistory.filter((p) => {
-        if (!p.data) return false;
-        // Parse ISO date string (YYYY-MM-DD) correctly
-        const [year, month, day] = p.data.split("T")[0].split("-").map(Number);
-        const dataProducao = new Date(year, month - 1, day);
-        return dataProducao >= inicioNormalizado;
-      });
-    }
-
-    if (filtroDataFim) {
-      const fimNormalizado = new Date(filtroDataFim);
-      fimNormalizado.setHours(0, 0, 0, 0);
-
-      personProdHistory = personProdHistory.filter((p) => {
-        if (!p.data) return false;
-        // Parse ISO date string (YYYY-MM-DD) correctly
-        const [year, month, day] = p.data.split("T")[0].split("-").map(Number);
-        const dataProducao = new Date(year, month - 1, day);
-        return dataProducao <= fimNormalizado;
-      });
-    }
-
-    // Ordenar por data
-    personProdHistory = personProdHistory.sort((a, b) => {
-      if (!a.data || !b.data) return 0;
-      return new Date(b.data).getTime() - new Date(a.data).getTime();
-    });
-
-    setPersonProdutividade(personProdHistory);
     setProdutividadeModalOpen(true);
+
+    try {
+      // Buscar o codigo_mv do usuário
+      const usuario = usuarios.find((u) => u.cpf === person.cpf);
+
+      let personProdHistory: Produtividade[] = [];
+
+      // Buscar DIRETAMENTE no banco com os filtros de data (igual Escalas Médicas)
+      if (filtroDataInicio && filtroDataFim) {
+        console.log('🔍 Buscando diretamente no banco de dados...');
+
+        const dataInicioFormatada = format(filtroDataInicio, 'yyyy-MM-dd');
+        const dataFimFormatada = format(filtroDataFim, 'yyyy-MM-dd');
+
+        let query = supabase
+          .from("produtividade")
+          .select("*")
+          .gte("data", dataInicioFormatada)
+          .lte("data", dataFimFormatada)
+          .order("data", { ascending: false });
+
+        // Estratégia 1: Buscar por codigo_mv (método preferencial)
+        if (usuario?.codigomv) {
+          console.log(`Buscando por codigo_mv: ${usuario.codigomv}`);
+          query = query.eq("codigo_mv", usuario.codigomv);
+        }
+        // Estratégia 2: Buscar por nome com ilike (igual EscalasMedicas)
+        else {
+          console.log(`Buscando por nome: ${person.nome}`);
+          query = query.ilike("nome", `%${person.nome}%`);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error('❌ Erro ao buscar produtividade:', error);
+          throw error;
+        }
+
+        personProdHistory = data || [];
+        console.log(`✅ Busca direta no banco: ${personProdHistory.length} registros encontrados`);
+
+      } else {
+        console.warn('⚠️ Filtros de data não definidos, usando busca na memória...');
+
+        // Fallback: buscar na memória (dados já carregados)
+        if (usuario?.codigomv) {
+          personProdHistory = produtividade.filter(
+            (p) => p.codigo_mv === usuario.codigomv
+          );
+        } else {
+          const nomeNormalizado = person.nome.toLowerCase().trim().replace(/\s+/g, ' ');
+          personProdHistory = produtividade.filter((p) => {
+            const nomeProdNormalizado = p.nome.toLowerCase().trim().replace(/\s+/g, ' ');
+            return nomeProdNormalizado.includes(nomeNormalizado) ||
+                   nomeNormalizado.includes(nomeProdNormalizado);
+          });
+        }
+
+        // Aplicar filtros de data manualmente se necessário
+        if (filtroDataInicio) {
+          const inicioNormalizado = new Date(filtroDataInicio);
+          inicioNormalizado.setHours(0, 0, 0, 0);
+          personProdHistory = personProdHistory.filter((p) => {
+            if (!p.data) return false;
+            const [year, month, day] = p.data.split("T")[0].split("-").map(Number);
+            const dataProducao = new Date(year, month - 1, day);
+            return dataProducao >= inicioNormalizado;
+          });
+        }
+
+        if (filtroDataFim) {
+          const fimNormalizado = new Date(filtroDataFim);
+          fimNormalizado.setHours(0, 0, 0, 0);
+          personProdHistory = personProdHistory.filter((p) => {
+            if (!p.data) return false;
+            const [year, month, day] = p.data.split("T")[0].split("-").map(Number);
+            const dataProducao = new Date(year, month - 1, day);
+            return dataProducao <= fimNormalizado;
+          });
+        }
+
+        personProdHistory = personProdHistory.sort((a, b) => {
+          if (!a.data || !b.data) return 0;
+          return new Date(b.data).getTime() - new Date(a.data).getTime();
+        });
+      }
+
+      // Log de diagnóstico
+      if (personProdHistory.length === 0) {
+        console.warn('=== DIAGNÓSTICO DE PRODUTIVIDADE ===');
+        console.warn(`CPF: ${person.cpf}`);
+        console.warn(`Nome: ${person.nome}`);
+        console.warn(`Usuário encontrado: ${!!usuario}`);
+        console.warn(`Codigo MV: ${usuario?.codigomv || 'N/A'}`);
+        console.warn(`Período de busca: ${filtroDataInicio ? format(filtroDataInicio, 'dd/MM/yyyy') : 'N/A'} a ${filtroDataFim ? format(filtroDataFim, 'dd/MM/yyyy') : 'N/A'}`);
+      } else {
+        console.log(`✅ Sucesso! ${personProdHistory.length} registros de produtividade encontrados`);
+      }
+
+      setPersonProdutividade(personProdHistory);
+
+    } catch (err) {
+      console.error('❌ Erro ao buscar produtividade:', err);
+      setPersonProdutividade([]);
+    }
   };
 
   const handleCloseProdutividadeModal = () => {
@@ -4830,8 +4891,10 @@ const Dashboard: React.FC = () => {
                     variant="outlined"
                     color="secondary"
                     startIcon={<TrendingUp />}
+                    disabled={produtividade.length === 0}
                   >
                     Ver Produtividade
+                    {produtividade.length === 0 && " (Carregando...)"}
                   </Button>
                 </Box>
                 <Button onClick={handleCloseModal} variant="outlined">
@@ -5011,188 +5074,215 @@ const Dashboard: React.FC = () => {
                       Registros de Produtividade ({personProdutividade.length})
                     </Typography>
 
-                    <TableContainer
-                      component={Paper}
-                      sx={{
-                        maxHeight: 500,
-                        boxShadow: "none",
-                        border: "1px solid",
-                        borderColor: "divider",
-                        borderRadius: 2,
-                      }}
-                    >
-                      <Table stickyHeader size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell
-                              sx={{ fontWeight: 600, bgcolor: "grey.50" }}
-                            >
-                              Data
-                            </TableCell>
-                            <TableCell
-                              sx={{ fontWeight: 600, bgcolor: "grey.50" }}
-                            >
-                              Código MV
-                            </TableCell>
-                            <TableCell
-                              sx={{ fontWeight: 600, bgcolor: "grey.50" }}
-                            >
-                              Especialidade
-                            </TableCell>
-                            <TableCell
-                              sx={{
-                                fontWeight: 600,
-                                bgcolor: "grey.50",
-                                textAlign: "center",
-                              }}
-                            >
-                              Proced.
-                            </TableCell>
-                            <TableCell
-                              sx={{
-                                fontWeight: 600,
-                                bgcolor: "grey.50",
-                                textAlign: "center",
-                              }}
-                            >
-                              Pareceres Sol.
-                            </TableCell>
-                            <TableCell
-                              sx={{
-                                fontWeight: 600,
-                                bgcolor: "grey.50",
-                                textAlign: "center",
-                              }}
-                            >
-                              Pareceres Real.
-                            </TableCell>
-                            <TableCell
-                              sx={{
-                                fontWeight: 600,
-                                bgcolor: "grey.50",
-                                textAlign: "center",
-                              }}
-                            >
-                              Cirurgias
-                            </TableCell>
-                            <TableCell
-                              sx={{
-                                fontWeight: 600,
-                                bgcolor: "grey.50",
-                                textAlign: "center",
-                              }}
-                            >
-                              Prescrições
-                            </TableCell>
-                            <TableCell
-                              sx={{
-                                fontWeight: 600,
-                                bgcolor: "grey.50",
-                                textAlign: "center",
-                              }}
-                            >
-                              Evoluções
-                            </TableCell>
-                            <TableCell
-                              sx={{
-                                fontWeight: 600,
-                                bgcolor: "grey.50",
-                                textAlign: "center",
-                              }}
-                            >
-                              Urgências
-                            </TableCell>
-                            <TableCell
-                              sx={{
-                                fontWeight: 600,
-                                bgcolor: "grey.50",
-                                textAlign: "center",
-                              }}
-                            >
-                              Ambulatórios
-                            </TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {personProdutividade.map((prod, index) => (
-                            <TableRow
-                              key={index}
-                              sx={{
-                                "&:hover": { bgcolor: "action.hover" },
-                                "&:last-child td": { border: 0 },
-                              }}
-                            >
-                              <TableCell>
-                                <Typography variant="body2">
-                                  {prod.data
-                                    ? format(
-                                        parseISO(prod.data),
-                                        "dd/MM/yyyy",
-                                        {
-                                          locale: ptBR,
-                                        }
-                                      )
-                                    : "-"}
-                                </Typography>
+                    {personProdutividade.length === 0 ? (
+                      <Alert
+                        severity="info"
+                        sx={{ mb: 2 }}
+                        icon={<Warning />}
+                      >
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Nenhum registro de produtividade encontrado
+                        </Typography>
+                        <Typography variant="caption" component="div">
+                          Possíveis causas:
+                        </Typography>
+                        <Typography variant="caption" component="div" sx={{ ml: 2 }}>
+                          • Não há registros de produtividade para este profissional no período selecionado
+                        </Typography>
+                        <Typography variant="caption" component="div" sx={{ ml: 2 }}>
+                          • O código MV do profissional pode não estar cadastrado ou vinculado corretamente
+                        </Typography>
+                        <Typography variant="caption" component="div" sx={{ ml: 2 }}>
+                          • Os dados de produtividade ainda não foram importados para o período
+                        </Typography>
+                        <Typography variant="caption" component="div" sx={{ mt: 1, fontStyle: 'italic', color: 'text.secondary' }}>
+                          💡 Dica: Verifique o console do navegador (F12) para mais detalhes de diagnóstico
+                        </Typography>
+                      </Alert>
+                    ) : (
+                      <TableContainer
+                        component={Paper}
+                        sx={{
+                          maxHeight: 500,
+                          boxShadow: "none",
+                          border: "1px solid",
+                          borderColor: "divider",
+                          borderRadius: 2,
+                        }}
+                      >
+                        <Table stickyHeader size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell
+                                sx={{ fontWeight: 600, bgcolor: "grey.50" }}
+                              >
+                                Data
                               </TableCell>
-                              <TableCell>
-                                <Chip
-                                  label={prod.codigo_mv}
-                                  size="small"
-                                  color="primary"
-                                  variant="outlined"
-                                />
+                              <TableCell
+                                sx={{ fontWeight: 600, bgcolor: "grey.50" }}
+                              >
+                                Código MV
                               </TableCell>
-                              <TableCell>
-                                <Typography variant="body2">
-                                  {prod.especialidade || "-"}
-                                </Typography>
+                              <TableCell
+                                sx={{ fontWeight: 600, bgcolor: "grey.50" }}
+                              >
+                                Especialidade
                               </TableCell>
-                              <TableCell sx={{ textAlign: "center" }}>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {prod.procedimento}
-                                </Typography>
+                              <TableCell
+                                sx={{
+                                  fontWeight: 600,
+                                  bgcolor: "grey.50",
+                                  textAlign: "center",
+                                }}
+                              >
+                                Proced.
                               </TableCell>
-                              <TableCell sx={{ textAlign: "center" }}>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {prod.parecer_solicitado}
-                                </Typography>
+                              <TableCell
+                                sx={{
+                                  fontWeight: 600,
+                                  bgcolor: "grey.50",
+                                  textAlign: "center",
+                                }}
+                              >
+                                Pareceres Sol.
                               </TableCell>
-                              <TableCell sx={{ textAlign: "center" }}>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {prod.parecer_realizado}
-                                </Typography>
+                              <TableCell
+                                sx={{
+                                  fontWeight: 600,
+                                  bgcolor: "grey.50",
+                                  textAlign: "center",
+                                }}
+                              >
+                                Pareceres Real.
                               </TableCell>
-                              <TableCell sx={{ textAlign: "center" }}>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {prod.cirurgia_realizada}
-                                </Typography>
+                              <TableCell
+                                sx={{
+                                  fontWeight: 600,
+                                  bgcolor: "grey.50",
+                                  textAlign: "center",
+                                }}
+                              >
+                                Cirurgias
                               </TableCell>
-                              <TableCell sx={{ textAlign: "center" }}>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {prod.prescricao}
-                                </Typography>
+                              <TableCell
+                                sx={{
+                                  fontWeight: 600,
+                                  bgcolor: "grey.50",
+                                  textAlign: "center",
+                                }}
+                              >
+                                Prescrições
                               </TableCell>
-                              <TableCell sx={{ textAlign: "center" }}>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {prod.evolucao}
-                                </Typography>
+                              <TableCell
+                                sx={{
+                                  fontWeight: 600,
+                                  bgcolor: "grey.50",
+                                  textAlign: "center",
+                                }}
+                              >
+                                Evoluções
                               </TableCell>
-                              <TableCell sx={{ textAlign: "center" }}>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {prod.urgencia}
-                                </Typography>
+                              <TableCell
+                                sx={{
+                                  fontWeight: 600,
+                                  bgcolor: "grey.50",
+                                  textAlign: "center",
+                                }}
+                              >
+                                Urgências
                               </TableCell>
-                              <TableCell sx={{ textAlign: "center" }}>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {prod.ambulatorio}
-                                </Typography>
+                              <TableCell
+                                sx={{
+                                  fontWeight: 600,
+                                  bgcolor: "grey.50",
+                                  textAlign: "center",
+                                }}
+                              >
+                                Ambulatórios
                               </TableCell>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
+                          </TableHead>
+                          <TableBody>
+                            {personProdutividade.map((prod, index) => (
+                              <TableRow
+                                key={index}
+                                sx={{
+                                  "&:hover": { bgcolor: "action.hover" },
+                                  "&:last-child td": { border: 0 },
+                                }}
+                              >
+                                <TableCell>
+                                  <Typography variant="body2">
+                                    {prod.data
+                                      ? format(
+                                          parseISO(prod.data),
+                                          "dd/MM/yyyy",
+                                          {
+                                            locale: ptBR,
+                                          }
+                                        )
+                                      : "-"}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={prod.codigo_mv}
+                                    size="small"
+                                    color="primary"
+                                    variant="outlined"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant="body2">
+                                    {prod.especialidade || "-"}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell sx={{ textAlign: "center" }}>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {prod.procedimento}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell sx={{ textAlign: "center" }}>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {prod.parecer_solicitado}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell sx={{ textAlign: "center" }}>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {prod.parecer_realizado}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell sx={{ textAlign: "center" }}>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {prod.cirurgia_realizada}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell sx={{ textAlign: "center" }}>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {prod.prescricao}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell sx={{ textAlign: "center" }}>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {prod.evolucao}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell sx={{ textAlign: "center" }}>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {prod.urgencia}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell sx={{ textAlign: "center" }}>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {prod.ambulatorio}
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    )}
                   </>
                 )}
               </DialogContent>

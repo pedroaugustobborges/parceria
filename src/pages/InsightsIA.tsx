@@ -174,7 +174,7 @@ const InsightsIA: React.FC = () => {
           </Box>
           <Box>
             <Typography variant="h4" fontWeight={700} gutterBottom>
-              Insights da IA
+              Insights da IA - em construção!
             </Typography>
             <Typography variant="body1" color="text.secondary">
               Análise inteligente de produtividade e gestão de contratos médicos

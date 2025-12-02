@@ -2065,6 +2065,7 @@ const EscalasMedicas: React.FC = () => {
                   }
                   options={
                     [
+                      "Pré-Agendado",
                       "Programado",
                       "Pré-Aprovado",
                       "Atenção",
