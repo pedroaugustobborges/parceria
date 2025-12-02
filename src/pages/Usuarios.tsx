@@ -336,7 +336,17 @@ const Usuarios: React.FC = () => {
         return;
       }
 
-      // Validate email format only if provided
+      // Email é obrigatório para administradores (convite será enviado automaticamente)
+      const isAdmin = formData.tipo === "administrador-agir-corporativo" ||
+                      formData.tipo === "administrador-agir-planta";
+
+      if (isAdmin && !formData.email) {
+        setError("Email é obrigatório para administradores");
+        setSaving(false);
+        return;
+      }
+
+      // Validate email format if provided
       if (formData.email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(formData.email)) {
@@ -478,7 +488,7 @@ const Usuarios: React.FC = () => {
           throw insertError;
         }
 
-        // Create contract links
+        // Create contract links (only if not admin or if admin has contracts)
         if (formData.contrato_ids.length > 0 && newUser) {
           const contractInserts = formData.contrato_ids.map((contrato_id) => ({
             usuario_id: newUser.id,
@@ -496,7 +506,20 @@ const Usuarios: React.FC = () => {
           }
         }
 
-        setSuccess("Terceiro criado com sucesso! Use o botão 'Enviar Convite' para criar acesso ao sistema.");
+        // For administrators, send invitation automatically
+        if (isAdmin && newUser) {
+          console.log('Enviando convite automaticamente para administrador...');
+          try {
+            await handleSendInvitation(newUser as Usuario);
+            setSuccess("Administrador criado com sucesso! Convite de acesso enviado para o email.");
+          } catch (inviteError: any) {
+            console.error("Erro ao enviar convite:", inviteError);
+            setSuccess(`Administrador criado com sucesso, mas houve erro ao enviar convite: ${inviteError.message}. Use o botão 'Enviar Convite' manualmente.`);
+          }
+        } else {
+          setSuccess("Terceiro criado com sucesso! Use o botão 'Enviar Convite' para criar acesso ao sistema.");
+        }
+
         setSaving(false);
         handleCloseCreateDialog();
         handleSearch(); // Refresh search
@@ -1151,7 +1174,7 @@ const Usuarios: React.FC = () => {
         fullWidth
       >
         <DialogTitle>
-          {editMode ? "Editar Usuário" : "Criar Novo Terceiro"}
+          {editMode ? "Editar Usuário" : "Criar Novo Usuário"}
         </DialogTitle>
         <DialogContent>
           {error && (
@@ -1175,7 +1198,12 @@ const Usuarios: React.FC = () => {
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               fullWidth
-              helperText="Email opcional. Será necessário para enviar convite de acesso ao sistema"
+              required={formData.tipo === "administrador-agir-corporativo" || formData.tipo === "administrador-agir-planta"}
+              helperText={
+                formData.tipo === "administrador-agir-corporativo" || formData.tipo === "administrador-agir-planta"
+                  ? "Email obrigatório para administradores. O convite será enviado automaticamente."
+                  : "Email opcional. Será necessário para enviar convite de acesso ao sistema."
+              }
             />
 
             <TextField
@@ -1270,41 +1298,53 @@ const Usuarios: React.FC = () => {
               </>
             )}
 
-            <Autocomplete
-              multiple
-              options={contratos}
-              value={contratos.filter((c) => formData.contrato_ids.includes(c.id))}
-              onChange={(_, newValue) =>
-                setFormData({
-                  ...formData,
-                  contrato_ids: newValue.map((c) => c.id),
-                })
-              }
-              getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
-              renderInput={(params) => (
-                <TextField {...params} label="Contratos" />
-              )}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => {
-                  const { key, ...tagProps } = getTagProps({ index });
-                  return (
-                    <Chip
-                      key={key}
-                      label={option.nome}
-                      {...tagProps}
-                      size="small"
-                      color="primary"
-                    />
-                  );
-                })
-              }
-            />
+            {/* Contratos - Apenas para terceiros e admin terceiro */}
+            {formData.tipo !== "administrador-agir-corporativo" && formData.tipo !== "administrador-agir-planta" && (
+              <Autocomplete
+                multiple
+                options={contratos}
+                value={contratos.filter((c) => formData.contrato_ids.includes(c.id))}
+                onChange={(_, newValue) =>
+                  setFormData({
+                    ...formData,
+                    contrato_ids: newValue.map((c) => c.id),
+                  })
+                }
+                getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
+                renderInput={(params) => (
+                  <TextField {...params} label="Contratos" />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        label={option.nome}
+                        {...tagProps}
+                        size="small"
+                        color="primary"
+                      />
+                    );
+                  })
+                }
+              />
+            )}
 
-            {!editMode && (
+            {formData.tipo === "administrador-agir-corporativo" || formData.tipo === "administrador-agir-planta" ? (
+              <Alert severity="success">
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Administradores Agir não precisam de vínculo com contrato
+                </Typography>
+                <Typography variant="caption">
+                  O convite de acesso será enviado automaticamente para o email após salvar.
+                </Typography>
+              </Alert>
+            ) : !editMode ? (
               <Alert severity="info">
                 O terceiro será criado sem acesso ao sistema. Use o botão "Enviar Convite" nos detalhes do usuário para criar o acesso.
               </Alert>
-            )}
+            ) : null}
           </Box>
         </DialogContent>
         <DialogActions>
@@ -1320,7 +1360,13 @@ const Usuarios: React.FC = () => {
             {saving
               ? "Salvando..."
               : editMode
-              ? "Salvar"
+              ? "Salvar Alterações"
+              : formData.tipo === "administrador-agir-corporativo"
+              ? "Criar Administrador Corporativo"
+              : formData.tipo === "administrador-agir-planta"
+              ? "Criar Administrador de Unidade"
+              : formData.tipo === "administrador-terceiro"
+              ? "Criar Administrador Terceiro"
               : "Criar Terceiro"}
           </Button>
         </DialogActions>
