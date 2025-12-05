@@ -17,7 +17,7 @@
     "@mui/material": "^5.15.10",
     "@mui/x-data-grid": "^6.19.4",
     "@mui/x-date-pickers": "^6.19.4",
-    "@supabase/supabase-js": "^2.39.7",
+    "@supabase/supabase-js": "^2.86.0",
     "@types/papaparse": "^5.5.0",
     "date-fns": "^2.30.0",
     "jspdf": "^3.0.3",

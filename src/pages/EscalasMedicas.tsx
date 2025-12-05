@@ -1509,7 +1509,7 @@ const EscalasMedicas: React.FC = () => {
       }
 
       // Recarregar escalas
-      await carregarEscalas();
+      await handleBuscarEscalas();
 
       // Fechar dialog de nova escala
       handleCloseDialog();
