@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Box,
   Button,
@@ -33,24 +33,39 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
+  const { signIn, user, userProfile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const isSubmitting = useRef(false);
+
+  // Auto-redirect when user is authenticated and profile is loaded
+  useEffect(() => {
+    if (user && userProfile && !authLoading) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, userProfile, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Guard against double submission
+    if (isSubmitting.current) {
+      return;
+    }
+
+    isSubmitting.current = true;
     setError("");
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       await signIn(email, password);
-      navigate("/dashboard");
+      // Navigation will happen automatically via useEffect when userProfile loads
     } catch (err: any) {
       setError(
         err.message || "Erro ao fazer login. Verifique suas credenciais."
       );
-    } finally {
-      setLoading(false);
+      isSubmitting.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -388,7 +403,7 @@ const Login: React.FC = () => {
                     type="submit"
                     variant="contained"
                     size="large"
-                    disabled={loading}
+                    disabled={submitting || authLoading}
                     sx={{
                       py: 1.8,
                       fontSize: "1rem",
@@ -398,6 +413,7 @@ const Login: React.FC = () => {
                       background:
                         "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
                       boxShadow: "0 4px 14px 0 rgba(139, 92, 246, 0.4)",
+                      pointerEvents: submitting || authLoading ? "none" : "auto",
                       "&:hover": {
                         background:
                           "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
@@ -407,7 +423,7 @@ const Login: React.FC = () => {
                       transition: "all 0.3s ease",
                     }}
                   >
-                    {loading ? "Entrando..." : "Entrar no Sistema"}
+                    {submitting || authLoading ? "Entrando..." : "Entrar no Sistema"}
                   </Button>
                 </form>
 

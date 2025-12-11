@@ -12,6 +12,9 @@ Este script:
 import os
 import sys
 import time
+import random
+import glob
+import signal
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from selenium import webdriver
@@ -21,10 +24,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import logging
+from functools import wraps
 
 # Configurar logging
 logging.basicConfig(
@@ -46,12 +50,150 @@ SUPABASE_URL = os.getenv('VITE_SUPABASE_URL')
 SUPABASE_SERVICE_KEY = os.getenv('VITE_SUPABASE_SERVICE_ROLE_KEY')
 GECKODRIVER_PATH = '/usr/local/bin/geckodriver'  # Ajustar conforme instalação no droplet
 
+# Configurações de Resiliência e Escalabilidade
+MAX_RETRIES = 3  # Número máximo de tentativas por usuário
+INITIAL_RETRY_DELAY = 5  # Delay inicial para retry (segundos)
+MAX_RETRY_DELAY = 60  # Delay máximo para retry (segundos)
+DRIVER_RESTART_INTERVAL = 50  # Reiniciar driver a cada N usuários (previne "200 Wall")
+CONSECUTIVE_FAILURE_THRESHOLD = 5  # Pausar e reiniciar driver após N falhas consecutivas
+MIN_DELAY_BETWEEN_REQUESTS = 8  # Delay mínimo entre requisições (segundos)
+MAX_DELAY_BETWEEN_REQUESTS = 15  # Delay máximo entre requisições (segundos)
+SCREENSHOT_RETENTION_DAYS = 7  # Dias para manter screenshots antigos
+
+# User Agents para rotação (aparentar navegação normal)
+USER_AGENTS = [
+    'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
+    'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/116.0',
+    'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+]
+
 # --- XPaths do Formulário (Melhorados - Mais Flexíveis) ---
 BASE_CONTAINER = "//div[contains(@id, '_ParametersPanelContainer')]"
 XPATH_CODIGO_PRESTADOR = f"{BASE_CONTAINER}//tr[2]/td[2]//input"
 XPATH_DATA_INICIAL = f"{BASE_CONTAINER}//tr[1]/td[4]//input"
 XPATH_DATA_FINAL = f"{BASE_CONTAINER}//tr[2]/td[4]//input"
 XPATH_SUBMIT_BUTTON = f"{BASE_CONTAINER}//tr[4]/td[4]//td[contains(., 'Submit')]"  # Firefox em inglês no droplet
+
+
+# ============================================================================
+# UTILITÁRIOS DE RESILIÊNCIA
+# ============================================================================
+
+class TimeoutError(Exception):
+    """Exceção customizada para timeout."""
+    pass
+
+
+def timeout_handler(signum, frame):
+    """Handler para timeout de operações."""
+    raise TimeoutError("Operação excedeu o tempo limite")
+
+
+def cleanup_old_screenshots(retention_days: int = SCREENSHOT_RETENTION_DAYS):
+    """Remove screenshots antigos para evitar acúmulo de arquivos."""
+    try:
+        cutoff_time = time.time() - (retention_days * 24 * 60 * 60)
+        screenshot_pattern = "/tmp/screenshot_*.png"
+
+        for filepath in glob.glob(screenshot_pattern):
+            if os.path.getmtime(filepath) < cutoff_time:
+                os.remove(filepath)
+                logger.debug(f"Screenshot antigo removido: {filepath}")
+    except Exception as e:
+        logger.warning(f"Erro ao limpar screenshots antigos: {e}")
+
+
+def random_delay(min_seconds: int = MIN_DELAY_BETWEEN_REQUESTS,
+                 max_seconds: int = MAX_DELAY_BETWEEN_REQUESTS):
+    """Aguarda um tempo aleatório para simular comportamento humano."""
+    delay = random.uniform(min_seconds, max_seconds)
+    logger.debug(f"Aguardando {delay:.2f} segundos...")
+    time.sleep(delay)
+
+
+def retry_with_exponential_backoff(max_retries: int = MAX_RETRIES,
+                                   initial_delay: int = INITIAL_RETRY_DELAY,
+                                   max_delay: int = MAX_RETRY_DELAY,
+                                   refresh_page_on_retry: bool = True):
+    """
+    Decorator que implementa retry com exponential backoff.
+
+    Args:
+        max_retries: Número máximo de tentativas
+        initial_delay: Delay inicial em segundos
+        max_delay: Delay máximo em segundos
+        refresh_page_on_retry: Se True, recarrega a página antes de cada retry
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            delay = initial_delay
+            last_exception = None
+
+            for attempt in range(1, max_retries + 1):
+                try:
+                    return func(self, *args, **kwargs)
+                except (TimeoutException, WebDriverException, Exception) as e:
+                    last_exception = e
+
+                    if attempt == max_retries:
+                        logger.error(f"Falha após {max_retries} tentativas: {e}")
+                        raise
+
+                    # Calcular delay com jitter
+                    jitter = random.uniform(0, 0.3 * delay)
+                    wait_time = min(delay + jitter, max_delay)
+
+                    logger.warning(
+                        f"⚠️  Tentativa {attempt}/{max_retries} falhou. "
+                        f"Aguardando {wait_time:.1f}s antes de tentar novamente..."
+                    )
+
+                    # IMPORTANTE: Recarregar URL completo antes do retry (não apenas refresh)
+                    if refresh_page_on_retry and hasattr(self, 'driver') and self.driver:
+                        try:
+                            logger.info("🔄 Navegando para URL inicial antes do retry...")
+
+                            # Pegar a URL atual para determinar se devemos voltar
+                            current_url = self.driver.current_url
+
+                            # Se estamos no relatório MV, navegar novamente
+                            if 'mvpepprd.saude.go.gov.br' in current_url or 'report' in current_url:
+                                # Pegar MV_REPORT_URL do escopo global
+                                report_url = "http://mvpepprd.saude.go.gov.br/report-executor/report-viewer?id=7076"
+                                self.driver.get(report_url)
+                                logger.info("URL recarregado completamente")
+                                time.sleep(random.uniform(3, 5))
+
+                            # Tentar fechar qualquer alert/popup
+                            try:
+                                alert = self.driver.switch_to.alert
+                                alert.dismiss()
+                                logger.info("Alert/popup fechado")
+                            except:
+                                pass
+
+                            # Voltar para o contexto principal
+                            try:
+                                self.driver.switch_to.default_content()
+                            except:
+                                pass
+
+                        except Exception as refresh_error:
+                            logger.warning(f"Erro ao recarregar página: {refresh_error}")
+
+                    time.sleep(wait_time)
+
+                    # Exponential backoff
+                    delay = min(delay * 2, max_delay)
+
+            # Não deve chegar aqui, mas por segurança
+            raise last_exception
+
+        return wrapper
+    return decorator
+
 
 class ProdutividadeCollector:
     """Classe para coletar dados de produtividade do MV."""
@@ -61,78 +203,164 @@ class ProdutividadeCollector:
         self.driver = None
         self.supabase = None
         self.usuarios_terceiros = []
+        self.consecutive_failures = 0  # Contador para circuit breaker
+        self.processed_count = 0  # Contador para reinício periódico do driver
+        self.current_user_agent = random.choice(USER_AGENTS)  # User agent aleatório
 
-    def setup_driver(self):
-            """Configura o driver do Selenium com Firefox headless."""
-            logger.info("Configurando Firefox driver...")
+    def setup_driver(self, restart: bool = False):
+        """
+        Configura o driver do Selenium com Firefox headless.
 
-            # --- MODIFICAÇÃO ---
-            # As linhas abaixo foram comentadas.
-            # O diagnóstico mostrou que o DISPLAY=:99 está inacessível (Teste 4).
-            # O modo headless nativo (options.add_argument) funciona (Teste 6).
-            # Vamos usar apenas o modo nativo.
-            import os
-            # os.environ['DISPLAY'] = ':99'
-            # os.environ['MOZ_HEADLESS'] = '1'
-            # --- FIM DA MODIFICAÇÃO ---
+        Args:
+            restart: Se True, fecha o driver existente antes de criar um novo
+        """
+        if restart and self.driver:
+            logger.info("Reiniciando driver - fechando instância anterior...")
+            try:
+                self.driver.quit()
+            except Exception as e:
+                logger.warning(f"Erro ao fechar driver anterior: {e}")
+            self.driver = None
+            time.sleep(3)  # Aguardar cleanup completo
 
-            # Verificar se geckodriver existe
-            import shutil
-            global GECKODRIVER_PATH
+        logger.info(f"Configurando Firefox driver (User-Agent: {self.current_user_agent[:50]}...)...")
 
-            if not os.path.exists(GECKODRIVER_PATH):
-                logger.error(f"Geckodriver não encontrado em: {GECKODRIVER_PATH}")
-                # Tentar encontrar geckodriver no PATH
-                geckodriver_path = shutil.which('geckodriver')
-                if geckodriver_path:
-                    logger.info(f"Geckodriver encontrado em: {geckodriver_path}")
-                    GECKODRIVER_PATH = geckodriver_path
-                else:
-                    raise FileNotFoundError("Geckodriver não encontrado. Instale com: https://github.com/mozilla/geckodriver/releases")
+        # Verificar se geckodriver existe
+        import shutil
+        global GECKODRIVER_PATH
 
-            options = Options()
-            options.add_argument('--headless') # Esta é a opção que queremos usar
-            options.add_argument('--no-sandbox')
-            options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--disable-gpu')
-            options.add_argument('--window-size=1920,1080')
+        if not os.path.exists(GECKODRIVER_PATH):
+            logger.error(f"Geckodriver não encontrado em: {GECKODRIVER_PATH}")
+            # Tentar encontrar geckodriver no PATH
+            geckodriver_path = shutil.which('geckodriver')
+            if geckodriver_path:
+                logger.info(f"Geckodriver encontrado em: {geckodriver_path}")
+                GECKODRIVER_PATH = geckodriver_path
+            else:
+                raise FileNotFoundError("Geckodriver não encontrado. Instale com: https://github.com/mozilla/geckodriver/releases")
 
-            # Configurações adicionais para Firefox
-            options.set_preference('devtools.console.stdout.content', True)
-            options.binary_location = '/usr/bin/firefox'  # Caminho explícito do Firefox
+        options = Options()
 
-            # Log de depuração
-            logger.info(f"DISPLAY: {os.environ.get('DISPLAY')}") # Agora deve mostrar 'None'
-            logger.info(f"Firefox binary: {options.binary_location}")
-            logger.info(f"Geckodriver path: {GECKODRIVER_PATH}")
+        # Argumentos críticos para headless Linux
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--disable-software-rasterizer')
+        options.add_argument('--window-size=1920,1080')
 
-            service = Service(
-                executable_path=GECKODRIVER_PATH,
-                log_output='/tmp/geckodriver.log'
-            )
+        # Argumentos adicionais para prevenir travamentos
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-infobars')
+        options.add_argument('--disable-notifications')
+        options.add_argument('--disable-crash-reporter')
+
+        # Configurações de performance e stealth
+        options.set_preference('devtools.console.stdout.content', True)
+        options.set_preference('general.useragent.override', self.current_user_agent)
+
+        # FIX: Marionette protocol (corrige erro "Failed to decode response from marionette")
+        options.set_preference('marionette.port', 2828)
+        options.set_preference('marionette.log.level', 'Info')
+        options.set_preference('remote.log.level', 'Info')
+
+        # Otimizações de memória
+        options.set_preference('browser.cache.disk.enable', False)
+        options.set_preference('browser.cache.memory.enable', True)
+        options.set_preference('browser.cache.offline.enable', False)
+        options.set_preference('network.http.use-cache', False)
+
+        # Desabilitar recursos desnecessários
+        options.set_preference('browser.tabs.remote.autostart', False)
+        options.set_preference('browser.tabs.remote.autostart.2', False)
+        options.set_preference('media.peerconnection.enabled', False)
+        options.set_preference('media.navigator.enabled', False)
+        options.set_preference('geo.enabled', False)
+
+        # Timeouts
+        options.set_preference('http.response.timeout', 90)
+        options.set_preference('dom.max_script_run_time', 90)
+
+        # Verificar se Firefox existe antes de setar binary_location
+        firefox_paths = ['/usr/bin/firefox', '/usr/bin/firefox-esr', '/snap/bin/firefox']
+        firefox_binary = None
+        for path in firefox_paths:
+            if os.path.exists(path):
+                firefox_binary = path
+                break
+
+        if firefox_binary:
+            options.binary_location = firefox_binary
+            logger.info(f"Firefox binary encontrado: {firefox_binary}")
+        else:
+            logger.warning("Firefox binary não encontrado em locais padrão")
+
+        # Log de depuração
+        logger.info(f"DISPLAY: {os.environ.get('DISPLAY')}")
+        logger.info(f"Firefox binary: {options.binary_location if hasattr(options, 'binary_location') else 'default'}")
+        logger.info(f"Geckodriver path: {GECKODRIVER_PATH}")
+
+        # Matar processos Firefox/Geckodriver travados
+        logger.info("Verificando processos Firefox/Geckodriver travados...")
+        try:
+            import subprocess
+            subprocess.run("pkill -9 firefox 2>/dev/null || true", shell=True, timeout=5)
+            subprocess.run("pkill -9 geckodriver 2>/dev/null || true", shell=True, timeout=5)
+            time.sleep(2)
+            logger.info("Processos antigos limpos")
+        except Exception:
+            pass
+
+        service = Service(
+            executable_path=GECKODRIVER_PATH,
+            log_output='/tmp/geckodriver.log'
+        )
+
+        try:
+            logger.info("Iniciando Firefox em modo headless (timeout: 60s)...")
+
+            # Configurar timeout para inicialização do driver
+            if sys.platform != 'win32':  # Timeout só funciona em Unix
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(60)  # 60 segundos para iniciar
 
             try:
-                logger.info("Iniciando Firefox em modo headless nativo...")
                 self.driver = webdriver.Firefox(service=service, options=options)
 
-                # --- TIMEOUT AUMENTADO (Baseado no scraplocal.py) ---
-                logger.info("Definindo Page Load Timeout para 60 segundos.")
-                self.driver.set_page_load_timeout(60)  # Aumentado de 30 para 60s
+                if sys.platform != 'win32':
+                    signal.alarm(0)  # Cancelar alarme
 
-                logger.info("Firefox driver configurado com sucesso")
-            except Exception as e:
-                logger.error(f"Erro ao configurar Firefox driver: {e}")
-                logger.error("=" * 70)
-                logger.error("DIAGNÓSTICO:")
-                logger.error(f"  1. Xvfb rodando? Execute: sudo systemctl status xvfb")
-                logger.error(f"  2. Display acessível? Execute: DISPLAY=:99 xdpyinfo")
-                logger.error(f"  3. Firefox instalado? Execute: firefox --version")
-                logger.error(f"  4. Geckodriver OK? Execute: {GECKODRIVER_PATH} --version")
-                logger.error(f"  5. Ver logs: cat /tmp/geckodriver.log")
-                logger.error("=" * 70)
+                self.driver.set_page_load_timeout(90)
+                self.driver.implicitly_wait(5)
 
-                # Tentar ler logs do geckodriver
-                if os.path.exists('/tmp/geckodriver.log'):
+                logger.info("✅ Firefox driver configurado com sucesso")
+
+            except TimeoutError:
+                logger.error("❌ TIMEOUT: Firefox não iniciou em 60 segundos")
+                logger.error("Isso geralmente indica:")
+                logger.error("  1. Firefox não está instalado corretamente")
+                logger.error("  2. Dependências faltando (libgtk-3-0, libdbus-glib-1-2, etc)")
+                logger.error("  3. Versão incompatível entre Firefox e Geckodriver")
+                logger.error("")
+                logger.error("Execute o diagnóstico: python3 diagnose-firefox.py")
+                raise
+
+        except Exception as e:
+            if sys.platform != 'win32':
+                signal.alarm(0)  # Cancelar alarme em caso de erro
+
+            logger.error(f"❌ Erro ao configurar Firefox driver: {e}")
+            logger.error("=" * 70)
+            logger.error("DIAGNÓSTICO RÁPIDO:")
+            logger.error(f"  1. Firefox instalado? Execute: firefox --version")
+            logger.error(f"  2. Geckodriver OK? Execute: {GECKODRIVER_PATH} --version")
+            logger.error(f"  3. Ver logs: cat /tmp/geckodriver.log")
+            logger.error(f"  4. Executar diagnóstico completo: python3 diagnose-firefox.py")
+            logger.error("=" * 70)
+
+            # Tentar ler logs do geckodriver
+            if os.path.exists('/tmp/geckodriver.log'):
+                try:
                     with open('/tmp/geckodriver.log', 'r') as f:
                         gecko_logs = f.read()
                         if gecko_logs:
@@ -140,7 +368,18 @@ class ProdutividadeCollector:
                             for line in gecko_logs.split('\n')[-10:]:
                                 if line.strip():
                                     logger.error(f"  {line}")
-                raise
+                except Exception:
+                    pass
+
+            # Matar processos travados
+            try:
+                import subprocess
+                subprocess.run("pkill -9 firefox", shell=True, timeout=5)
+                subprocess.run("pkill -9 geckodriver", shell=True, timeout=5)
+            except Exception:
+                pass
+
+            raise
 
     def connect_supabase(self):
         """Conecta ao Supabase."""
@@ -155,6 +394,54 @@ class ProdutividadeCollector:
         except Exception as e:
             logger.error(f"Erro ao conectar no Supabase: {e}")
             raise
+
+    def clear_browser_data(self):
+        """Limpa cookies e cache do navegador para evitar acúmulo."""
+        if not self.driver:
+            return
+
+        try:
+            logger.debug("Limpando cookies e cache do navegador...")
+            self.driver.delete_all_cookies()
+
+            # Limpar localStorage e sessionStorage via JavaScript
+            try:
+                self.driver.execute_script("window.localStorage.clear();")
+                self.driver.execute_script("window.sessionStorage.clear();")
+            except Exception:
+                pass  # Pode falhar se não houver página carregada
+
+            logger.debug("Browser data limpo com sucesso")
+        except Exception as e:
+            logger.warning(f"Erro ao limpar browser data: {e}")
+
+    def should_restart_driver(self) -> bool:
+        """
+        Verifica se o driver deve ser reiniciado.
+
+        Reinicia o driver a cada DRIVER_RESTART_INTERVAL usuários processados
+        para prevenir o "200 Wall".
+        """
+        return self.processed_count > 0 and self.processed_count % DRIVER_RESTART_INTERVAL == 0
+
+    def handle_consecutive_failures(self):
+        """
+        Implementa circuit breaker pattern.
+
+        Se muitas falhas consecutivas ocorrem, pausa e reinicia o driver.
+        """
+        if self.consecutive_failures >= CONSECUTIVE_FAILURE_THRESHOLD:
+            logger.warning(
+                f"⚠️  CIRCUIT BREAKER: {self.consecutive_failures} falhas consecutivas detectadas. "
+                f"Pausando por 30s e reiniciando driver..."
+            )
+
+            time.sleep(30)  # Pausa mais longa para "esfriar"
+            self.setup_driver(restart=True)
+            self.current_user_agent = random.choice(USER_AGENTS)  # Novo User-Agent
+            self.consecutive_failures = 0  # Reset contador
+
+            logger.info("Circuit breaker: Driver reiniciado com novo User-Agent")
 
     def buscar_usuarios_terceiros(self) -> List[Dict]:
         """Busca todos os usuários do tipo 'terceiro' com codigomv."""
@@ -178,66 +465,125 @@ class ProdutividadeCollector:
         ontem = datetime.now() - timedelta(days=1)
         return ontem.strftime('%m.%d.%Y')  # Formato americano: mm.dd.yyyy
 
+    @retry_with_exponential_backoff()
     def preencher_formulario(self, codigo_mv: str, data: str):
-        """Preenche o formulário do relatório MV."""
-        wait = WebDriverWait(self.driver, 20)
+        """Preenche o formulário do relatório MV com retry automático e refresh."""
+        wait = WebDriverWait(self.driver, 30)  # Aumentado de 25 para 30
 
         try:
+            # Aguardar a página carregar completamente
+            logger.info(f"Aguardando página carregar completamente...")
+            time.sleep(random.uniform(2, 4))
+
+            # Fechar qualquer alert que possa estar aberto
+            try:
+                alert = self.driver.switch_to.alert
+                alert.dismiss()
+                logger.info("Alert encontrado e fechado")
+                time.sleep(1)
+            except:
+                pass
+
             # Campo Código Prestador
             logger.info(f"Preenchendo código MV: {codigo_mv}")
-            campo_codigo = wait.until(
-                EC.presence_of_element_located((By.XPATH, XPATH_CODIGO_PRESTADOR))
-            )
-            campo_codigo.clear()
-            campo_codigo.send_keys(codigo_mv)
-            time.sleep(2)
+            try:
+                campo_codigo = wait.until(
+                    EC.presence_of_element_located((By.XPATH, XPATH_CODIGO_PRESTADOR))
+                )
+                campo_codigo.clear()
+                campo_codigo.send_keys(codigo_mv)
+                time.sleep(random.uniform(1.5, 3))
+            except TimeoutException:
+                logger.error("❌ Campo Código Prestador não encontrado")
+                raise
 
             # Campo Data Inicial
             logger.info(f"Preenchendo data inicial: {data} (formato mm.dd.yyyy)")
-            campo_data_inicial = wait.until(
-                EC.presence_of_element_located((By.XPATH, XPATH_DATA_INICIAL))
-            )
-            logger.info("Limpando campo data inicial (Ctrl+A + Backspace)...")
-            campo_data_inicial.send_keys(Keys.CONTROL + "a")
-            campo_data_inicial.send_keys(Keys.BACKSPACE)
-            time.sleep(1)
-            campo_data_inicial.send_keys(data)
-            time.sleep(2)
+            try:
+                campo_data_inicial = wait.until(
+                    EC.presence_of_element_located((By.XPATH, XPATH_DATA_INICIAL))
+                )
+                logger.info("Limpando campo data inicial (Ctrl+A + Backspace)...")
+                campo_data_inicial.send_keys(Keys.CONTROL + "a")
+                campo_data_inicial.send_keys(Keys.BACKSPACE)
+                time.sleep(random.uniform(0.8, 1.5))
+                campo_data_inicial.send_keys(data)
+                time.sleep(random.uniform(1.5, 3))
+            except TimeoutException:
+                logger.error("❌ Campo Data Inicial não encontrado")
+                raise
 
             # Campo Data Final
             logger.info(f"Preenchendo data final: {data} (formato mm.dd.yyyy)")
-            campo_data_final = wait.until(
-                EC.presence_of_element_located((By.XPATH, XPATH_DATA_FINAL))
-            )
-            logger.info("Limpando campo data final (Ctrl+A + Backspace)...")
-            campo_data_final.send_keys(Keys.CONTROL + "a")
-            campo_data_final.send_keys(Keys.BACKSPACE)
-            time.sleep(1)
-            campo_data_final.send_keys(data)
-            time.sleep(2)
+            try:
+                campo_data_final = wait.until(
+                    EC.presence_of_element_located((By.XPATH, XPATH_DATA_FINAL))
+                )
+                logger.info("Limpando campo data final (Ctrl+A + Backspace)...")
+                campo_data_final.send_keys(Keys.CONTROL + "a")
+                campo_data_final.send_keys(Keys.BACKSPACE)
+                time.sleep(random.uniform(0.8, 1.5))
+                campo_data_final.send_keys(data)
+                time.sleep(random.uniform(1.5, 3))
+            except TimeoutException:
+                logger.error("❌ Campo Data Final não encontrado")
+                raise
 
-            # Clicar no botão Submit
-            logger.info("Clicando no botão Submit")
-            botao_submit = wait.until(
-                EC.element_to_be_clickable((By.XPATH, XPATH_SUBMIT_BUTTON))
-            )
+            # Clicar no botão Submit - com múltiplas estratégias
+            logger.info("Procurando botão Submit...")
+
+            # Estratégia 1: XPath original
+            try:
+                botao_submit = wait.until(
+                    EC.element_to_be_clickable((By.XPATH, XPATH_SUBMIT_BUTTON))
+                )
+                logger.info("✅ Botão Submit encontrado (XPath)")
+            except TimeoutException:
+                # Estratégia 2: Tentar encontrar qualquer botão com texto "Submit"
+                logger.warning("Tentando estratégia alternativa para encontrar Submit...")
+                try:
+                    botao_submit = wait.until(
+                        EC.element_to_be_clickable((By.XPATH, "//td[contains(text(), 'Submit')]"))
+                    )
+                    logger.info("✅ Botão Submit encontrado (texto)")
+                except TimeoutException:
+                    # Estratégia 3: Procurar input type=submit
+                    logger.warning("Tentando encontrar input[type=submit]...")
+                    try:
+                        botao_submit = wait.until(
+                            EC.element_to_be_clickable((By.XPATH, "//input[@type='submit']"))
+                        )
+                        logger.info("✅ Botão Submit encontrado (input)")
+                    except TimeoutException:
+                        logger.error("❌ Botão Submit não encontrado em nenhuma estratégia")
+                        raise
+
+            logger.info("Clicando no botão Submit...")
             botao_submit.click()
 
-            # Aguardar carregamento do relatório
-            logger.info("Aguardando carregamento do relatório (12 segundos)...")
-            time.sleep(12)
+            # Aguardar carregamento do relatório com delay variável
+            delay = random.uniform(12, 18)  # Aumentado para dar mais tempo
+            logger.info(f"Aguardando carregamento do relatório ({delay:.1f} segundos)...")
+            time.sleep(delay)
 
         except TimeoutException as e:
-            logger.error(f"Timeout ao preencher formulário: {e}")
+            logger.error(f"❌ Timeout ao preencher formulário: {str(e)[:200]}")
             try:
-                screenshot_path = f"/tmp/screenshot_erro_{codigo_mv}.png"
+                screenshot_path = f"/tmp/screenshot_erro_{codigo_mv}_{int(time.time())}.png"
                 self.driver.save_screenshot(screenshot_path)
-                logger.error(f"DEBUG: Screenshot salvo em: {screenshot_path}")
+                logger.error(f"📸 Screenshot salvo em: {screenshot_path}")
+
+                # Log do HTML da página para debug
+                try:
+                    page_source = self.driver.page_source[:1000]
+                    logger.error(f"HTML (primeiros 1000 chars): {page_source}")
+                except:
+                    pass
             except Exception as se:
                 logger.error(f"Falha ao salvar screenshot: {se}")
             raise e
         except Exception as e:
-            logger.error(f"Erro ao preencher formulário: {e}")
+            logger.error(f"❌ Erro inesperado ao preencher formulário: {e}")
             raise e
 
     def extrair_dados_tabela(self, codigo_mv: str) -> Optional[Dict]:
@@ -433,46 +779,95 @@ class ProdutividadeCollector:
             raise
 
     def processar_usuario(self, usuario: Dict, data: str, index: int, total: int):
-        """Processa um único usuário."""
+        """
+        Processa um único usuário com resiliência.
+
+        Implementa:
+        - Reinício periódico do driver (previne "200 Wall")
+        - Circuit breaker para falhas consecutivas
+        - Limpeza de dados do navegador
+        - Delays aleatórios
+        """
         codigo_mv = usuario['codigomv']
         nome = usuario['nome']
 
         logger.info(f"\n{'='*70}")
         logger.info(f"Processando [{index}/{total}]: {nome} (Código MV: {codigo_mv})")
+        logger.info(f"Processed count: {self.processed_count} | Consecutive failures: {self.consecutive_failures}")
         logger.info(f"{'='*70}")
 
         try:
+            # 1. Verificar se precisa reiniciar driver (previne "200 Wall")
+            if self.should_restart_driver():
+                logger.warning(
+                    f"🔄 Reiniciando driver após {self.processed_count} processamentos "
+                    f"(intervalo: {DRIVER_RESTART_INTERVAL})"
+                )
+                self.clear_browser_data()
+                self.setup_driver(restart=True)
+                self.current_user_agent = random.choice(USER_AGENTS)  # Novo User-Agent
+
+            # 2. Verificar circuit breaker
+            self.handle_consecutive_failures()
+
+            # 3. Limpar browser data periodicamente (a cada 10 usuários)
+            if self.processed_count > 0 and self.processed_count % 10 == 0:
+                logger.debug("Limpando browser data (cookies, cache)...")
+                self.clear_browser_data()
+
+            # 4. Acessar relatório com delay inicial variável
             logger.info(f"Acessando relatório MV...")
             self.driver.get(MV_REPORT_URL)
-            time.sleep(5)  # Espera extra para a página instável
+            time.sleep(random.uniform(4, 7))  # Delay variável
 
+            # 5. Preencher formulário (com retry automático via decorator)
+            # O decorator já faz refresh automático em caso de falha
             self.preencher_formulario(codigo_mv, data)
 
-            # Tentar método tradicional de scraping diretamente
+            # 6. Extrair dados
             logger.info("Extraindo dados da tabela...")
             dados = self.extrair_dados_tabela(codigo_mv)
 
             if dados:
                 self.inserir_produtividade(dados, data)
+
+                # SUCESSO: resetar contador de falhas consecutivas
+                self.consecutive_failures = 0
             else:
                 logger.warning(f"Nenhum dado encontrado para {nome}. Marcando como falha.")
                 raise Exception(f"Nenhum dado encontrado na tabela para {nome} ({codigo_mv})")
 
-            logger.info("Aguardando 10 segundos antes do próximo usuário...")
-            time.sleep(10)
+            # 7. Incrementar contador de processados
+            self.processed_count += 1
+
+            # 8. Delay aleatório antes do próximo usuário (stealth)
+            random_delay()
 
         except Exception as e:
+            # Incrementar contador de falhas consecutivas
+            self.consecutive_failures += 1
+            logger.error(f"❌ Erro ao processar usuário (falha #{self.consecutive_failures}): {e}")
             raise e
 
     def executar(self):
-        """Executa o processo completo de coleta de produtividade."""
+        """Executa o processo completo de coleta de produtividade com resiliência."""
         inicio = datetime.now()
         logger.info(f"\n{'#'*70}")
-        logger.info(f"INÍCIO DA COLETA DE PRODUTIVIDADE")
+        logger.info(f"INÍCIO DA COLETA DE PRODUTIVIDADE (Versão Otimizada)")
         logger.info(f"Horário: {inicio.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"{'#'*70}")
+        logger.info(f"Configurações de Resiliência:")
+        logger.info(f"  - Max retries: {MAX_RETRIES}")
+        logger.info(f"  - Driver restart interval: {DRIVER_RESTART_INTERVAL}")
+        logger.info(f"  - Consecutive failure threshold: {CONSECUTIVE_FAILURE_THRESHOLD}")
+        logger.info(f"  - Delay between requests: {MIN_DELAY_BETWEEN_REQUESTS}-{MAX_DELAY_BETWEEN_REQUESTS}s")
         logger.info(f"{'#'*70}\n")
 
         try:
+            # Limpar screenshots antigos
+            logger.info("Limpando screenshots antigos...")
+            cleanup_old_screenshots()
+
             # Setup
             self.connect_supabase()
             self.setup_driver()
@@ -505,15 +900,20 @@ class ProdutividadeCollector:
             # Resumo
             fim = datetime.now()
             duracao = fim - inicio
+            taxa_sucesso = (sucesso / total * 100) if total > 0 else 0
 
             logger.info(f"\n{'#'*70}")
             logger.info(f"COLETA DE PRODUTIVIDADE CONCLUÍDA")
             logger.info(f"{'#'*70}")
             logger.info(f"Horário de término: {fim.strftime('%Y-%m-%d %H:%M:%S')}")
             logger.info(f"Duração: {duracao}")
-            logger.info(f"Total de usuários: {total}")
-            logger.info(f"Processados com sucesso: {sucesso}")
-            logger.info(f"Erros: {erros}")
+            logger.info(f"")
+            logger.info(f"Estatísticas:")
+            logger.info(f"  - Total de usuários: {total}")
+            logger.info(f"  - Processados com sucesso: {sucesso} ({taxa_sucesso:.1f}%)")
+            logger.info(f"  - Erros: {erros}")
+            logger.info(f"  - Reinícios de driver: {self.processed_count // DRIVER_RESTART_INTERVAL}")
+            logger.info(f"  - Taxa de processamento: {total / (duracao.total_seconds() / 60):.1f} usuários/minuto")
             logger.info(f"{'#'*70}\n")
 
         except Exception as e:
