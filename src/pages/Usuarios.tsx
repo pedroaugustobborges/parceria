@@ -73,6 +73,7 @@ const ESPECIALIDADES = [
   "Neurocirurgia"
   "Neurocirurgia Pediátrica",
   "Neurologia",
+  "Neuropediatria"
   "Nutrologia",
   "Ortopedia",
   "Pediatria",
