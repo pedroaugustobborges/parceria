@@ -67,6 +67,7 @@ const ESPECIALIDADES = [
   "Endoscopia",
   "Gastroenterologia",
   "Intervencionista",
+  "Hemodinâmica"
   "Medicina Intensiva",
   "Medicina Intensiva Pediátrica",
   "Nefrologia",
@@ -78,6 +79,7 @@ const ESPECIALIDADES = [
   "Nutrologia",
   "Ortopedia",
   "Pediatria",
+  "Urologia",
 ];
 
 // Domínios de teste que devem ser bloqueados
