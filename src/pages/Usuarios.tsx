@@ -70,6 +70,7 @@ const ESPECIALIDADES = [
   "Medicina Intensiva",
   "Medicina Intensiva Pediátrica",
   "Nefrologia",
+  "Neurocirurgia"
   "Neurocirurgia Pediátrica",
   "Neurologia",
   "Nutrologia",
