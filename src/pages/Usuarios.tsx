@@ -67,7 +67,7 @@ const ESPECIALIDADES = [
   "Endoscopia",
   "Gastroenterologia",
   "Intervencionista",
-  "Hemodinâmica"
+  "Hemodinâmica",
   "Medicina Intensiva",
   "Medicina Intensiva Pediátrica",
   "Nefrologia",
