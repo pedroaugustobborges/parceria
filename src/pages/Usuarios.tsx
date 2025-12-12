@@ -71,11 +71,11 @@ const ESPECIALIDADES = [
   "Medicina Intensiva",
   "Medicina Intensiva Pediátrica",
   "Nefrologia",
-  "Neurocirurgia"
+  "Neurocirurgia",
   "Neurocirurgia Pediátrica",
   "Neurologia",
-  "Neurologia Vascular"
-  "Neuropediatria"
+  "Neurologia Vascular",
+  "Neuropediatria",
   "Nutrologia",
   "Ortopedia",
   "Pediatria",
@@ -91,9 +91,7 @@ const BLOCKED_EMAIL_DOMAINS = [
 ];
 
 // Domínios corporativos que requerem atenção especial (avisar mas não bloquear)
-const CORPORATE_DOMAINS = [
-  "hugol.org.br",
-];
+const CORPORATE_DOMAINS = ["hugol.org.br"];
 
 // Função para validar domínio de email
 const isEmailDomainBlocked = (email: string): boolean => {
@@ -128,7 +126,9 @@ const Usuarios: React.FC = () => {
   const [usuariosFiltrados, setUsuariosFiltrados] = useState<Usuario[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
-  const [usuarioContratos, setUsuarioContratos] = useState<UsuarioContrato[]>([]);
+  const [usuarioContratos, setUsuarioContratos] = useState<UsuarioContrato[]>(
+    []
+  );
   const [loading, setLoading] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
 
@@ -174,16 +174,19 @@ const Usuarios: React.FC = () => {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [{ data: contratosData }, { data: unidadesData }, { data: usuariosData }] =
-        await Promise.all([
-          supabase.from("contratos").select("*").eq("ativo", true),
-          supabase
-            .from("unidades_hospitalares")
-            .select("*")
-            .eq("ativo", true)
-            .order("codigo"),
-          supabase.from("usuarios").select("*"),
-        ]);
+      const [
+        { data: contratosData },
+        { data: unidadesData },
+        { data: usuariosData },
+      ] = await Promise.all([
+        supabase.from("contratos").select("*").eq("ativo", true),
+        supabase
+          .from("unidades_hospitalares")
+          .select("*")
+          .eq("ativo", true)
+          .order("codigo"),
+        supabase.from("usuarios").select("*"),
+      ]);
 
       setContratos(contratosData || []);
       setUnidades(unidadesData || []);
@@ -231,11 +234,14 @@ const Usuarios: React.FC = () => {
           .select("usuario_id")
           .eq("contrato_id", filtroContrato.id);
 
-        const userIdsFromContratos = usuarioContratosData?.map((uc) => uc.usuario_id) || [];
+        const userIdsFromContratos =
+          usuarioContratosData?.map((uc) => uc.usuario_id) || [];
 
         // Filter users that match contract_id OR are in usuario_contrato table
         filteredUsers = filteredUsers.filter(
-          (u) => u.contrato_id === filtroContrato.id || userIdsFromContratos.includes(u.id)
+          (u) =>
+            u.contrato_id === filtroContrato.id ||
+            userIdsFromContratos.includes(u.id)
         );
       }
 
@@ -252,10 +258,13 @@ const Usuarios: React.FC = () => {
           .select("usuario_id")
           .in("contrato_id", contratoIds);
 
-        const userIdsFromContratos = usuarioContratosData?.map((uc) => uc.usuario_id) || [];
+        const userIdsFromContratos =
+          usuarioContratosData?.map((uc) => uc.usuario_id) || [];
 
         filteredUsers = filteredUsers.filter(
-          (u) => (u.contrato_id && contratoIds.includes(u.contrato_id)) || userIdsFromContratos.includes(u.id)
+          (u) =>
+            (u.contrato_id && contratoIds.includes(u.contrato_id)) ||
+            userIdsFromContratos.includes(u.id)
         );
       }
 
@@ -379,8 +388,9 @@ const Usuarios: React.FC = () => {
         return;
       }
 
-      const isAdmin = formData.tipo === "administrador-agir-corporativo" ||
-                      formData.tipo === "administrador-agir-planta";
+      const isAdmin =
+        formData.tipo === "administrador-agir-corporativo" ||
+        formData.tipo === "administrador-agir-planta";
 
       // Se marcou para enviar convite automaticamente, email é obrigatório
       if (formData.sendInvitationAutomatically && !formData.email) {
@@ -426,7 +436,8 @@ const Usuarios: React.FC = () => {
           cpf: formData.cpf,
           tipo: formData.tipo,
           codigomv: formData.tipo === "terceiro" ? formData.codigomv : null,
-          especialidade: formData.tipo === "terceiro" ? formData.especialidade : null,
+          especialidade:
+            formData.tipo === "terceiro" ? formData.especialidade : null,
           unidade_hospitalar_id:
             formData.tipo === "administrador-agir-planta"
               ? formData.unidade_hospitalar_id
@@ -466,7 +477,9 @@ const Usuarios: React.FC = () => {
 
           if (contractError) {
             console.error("Error inserting contracts:", contractError);
-            throw new Error(`Erro ao vincular contratos: ${contractError.message}`);
+            throw new Error(
+              `Erro ao vincular contratos: ${contractError.message}`
+            );
           }
         }
 
@@ -513,7 +526,8 @@ const Usuarios: React.FC = () => {
           cpf: formData.cpf,
           tipo: formData.tipo,
           codigomv: formData.tipo === "terceiro" ? formData.codigomv : null,
-          especialidade: formData.tipo === "terceiro" ? formData.especialidade : null,
+          especialidade:
+            formData.tipo === "terceiro" ? formData.especialidade : null,
           unidade_hospitalar_id:
             formData.tipo === "administrador-agir-planta"
               ? formData.unidade_hospitalar_id
@@ -552,13 +566,15 @@ const Usuarios: React.FC = () => {
 
           if (contractError) {
             console.error("Error inserting contracts:", contractError);
-            throw new Error(`Erro ao vincular contratos: ${contractError.message}`);
+            throw new Error(
+              `Erro ao vincular contratos: ${contractError.message}`
+            );
           }
         }
 
         // Send invitation automatically if checkbox is marked
         if (formData.sendInvitationAutomatically && newUser && formData.email) {
-          console.log('Enviando convite automaticamente...');
+          console.log("Enviando convite automaticamente...");
 
           // Extra warning for corporate domains
           const isCorp = isCorporateDomain(formData.email);
@@ -577,16 +593,28 @@ const Usuarios: React.FC = () => {
           if (confirmSend) {
             try {
               await handleSendInvitation(newUser as Usuario);
-              setSuccess(`Usuário criado com sucesso! Convite de acesso enviado para ${formData.email}.`);
+              setSuccess(
+                `Usuário criado com sucesso! Convite de acesso enviado para ${formData.email}.`
+              );
             } catch (inviteError: any) {
               console.error("Erro ao enviar convite:", inviteError);
-              setSuccess(`Usuário criado com sucesso, mas houve erro ao enviar convite: ${inviteError.message}. Use o botão 'Enviar Convite' manualmente.`);
+              setSuccess(
+                `Usuário criado com sucesso, mas houve erro ao enviar convite: ${inviteError.message}. Use o botão 'Enviar Convite' manualmente.`
+              );
             }
           } else {
-            setSuccess("Usuário criado com sucesso! Envio de convite cancelado. Use o botão 'Enviar Convite' quando estiver pronto.");
+            setSuccess(
+              "Usuário criado com sucesso! Envio de convite cancelado. Use o botão 'Enviar Convite' quando estiver pronto."
+            );
           }
         } else {
-          setSuccess(`Usuário criado com sucesso! ${formData.email ? "Use o botão 'Enviar Convite' para criar acesso ao sistema." : "Adicione um email e use o botão 'Enviar Convite' para criar acesso."}`);
+          setSuccess(
+            `Usuário criado com sucesso! ${
+              formData.email
+                ? "Use o botão 'Enviar Convite' para criar acesso ao sistema."
+                : "Adicione um email e use o botão 'Enviar Convite' para criar acesso."
+            }`
+          );
         }
 
         setSaving(false);
@@ -603,7 +631,8 @@ const Usuarios: React.FC = () => {
       if (err.code === "23505") {
         errorMessage = "Já existe um usuário com este CPF ou email";
       } else if (err.code === "23503") {
-        errorMessage = "Erro de referência: verifique se o contrato ou unidade existe";
+        errorMessage =
+          "Erro de referência: verifique se o contrato ou unidade existe";
       } else if (err.message) {
         errorMessage = `Erro: ${err.message}`;
 
@@ -626,7 +655,9 @@ const Usuarios: React.FC = () => {
       setSuccess("");
 
       if (!usuario.email) {
-        setError("Email é obrigatório para enviar convite. Edite o usuário e adicione um email.");
+        setError(
+          "Email é obrigatório para enviar convite. Edite o usuário e adicione um email."
+        );
         return;
       }
 
@@ -650,11 +681,14 @@ const Usuarios: React.FC = () => {
 
       let confirmMessage = "";
       if (hasAccess) {
-        confirmMessage = "Usuário(a) já possui acesso ao ParcerIA, ao enviar novo convite você estará também criando uma nova senha. Deseja confirmar o envio?";
+        confirmMessage =
+          "Usuário(a) já possui acesso ao ParcerIA, ao enviar novo convite você estará também criando uma nova senha. Deseja confirmar o envio?";
       } else if (isCorp) {
         confirmMessage =
           `⚠️ ATENÇÃO - EMAIL CORPORATIVO: ${usuario.email}\n\n` +
-          `Você confirmou que este endereço de email JÁ EXISTE e está ATIVO no servidor de email da empresa (${usuario.email.split("@")[1]})?\n\n` +
+          `Você confirmou que este endereço de email JÁ EXISTE e está ATIVO no servidor de email da empresa (${
+            usuario.email.split("@")[1]
+          })?\n\n` +
           `Emails que não existem causam bloqueio temporário do sistema de envio.\n\n` +
           `Deseja continuar com o envio?`;
       } else {
@@ -714,7 +748,9 @@ const Usuarios: React.FC = () => {
 
         if (insertError) {
           console.error("Error creating user record:", insertError);
-          setError("Conta criada, mas erro ao criar registro. Contate o suporte.");
+          setError(
+            "Conta criada, mas erro ao criar registro. Contate o suporte."
+          );
           return;
         }
 
@@ -728,7 +764,9 @@ const Usuarios: React.FC = () => {
           await supabase.from("usuario_contrato").insert(newContracts);
         }
 
-        setSuccess(`Convite enviado para ${usuario.email}. Senha temporária: ${tempPassword}`);
+        setSuccess(
+          `Convite enviado para ${usuario.email}. Senha temporária: ${tempPassword}`
+        );
         handleCloseUserDetails();
         handleSearch(); // Refresh
       }
@@ -813,7 +851,10 @@ const Usuarios: React.FC = () => {
       try {
         await supabase.auth.admin.deleteUser(usuario.id);
       } catch (authErr) {
-        console.error("Error deleting auth user (might not exist in auth):", authErr);
+        console.error(
+          "Error deleting auth user (might not exist in auth):",
+          authErr
+        );
       }
 
       setSuccess("Usuário excluído com sucesso!");
@@ -830,7 +871,9 @@ const Usuarios: React.FC = () => {
   ).sort();
 
   // Get unique CPFs for autocomplete
-  const cpfsDisponiveis = Array.from(new Set(usuarios.map((u) => u.cpf))).sort();
+  const cpfsDisponiveis = Array.from(
+    new Set(usuarios.map((u) => u.cpf))
+  ).sort();
 
   // Get unique parceiros (empresas from contratos)
   const parceirosDisponiveis = Array.from(
@@ -884,7 +927,11 @@ const Usuarios: React.FC = () => {
                 value={filtroNome}
                 onChange={(_, newValue) => setFiltroNome(newValue)}
                 renderInput={(params) => (
-                  <TextField {...params} label="Nome" placeholder="Selecione..." />
+                  <TextField
+                    {...params}
+                    label="Nome"
+                    placeholder="Selecione..."
+                  />
                 )}
                 size="small"
               />
@@ -897,7 +944,11 @@ const Usuarios: React.FC = () => {
                 value={filtroCpf}
                 onChange={(_, newValue) => setFiltroCpf(newValue)}
                 renderInput={(params) => (
-                  <TextField {...params} label="CPF" placeholder="Selecione..." />
+                  <TextField
+                    {...params}
+                    label="CPF"
+                    placeholder="Selecione..."
+                  />
                 )}
                 size="small"
               />
@@ -908,9 +959,15 @@ const Usuarios: React.FC = () => {
                 options={contratos}
                 value={filtroContrato}
                 onChange={(_, newValue) => setFiltroContrato(newValue)}
-                getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
+                getOptionLabel={(option) =>
+                  `${option.nome} - ${option.empresa}`
+                }
                 renderInput={(params) => (
-                  <TextField {...params} label="Contrato" placeholder="Selecione..." />
+                  <TextField
+                    {...params}
+                    label="Contrato"
+                    placeholder="Selecione..."
+                  />
                 )}
                 size="small"
               />
@@ -923,7 +980,11 @@ const Usuarios: React.FC = () => {
                 value={filtroParceiro}
                 onChange={(_, newValue) => setFiltroParceiro(newValue)}
                 renderInput={(params) => (
-                  <TextField {...params} label="Parceiro" placeholder="Selecione..." />
+                  <TextField
+                    {...params}
+                    label="Parceiro"
+                    placeholder="Selecione..."
+                  />
                 )}
                 size="small"
               />
@@ -936,7 +997,11 @@ const Usuarios: React.FC = () => {
                 value={filtroEspecialidade}
                 onChange={(_, newValue) => setFiltroEspecialidade(newValue)}
                 renderInput={(params) => (
-                  <TextField {...params} label="Especialidade" placeholder="Selecione..." />
+                  <TextField
+                    {...params}
+                    label="Especialidade"
+                    placeholder="Selecione..."
+                  />
                 )}
                 size="small"
               />
@@ -951,16 +1016,19 @@ const Usuarios: React.FC = () => {
                   disabled={loading}
                   fullWidth
                   sx={{
-                    background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+                    background:
+                      "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
                     color: "#ffffff",
                     fontWeight: 600,
                     boxShadow: "0 4px 12px rgba(14, 165, 233, 0.3)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
+                      background:
+                        "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
                       boxShadow: "0 6px 16px rgba(14, 165, 233, 0.4)",
                     },
                     "&:disabled": {
-                      background: "linear-gradient(135deg, #94a3b8 0%, #cbd5e1 100%)",
+                      background:
+                        "linear-gradient(135deg, #94a3b8 0%, #cbd5e1 100%)",
                       color: "#ffffff",
                     },
                   }}
@@ -972,12 +1040,14 @@ const Usuarios: React.FC = () => {
                   startIcon={<PersonAdd />}
                   onClick={handleOpenCreateDialog}
                   sx={{
-                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                    background:
+                      "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                     color: "#ffffff",
                     fontWeight: 600,
                     boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                      background:
+                        "linear-gradient(135deg, #059669 0%, #047857 100%)",
                       boxShadow: "0 6px 16px rgba(16, 185, 129, 0.4)",
                     },
                   }}
@@ -1004,7 +1074,9 @@ const Usuarios: React.FC = () => {
               </Box>
             ) : usuariosFiltrados.length === 0 ? (
               <Box sx={{ textAlign: "center", py: 4 }}>
-                <PersonOff sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
+                <PersonOff
+                  sx={{ fontSize: 64, color: "text.disabled", mb: 2 }}
+                />
                 <Typography variant="body1" color="text.secondary">
                   Nenhum usuário encontrado
                 </Typography>
@@ -1025,7 +1097,14 @@ const Usuarios: React.FC = () => {
                       }}
                       onClick={() => handleOpenUserDetails(usuario)}
                     >
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          mb: 1,
+                        }}
+                      >
                         <AdminPanelSettings
                           sx={{ color: "primary.main", fontSize: 28 }}
                         />
@@ -1080,7 +1159,13 @@ const Usuarios: React.FC = () => {
         fullWidth
       >
         <DialogTitle>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
             <Typography variant="h6" fontWeight={600}>
               Detalhes do Usuário
             </Typography>
@@ -1094,7 +1179,11 @@ const Usuarios: React.FC = () => {
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
               {/* User Information */}
               <Box>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
                   Informações Básicas
                 </Typography>
                 <Paper sx={{ p: 2, bgcolor: "grey.50" }}>
@@ -1141,25 +1230,45 @@ const Usuarios: React.FC = () => {
                         </Typography>
                       </Grid>
                     )}
-                    {selectedUser.especialidade && selectedUser.especialidade.length > 0 && (
-                      <Grid item xs={12}>
-                        <Typography variant="caption" color="text.secondary">
-                          Especialidades
-                        </Typography>
-                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
-                          {selectedUser.especialidade.map((esp) => (
-                            <Chip key={esp} label={esp} size="small" color="primary" />
-                          ))}
-                        </Box>
-                      </Grid>
-                    )}
+                    {selectedUser.especialidade &&
+                      selectedUser.especialidade.length > 0 && (
+                        <Grid item xs={12}>
+                          <Typography variant="caption" color="text.secondary">
+                            Especialidades
+                          </Typography>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 0.5,
+                              mt: 0.5,
+                            }}
+                          >
+                            {selectedUser.especialidade.map((esp) => (
+                              <Chip
+                                key={esp}
+                                label={esp}
+                                size="small"
+                                color="primary"
+                              />
+                            ))}
+                          </Box>
+                        </Grid>
+                      )}
                   </Grid>
                 </Paper>
               </Box>
 
               {/* Contracts */}
               <Box>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 1,
+                  }}
+                >
                   <Typography variant="subtitle2" color="text.secondary">
                     Contratos Vinculados
                   </Typography>
@@ -1194,9 +1303,12 @@ const Usuarios: React.FC = () => {
                   {/* Add Contract */}
                   <Autocomplete
                     options={contratos.filter(
-                      (c) => !userContracts.some((uc) => uc.contrato_id === c.id)
+                      (c) =>
+                        !userContracts.some((uc) => uc.contrato_id === c.id)
                     )}
-                    getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
+                    getOptionLabel={(option) =>
+                      `${option.nome} - ${option.empresa}`
+                    }
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -1218,7 +1330,8 @@ const Usuarios: React.FC = () => {
               {/* Send Invitation */}
               {!selectedUser.email ? (
                 <Alert severity="info">
-                  Este usuário ainda não possui email cadastrado. Edite o usuário para adicionar um email e depois envie o convite.
+                  Este usuário ainda não possui email cadastrado. Edite o
+                  usuário para adicionar um email e depois envie o convite.
                 </Alert>
               ) : (
                 <Button
@@ -1227,9 +1340,11 @@ const Usuarios: React.FC = () => {
                   onClick={() => handleSendInvitation(selectedUser)}
                   fullWidth
                   sx={{
-                    background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                    background:
+                      "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
+                      background:
+                        "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
                     },
                   }}
                 >
@@ -1274,7 +1389,9 @@ const Usuarios: React.FC = () => {
             <TextField
               label="Nome Completo"
               value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, nome: e.target.value })
+              }
               fullWidth
               required
             />
@@ -1283,10 +1400,14 @@ const Usuarios: React.FC = () => {
               label="Email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               fullWidth
               required={formData.sendInvitationAutomatically}
-              error={formData.email ? isEmailDomainBlocked(formData.email) : false}
+              error={
+                formData.email ? isEmailDomainBlocked(formData.email) : false
+              }
               helperText={
                 formData.email && isEmailDomainBlocked(formData.email)
                   ? getBlockedDomainMessage(formData.email)
@@ -1301,15 +1422,20 @@ const Usuarios: React.FC = () => {
                   ⚠️ Email corporativo detectado: {formData.email.split("@")[1]}
                 </Typography>
                 <Typography variant="caption">
-                  <strong>IMPORTANTE:</strong> Verifique se este endereço de email JÁ FOI CRIADO no servidor de email da empresa. Emails que não existem causam rejeição e podem bloquear temporariamente o sistema de envio.
-                  <br /><br />
+                  <strong>IMPORTANTE:</strong> Verifique se este endereço de
+                  email JÁ FOI CRIADO no servidor de email da empresa. Emails
+                  que não existem causam rejeição e podem bloquear
+                  temporariamente o sistema de envio.
+                  <br />
+                  <br />
                   <strong>Antes de enviar o convite:</strong>
                   <br />
                   1. Confirme que o email {formData.email} existe e está ativo
                   <br />
                   2. Teste enviando um email de teste manualmente para verificar
                   <br />
-                  3. Só marque "enviar automaticamente" se tiver certeza que o email existe
+                  3. Só marque "enviar automaticamente" se tiver certeza que o
+                  email existe
                 </Typography>
               </Alert>
             )}
@@ -1317,7 +1443,9 @@ const Usuarios: React.FC = () => {
             <TextField
               label="CPF"
               value={formData.cpf}
-              onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, cpf: e.target.value })
+              }
               fullWidth
               required
             />
@@ -1346,7 +1474,11 @@ const Usuarios: React.FC = () => {
 
             {formData.tipo === "administrador-agir-planta" && (
               <Autocomplete
-                value={unidades.find((u) => u.id === formData.unidade_hospitalar_id) || null}
+                value={
+                  unidades.find(
+                    (u) => u.id === formData.unidade_hospitalar_id
+                  ) || null
+                }
                 onChange={(_, newValue) =>
                   setFormData({
                     ...formData,
@@ -1356,11 +1488,7 @@ const Usuarios: React.FC = () => {
                 options={unidades}
                 getOptionLabel={(option) => `${option.codigo} - ${option.nome}`}
                 renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Unidade Hospitalar"
-                    required
-                  />
+                  <TextField {...params} label="Unidade Hospitalar" required />
                 )}
                 fullWidth
               />
@@ -1407,37 +1535,42 @@ const Usuarios: React.FC = () => {
             )}
 
             {/* Contratos - Apenas para terceiros e admin terceiro */}
-            {formData.tipo !== "administrador-agir-corporativo" && formData.tipo !== "administrador-agir-planta" && (
-              <Autocomplete
-                multiple
-                options={contratos}
-                value={contratos.filter((c) => formData.contrato_ids.includes(c.id))}
-                onChange={(_, newValue) =>
-                  setFormData({
-                    ...formData,
-                    contrato_ids: newValue.map((c) => c.id),
-                  })
-                }
-                getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
-                renderInput={(params) => (
-                  <TextField {...params} label="Contratos" />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => {
-                    const { key, ...tagProps } = getTagProps({ index });
-                    return (
-                      <Chip
-                        key={key}
-                        label={option.nome}
-                        {...tagProps}
-                        size="small"
-                        color="primary"
-                      />
-                    );
-                  })
-                }
-              />
-            )}
+            {formData.tipo !== "administrador-agir-corporativo" &&
+              formData.tipo !== "administrador-agir-planta" && (
+                <Autocomplete
+                  multiple
+                  options={contratos}
+                  value={contratos.filter((c) =>
+                    formData.contrato_ids.includes(c.id)
+                  )}
+                  onChange={(_, newValue) =>
+                    setFormData({
+                      ...formData,
+                      contrato_ids: newValue.map((c) => c.id),
+                    })
+                  }
+                  getOptionLabel={(option) =>
+                    `${option.nome} - ${option.empresa}`
+                  }
+                  renderInput={(params) => (
+                    <TextField {...params} label="Contratos" />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={option.nome}
+                          {...tagProps}
+                          size="small"
+                          color="primary"
+                        />
+                      );
+                    })
+                  }
+                />
+              )}
 
             {/* Envio automático de convite - apenas em modo de criação */}
             {!editMode && formData.email && (
@@ -1458,10 +1591,12 @@ const Usuarios: React.FC = () => {
                   label={
                     <Box>
                       <Typography variant="body2" fontWeight={600}>
-                        Enviar convite de acesso automaticamente após criar usuário
+                        Enviar convite de acesso automaticamente após criar
+                        usuário
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        O convite será enviado para o email informado. Uma confirmação será solicitada antes do envio.
+                        O convite será enviado para o email informado. Uma
+                        confirmação será solicitada antes do envio.
                       </Typography>
                     </Box>
                   }
@@ -1470,19 +1605,23 @@ const Usuarios: React.FC = () => {
             )}
 
             {/* Avisos */}
-            {formData.tipo === "administrador-agir-corporativo" || formData.tipo === "administrador-agir-planta" ? (
+            {formData.tipo === "administrador-agir-corporativo" ||
+            formData.tipo === "administrador-agir-planta" ? (
               <Alert severity="info">
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   Administradores Agir não precisam de vínculo com contrato
                 </Typography>
                 <Typography variant="caption">
-                  Adicione um email válido e marque a opção acima para enviar o convite automaticamente.
+                  Adicione um email válido e marque a opção acima para enviar o
+                  convite automaticamente.
                 </Typography>
               </Alert>
             ) : !editMode ? (
               <Alert severity="info">
                 <Typography variant="body2">
-                  O usuário será criado sem acesso ao sistema. Use o botão "Enviar Convite" nos detalhes do usuário para criar o acesso, ou marque a opção acima para enviar automaticamente.
+                  O usuário será criado sem acesso ao sistema. Use o botão
+                  "Enviar Convite" nos detalhes do usuário para criar o acesso,
+                  ou marque a opção acima para enviar automaticamente.
                 </Typography>
               </Alert>
             ) : null}
@@ -1494,7 +1633,9 @@ const Usuarios: React.FC = () => {
                   ⚠️ Atenção: Verifique o email cuidadosamente
                 </Typography>
                 <Typography variant="caption">
-                  Emails inválidos ou inexistentes causam bloqueio temporário no sistema de envio. Certifique-se de que o email está correto antes de prosseguir.
+                  Emails inválidos ou inexistentes causam bloqueio temporário no
+                  sistema de envio. Certifique-se de que o email está correto
+                  antes de prosseguir.
                 </Typography>
               </Alert>
             )}
