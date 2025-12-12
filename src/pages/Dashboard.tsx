@@ -54,6 +54,8 @@ import {
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -101,7 +103,9 @@ const Dashboard: React.FC = () => {
   const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
 
   // CPFs vinculados ao contrato filtrado (para uso em useMemo)
-  const [cpfsDoContratoFiltrado, setCpfsDoContratoFiltrado] = useState<string[]>([]);
+  const [cpfsDoContratoFiltrado, setCpfsDoContratoFiltrado] = useState<
+    string[]
+  >([]);
 
   // Modal de detalhes
   const [modalOpen, setModalOpen] = useState(false);
@@ -308,7 +312,7 @@ const Dashboard: React.FC = () => {
 
   const loadProdutividade = async () => {
     try {
-      console.log('🔄 Carregando dados de produtividade...');
+      console.log("🔄 Carregando dados de produtividade...");
       const { data, error: fetchError } = await supabase
         .from("produtividade")
         .select("*")
@@ -500,7 +504,13 @@ const Dashboard: React.FC = () => {
       if (filtroCpf.length > 0 && !filtroCpf.includes(acesso.cpf)) return false;
       if (filtroEspecialidade.length > 0) {
         const usuario = usuarios.find((u) => u.cpf === acesso.cpf);
-        if (!usuario || !usuario.especialidade || !usuario.especialidade.some((esp) => filtroEspecialidade.includes(esp)))
+        if (
+          !usuario ||
+          !usuario.especialidade ||
+          !usuario.especialidade.some((esp) =>
+            filtroEspecialidade.includes(esp)
+          )
+        )
           return false;
       }
 
@@ -768,9 +778,13 @@ const Dashboard: React.FC = () => {
   };
 
   const handleOpenProdutividadeModal = async (person: HorasCalculadas) => {
-    console.log('=== INICIANDO BUSCA DE PRODUTIVIDADE ===');
+    console.log("=== INICIANDO BUSCA DE PRODUTIVIDADE ===");
     console.log(`Pessoa: ${person.nome} (CPF: ${person.cpf})`);
-    console.log(`Período: ${filtroDataInicio ? format(filtroDataInicio, 'dd/MM/yyyy') : 'N/A'} a ${filtroDataFim ? format(filtroDataFim, 'dd/MM/yyyy') : 'N/A'}`);
+    console.log(
+      `Período: ${
+        filtroDataInicio ? format(filtroDataInicio, "dd/MM/yyyy") : "N/A"
+      } a ${filtroDataFim ? format(filtroDataFim, "dd/MM/yyyy") : "N/A"}`
+    );
 
     setSelectedPersonProdutividade(person);
     setProdutividadeModalOpen(true);
@@ -783,10 +797,10 @@ const Dashboard: React.FC = () => {
 
       // Buscar DIRETAMENTE no banco com os filtros de data (igual Escalas Médicas)
       if (filtroDataInicio && filtroDataFim) {
-        console.log('🔍 Buscando diretamente no banco de dados...');
+        console.log("🔍 Buscando diretamente no banco de dados...");
 
-        const dataInicioFormatada = format(filtroDataInicio, 'yyyy-MM-dd');
-        const dataFimFormatada = format(filtroDataFim, 'yyyy-MM-dd');
+        const dataInicioFormatada = format(filtroDataInicio, "yyyy-MM-dd");
+        const dataFimFormatada = format(filtroDataFim, "yyyy-MM-dd");
 
         let query = supabase
           .from("produtividade")
@@ -809,15 +823,18 @@ const Dashboard: React.FC = () => {
         const { data, error } = await query;
 
         if (error) {
-          console.error('❌ Erro ao buscar produtividade:', error);
+          console.error("❌ Erro ao buscar produtividade:", error);
           throw error;
         }
 
         personProdHistory = data || [];
-        console.log(`✅ Busca direta no banco: ${personProdHistory.length} registros encontrados`);
-
+        console.log(
+          `✅ Busca direta no banco: ${personProdHistory.length} registros encontrados`
+        );
       } else {
-        console.warn('⚠️ Filtros de data não definidos, usando busca na memória...');
+        console.warn(
+          "⚠️ Filtros de data não definidos, usando busca na memória..."
+        );
 
         // Fallback: buscar na memória (dados já carregados)
         if (usuario?.codigomv) {
@@ -825,11 +842,19 @@ const Dashboard: React.FC = () => {
             (p) => p.codigo_mv === usuario.codigomv
           );
         } else {
-          const nomeNormalizado = person.nome.toLowerCase().trim().replace(/\s+/g, ' ');
+          const nomeNormalizado = person.nome
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, " ");
           personProdHistory = produtividade.filter((p) => {
-            const nomeProdNormalizado = p.nome.toLowerCase().trim().replace(/\s+/g, ' ');
-            return nomeProdNormalizado.includes(nomeNormalizado) ||
-                   nomeNormalizado.includes(nomeProdNormalizado);
+            const nomeProdNormalizado = p.nome
+              .toLowerCase()
+              .trim()
+              .replace(/\s+/g, " ");
+            return (
+              nomeProdNormalizado.includes(nomeNormalizado) ||
+              nomeNormalizado.includes(nomeProdNormalizado)
+            );
           });
         }
 
@@ -839,7 +864,10 @@ const Dashboard: React.FC = () => {
           inicioNormalizado.setHours(0, 0, 0, 0);
           personProdHistory = personProdHistory.filter((p) => {
             if (!p.data) return false;
-            const [year, month, day] = p.data.split("T")[0].split("-").map(Number);
+            const [year, month, day] = p.data
+              .split("T")[0]
+              .split("-")
+              .map(Number);
             const dataProducao = new Date(year, month - 1, day);
             return dataProducao >= inicioNormalizado;
           });
@@ -850,7 +878,10 @@ const Dashboard: React.FC = () => {
           fimNormalizado.setHours(0, 0, 0, 0);
           personProdHistory = personProdHistory.filter((p) => {
             if (!p.data) return false;
-            const [year, month, day] = p.data.split("T")[0].split("-").map(Number);
+            const [year, month, day] = p.data
+              .split("T")[0]
+              .split("-")
+              .map(Number);
             const dataProducao = new Date(year, month - 1, day);
             return dataProducao <= fimNormalizado;
           });
@@ -864,20 +895,25 @@ const Dashboard: React.FC = () => {
 
       // Log de diagnóstico
       if (personProdHistory.length === 0) {
-        console.warn('=== DIAGNÓSTICO DE PRODUTIVIDADE ===');
+        console.warn("=== DIAGNÓSTICO DE PRODUTIVIDADE ===");
         console.warn(`CPF: ${person.cpf}`);
         console.warn(`Nome: ${person.nome}`);
         console.warn(`Usuário encontrado: ${!!usuario}`);
-        console.warn(`Codigo MV: ${usuario?.codigomv || 'N/A'}`);
-        console.warn(`Período de busca: ${filtroDataInicio ? format(filtroDataInicio, 'dd/MM/yyyy') : 'N/A'} a ${filtroDataFim ? format(filtroDataFim, 'dd/MM/yyyy') : 'N/A'}`);
+        console.warn(`Codigo MV: ${usuario?.codigomv || "N/A"}`);
+        console.warn(
+          `Período de busca: ${
+            filtroDataInicio ? format(filtroDataInicio, "dd/MM/yyyy") : "N/A"
+          } a ${filtroDataFim ? format(filtroDataFim, "dd/MM/yyyy") : "N/A"}`
+        );
       } else {
-        console.log(`✅ Sucesso! ${personProdHistory.length} registros de produtividade encontrados`);
+        console.log(
+          `✅ Sucesso! ${personProdHistory.length} registros de produtividade encontrados`
+        );
       }
 
       setPersonProdutividade(personProdHistory);
-
     } catch (err) {
-      console.error('❌ Erro ao buscar produtividade:', err);
+      console.error("❌ Erro ao buscar produtividade:", err);
       setPersonProdutividade([]);
     }
   };
@@ -1061,6 +1097,85 @@ const Dashboard: React.FC = () => {
     usuarios,
   ]);
 
+  // Calcular dados para gráfico de linha: médicos únicos por dia
+  const dailyDoctorAccessData = useMemo(() => {
+    if (acessos.length === 0) return [];
+
+    // Agrupar acessos por data e contar CPFs únicos
+    const accessByDate = new Map<string, Set<string>>();
+
+    acessos.forEach((acesso) => {
+      // Aplicar os mesmos filtros do resto do dashboard
+      if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome)) return;
+      if (filtroCpf.length > 0 && !filtroCpf.includes(acesso.cpf)) return;
+      if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta))
+        return;
+      if (
+        cpfsDoContratoFiltrado.length > 0 &&
+        !cpfsDoContratoFiltrado.includes(acesso.cpf)
+      )
+        return;
+
+      // Filtro de especialidade
+      if (filtroEspecialidade.length > 0) {
+        const usuario = usuarios.find((u) => u.cpf === acesso.cpf);
+        if (
+          !usuario ||
+          !usuario.especialidade ||
+          !usuario.especialidade.some((esp) =>
+            filtroEspecialidade.includes(esp)
+          )
+        )
+          return;
+      }
+
+      // Aplicar filtros de data
+      const dataAcesso = new Date(acesso.data_acesso);
+      dataAcesso.setHours(0, 0, 0, 0);
+
+      if (filtroDataInicio) {
+        const dataInicio = new Date(filtroDataInicio);
+        dataInicio.setHours(0, 0, 0, 0);
+        if (dataAcesso < dataInicio) return;
+      }
+
+      if (filtroDataFim) {
+        const dataFim = new Date(filtroDataFim);
+        dataFim.setHours(0, 0, 0, 0);
+        if (dataAcesso > dataFim) return;
+      }
+
+      // Extrair data no formato YYYY-MM-DD
+      const dateKey = acesso.data_acesso.split("T")[0];
+
+      if (!accessByDate.has(dateKey)) {
+        accessByDate.set(dateKey, new Set());
+      }
+      accessByDate.get(dateKey)!.add(acesso.cpf);
+    });
+
+    // Converter para array e ordenar por data
+    const chartData = Array.from(accessByDate.entries())
+      .map(([date, cpfSet]) => ({
+        date,
+        count: cpfSet.size,
+        formattedDate: format(parseISO(date), "dd/MM/yyyy", { locale: ptBR }),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return chartData;
+  }, [
+    acessos,
+    filtroNome,
+    filtroCpf,
+    filtroUnidade,
+    filtroEspecialidade,
+    filtroDataInicio,
+    filtroDataFim,
+    cpfsDoContratoFiltrado,
+    usuarios,
+  ]);
+
   // Calcular inconsistências entre produtividade e acessos
   const inconsistencias = useMemo(() => {
     // Mapear os usuarios para ter relação cpf <-> codigomv
@@ -1156,7 +1271,10 @@ const Dashboard: React.FC = () => {
       }
 
       // Aplicar filtro de contrato
-      if (cpfsDoContratoFiltrado.length > 0 && !cpfsDoContratoFiltrado.includes(cpf)) {
+      if (
+        cpfsDoContratoFiltrado.length > 0 &&
+        !cpfsDoContratoFiltrado.includes(cpf)
+      ) {
         return;
       }
 
@@ -1189,7 +1307,9 @@ const Dashboard: React.FC = () => {
       });
       if (datasSemAcesso.length > 0) {
         // Encontrar o nome da pessoa a partir dos registros de produtividade
-        const prod = produtividade.find((p) => codigoMVToCPF.get(p.codigo_mv) === cpf);
+        const prod = produtividade.find(
+          (p) => codigoMVToCPF.get(p.codigo_mv) === cpf
+        );
         const nome = prod?.nome || cpf;
         prodSemAcesso.set(nome, datasSemAcesso);
       }
@@ -1432,7 +1552,14 @@ const Dashboard: React.FC = () => {
       pontualidade: pontualidadeArray,
       absenteismo: absenteismoArray,
     };
-  }, [escalas, acessos, filtroNome, filtroDataInicio, filtroDataFim, cpfsDoContratoFiltrado]);
+  }, [
+    escalas,
+    acessos,
+    filtroNome,
+    filtroDataInicio,
+    filtroDataFim,
+    cpfsDoContratoFiltrado,
+  ]);
 
   // Calcular dados do heatmap baseado nos acessos filtrados
   const heatmapData = useMemo(() => {
@@ -1450,7 +1577,13 @@ const Dashboard: React.FC = () => {
       if (filtroCpf.length > 0 && !filtroCpf.includes(acesso.cpf)) return false;
       if (filtroEspecialidade.length > 0) {
         const usuario = usuarios.find((u) => u.cpf === acesso.cpf);
-        if (!usuario || !usuario.especialidade || !usuario.especialidade.some((esp) => filtroEspecialidade.includes(esp)))
+        if (
+          !usuario ||
+          !usuario.especialidade ||
+          !usuario.especialidade.some((esp) =>
+            filtroEspecialidade.includes(esp)
+          )
+        )
           return false;
       }
       if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta))
@@ -3629,6 +3762,241 @@ const Dashboard: React.FC = () => {
               </Card>
             )}
 
+            {/* Gráfico de Linha: Acesso de Médicos ao Longo do Tempo */}
+            {dailyDoctorAccessData.length > 0 && (
+              <Card
+                sx={{
+                  mb: 3,
+                  background:
+                    "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+                  borderRadius: 3,
+                  boxShadow: "0 4px 20px rgba(59, 130, 246, 0.08)",
+                  border: "1px solid #e0e7ff",
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography
+                      variant="h6"
+                      fontWeight={700}
+                      sx={{
+                        background:
+                          "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        mb: 1,
+                      }}
+                    >
+                      📈 Acesso Médico ao Londo do Tempo
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 0.5 }}
+                    >
+                      Número de médicos que acessaram o hospital por dia
+                    </Typography>
+                    {(filtroNome.length > 0 ||
+                      filtroDataInicio ||
+                      filtroDataFim ||
+                      filtroEspecialidade.length > 0) && (
+                      <Box
+                        sx={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 1,
+                          mt: 1,
+                          px: 2,
+                          py: 0.5,
+                          bgcolor: "rgba(59, 130, 246, 0.08)",
+                          borderRadius: 2,
+                          border: "1px solid rgba(59, 130, 246, 0.2)",
+                        }}
+                      >
+                        <FilterList sx={{ fontSize: 16, color: "#3b82f6" }} />
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "#1e40af",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Filtros ativos aplicados
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+
+                  <ResponsiveContainer width="100%" height={350}>
+                    <LineChart
+                      data={dailyDoctorAccessData}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient
+                          id="colorDoctors"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#3b82f6"
+                            stopOpacity={0.3}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#3b82f6"
+                            stopOpacity={0}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#e2e8f0"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="formattedDate"
+                        tick={{ fill: "#64748b", fontSize: 12 }}
+                        tickLine={{ stroke: "#cbd5e1" }}
+                        axisLine={{ stroke: "#cbd5e1" }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis
+                        tick={{ fill: "#64748b", fontSize: 12 }}
+                        tickLine={{ stroke: "#cbd5e1" }}
+                        axisLine={{ stroke: "#cbd5e1" }}
+                        label={{
+                          value: "Médicos Únicos",
+                          angle: -90,
+                          position: "insideLeft",
+                          style: {
+                            fill: "#475569",
+                            fontSize: 12,
+                            fontWeight: 600,
+                          },
+                        }}
+                      />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: "rgba(255, 255, 255, 0.98)",
+                          border: "2px solid #3b82f6",
+                          borderRadius: 12,
+                          boxShadow: "0 8px 24px rgba(59, 130, 246, 0.2)",
+                          padding: "12px 16px",
+                        }}
+                        labelStyle={{
+                          color: "#1e293b",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          marginBottom: 4,
+                        }}
+                        formatter={(value: any) => [
+                          `${value} ${value === 1 ? "médico" : "médicos"}`,
+                          "Total",
+                        ]}
+                        cursor={{
+                          stroke: "#3b82f6",
+                          strokeWidth: 2,
+                          strokeDasharray: "5 5",
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        stroke="#3b82f6"
+                        strokeWidth={3}
+                        dot={{
+                          fill: "#3b82f6",
+                          strokeWidth: 2,
+                          r: 4,
+                          stroke: "#fff",
+                        }}
+                        activeDot={{
+                          r: 6,
+                          fill: "#2563eb",
+                          stroke: "#fff",
+                          strokeWidth: 3,
+                        }}
+                        fill="url(#colorDoctors)"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+
+                  {/* Estatísticas Rápidas */}
+                  <Box
+                    sx={{
+                      mt: 3,
+                      pt: 3,
+                      borderTop: "1px solid #e2e8f0",
+                      display: "flex",
+                      justifyContent: "space-around",
+                      flexWrap: "wrap",
+                      gap: 2,
+                    }}
+                  >
+                    <Box sx={{ textAlign: "center" }}>
+                      <Typography
+                        variant="h5"
+                        fontWeight={700}
+                        sx={{ color: "#3b82f6" }}
+                      >
+                        {Math.max(...dailyDoctorAccessData.map((d) => d.count))}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Pico Máximo
+                      </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: "center" }}>
+                      <Typography
+                        variant="h5"
+                        fontWeight={700}
+                        sx={{ color: "#0ea5e9" }}
+                      >
+                        {Math.round(
+                          dailyDoctorAccessData.reduce(
+                            (acc, d) => acc + d.count,
+                            0
+                          ) / dailyDoctorAccessData.length
+                        )}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Média Diária
+                      </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: "center" }}>
+                      <Typography
+                        variant="h5"
+                        fontWeight={700}
+                        sx={{ color: "#06b6d4" }}
+                      >
+                        {Math.min(...dailyDoctorAccessData.map((d) => d.count))}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Mínimo
+                      </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: "center" }}>
+                      <Typography
+                        variant="h5"
+                        fontWeight={700}
+                        sx={{ color: "#0284c7" }}
+                      >
+                        {dailyDoctorAccessData.length}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Dias Analisados
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Seções de Inconsistências */}
             <Grid container spacing={3} sx={{ mb: 3 }}>
               {/* Produtividade sem Acesso */}
@@ -3757,7 +4125,9 @@ const Dashboard: React.FC = () => {
                                         fontSize: 14,
                                       }}
                                     >
-                                      {pageProdSemAcesso * itemsPerPage + index + 1}
+                                      {pageProdSemAcesso * itemsPerPage +
+                                        index +
+                                        1}
                                     </Box>
                                     <Typography
                                       variant="body2"
@@ -3787,7 +4157,8 @@ const Dashboard: React.FC = () => {
                               </Paper>
                             ))}
                         </Box>
-                        {inconsistencias.prodSemAcesso.length > itemsPerPage && (
+                        {inconsistencias.prodSemAcesso.length >
+                          itemsPerPage && (
                           <Box
                             sx={{
                               display: "flex",
@@ -3800,14 +4171,25 @@ const Dashboard: React.FC = () => {
                             }}
                           >
                             <IconButton
-                              onClick={() => setPageProdSemAcesso(Math.max(0, pageProdSemAcesso - 1))}
+                              onClick={() =>
+                                setPageProdSemAcesso(
+                                  Math.max(0, pageProdSemAcesso - 1)
+                                )
+                              }
                               disabled={pageProdSemAcesso === 0}
                               size="small"
                               sx={{
-                                bgcolor: pageProdSemAcesso === 0 ? "#f3f4f6" : "#3b82f6",
-                                color: pageProdSemAcesso === 0 ? "#9ca3af" : "white",
+                                bgcolor:
+                                  pageProdSemAcesso === 0
+                                    ? "#f3f4f6"
+                                    : "#3b82f6",
+                                color:
+                                  pageProdSemAcesso === 0 ? "#9ca3af" : "white",
                                 "&:hover": {
-                                  bgcolor: pageProdSemAcesso === 0 ? "#f3f4f6" : "#2563eb",
+                                  bgcolor:
+                                    pageProdSemAcesso === 0
+                                      ? "#f3f4f6"
+                                      : "#2563eb",
                                 },
                                 "&:disabled": {
                                   bgcolor: "#f3f4f6",
@@ -3817,39 +4199,65 @@ const Dashboard: React.FC = () => {
                             >
                               <ArrowBackIos sx={{ fontSize: 14, ml: 0.5 }} />
                             </IconButton>
-                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                            <Typography
+                              variant="body2"
+                              fontWeight={600}
+                              color="text.secondary"
+                            >
                               {pageProdSemAcesso + 1} /{" "}
-                              {Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage)}
+                              {Math.ceil(
+                                inconsistencias.prodSemAcesso.length /
+                                  itemsPerPage
+                              )}
                             </Typography>
                             <IconButton
                               onClick={() =>
                                 setPageProdSemAcesso(
                                   Math.min(
-                                    Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage) - 1,
+                                    Math.ceil(
+                                      inconsistencias.prodSemAcesso.length /
+                                        itemsPerPage
+                                    ) - 1,
                                     pageProdSemAcesso + 1
                                   )
                                 )
                               }
                               disabled={
                                 pageProdSemAcesso >=
-                                Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage) - 1
+                                Math.ceil(
+                                  inconsistencias.prodSemAcesso.length /
+                                    itemsPerPage
+                                ) -
+                                  1
                               }
                               size="small"
                               sx={{
                                 bgcolor:
                                   pageProdSemAcesso >=
-                                  Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage) - 1
+                                  Math.ceil(
+                                    inconsistencias.prodSemAcesso.length /
+                                      itemsPerPage
+                                  ) -
+                                    1
                                     ? "#f3f4f6"
                                     : "#3b82f6",
                                 color:
                                   pageProdSemAcesso >=
-                                  Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage) - 1
+                                  Math.ceil(
+                                    inconsistencias.prodSemAcesso.length /
+                                      itemsPerPage
+                                  ) -
+                                    1
                                     ? "#9ca3af"
                                     : "white",
                                 "&:hover": {
                                   bgcolor:
                                     pageProdSemAcesso >=
-                                    Math.ceil(inconsistencias.prodSemAcesso.length / itemsPerPage) - 1
+                                    Math.ceil(
+                                      inconsistencias.prodSemAcesso.length /
+                                        itemsPerPage
+                                    ) -
+                                      1
                                       ? "#f3f4f6"
                                       : "#2563eb",
                                 },
@@ -3995,7 +4403,9 @@ const Dashboard: React.FC = () => {
                                         fontSize: 14,
                                       }}
                                     >
-                                      {pageAcessoSemProd * itemsPerPage + index + 1}
+                                      {pageAcessoSemProd * itemsPerPage +
+                                        index +
+                                        1}
                                     </Box>
                                     <Typography
                                       variant="body2"
@@ -4025,7 +4435,8 @@ const Dashboard: React.FC = () => {
                               </Paper>
                             ))}
                         </Box>
-                        {inconsistencias.acessoSemProd.length > itemsPerPage && (
+                        {inconsistencias.acessoSemProd.length >
+                          itemsPerPage && (
                           <Box
                             sx={{
                               display: "flex",
@@ -4038,14 +4449,25 @@ const Dashboard: React.FC = () => {
                             }}
                           >
                             <IconButton
-                              onClick={() => setPageAcessoSemProd(Math.max(0, pageAcessoSemProd - 1))}
+                              onClick={() =>
+                                setPageAcessoSemProd(
+                                  Math.max(0, pageAcessoSemProd - 1)
+                                )
+                              }
                               disabled={pageAcessoSemProd === 0}
                               size="small"
                               sx={{
-                                bgcolor: pageAcessoSemProd === 0 ? "#f3f4f6" : "#3b82f6",
-                                color: pageAcessoSemProd === 0 ? "#9ca3af" : "white",
+                                bgcolor:
+                                  pageAcessoSemProd === 0
+                                    ? "#f3f4f6"
+                                    : "#3b82f6",
+                                color:
+                                  pageAcessoSemProd === 0 ? "#9ca3af" : "white",
                                 "&:hover": {
-                                  bgcolor: pageAcessoSemProd === 0 ? "#f3f4f6" : "#2563eb",
+                                  bgcolor:
+                                    pageAcessoSemProd === 0
+                                      ? "#f3f4f6"
+                                      : "#2563eb",
                                 },
                                 "&:disabled": {
                                   bgcolor: "#f3f4f6",
@@ -4055,39 +4477,65 @@ const Dashboard: React.FC = () => {
                             >
                               <ArrowBackIos sx={{ fontSize: 14, ml: 0.5 }} />
                             </IconButton>
-                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                            <Typography
+                              variant="body2"
+                              fontWeight={600}
+                              color="text.secondary"
+                            >
                               {pageAcessoSemProd + 1} /{" "}
-                              {Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage)}
+                              {Math.ceil(
+                                inconsistencias.acessoSemProd.length /
+                                  itemsPerPage
+                              )}
                             </Typography>
                             <IconButton
                               onClick={() =>
                                 setPageAcessoSemProd(
                                   Math.min(
-                                    Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage) - 1,
+                                    Math.ceil(
+                                      inconsistencias.acessoSemProd.length /
+                                        itemsPerPage
+                                    ) - 1,
                                     pageAcessoSemProd + 1
                                   )
                                 )
                               }
                               disabled={
                                 pageAcessoSemProd >=
-                                Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage) - 1
+                                Math.ceil(
+                                  inconsistencias.acessoSemProd.length /
+                                    itemsPerPage
+                                ) -
+                                  1
                               }
                               size="small"
                               sx={{
                                 bgcolor:
                                   pageAcessoSemProd >=
-                                  Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage) - 1
+                                  Math.ceil(
+                                    inconsistencias.acessoSemProd.length /
+                                      itemsPerPage
+                                  ) -
+                                    1
                                     ? "#f3f4f6"
                                     : "#3b82f6",
                                 color:
                                   pageAcessoSemProd >=
-                                  Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage) - 1
+                                  Math.ceil(
+                                    inconsistencias.acessoSemProd.length /
+                                      itemsPerPage
+                                  ) -
+                                    1
                                     ? "#9ca3af"
                                     : "white",
                                 "&:hover": {
                                   bgcolor:
                                     pageAcessoSemProd >=
-                                    Math.ceil(inconsistencias.acessoSemProd.length / itemsPerPage) - 1
+                                    Math.ceil(
+                                      inconsistencias.acessoSemProd.length /
+                                        itemsPerPage
+                                    ) -
+                                      1
                                       ? "#f3f4f6"
                                       : "#2563eb",
                                 },
@@ -4205,7 +4653,10 @@ const Dashboard: React.FC = () => {
                                   },
                                 }}
                                 onClick={() =>
-                                  handleOpenPontualidadeModal(item.cpf, item.nome)
+                                  handleOpenPontualidadeModal(
+                                    item.cpf,
+                                    item.nome
+                                  )
                                 }
                               >
                                 <Box
@@ -4233,7 +4684,9 @@ const Dashboard: React.FC = () => {
                                         fontSize: 14,
                                       }}
                                     >
-                                      {pagePontualidade * itemsPerPage + index + 1}
+                                      {pagePontualidade * itemsPerPage +
+                                        index +
+                                        1}
                                     </Box>
                                     <Box flex={1}>
                                       <Typography
@@ -4270,7 +4723,8 @@ const Dashboard: React.FC = () => {
                               </Paper>
                             ))}
                         </Box>
-                        {indicadoresEscalas.pontualidade.length > itemsPerPage && (
+                        {indicadoresEscalas.pontualidade.length >
+                          itemsPerPage && (
                           <Box
                             sx={{
                               display: "flex",
@@ -4283,14 +4737,25 @@ const Dashboard: React.FC = () => {
                             }}
                           >
                             <IconButton
-                              onClick={() => setPagePontualidade(Math.max(0, pagePontualidade - 1))}
+                              onClick={() =>
+                                setPagePontualidade(
+                                  Math.max(0, pagePontualidade - 1)
+                                )
+                              }
                               disabled={pagePontualidade === 0}
                               size="small"
                               sx={{
-                                bgcolor: pagePontualidade === 0 ? "#f3f4f6" : "#3b82f6",
-                                color: pagePontualidade === 0 ? "#9ca3af" : "white",
+                                bgcolor:
+                                  pagePontualidade === 0
+                                    ? "#f3f4f6"
+                                    : "#3b82f6",
+                                color:
+                                  pagePontualidade === 0 ? "#9ca3af" : "white",
                                 "&:hover": {
-                                  bgcolor: pagePontualidade === 0 ? "#f3f4f6" : "#2563eb",
+                                  bgcolor:
+                                    pagePontualidade === 0
+                                      ? "#f3f4f6"
+                                      : "#2563eb",
                                 },
                                 "&:disabled": {
                                   bgcolor: "#f3f4f6",
@@ -4300,39 +4765,65 @@ const Dashboard: React.FC = () => {
                             >
                               <ArrowBackIos sx={{ fontSize: 14, ml: 0.5 }} />
                             </IconButton>
-                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                            <Typography
+                              variant="body2"
+                              fontWeight={600}
+                              color="text.secondary"
+                            >
                               {pagePontualidade + 1} /{" "}
-                              {Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage)}
+                              {Math.ceil(
+                                indicadoresEscalas.pontualidade.length /
+                                  itemsPerPage
+                              )}
                             </Typography>
                             <IconButton
                               onClick={() =>
                                 setPagePontualidade(
                                   Math.min(
-                                    Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage) - 1,
+                                    Math.ceil(
+                                      indicadoresEscalas.pontualidade.length /
+                                        itemsPerPage
+                                    ) - 1,
                                     pagePontualidade + 1
                                   )
                                 )
                               }
                               disabled={
                                 pagePontualidade >=
-                                Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage) - 1
+                                Math.ceil(
+                                  indicadoresEscalas.pontualidade.length /
+                                    itemsPerPage
+                                ) -
+                                  1
                               }
                               size="small"
                               sx={{
                                 bgcolor:
                                   pagePontualidade >=
-                                  Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage) - 1
+                                  Math.ceil(
+                                    indicadoresEscalas.pontualidade.length /
+                                      itemsPerPage
+                                  ) -
+                                    1
                                     ? "#f3f4f6"
                                     : "#3b82f6",
                                 color:
                                   pagePontualidade >=
-                                  Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage) - 1
+                                  Math.ceil(
+                                    indicadoresEscalas.pontualidade.length /
+                                      itemsPerPage
+                                  ) -
+                                    1
                                     ? "#9ca3af"
                                     : "white",
                                 "&:hover": {
                                   bgcolor:
                                     pagePontualidade >=
-                                    Math.ceil(indicadoresEscalas.pontualidade.length / itemsPerPage) - 1
+                                    Math.ceil(
+                                      indicadoresEscalas.pontualidade.length /
+                                        itemsPerPage
+                                    ) -
+                                      1
                                       ? "#f3f4f6"
                                       : "#2563eb",
                                 },
@@ -4447,7 +4938,10 @@ const Dashboard: React.FC = () => {
                                   },
                                 }}
                                 onClick={() =>
-                                  handleOpenAbsenteismoModal(item.cpf, item.nome)
+                                  handleOpenAbsenteismoModal(
+                                    item.cpf,
+                                    item.nome
+                                  )
                                 }
                               >
                                 <Box
@@ -4475,7 +4969,9 @@ const Dashboard: React.FC = () => {
                                         fontSize: 14,
                                       }}
                                     >
-                                      {pageAbsenteismo * itemsPerPage + index + 1}
+                                      {pageAbsenteismo * itemsPerPage +
+                                        index +
+                                        1}
                                     </Box>
                                     <Box flex={1}>
                                       <Typography
@@ -4514,7 +5010,8 @@ const Dashboard: React.FC = () => {
                               </Paper>
                             ))}
                         </Box>
-                        {indicadoresEscalas.absenteismo.length > itemsPerPage && (
+                        {indicadoresEscalas.absenteismo.length >
+                          itemsPerPage && (
                           <Box
                             sx={{
                               display: "flex",
@@ -4527,14 +5024,23 @@ const Dashboard: React.FC = () => {
                             }}
                           >
                             <IconButton
-                              onClick={() => setPageAbsenteismo(Math.max(0, pageAbsenteismo - 1))}
+                              onClick={() =>
+                                setPageAbsenteismo(
+                                  Math.max(0, pageAbsenteismo - 1)
+                                )
+                              }
                               disabled={pageAbsenteismo === 0}
                               size="small"
                               sx={{
-                                bgcolor: pageAbsenteismo === 0 ? "#f3f4f6" : "#3b82f6",
-                                color: pageAbsenteismo === 0 ? "#9ca3af" : "white",
+                                bgcolor:
+                                  pageAbsenteismo === 0 ? "#f3f4f6" : "#3b82f6",
+                                color:
+                                  pageAbsenteismo === 0 ? "#9ca3af" : "white",
                                 "&:hover": {
-                                  bgcolor: pageAbsenteismo === 0 ? "#f3f4f6" : "#2563eb",
+                                  bgcolor:
+                                    pageAbsenteismo === 0
+                                      ? "#f3f4f6"
+                                      : "#2563eb",
                                 },
                                 "&:disabled": {
                                   bgcolor: "#f3f4f6",
@@ -4544,39 +5050,65 @@ const Dashboard: React.FC = () => {
                             >
                               <ArrowBackIos sx={{ fontSize: 14, ml: 0.5 }} />
                             </IconButton>
-                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                            <Typography
+                              variant="body2"
+                              fontWeight={600}
+                              color="text.secondary"
+                            >
                               {pageAbsenteismo + 1} /{" "}
-                              {Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage)}
+                              {Math.ceil(
+                                indicadoresEscalas.absenteismo.length /
+                                  itemsPerPage
+                              )}
                             </Typography>
                             <IconButton
                               onClick={() =>
                                 setPageAbsenteismo(
                                   Math.min(
-                                    Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage) - 1,
+                                    Math.ceil(
+                                      indicadoresEscalas.absenteismo.length /
+                                        itemsPerPage
+                                    ) - 1,
                                     pageAbsenteismo + 1
                                   )
                                 )
                               }
                               disabled={
                                 pageAbsenteismo >=
-                                Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage) - 1
+                                Math.ceil(
+                                  indicadoresEscalas.absenteismo.length /
+                                    itemsPerPage
+                                ) -
+                                  1
                               }
                               size="small"
                               sx={{
                                 bgcolor:
                                   pageAbsenteismo >=
-                                  Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage) - 1
+                                  Math.ceil(
+                                    indicadoresEscalas.absenteismo.length /
+                                      itemsPerPage
+                                  ) -
+                                    1
                                     ? "#f3f4f6"
                                     : "#3b82f6",
                                 color:
                                   pageAbsenteismo >=
-                                  Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage) - 1
+                                  Math.ceil(
+                                    indicadoresEscalas.absenteismo.length /
+                                      itemsPerPage
+                                  ) -
+                                    1
                                     ? "#9ca3af"
                                     : "white",
                                 "&:hover": {
                                   bgcolor:
                                     pageAbsenteismo >=
-                                    Math.ceil(indicadoresEscalas.absenteismo.length / itemsPerPage) - 1
+                                    Math.ceil(
+                                      indicadoresEscalas.absenteismo.length /
+                                        itemsPerPage
+                                    ) -
+                                      1
                                       ? "#f3f4f6"
                                       : "#2563eb",
                                 },
@@ -5092,28 +5624,52 @@ const Dashboard: React.FC = () => {
                     </Typography>
 
                     {personProdutividade.length === 0 ? (
-                      <Alert
-                        severity="info"
-                        sx={{ mb: 2 }}
-                        icon={<Warning />}
-                      >
-                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                      <Alert severity="info" sx={{ mb: 2 }} icon={<Warning />}>
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                          sx={{ mb: 1 }}
+                        >
                           Nenhum registro de produtividade encontrado
                         </Typography>
                         <Typography variant="caption" component="div">
                           Possíveis causas:
                         </Typography>
-                        <Typography variant="caption" component="div" sx={{ ml: 2 }}>
-                          • Não há registros de produtividade para este profissional no período selecionado
+                        <Typography
+                          variant="caption"
+                          component="div"
+                          sx={{ ml: 2 }}
+                        >
+                          • Não há registros de produtividade para este
+                          profissional no período selecionado
                         </Typography>
-                        <Typography variant="caption" component="div" sx={{ ml: 2 }}>
-                          • O código MV do profissional pode não estar cadastrado ou vinculado corretamente
+                        <Typography
+                          variant="caption"
+                          component="div"
+                          sx={{ ml: 2 }}
+                        >
+                          • O código MV do profissional pode não estar
+                          cadastrado ou vinculado corretamente
                         </Typography>
-                        <Typography variant="caption" component="div" sx={{ ml: 2 }}>
-                          • Os dados de produtividade ainda não foram importados para o período
+                        <Typography
+                          variant="caption"
+                          component="div"
+                          sx={{ ml: 2 }}
+                        >
+                          • Os dados de produtividade ainda não foram importados
+                          para o período
                         </Typography>
-                        <Typography variant="caption" component="div" sx={{ mt: 1, fontStyle: 'italic', color: 'text.secondary' }}>
-                          💡 Dica: Verifique o console do navegador (F12) para mais detalhes de diagnóstico
+                        <Typography
+                          variant="caption"
+                          component="div"
+                          sx={{
+                            mt: 1,
+                            fontStyle: "italic",
+                            color: "text.secondary",
+                          }}
+                        >
+                          💡 Dica: Verifique o console do navegador (F12) para
+                          mais detalhes de diagnóstico
                         </Typography>
                       </Alert>
                     ) : (
@@ -6505,11 +7061,7 @@ const Dashboard: React.FC = () => {
                       >
                         Total de Horas Escaladas
                       </Typography>
-                      <Typography
-                        variant="h4"
-                        fontWeight={700}
-                        color="#ea580c"
-                      >
+                      <Typography variant="h4" fontWeight={700} color="#ea580c">
                         {horasEscaladasSelecionadas.totalHoras.toFixed(1)}h
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -6724,11 +7276,7 @@ const Dashboard: React.FC = () => {
                       >
                         Total de Horas na Unidade
                       </Typography>
-                      <Typography
-                        variant="h4"
-                        fontWeight={700}
-                        color="#1e40af"
-                      >
+                      <Typography variant="h4" fontWeight={700} color="#1e40af">
                         {horasUnidadeSelecionadas.totalHoras.toFixed(1)}h
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
