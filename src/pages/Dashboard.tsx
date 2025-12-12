@@ -94,7 +94,7 @@ const Dashboard: React.FC = () => {
   const [filtroMatricula, setFiltroMatricula] = useState<string[]>([]);
   const [filtroNome, setFiltroNome] = useState<string[]>([]);
   const [filtroCpf, setFiltroCpf] = useState<string[]>([]);
-  const [filtroSentido, setFiltroSentido] = useState<string[]>([]);
+  const [filtroEspecialidade, setFiltroEspecialidade] = useState<string[]>([]);
   const [filtroContrato, setFiltroContrato] = useState<Contrato | null>(null);
   const [filtroUnidade, setFiltroUnidade] = useState<string[]>([]);
   const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
@@ -227,11 +227,12 @@ const Dashboard: React.FC = () => {
     filtroMatricula,
     filtroNome,
     filtroCpf,
-    filtroSentido,
+    filtroEspecialidade,
     filtroContrato,
     filtroUnidade,
     filtroDataInicio,
     filtroDataFim,
+    usuarios,
   ]);
 
   // Atualizar CPFs do contrato filtrado sempre que o filtro de contrato mudar
@@ -340,7 +341,7 @@ const Dashboard: React.FC = () => {
     try {
       const { data, error: fetchError } = await supabase
         .from("usuarios")
-        .select("cpf, codigomv");
+        .select("cpf, codigomv, especialidade, nome");
 
       if (fetchError) throw fetchError;
       setUsuarios(data || []);
@@ -497,8 +498,11 @@ const Dashboard: React.FC = () => {
       if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome))
         return false;
       if (filtroCpf.length > 0 && !filtroCpf.includes(acesso.cpf)) return false;
-      if (filtroSentido.length > 0 && !filtroSentido.includes(acesso.sentido))
-        return false;
+      if (filtroEspecialidade.length > 0) {
+        const usuario = usuarios.find((u) => u.cpf === acesso.cpf);
+        if (!usuario || !usuario.especialidade || !usuario.especialidade.some((esp) => filtroEspecialidade.includes(esp)))
+          return false;
+      }
 
       // Filtro de contrato
       if (
@@ -732,6 +736,17 @@ const Dashboard: React.FC = () => {
     () => [...new Set(acessos.map((a) => a.planta))].filter(Boolean).sort(),
     [acessos]
   );
+  const especialidadesUnicas = useMemo(() => {
+    const especialidades = new Set<string>();
+    usuarios.forEach((u) => {
+      if (u.especialidade && Array.isArray(u.especialidade)) {
+        u.especialidade.forEach((esp) => {
+          if (esp) especialidades.add(esp);
+        });
+      }
+    });
+    return [...especialidades].sort();
+  }, [usuarios]);
 
   const handleOpenModal = (person: HorasCalculadas) => {
     setSelectedPerson(person);
@@ -1433,8 +1448,11 @@ const Dashboard: React.FC = () => {
       if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome))
         return false;
       if (filtroCpf.length > 0 && !filtroCpf.includes(acesso.cpf)) return false;
-      if (filtroSentido.length > 0 && !filtroSentido.includes(acesso.sentido))
-        return false;
+      if (filtroEspecialidade.length > 0) {
+        const usuario = usuarios.find((u) => u.cpf === acesso.cpf);
+        if (!usuario || !usuario.especialidade || !usuario.especialidade.some((esp) => filtroEspecialidade.includes(esp)))
+          return false;
+      }
       if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta))
         return false;
       // Filtro de contrato
@@ -1538,11 +1556,12 @@ const Dashboard: React.FC = () => {
     filtroMatricula,
     filtroNome,
     filtroCpf,
-    filtroSentido,
+    filtroEspecialidade,
     filtroUnidade,
     filtroDataInicio,
     filtroDataFim,
     cpfsDoContratoFiltrado,
+    usuarios,
   ]);
 
   // Função para obter cor do heatmap baseado na intensidade
@@ -2657,17 +2676,14 @@ const Dashboard: React.FC = () => {
               <Grid item xs={12} sm={6} md={4}>
                 <Autocomplete
                   multiple
-                  value={filtroSentido}
-                  onChange={(_, newValue) => setFiltroSentido(newValue)}
-                  options={["E", "S"]}
-                  getOptionLabel={(option) =>
-                    option === "E" ? "Entrada" : "Saída"
-                  }
+                  value={filtroEspecialidade}
+                  onChange={(_, newValue) => setFiltroEspecialidade(newValue)}
+                  options={especialidadesUnicas}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Sentido"
-                      placeholder="Selecione um ou mais"
+                      label="Especialidade"
+                      placeholder="Selecione uma ou mais"
                     />
                   )}
                   size="small"
