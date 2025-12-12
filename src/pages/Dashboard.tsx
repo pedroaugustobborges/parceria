@@ -1173,9 +1173,9 @@ const Dashboard: React.FC = () => {
         }
       });
       if (datasSemAcesso.length > 0) {
-        // Encontrar o nome da pessoa
-        const acesso = acessos.find((a) => a.cpf === cpf);
-        const nome = acesso?.nome || cpf;
+        // Encontrar o nome da pessoa a partir dos registros de produtividade
+        const prod = produtividade.find((p) => codigoMVToCPF.get(p.codigo_mv) === cpf);
+        const nome = prod?.nome || cpf;
         prodSemAcesso.set(nome, datasSemAcesso);
       }
     });
@@ -1191,6 +1191,7 @@ const Dashboard: React.FC = () => {
         }
       });
       if (datasSemProd.length > 0) {
+        // Encontrar o nome da pessoa a partir dos registros de acesso
         const acesso = acessos.find((a) => a.cpf === cpf);
         const nome = acesso?.nome || cpf;
         acessoSemProd.set(nome, datasSemProd);
