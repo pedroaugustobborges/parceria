@@ -10,6 +10,7 @@ import psycopg2
 from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
+import pytz
 
 # Configuração para Windows suportar caracteres Unicode no console
 if sys.platform == 'win32':
@@ -159,6 +160,9 @@ def inserir_em_supabase(supabase: Client, dados):
         return
 
     try:
+        # Timezone do Brasil (Brasília)
+        brazil_tz = pytz.timezone('America/Sao_Paulo')
+
         total = len(dados)
         inseridos = 0
         duplicados = 0
@@ -168,13 +172,27 @@ def inserir_em_supabase(supabase: Client, dados):
 
         for i, registro in enumerate(dados, 1):
             try:
+                # Processa data_acesso com timezone do Brasil
+                data_acesso_original = registro.get('data_acesso')
+                if hasattr(data_acesso_original, 'isoformat'):
+                    # Se é datetime, assume que está em horário do Brasil (timezone-naive)
+                    if data_acesso_original.tzinfo is None:
+                        # Marca como horário do Brasil
+                        data_acesso_br = brazil_tz.localize(data_acesso_original)
+                    else:
+                        # Já tem timezone, converte para Brasil
+                        data_acesso_br = data_acesso_original.astimezone(brazil_tz)
+                    data_acesso_str = data_acesso_br.isoformat()
+                else:
+                    data_acesso_str = str(data_acesso_original)
+
                 # Extrai apenas os campos necessários para a tabela acessos
                 acesso = {
                     'tipo': registro.get('tipo', ''),
                     'matricula': registro.get('matricula', ''),
                     'nome': registro.get('nome', ''),
                     'cpf': registro.get('cpf', ''),
-                    'data_acesso': registro.get('data_acesso').isoformat() if hasattr(registro.get('data_acesso'), 'isoformat') else str(registro.get('data_acesso')),
+                    'data_acesso': data_acesso_str,
                     'sentido': registro.get('sentido', ''),
                     'planta': registro.get('planta'),
                     'codin': registro.get('codin')

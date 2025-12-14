@@ -2,6 +2,7 @@ import csv
 import requests
 import os
 from datetime import datetime
+import pytz
 
 # Configurações do Supabase (do arquivo .env)
 SUPABASE_URL = "https://qszqzdnlhxpglllyqtht.supabase.co"
@@ -28,17 +29,29 @@ erros = 0
 batch = []
 batch_size = 100
 
+# Timezone do Brasil (Brasília)
+brazil_tz = pytz.timezone('America/Sao_Paulo')
+
 # Ler e importar CSV
 with open('Acessos.csv', 'r', encoding='utf-8') as csvfile:
     reader = csv.DictReader(csvfile)
 
     for row in reader:
         try:
-            # Converter data DD/MM/YYYY HH:MM:SS -> YYYY-MM-DD HH:MM:SS
+            # Converter data DD/MM/YYYY HH:MM:SS -> datetime com timezone do Brasil
             data_parts = row['data_acesso'].split(' ')
             date_parts = data_parts[0].split('/')
             time_part = data_parts[1] if len(data_parts) > 1 else '00:00:00'
-            data_formatada = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]} {time_part}"
+
+            # Criar datetime naive
+            dt_naive = datetime.strptime(
+                f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]} {time_part}",
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+            # Localizar no timezone do Brasil e converter para ISO format
+            dt_brazil = brazil_tz.localize(dt_naive)
+            data_formatada = dt_brazil.isoformat()
 
             # Criar registro
             registro = {
