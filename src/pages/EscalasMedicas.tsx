@@ -81,19 +81,22 @@ import {
 import { format, parseISO } from "date-fns";
 import { useAuth } from "../contexts/AuthContext";
 import { recalcularStatusEscalas } from "../services/statusAnalysisService";
+import { usePersistentState, usePersistentArray } from "../hooks/usePersistentState";
 
 const EscalasMedicas: React.FC = () => {
   const { isAdminAgir, isAdminTerceiro, isTerceiro, userProfile } = useAuth();
+
+  // Large data arrays - NOT persisted (might be large)
   const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
   const [escalasFiltradas, setEscalasFiltradas] = useState<EscalaMedica[]>([]);
-  const [contratos, setContratos] = useState<Contrato[]>([]);
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
-  const [itensContrato, setItensContrato] = useState<ItemContrato[]>([]);
-  const [todosItensContrato, setTodosItensContrato] = useState<ItemContrato[]>(
-    []
-  );
-  const [contratoItens, setContratoItens] = useState<ContratoItem[]>([]);
+
+  // Auxiliary data - persisted (smaller, useful for autocomplete)
+  const [contratos, setContratos] = usePersistentArray<Contrato>("escalas_contratos");
+  const [usuarios, setUsuarios] = usePersistentArray<Usuario>("escalas_usuarios");
+  const [unidades, setUnidades] = usePersistentArray<UnidadeHospitalar>("escalas_unidades");
+  const [itensContrato, setItensContrato] = usePersistentArray<ItemContrato>("escalas_itensContrato");
+  const [todosItensContrato, setTodosItensContrato] = usePersistentArray<ItemContrato>("escalas_todosItensContrato");
+  const [contratoItens, setContratoItens] = usePersistentArray<ContratoItem>("escalas_contratoItens");
   const [loading, setLoading] = useState(false);
   const [loadingUsuarios, setLoadingUsuarios] = useState(false);
   const [error, setError] = useState("");
@@ -121,16 +124,16 @@ const EscalasMedicas: React.FC = () => {
   );
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
 
-  // Filtros
-  const [filtroParceiro, setFiltroParceiro] = useState<string[]>([]);
-  const [filtroContrato, setFiltroContrato] = useState<string[]>([]);
-  const [filtroUnidade, setFiltroUnidade] = useState<string[]>([]);
-  const [filtroNome, setFiltroNome] = useState<string[]>([]);
-  const [filtroCpf, setFiltroCpf] = useState<string[]>([]);
-  const [filtroStatus, setFiltroStatus] = useState<StatusEscala[]>([]);
-  const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
-  const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
-  const [buscaRealizada, setBuscaRealizada] = useState(false);
+  // Persistent filters - survive navigation between tabs
+  const [filtroParceiro, setFiltroParceiro] = usePersistentArray<string>("escalas_filtroParceiro");
+  const [filtroContrato, setFiltroContrato] = usePersistentArray<string>("escalas_filtroContrato");
+  const [filtroUnidade, setFiltroUnidade] = usePersistentArray<string>("escalas_filtroUnidade");
+  const [filtroNome, setFiltroNome] = usePersistentArray<string>("escalas_filtroNome");
+  const [filtroCpf, setFiltroCpf] = usePersistentArray<string>("escalas_filtroCpf");
+  const [filtroStatus, setFiltroStatus] = usePersistentArray<StatusEscala>("escalas_filtroStatus");
+  const [filtroDataInicio, setFiltroDataInicio] = usePersistentState<Date | null>("escalas_filtroDataInicio", null);
+  const [filtroDataFim, setFiltroDataFim] = usePersistentState<Date | null>("escalas_filtroDataFim", null);
+  const [buscaRealizada, setBuscaRealizada] = usePersistentState<boolean>("escalas_buscaRealizada", false);
 
   // Wizard state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -177,6 +180,13 @@ const EscalasMedicas: React.FC = () => {
   useEffect(() => {
     // Carregar apenas dados auxiliares (contratos, unidades, itens)
     loadAuxiliaryData();
+
+    // Auto-reload escalas data if filters are saved and search was previously performed
+    // This happens when user navigates back to Escalas Médicas after leaving
+    if (buscaRealizada && filtroDataInicio && filtroDataFim && escalas.length === 0) {
+      console.log('🔄 Auto-reloading escalas data from saved filters...');
+      handleBuscarEscalas();
+    }
   }, []);
 
   useEffect(() => {
@@ -285,6 +295,32 @@ const EscalasMedicas: React.FC = () => {
   };
 
   // Buscar escalas com filtro de datas obrigatório
+  // Clear all filters and data
+  const handleClearFilters = () => {
+    // Clear all filters
+    setFiltroParceiro([]);
+    setFiltroContrato([]);
+    setFiltroUnidade([]);
+    setFiltroNome([]);
+    setFiltroCpf([]);
+    setFiltroStatus([]);
+    setFiltroDataInicio(null);
+    setFiltroDataFim(null);
+
+    // Clear data
+    setEscalas([]);
+    setEscalasFiltradas([]);
+    setBuscaRealizada(false);
+
+    // Clear sessionStorage
+    const escalasKeys = Object.keys(sessionStorage).filter(k => k.startsWith('escalas_'));
+    escalasKeys.forEach(k => sessionStorage.removeItem(k));
+
+    setError("");
+    setSuccess("Filtros limpos com sucesso!");
+    setTimeout(() => setSuccess(""), 3000);
+  };
+
   const handleBuscarEscalas = async () => {
     // Validar datas obrigatórias
     if (!filtroDataInicio || !filtroDataFim) {
@@ -2178,15 +2214,28 @@ const EscalasMedicas: React.FC = () => {
               </Button>
 
               {buscaRealizada && (
-                <Button
-                  variant="outlined"
-                  size="large"
-                  startIcon={<Refresh />}
-                  onClick={handleBuscarEscalas}
-                  disabled={loading}
-                >
-                  Atualizar
-                </Button>
+                <>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    startIcon={<Refresh />}
+                    onClick={handleBuscarEscalas}
+                    disabled={loading}
+                  >
+                    Atualizar
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    startIcon={<Close />}
+                    onClick={handleClearFilters}
+                    disabled={loading}
+                    color="error"
+                  >
+                    Limpar Filtros
+                  </Button>
+                </>
               )}
             </Box>
           </CardContent>

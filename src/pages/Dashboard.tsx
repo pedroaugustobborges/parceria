@@ -75,32 +75,40 @@ import {
 } from "../types/database.types";
 import { useAuth } from "../contexts/AuthContext";
 import { format, parseISO, differenceInMinutes } from "date-fns";
+import { usePersistentState, usePersistentArray, useClearDashboardState } from "../hooks/usePersistentState";
 
 const Dashboard: React.FC = () => {
   const { userProfile, isAdminTerceiro, isTerceiro } = useAuth();
+
+  // Large data arrays - NOT persisted (too large for sessionStorage)
+  // These will auto-reload when component mounts if filters are saved
   const [acessos, setAcessos] = useState<Acesso[]>([]);
-  const [acessosFiltrados, setAcessosFiltrados] = useState<Acesso[]>([]); // Novo state para acessos filtrados
+  const [acessosFiltrados, setAcessosFiltrados] = useState<Acesso[]>([]);
   const [horasCalculadas, setHorasCalculadas] = useState<HorasCalculadas[]>([]);
-  const [contratos, setContratos] = useState<Contrato[]>([]);
-  const [contratoItems, setContratoItems] = useState<ContratoItem[]>([]);
-  const [produtividade, setProdutividade] = useState<Produtividade[]>([]);
-  const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
+
+  // Auxiliary data - persisted (smaller, ~100-500KB total)
+  const [contratos, setContratos] = usePersistentArray<Contrato>("dashboard_contratos");
+  const [contratoItems, setContratoItems] = usePersistentArray<ContratoItem>("dashboard_contratoItems");
+  const [produtividade, setProdutividade] = usePersistentArray<Produtividade>("dashboard_produtividade");
+  const [escalas, setEscalas] = usePersistentArray<EscalaMedica>("dashboard_escalas");
+  const [usuarios, setUsuarios] = usePersistentArray<Usuario>("dashboard_usuarios");
+  const [unidades, setUnidades] = usePersistentArray<UnidadeHospitalar>("dashboard_unidades");
+
+  // Transient state - does not persist (loading, errors)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [buscaRealizada, setBuscaRealizada] = useState(false);
+  const [buscaRealizada, setBuscaRealizada] = usePersistentState<boolean>("dashboard_buscaRealizada", false);
 
-  // Filtros - Agora com múltiplas seleções
-  const [filtroTipo, setFiltroTipo] = useState<string[]>([]);
-  const [filtroMatricula, setFiltroMatricula] = useState<string[]>([]);
-  const [filtroNome, setFiltroNome] = useState<string[]>([]);
-  const [filtroCpf, setFiltroCpf] = useState<string[]>([]);
-  const [filtroEspecialidade, setFiltroEspecialidade] = useState<string[]>([]);
-  const [filtroContrato, setFiltroContrato] = useState<Contrato | null>(null);
-  const [filtroUnidade, setFiltroUnidade] = useState<string[]>([]);
-  const [filtroDataInicio, setFiltroDataInicio] = useState<Date | null>(null);
-  const [filtroDataFim, setFiltroDataFim] = useState<Date | null>(null);
+  // Persistent filters - preserve user selections across navigation
+  const [filtroTipo, setFiltroTipo] = usePersistentArray<string>("dashboard_filtroTipo");
+  const [filtroMatricula, setFiltroMatricula] = usePersistentArray<string>("dashboard_filtroMatricula");
+  const [filtroNome, setFiltroNome] = usePersistentArray<string>("dashboard_filtroNome");
+  const [filtroCpf, setFiltroCpf] = usePersistentArray<string>("dashboard_filtroCpf");
+  const [filtroEspecialidade, setFiltroEspecialidade] = usePersistentArray<string>("dashboard_filtroEspecialidade");
+  const [filtroContrato, setFiltroContrato] = usePersistentState<Contrato | null>("dashboard_filtroContrato", null);
+  const [filtroUnidade, setFiltroUnidade] = usePersistentArray<string>("dashboard_filtroUnidade");
+  const [filtroDataInicio, setFiltroDataInicio] = usePersistentState<Date | null>("dashboard_filtroDataInicio", null);
+  const [filtroDataFim, setFiltroDataFim] = usePersistentState<Date | null>("dashboard_filtroDataFim", null);
 
   // CPFs vinculados ao contrato filtrado (para uso em useMemo)
   const [cpfsDoContratoFiltrado, setCpfsDoContratoFiltrado] = useState<
@@ -218,6 +226,13 @@ const Dashboard: React.FC = () => {
     // Load only auxiliary data (contracts, items, productivity, schedules, users, units)
     // Access data will be loaded only when user clicks "Buscar Acessos"
     loadAuxiliaryData();
+
+    // Auto-reload acessos data if filters are saved and search was previously performed
+    // This happens when user navigates back to Dashboard after leaving
+    if (buscaRealizada && filtroDataInicio && filtroDataFim && acessos.length === 0) {
+      console.log('🔄 Auto-reloading acessos data from saved filters...');
+      handleBuscarAcessos();
+    }
   }, []);
 
   useEffect(() => {
@@ -723,6 +738,32 @@ const Dashboard: React.FC = () => {
     );
 
     setHorasCalculadas(resultado.sort((a, b) => b.totalHoras - a.totalHoras));
+  };
+
+  // Clear all filters and data
+  const clearDashboardState = useClearDashboardState();
+  const handleClearFilters = () => {
+    // Clear all filters
+    setFiltroTipo([]);
+    setFiltroMatricula([]);
+    setFiltroNome([]);
+    setFiltroCpf([]);
+    setFiltroEspecialidade([]);
+    setFiltroContrato(null);
+    setFiltroUnidade([]);
+    setFiltroDataInicio(null);
+    setFiltroDataFim(null);
+
+    // Clear data
+    setAcessos([]);
+    setAcessosFiltrados([]);
+    setHorasCalculadas([]);
+    setBuscaRealizada(false);
+
+    // Clear sessionStorage
+    clearDashboardState();
+
+    setError("");
   };
 
   // Opções para autocomplete
@@ -2940,15 +2981,28 @@ const Dashboard: React.FC = () => {
               </Button>
 
               {buscaRealizada && (
-                <Button
-                  variant="outlined"
-                  size="large"
-                  startIcon={<Refresh />}
-                  onClick={handleBuscarAcessos}
-                  disabled={loading}
-                >
-                  Atualizar
-                </Button>
+                <>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    startIcon={<Refresh />}
+                    onClick={handleBuscarAcessos}
+                    disabled={loading}
+                  >
+                    Atualizar
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    startIcon={<Close />}
+                    onClick={handleClearFilters}
+                    disabled={loading}
+                    color="error"
+                  >
+                    Limpar Filtros
+                  </Button>
+                </>
               )}
             </Box>
           </CardContent>
