@@ -163,6 +163,20 @@ export interface HorasCalculadas {
   entradas: number;
   saidas: number;
   ultimoAcesso: string;
+  especialidade: string;
+  produtividade_procedimento: number;
+  produtividade_parecer_solicitado: number;
+  produtividade_parecer_realizado: number;
+  produtividade_cirurgia_realizada: number;
+  produtividade_prescricao: number;
+  produtividade_evolucao: number;
+  produtividade_urgencia: number;
+  produtividade_ambulatorio: number;
+  produtividade_auxiliar: number;
+  produtividade_encaminhamento: number;
+  produtividade_folha_objetivo_diario: number;
+  produtividade_evolucao_diurna_cti: number;
+  produtividade_evolucao_noturna_cti: number;
 }
 
 export type UnidadeMedida =

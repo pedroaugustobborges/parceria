@@ -720,6 +720,50 @@ const Dashboard: React.FC = () => {
           0
         );
 
+        // Buscar especialidade do usuário
+        const usuario = usuarios.find((u) => u.cpf === cpf);
+        const especialidade = usuario?.especialidade?.[0] || "-";
+
+        // Calcular produtividade para este CPF filtrada por data
+        const produtividadeCpf = produtividade.filter((p) => {
+          // Encontrar o usuário pelo código MV
+          const usuarioProd = usuarios.find((u) => u.codigomv === p.codigo_mv);
+          if (usuarioProd?.cpf !== cpf) return false;
+
+          // Filtrar por data se houver filtros aplicados
+          if (p.data && (filtroDataInicio || filtroDataFim)) {
+            // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+            const dataProdStr = p.data.split('T')[0]; // "2024-12-10"
+
+            if (filtroDataInicio) {
+              const dataInicioStr = format(filtroDataInicio, 'yyyy-MM-dd');
+              if (dataProdStr < dataInicioStr) return false;
+            }
+
+            if (filtroDataFim) {
+              const dataFimStr = format(filtroDataFim, 'yyyy-MM-dd');
+              if (dataProdStr > dataFimStr) return false;
+            }
+          }
+
+          return true;
+        });
+
+        // Somar cada tipo de produtividade separadamente
+        const produtividade_procedimento = produtividadeCpf.reduce((sum, item) => sum + (item.procedimento || 0), 0);
+        const produtividade_parecer_solicitado = produtividadeCpf.reduce((sum, item) => sum + (item.parecer_solicitado || 0), 0);
+        const produtividade_parecer_realizado = produtividadeCpf.reduce((sum, item) => sum + (item.parecer_realizado || 0), 0);
+        const produtividade_cirurgia_realizada = produtividadeCpf.reduce((sum, item) => sum + (item.cirurgia_realizada || 0), 0);
+        const produtividade_prescricao = produtividadeCpf.reduce((sum, item) => sum + (item.prescricao || 0), 0);
+        const produtividade_evolucao = produtividadeCpf.reduce((sum, item) => sum + (item.evolucao || 0), 0);
+        const produtividade_urgencia = produtividadeCpf.reduce((sum, item) => sum + (item.urgencia || 0), 0);
+        const produtividade_ambulatorio = produtividadeCpf.reduce((sum, item) => sum + (item.ambulatorio || 0), 0);
+        const produtividade_auxiliar = produtividadeCpf.reduce((sum, item) => sum + (item.auxiliar || 0), 0);
+        const produtividade_encaminhamento = produtividadeCpf.reduce((sum, item) => sum + (item.encaminhamento || 0), 0);
+        const produtividade_folha_objetivo_diario = produtividadeCpf.reduce((sum, item) => sum + (item.folha_objetivo_diario || 0), 0);
+        const produtividade_evolucao_diurna_cti = produtividadeCpf.reduce((sum, item) => sum + (item.evolucao_diurna_cti || 0), 0);
+        const produtividade_evolucao_noturna_cti = produtividadeCpf.reduce((sum, item) => sum + (item.evolucao_noturna_cti || 0), 0);
+
         return {
           cpf,
           nome: ultimoAcesso.nome,
@@ -733,6 +777,20 @@ const Dashboard: React.FC = () => {
           entradas: totalEntradas,
           saidas: totalSaidas,
           ultimoAcesso: ultimoAcesso.data_acesso,
+          especialidade: especialidade,
+          produtividade_procedimento,
+          produtividade_parecer_solicitado,
+          produtividade_parecer_realizado,
+          produtividade_cirurgia_realizada,
+          produtividade_prescricao,
+          produtividade_evolucao,
+          produtividade_urgencia,
+          produtividade_ambulatorio,
+          produtividade_auxiliar,
+          produtividade_encaminhamento,
+          produtividade_folha_objetivo_diario,
+          produtividade_evolucao_diurna_cti,
+          produtividade_evolucao_noturna_cti,
         };
       }
     );
@@ -2531,6 +2589,191 @@ const Dashboard: React.FC = () => {
         <Typography variant="body2">
           {format(parseISO(params.value), "dd/MM/yyyy HH:mm", { locale: ptBR })}
         </Typography>
+      ),
+    },
+    {
+      field: "especialidade",
+      headerName: "Especialidade",
+      width: 150,
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          sx={{
+            bgcolor: "primary.50",
+            color: "primary.700",
+            fontWeight: 500,
+          }}
+        />
+      ),
+    },
+    {
+      field: "produtividade_procedimento",
+      headerName: "Procedimento",
+      width: 110,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_parecer_solicitado",
+      headerName: "Parecer Sol.",
+      width: 110,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_parecer_realizado",
+      headerName: "Parecer Real.",
+      width: 110,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_cirurgia_realizada",
+      headerName: "Cirurgia",
+      width: 100,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_prescricao",
+      headerName: "Prescrição",
+      width: 100,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_evolucao",
+      headerName: "Evolução",
+      width: 100,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_urgencia",
+      headerName: "Urgência",
+      width: 100,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_ambulatorio",
+      headerName: "Ambulatório",
+      width: 110,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_auxiliar",
+      headerName: "Auxiliar",
+      width: 100,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_encaminhamento",
+      headerName: "Encaminh.",
+      width: 110,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_folha_objetivo_diario",
+      headerName: "Folha Obj.",
+      width: 100,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_evolucao_diurna_cti",
+      headerName: "Evol. Diurna CTI",
+      width: 130,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
+      ),
+    },
+    {
+      field: "produtividade_evolucao_noturna_cti",
+      headerName: "Evol. Noturna CTI",
+      width: 130,
+      type: "number",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value > 0 ? "success" : "default"}
+        />
       ),
     },
   ];
