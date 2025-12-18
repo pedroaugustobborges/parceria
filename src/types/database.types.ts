@@ -272,7 +272,7 @@ export interface MedicoEscala {
   cpf: string;
 }
 
-export type StatusEscala = 'Pré-Agendado' | 'Programado' | 'Pré-Aprovado' | 'Atenção' | 'Aprovado' | 'Reprovado';
+export type StatusEscala = 'Pré-Agendado' | 'Programado' | 'Pré-Aprovado' | 'Aprovação Parcial' | 'Atenção' | 'Aprovado' | 'Reprovado';
 
 export interface EscalaMedica {
   id: string;

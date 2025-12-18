@@ -63,6 +63,7 @@ import {
   CloudUpload,
   Info,
   Close,
+  HowToReg,
 } from "@mui/icons-material";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -208,6 +209,7 @@ const EscalasMedicas: React.FC = () => {
     const metrics = {
       aprovado: { valor: 0, horas: 0 },
       preAprovado: { valor: 0, horas: 0 },
+      aprovacaoParcial: { valor: 0, horas: 0 },
       programado: { valor: 0, horas: 0 },
       atencao: { valor: 0, horas: 0 },
     };
@@ -247,6 +249,10 @@ const EscalasMedicas: React.FC = () => {
         case "Pré-Aprovado":
           metrics.preAprovado.valor += valor;
           metrics.preAprovado.horas += totalHoras;
+          break;
+        case "Aprovação Parcial":
+          metrics.aprovacaoParcial.valor += valor;
+          metrics.aprovacaoParcial.horas += totalHoras;
           break;
         case "Programado":
           metrics.programado.valor += valor;
@@ -963,6 +969,11 @@ const EscalasMedicas: React.FC = () => {
         color: "warning" as const,
         icon: <ThumbUpAlt />,
         label: "Pré-Aprovado",
+      },
+      "Aprovação Parcial": {
+        color: "warning" as const,
+        icon: <HowToReg />,
+        label: "Aprovação Parcial",
       },
       Atenção: {
         color: "error" as const,
@@ -2104,6 +2115,7 @@ const EscalasMedicas: React.FC = () => {
                       "Pré-Agendado",
                       "Programado",
                       "Pré-Aprovado",
+                      "Aprovação Parcial",
                       "Atenção",
                       "Aprovado",
                       "Reprovado",
@@ -3296,6 +3308,7 @@ const EscalasMedicas: React.FC = () => {
                     [
                       "Programado",
                       "Pré-Aprovado",
+                      "Aprovação Parcial",
                       "Atenção",
                       "Aprovado",
                       "Reprovado",

@@ -143,14 +143,17 @@ async function calcularHorasTrabalhadas(
       }
     }
 
+    // FALLBACK: Se não encontrou dentro da janela, usar primeira entrada do dia
     if (!entradaMaisProxima) {
-      console.log(`[Status Analysis] ❌ Nenhuma entrada encontrada dentro da janela de ±3h do horário escalado`);
-      console.log(`[Status Analysis] ========== FIM DO CÁLCULO (entrada não encontrada) ==========\n`);
-      return 0;
+      console.log(`[Status Analysis] ⚠️ Nenhuma entrada encontrada dentro da janela de ±3h do horário escalado`);
+      console.log(`[Status Analysis] 🔄 FALLBACK: Usando primeira entrada do dia`);
+      entradaMaisProxima = entradas[0]; // Já está ordenado por data_acesso
     }
 
-    console.log(`[Status Analysis] ✓ Entrada mais próxima selecionada: ${format(entradaMaisProxima.dataHora, 'dd/MM/yyyy HH:mm:ss')}`);
-    console.log(`[Status Analysis]   (${(menorDiferencaEntrada / 60000).toFixed(0)} minutos de diferença do horário escalado)`);
+    console.log(`[Status Analysis] ✓ Entrada selecionada: ${format(entradaMaisProxima.dataHora, 'dd/MM/yyyy HH:mm:ss')}`);
+    if (menorDiferencaEntrada !== Infinity) {
+      console.log(`[Status Analysis]   (${(menorDiferencaEntrada / 60000).toFixed(0)} minutos de diferença do horário escalado)`);
+    }
 
     // Encontrar saída mais próxima ao horário escalado (após a entrada selecionada)
     let saidaMaisProxima = null;
@@ -172,14 +175,26 @@ async function calcularHorasTrabalhadas(
       }
     }
 
+    // FALLBACK: Se não encontrou saída dentro da janela, usar última saída do dia (após entrada)
     if (!saidaMaisProxima) {
-      console.log(`[Status Analysis] ❌ Nenhuma saída encontrada dentro da janela de ±3h do horário escalado (após a entrada)`);
-      console.log(`[Status Analysis] ========== FIM DO CÁLCULO (saída não encontrada) ==========\n`);
-      return 0;
+      console.log(`[Status Analysis] ⚠️ Nenhuma saída encontrada dentro da janela de ±3h do horário escalado`);
+      console.log(`[Status Analysis] 🔄 FALLBACK: Usando última saída do dia (após entrada)`);
+
+      // Procurar última saída após a entrada
+      const saidasAposEntrada = saidas.filter(s => s.dataHora.getTime() > entradaMaisProxima.dataHora.getTime());
+      if (saidasAposEntrada.length > 0) {
+        saidaMaisProxima = saidasAposEntrada[saidasAposEntrada.length - 1];
+      } else {
+        console.log(`[Status Analysis] ❌ Nenhuma saída encontrada após a entrada`);
+        console.log(`[Status Analysis] ========== FIM DO CÁLCULO (sem saída válida) ==========\n`);
+        return 0;
+      }
     }
 
-    console.log(`[Status Analysis] ✓ Saída mais próxima selecionada: ${format(saidaMaisProxima.dataHora, 'dd/MM/yyyy HH:mm:ss')}`);
-    console.log(`[Status Analysis]   (${(menorDiferencaSaida / 60000).toFixed(0)} minutos de diferença do horário escalado)`);
+    console.log(`[Status Analysis] ✓ Saída selecionada: ${format(saidaMaisProxima.dataHora, 'dd/MM/yyyy HH:mm:ss')}`);
+    if (menorDiferencaSaida !== Infinity) {
+      console.log(`[Status Analysis]   (${(menorDiferencaSaida / 60000).toFixed(0)} minutos de diferença do horário escalado)`);
+    }
 
     // Calcular horas trabalhadas
     const diffMs = saidaMaisProxima.dataHora.getTime() - entradaMaisProxima.dataHora.getTime();
@@ -261,6 +276,7 @@ async function analisarEscala(escala: EscalaMedica): Promise<string> {
     // Para cada médico escalado, verificar se cumpriu a carga horária
     let todosCumpriram = true;
     let algumNaoCompareceu = false;
+    let algumTrabalhouParcial = false;
 
     for (const medico of escala.medicos) {
       console.log(`[Status Analysis] Analisando médico: ${medico.nome} (CPF: ${medico.cpf})`);
@@ -285,7 +301,8 @@ async function analisarEscala(escala: EscalaMedica): Promise<string> {
         algumNaoCompareceu = true;
         todosCumpriram = false;
       } else if (horasTrabalhadas < horasEsperadas) {
-        console.log(`[Status Analysis] ⚠️  RESULTADO: Médico NÃO cumpriu carga horária (${horasTrabalhadas.toFixed(4)}h < ${horasEsperadas.toFixed(4)}h)`);
+        console.log(`[Status Analysis] ⚠️  RESULTADO: Médico trabalhou parcialmente (${horasTrabalhadas.toFixed(4)}h < ${horasEsperadas.toFixed(4)}h)`);
+        algumTrabalhouParcial = true;
         todosCumpriram = false;
       } else {
         console.log(`[Status Analysis] ✅ RESULTADO: Médico CUMPRIU carga horária (${horasTrabalhadas.toFixed(4)}h >= ${horasEsperadas.toFixed(4)}h)`);
@@ -297,12 +314,17 @@ async function analisarEscala(escala: EscalaMedica): Promise<string> {
     let statusFinal;
     console.log(`\n[Status Analysis] ========== DETERMINAÇÃO DO STATUS FINAL ==========`);
     console.log(`[Status Analysis] algumNaoCompareceu: ${algumNaoCompareceu}`);
+    console.log(`[Status Analysis] algumTrabalhouParcial: ${algumTrabalhouParcial}`);
     console.log(`[Status Analysis] todosCumpriram: ${todosCumpriram}`);
 
-    if (algumNaoCompareceu || !todosCumpriram) {
+    if (algumNaoCompareceu) {
       statusFinal = "Atenção";
       console.log(`[Status Analysis] 🔴 Status final: ATENÇÃO`);
-      console.log(`[Status Analysis] Motivo: ${algumNaoCompareceu ? 'Médico não compareceu (0 horas)' : 'Médico não cumpriu carga horária'}`);
+      console.log(`[Status Analysis] Motivo: Médico não compareceu (0 horas trabalhadas)`);
+    } else if (algumTrabalhouParcial) {
+      statusFinal = "Aprovação Parcial";
+      console.log(`[Status Analysis] 🟡 Status final: APROVAÇÃO PARCIAL`);
+      console.log(`[Status Analysis] Motivo: Médico trabalhou parcialmente (menos que as horas escaladas)`);
     } else {
       statusFinal = "Pré-Aprovado";
       console.log(`[Status Analysis] ✅ Status final: PRÉ-APROVADO`);

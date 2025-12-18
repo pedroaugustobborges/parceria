@@ -1,5 +1,5 @@
 """
-Script para importar os últimos 500 registros de acesso do tipo 'Terceiro' POR CPF do Data Warehouse para o Supabase.
+Script para importar os últimos 125 registros de acesso do tipo 'Terceiro' POR CPF do Data Warehouse para o Supabase.
 Inclui os campos planta e codin.
 Evita duplicações verificando se o registro já existe antes de inserir.
 """
@@ -75,14 +75,14 @@ def buscar_cpfs_usuarios(supabase: Client):
         print(f"❌ Erro ao buscar CPFs dos usuários: {e}")
         raise
 
-def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=500):
+def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=125):
     """
     Extrai os últimos N acessos do tipo 'Terceiro' para cada CPF da tabela usuarios.
 
     Args:
         conn: Conexão com o Data Warehouse
         cpfs_usuarios: Lista de CPFs da tabela usuarios
-        limite_por_cpf: Número máximo de registros por CPF (padrão: 500)
+        limite_por_cpf: Número máximo de registros por CPF (padrão: 125)
     """
     try:
         if not cpfs_usuarios:
@@ -233,7 +233,7 @@ def main():
     """Função principal do script."""
     print("=" * 70)
     print("IMPORTAÇÃO DE ACESSOS DO DATA WAREHOUSE PARA SUPABASE")
-    print("(Últimos 500 registros tipo 'Terceiro' POR CPF com planta e codin)")
+    print("(Últimos 125 registros tipo 'Terceiro' POR CPF com planta e codin)")
     print(f"Horário: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 70)
 
@@ -253,13 +253,13 @@ def main():
         conn = conectar_data_warehouse()
 
         # Define o limite de registros por CPF
-        limite_por_cpf = 500
+        limite_por_cpf = 125
         if len(sys.argv) > 1:
             try:
                 limite_por_cpf = int(sys.argv[1])
                 print(f"\n⚙️ Limite por CPF definido via argumento: {limite_por_cpf}")
             except ValueError:
-                print(f"⚠️ Argumento '{sys.argv[1]}' inválido. Usando o padrão de 500 registros por CPF.")
+                print(f"⚠️ Argumento '{sys.argv[1]}' inválido. Usando o padrão de 125 registros por CPF.")
 
         print(f"\n📥 Extraindo os últimos {limite_por_cpf} registros do tipo 'Terceiro' para cada CPF do Data Warehouse...")
         dados_extraidos = extrair_acessos(conn, cpfs_usuarios, limite_por_cpf)
