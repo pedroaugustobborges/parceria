@@ -1183,7 +1183,8 @@ const Dashboard: React.FC = () => {
         value: totais.evolucao_noturna_cti,
         color: "#3b82f6",
       },
-    ].filter((item) => item.value > 0); // Filtrar apenas valores maiores que 0
+    ].filter((item) => item.value > 0) // Filtrar apenas valores maiores que 0
+      .sort((a, b) => b.value - a.value); // Ordenar em ordem decrescente
 
     return data;
   }, [
