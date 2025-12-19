@@ -157,6 +157,7 @@ export interface HorasCalculadas {
   nome: string;
   matricula: string;
   tipo: string;
+  codigomv: string;
   totalHoras: number;
   cargaHorariaEscalada: number;
   diasComRegistro: number;

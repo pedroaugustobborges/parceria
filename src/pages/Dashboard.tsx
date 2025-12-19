@@ -769,6 +769,7 @@ const Dashboard: React.FC = () => {
           nome: ultimoAcesso.nome,
           matricula: ultimoAcesso.matricula,
           tipo: ultimoAcesso.tipo,
+          codigomv: usuario?.codigomv || "-",
           totalHoras: parseFloat(totalHoras.toFixed(2)),
           cargaHorariaEscalada: parseFloat(
             cargaHorariaEscaladaPorCpf.toFixed(2)
@@ -2420,6 +2421,7 @@ const Dashboard: React.FC = () => {
       ),
     },
     { field: "cpf", headerName: "CPF", width: 140 },
+    { field: "codigomv", headerName: "Código MV", width: 120 },
     {
       field: "tipo",
       headerName: "Tipo",
