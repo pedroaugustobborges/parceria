@@ -25,6 +25,7 @@ import {
   TableRow,
   Paper,
   Divider,
+  useTheme,
 } from "@mui/material";
 import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -79,6 +80,7 @@ import { usePersistentState, usePersistentArray, useClearDashboardState } from "
 
 const Dashboard: React.FC = () => {
   const { userProfile, isAdminTerceiro, isTerceiro } = useAuth();
+  const theme = useTheme();
 
   // Large data arrays - NOT persisted (too large for sessionStorage)
   // These will auto-reload when component mounts if filters are saved
@@ -4067,11 +4069,16 @@ const Dashboard: React.FC = () => {
               <Card
                 sx={{
                   mb: 3,
-                  background:
-                    "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+                  background: theme.palette.mode === 'dark'
+                    ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
+                    : "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
                   borderRadius: 3,
-                  boxShadow: "0 4px 20px rgba(59, 130, 246, 0.08)",
-                  border: "1px solid #e0e7ff",
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? "0 4px 20px rgba(59, 130, 246, 0.15)"
+                    : "0 4px 20px rgba(59, 130, 246, 0.08)",
+                  border: theme.palette.mode === 'dark'
+                    ? "1px solid rgba(59, 130, 246, 0.3)"
+                    : "1px solid #e0e7ff",
                 }}
               >
                 <CardContent sx={{ p: 3 }}>
@@ -4080,14 +4087,15 @@ const Dashboard: React.FC = () => {
                       variant="h6"
                       fontWeight={700}
                       sx={{
-                        background:
-                          "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
+                        background: theme.palette.mode === 'dark'
+                          ? "linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%)"
+                          : "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                         mb: 1,
                       }}
                     >
-                      📈 Acesso Médico ao Londo do Tempo
+                      📈 Acesso Médico ao Longo do Tempo
                     </Typography>
                     <Typography
                       variant="body2"
@@ -4108,16 +4116,20 @@ const Dashboard: React.FC = () => {
                           mt: 1,
                           px: 2,
                           py: 0.5,
-                          bgcolor: "rgba(59, 130, 246, 0.08)",
+                          bgcolor: theme.palette.mode === 'dark'
+                            ? "rgba(59, 130, 246, 0.15)"
+                            : "rgba(59, 130, 246, 0.08)",
                           borderRadius: 2,
-                          border: "1px solid rgba(59, 130, 246, 0.2)",
+                          border: theme.palette.mode === 'dark'
+                            ? "1px solid rgba(59, 130, 246, 0.4)"
+                            : "1px solid rgba(59, 130, 246, 0.2)",
                         }}
                       >
                         <FilterList sx={{ fontSize: 16, color: "#3b82f6" }} />
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "#1e40af",
+                            color: theme.palette.mode === 'dark' ? "#93c5fd" : "#1e40af",
                             fontWeight: 600,
                           }}
                         >
@@ -4154,28 +4166,28 @@ const Dashboard: React.FC = () => {
                       </defs>
                       <CartesianGrid
                         strokeDasharray="3 3"
-                        stroke="#e2e8f0"
+                        stroke={theme.palette.mode === 'dark' ? "#334155" : "#e2e8f0"}
                         vertical={false}
                       />
                       <XAxis
                         dataKey="formattedDate"
-                        tick={{ fill: "#64748b", fontSize: 12 }}
-                        tickLine={{ stroke: "#cbd5e1" }}
-                        axisLine={{ stroke: "#cbd5e1" }}
+                        tick={{ fill: theme.palette.mode === 'dark' ? "#94a3b8" : "#64748b", fontSize: 12 }}
+                        tickLine={{ stroke: theme.palette.mode === 'dark' ? "#475569" : "#cbd5e1" }}
+                        axisLine={{ stroke: theme.palette.mode === 'dark' ? "#475569" : "#cbd5e1" }}
                         angle={-45}
                         textAnchor="end"
                         height={80}
                       />
                       <YAxis
-                        tick={{ fill: "#64748b", fontSize: 12 }}
-                        tickLine={{ stroke: "#cbd5e1" }}
-                        axisLine={{ stroke: "#cbd5e1" }}
+                        tick={{ fill: theme.palette.mode === 'dark' ? "#94a3b8" : "#64748b", fontSize: 12 }}
+                        tickLine={{ stroke: theme.palette.mode === 'dark' ? "#475569" : "#cbd5e1" }}
+                        axisLine={{ stroke: theme.palette.mode === 'dark' ? "#475569" : "#cbd5e1" }}
                         label={{
                           value: "Médicos Únicos",
                           angle: -90,
                           position: "insideLeft",
                           style: {
-                            fill: "#475569",
+                            fill: theme.palette.mode === 'dark' ? "#94a3b8" : "#475569",
                             fontSize: 12,
                             fontWeight: 600,
                           },
@@ -4183,14 +4195,16 @@ const Dashboard: React.FC = () => {
                       />
                       <RechartsTooltip
                         contentStyle={{
-                          backgroundColor: "rgba(255, 255, 255, 0.98)",
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? "rgba(30, 41, 59, 0.98)"
+                            : "rgba(255, 255, 255, 0.98)",
                           border: "2px solid #3b82f6",
                           borderRadius: 12,
                           boxShadow: "0 8px 24px rgba(59, 130, 246, 0.2)",
                           padding: "12px 16px",
                         }}
                         labelStyle={{
-                          color: "#1e293b",
+                          color: theme.palette.mode === 'dark' ? "#f1f5f9" : "#1e293b",
                           fontWeight: 700,
                           fontSize: 13,
                           marginBottom: 4,
@@ -4214,12 +4228,12 @@ const Dashboard: React.FC = () => {
                           fill: "#3b82f6",
                           strokeWidth: 2,
                           r: 4,
-                          stroke: "#fff",
+                          stroke: theme.palette.mode === 'dark' ? "#1e293b" : "#fff",
                         }}
                         activeDot={{
                           r: 6,
                           fill: "#2563eb",
-                          stroke: "#fff",
+                          stroke: theme.palette.mode === 'dark' ? "#1e293b" : "#fff",
                           strokeWidth: 3,
                         }}
                         fill="url(#colorDoctors)"
@@ -4232,7 +4246,9 @@ const Dashboard: React.FC = () => {
                     sx={{
                       mt: 3,
                       pt: 3,
-                      borderTop: "1px solid #e2e8f0",
+                      borderTop: theme.palette.mode === 'dark'
+                        ? "1px solid #334155"
+                        : "1px solid #e2e8f0",
                       display: "flex",
                       justifyContent: "space-around",
                       flexWrap: "wrap",
