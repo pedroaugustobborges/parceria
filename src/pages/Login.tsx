@@ -442,7 +442,7 @@ const Login: React.FC = () => {
                   >
                     {submitting || authLoading
                       ? "Entrando..."
-                      : "Entrar no Sistema"}
+                      : "Clique para Entrar"}
                   </Button>
                 </form>
 
