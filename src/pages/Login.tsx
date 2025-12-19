@@ -410,20 +410,39 @@ const Login: React.FC = () => {
                       fontWeight: 600,
                       borderRadius: 2,
                       textTransform: "none",
+
+                      // 1. Força a cor branca no estado normal
+                      color: "#ffffff",
+
                       background:
                         "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
                       boxShadow: "0 4px 14px 0 rgba(139, 92, 246, 0.4)",
-                      pointerEvents: submitting || authLoading ? "none" : "auto",
+
+                      // Impede cliques mas mantém o cursor correto
+                      pointerEvents:
+                        submitting || authLoading ? "none" : "auto",
+
+                      // 2. Override essencial para manter o texto branco quando "Entrando..."
+                      "&.Mui-disabled": {
+                        background:
+                          "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+                        color: "rgba(255, 255, 255, 0.8)", // Branco levemente transparente para indicar processamento
+                        opacity: 0.9, // Dá um feedback visual de que está desativado
+                      },
+
                       "&:hover": {
                         background:
                           "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
                         boxShadow: "0 6px 20px 0 rgba(139, 92, 246, 0.5)",
                         transform: "translateY(-2px)",
+                        color: "#ffffff", // Garante o branco no hover também
                       },
                       transition: "all 0.3s ease",
                     }}
                   >
-                    {submitting || authLoading ? "Entrando..." : "Entrar no Sistema"}
+                    {submitting || authLoading
+                      ? "Entrando..."
+                      : "Entrar no Sistema"}
                   </Button>
                 </form>
 
