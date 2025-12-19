@@ -31,6 +31,7 @@ import {
   ListItem,
   ListItemText,
   Divider,
+  useTheme,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -86,6 +87,7 @@ import { usePersistentState, usePersistentArray } from "../hooks/usePersistentSt
 
 const EscalasMedicas: React.FC = () => {
   const { isAdminAgir, isAdminTerceiro, isTerceiro, userProfile } = useAuth();
+  const theme = useTheme();
 
   // Large data arrays - NOT persisted (might be large)
   const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
@@ -3465,7 +3467,9 @@ const EscalasMedicas: React.FC = () => {
                 {/* Informações do Contrato */}
                 <Card
                   sx={{
-                    bgcolor: "primary.50",
+                    bgcolor: theme.palette.mode === 'dark'
+                      ? 'rgba(59, 130, 246, 0.1)'
+                      : 'primary.50',
                     borderLeft: "4px solid",
                     borderColor: "primary.main",
                   }}
@@ -3567,11 +3571,21 @@ const EscalasMedicas: React.FC = () => {
                   <TableContainer
                     component={Paper}
                     elevation={0}
-                    sx={{ border: "1px solid #e0e0e0" }}
+                    sx={{
+                      border: theme.palette.mode === 'dark'
+                        ? '1px solid rgba(255, 255, 255, 0.12)'
+                        : '1px solid #e0e0e0'
+                    }}
                   >
                     <Table>
                       <TableHead>
-                        <TableRow sx={{ bgcolor: "grey.50" }}>
+                        <TableRow
+                          sx={{
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.05)'
+                              : 'grey.50'
+                          }}
+                        >
                           <TableCell>
                             <strong>Nome</strong>
                           </TableCell>
@@ -3722,7 +3736,13 @@ const EscalasMedicas: React.FC = () => {
                           >
                             <Table size="small">
                               <TableHead>
-                                <TableRow sx={{ bgcolor: "grey.100" }}>
+                                <TableRow
+                                  sx={{
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.100'
+                                  }}
+                                >
                                   <TableCell>
                                     <strong>Data</strong>
                                   </TableCell>
@@ -3988,7 +4008,9 @@ const EscalasMedicas: React.FC = () => {
                   sx={{
                     p: 2,
                     borderRadius: 1,
-                    bgcolor: "grey.50",
+                    bgcolor: theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.03)'
+                      : 'grey.50',
                     border: "1px dashed",
                     borderColor: "divider",
                   }}
