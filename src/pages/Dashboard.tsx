@@ -6306,10 +6306,13 @@ const Dashboard: React.FC = () => {
                         mb: 3,
                         p: 2,
                         borderRadius: 2,
-                        bgcolor:
-                          inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? (inconsistenciaSelecionada.tipo === "prodSemAcesso"
+                            ? 'rgba(251, 191, 36, 0.1)'
+                            : 'rgba(59, 130, 246, 0.1)')
+                          : (inconsistenciaSelecionada.tipo === "prodSemAcesso"
                             ? "warning.50"
-                            : "info.50",
+                            : "info.50"),
                         border: "1px solid",
                         borderColor:
                           inconsistenciaSelecionada.tipo === "prodSemAcesso"
@@ -6374,17 +6377,32 @@ const Dashboard: React.FC = () => {
                         <TableHead>
                           <TableRow>
                             <TableCell
-                              sx={{ fontWeight: 600, bgcolor: "grey.50" }}
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: theme.palette.mode === 'dark'
+                                  ? 'rgba(255, 255, 255, 0.05)'
+                                  : 'grey.50'
+                              }}
                             >
                               #
                             </TableCell>
                             <TableCell
-                              sx={{ fontWeight: 600, bgcolor: "grey.50" }}
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: theme.palette.mode === 'dark'
+                                  ? 'rgba(255, 255, 255, 0.05)'
+                                  : 'grey.50'
+                              }}
                             >
                               Data
                             </TableCell>
                             <TableCell
-                              sx={{ fontWeight: 600, bgcolor: "grey.50" }}
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: theme.palette.mode === 'dark'
+                                  ? 'rgba(255, 255, 255, 0.05)'
+                                  : 'grey.50'
+                              }}
                             >
                               Tipo de Inconsistência
                             </TableCell>
@@ -6394,7 +6412,9 @@ const Dashboard: React.FC = () => {
                                 <TableCell
                                   sx={{
                                     fontWeight: 600,
-                                    bgcolor: "grey.50",
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50',
                                     textAlign: "center",
                                   }}
                                 >
@@ -6403,7 +6423,9 @@ const Dashboard: React.FC = () => {
                                 <TableCell
                                   sx={{
                                     fontWeight: 600,
-                                    bgcolor: "grey.50",
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50',
                                     textAlign: "center",
                                   }}
                                 >
@@ -6412,7 +6434,9 @@ const Dashboard: React.FC = () => {
                                 <TableCell
                                   sx={{
                                     fontWeight: 600,
-                                    bgcolor: "grey.50",
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50',
                                     textAlign: "center",
                                   }}
                                 >
@@ -6421,7 +6445,9 @@ const Dashboard: React.FC = () => {
                                 <TableCell
                                   sx={{
                                     fontWeight: 600,
-                                    bgcolor: "grey.50",
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50',
                                     textAlign: "center",
                                   }}
                                 >
@@ -6430,7 +6456,9 @@ const Dashboard: React.FC = () => {
                                 <TableCell
                                   sx={{
                                     fontWeight: 600,
-                                    bgcolor: "grey.50",
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50',
                                     textAlign: "center",
                                   }}
                                 >
@@ -6439,7 +6467,9 @@ const Dashboard: React.FC = () => {
                                 <TableCell
                                   sx={{
                                     fontWeight: 600,
-                                    bgcolor: "grey.50",
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50',
                                     textAlign: "center",
                                   }}
                                 >
@@ -6448,7 +6478,9 @@ const Dashboard: React.FC = () => {
                                 <TableCell
                                   sx={{
                                     fontWeight: 600,
-                                    bgcolor: "grey.50",
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50',
                                     textAlign: "center",
                                   }}
                                 >
@@ -6457,7 +6489,9 @@ const Dashboard: React.FC = () => {
                                 <TableCell
                                   sx={{
                                     fontWeight: 600,
-                                    bgcolor: "grey.50",
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50',
                                     textAlign: "center",
                                   }}
                                 >
@@ -6466,7 +6500,9 @@ const Dashboard: React.FC = () => {
                                 <TableCell
                                   sx={{
                                     fontWeight: 600,
-                                    bgcolor: "grey.50",
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50',
                                     textAlign: "center",
                                   }}
                                 >
@@ -6836,11 +6872,19 @@ const Dashboard: React.FC = () => {
 
                     <TableContainer
                       component={Paper}
-                      sx={{ boxShadow: "none", border: "1px solid #e5e7eb" }}
+                      sx={{
+                        boxShadow: "none",
+                        border: "1px solid",
+                        borderColor: "divider",
+                      }}
                     >
                       <Table>
                         <TableHead>
-                          <TableRow sx={{ bgcolor: "#f9fafb" }}>
+                          <TableRow sx={{
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.05)'
+                              : 'grey.50'
+                          }}>
                             <TableCell width={60}>#</TableCell>
                             <TableCell>Data</TableCell>
                             <TableCell>Horário Escalado</TableCell>
@@ -6853,7 +6897,13 @@ const Dashboard: React.FC = () => {
                             (atraso, index) => (
                               <TableRow
                                 key={index}
-                                sx={{ "&:hover": { bgcolor: "#f9fafb" } }}
+                                sx={{
+                                  "&:hover": {
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50'
+                                  }
+                                }}
                               >
                                 <TableCell>
                                   <Box
@@ -6887,8 +6937,12 @@ const Dashboard: React.FC = () => {
                                     label={atraso.horarioEscalado}
                                     size="small"
                                     sx={{
-                                      bgcolor: "#dbeafe",
-                                      color: "#1e40af",
+                                      bgcolor: theme.palette.mode === 'dark'
+                                        ? 'rgba(59, 130, 246, 0.2)'
+                                        : '#dbeafe',
+                                      color: theme.palette.mode === 'dark'
+                                        ? '#93c5fd'
+                                        : '#1e40af',
                                       fontWeight: 600,
                                     }}
                                   />
@@ -6898,8 +6952,12 @@ const Dashboard: React.FC = () => {
                                     label={atraso.horarioEntrada}
                                     size="small"
                                     sx={{
-                                      bgcolor: "#fef3c7",
-                                      color: "#92400e",
+                                      bgcolor: theme.palette.mode === 'dark'
+                                        ? 'rgba(251, 191, 36, 0.2)'
+                                        : '#fef3c7',
+                                      color: theme.palette.mode === 'dark'
+                                        ? '#fcd34d'
+                                        : '#92400e',
                                       fontWeight: 600,
                                     }}
                                   />
@@ -6909,14 +6967,20 @@ const Dashboard: React.FC = () => {
                                     label={`${atraso.atrasoMinutos} min`}
                                     size="small"
                                     sx={{
-                                      bgcolor:
-                                        atraso.atrasoMinutos > 30
-                                          ? "#fecaca"
-                                          : "#fed7aa",
-                                      color:
-                                        atraso.atrasoMinutos > 30
-                                          ? "#991b1b"
-                                          : "#92400e",
+                                      bgcolor: theme.palette.mode === 'dark'
+                                        ? (atraso.atrasoMinutos > 30
+                                          ? 'rgba(239, 68, 68, 0.2)'
+                                          : 'rgba(251, 146, 60, 0.2)')
+                                        : (atraso.atrasoMinutos > 30
+                                          ? '#fecaca'
+                                          : '#fed7aa'),
+                                      color: theme.palette.mode === 'dark'
+                                        ? (atraso.atrasoMinutos > 30
+                                          ? '#fca5a5'
+                                          : '#fdba74')
+                                        : (atraso.atrasoMinutos > 30
+                                          ? '#991b1b'
+                                          : '#92400e'),
                                       fontWeight: 600,
                                     }}
                                   />
@@ -6995,11 +7059,19 @@ const Dashboard: React.FC = () => {
 
                     <TableContainer
                       component={Paper}
-                      sx={{ boxShadow: "none", border: "1px solid #e5e7eb" }}
+                      sx={{
+                        boxShadow: "none",
+                        border: "1px solid",
+                        borderColor: "divider",
+                      }}
                     >
                       <Table>
                         <TableHead>
-                          <TableRow sx={{ bgcolor: "#f9fafb" }}>
+                          <TableRow sx={{
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.05)'
+                              : 'grey.50'
+                          }}>
                             <TableCell width={60}>#</TableCell>
                             <TableCell>Data</TableCell>
                             <TableCell>Horário Escalado</TableCell>
@@ -7011,7 +7083,13 @@ const Dashboard: React.FC = () => {
                             (ausencia, index) => (
                               <TableRow
                                 key={index}
-                                sx={{ "&:hover": { bgcolor: "#f9fafb" } }}
+                                sx={{
+                                  "&:hover": {
+                                    bgcolor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'grey.50'
+                                  }
+                                }}
                               >
                                 <TableCell>
                                   <Box
@@ -7045,8 +7123,12 @@ const Dashboard: React.FC = () => {
                                     label={ausencia.horarioEscalado}
                                     size="small"
                                     sx={{
-                                      bgcolor: "#dbeafe",
-                                      color: "#1e40af",
+                                      bgcolor: theme.palette.mode === 'dark'
+                                        ? 'rgba(59, 130, 246, 0.2)'
+                                        : '#dbeafe',
+                                      color: theme.palette.mode === 'dark'
+                                        ? '#93c5fd'
+                                        : '#1e40af',
                                       fontWeight: 600,
                                     }}
                                   />
@@ -7056,8 +7138,12 @@ const Dashboard: React.FC = () => {
                                     label="Sem acesso registrado"
                                     size="small"
                                     sx={{
-                                      bgcolor: "#fecaca",
-                                      color: "#991b1b",
+                                      bgcolor: theme.palette.mode === 'dark'
+                                        ? 'rgba(239, 68, 68, 0.2)'
+                                        : '#fecaca',
+                                      color: theme.palette.mode === 'dark'
+                                        ? '#fca5a5'
+                                        : '#991b1b',
                                       fontWeight: 600,
                                     }}
                                   />
