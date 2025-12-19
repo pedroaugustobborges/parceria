@@ -4319,11 +4319,14 @@ const Dashboard: React.FC = () => {
               <Grid item xs={12} md={6}>
                 <Card
                   sx={{
-                    background:
-                      "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+                    background: theme.palette.mode === 'dark'
+                      ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
+                      : "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
                     borderRadius: 3,
                     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-                    border: "1px solid #bae6fd",
+                    border: theme.palette.mode === 'dark'
+                      ? "1px solid rgba(59, 130, 246, 0.3)"
+                      : "1px solid #bae6fd",
                     height: "100%",
                   }}
                 >
@@ -4346,7 +4349,7 @@ const Dashboard: React.FC = () => {
                         <Typography
                           variant="h6"
                           fontWeight={700}
-                          color="#1e40af"
+                          color={theme.palette.mode === 'dark' ? "#93c5fd" : "#1e40af"}
                         >
                           Produtividade sem Acesso
                         </Typography>
@@ -4365,8 +4368,10 @@ const Dashboard: React.FC = () => {
                           label="Filtros ativos"
                           size="small"
                           sx={{
-                            bgcolor: "rgba(59, 130, 246, 0.15)",
-                            color: "#1e40af",
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? "rgba(59, 130, 246, 0.2)"
+                              : "rgba(59, 130, 246, 0.15)",
+                            color: theme.palette.mode === 'dark' ? "#93c5fd" : "#1e40af",
                             fontWeight: 600,
                           }}
                         />
@@ -4597,11 +4602,14 @@ const Dashboard: React.FC = () => {
               <Grid item xs={12} md={6}>
                 <Card
                   sx={{
-                    background:
-                      "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+                    background: theme.palette.mode === 'dark'
+                      ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
+                      : "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
                     borderRadius: 3,
                     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-                    border: "1px solid #bae6fd",
+                    border: theme.palette.mode === 'dark'
+                      ? "1px solid rgba(59, 130, 246, 0.3)"
+                      : "1px solid #bae6fd",
                     height: "100%",
                   }}
                 >
@@ -4624,7 +4632,7 @@ const Dashboard: React.FC = () => {
                         <Typography
                           variant="h6"
                           fontWeight={700}
-                          color="#1e40af"
+                          color={theme.palette.mode === 'dark' ? "#93c5fd" : "#1e40af"}
                         >
                           Acesso sem Produtividade
                         </Typography>
@@ -4643,8 +4651,10 @@ const Dashboard: React.FC = () => {
                           label="Filtros ativos"
                           size="small"
                           sx={{
-                            bgcolor: "rgba(59, 130, 246, 0.15)",
-                            color: "#1e40af",
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? "rgba(59, 130, 246, 0.2)"
+                              : "rgba(59, 130, 246, 0.15)",
+                            color: theme.palette.mode === 'dark' ? "#93c5fd" : "#1e40af",
                             fontWeight: 600,
                           }}
                         />
@@ -4878,11 +4888,14 @@ const Dashboard: React.FC = () => {
               <Grid item xs={12} md={6}>
                 <Card
                   sx={{
-                    background:
-                      "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+                    background: theme.palette.mode === 'dark'
+                      ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
+                      : "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
                     borderRadius: 3,
                     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-                    border: "1px solid #bae6fd",
+                    border: theme.palette.mode === 'dark'
+                      ? "1px solid rgba(59, 130, 246, 0.3)"
+                      : "1px solid #bae6fd",
                     height: "100%",
                   }}
                 >
@@ -4905,7 +4918,7 @@ const Dashboard: React.FC = () => {
                         <Typography
                           variant="h6"
                           fontWeight={700}
-                          color="#1e40af"
+                          color={theme.palette.mode === 'dark' ? "#93c5fd" : "#1e40af"}
                         >
                           Índice de Pontualidade
                         </Typography>
@@ -4924,8 +4937,10 @@ const Dashboard: React.FC = () => {
                           label="Filtros ativos"
                           size="small"
                           sx={{
-                            bgcolor: "rgba(59, 130, 246, 0.15)",
-                            color: "#1e40af",
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? "rgba(59, 130, 246, 0.2)"
+                              : "rgba(59, 130, 246, 0.15)",
+                            color: theme.palette.mode === 'dark' ? "#93c5fd" : "#1e40af",
                             fontWeight: 600,
                           }}
                         />
@@ -5163,11 +5178,14 @@ const Dashboard: React.FC = () => {
               <Grid item xs={12} md={6}>
                 <Card
                   sx={{
-                    background:
-                      "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+                    background: theme.palette.mode === 'dark'
+                      ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
+                      : "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
                     borderRadius: 3,
                     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-                    border: "1px solid #bae6fd",
+                    border: theme.palette.mode === 'dark'
+                      ? "1px solid rgba(59, 130, 246, 0.3)"
+                      : "1px solid #bae6fd",
                     height: "100%",
                   }}
                 >
@@ -5190,7 +5208,7 @@ const Dashboard: React.FC = () => {
                         <Typography
                           variant="h6"
                           fontWeight={700}
-                          color="#1e40af"
+                          color={theme.palette.mode === 'dark' ? "#93c5fd" : "#1e40af"}
                         >
                           Índice de Absenteísmo
                         </Typography>
@@ -5209,8 +5227,10 @@ const Dashboard: React.FC = () => {
                           label="Filtros ativos"
                           size="small"
                           sx={{
-                            bgcolor: "rgba(59, 130, 246, 0.15)",
-                            color: "#1e40af",
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? "rgba(59, 130, 246, 0.2)"
+                              : "rgba(59, 130, 246, 0.15)",
+                            color: theme.palette.mode === 'dark' ? "#93c5fd" : "#1e40af",
                             fontWeight: 600,
                           }}
                         />
