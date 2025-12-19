@@ -22,6 +22,7 @@ import {
   Typography,
   Alert,
   CircularProgress,
+  useTheme,
 } from "@mui/material";
 import {
   Add,
@@ -39,6 +40,7 @@ import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
 const UnidadesHospitalares: React.FC = () => {
   const { isAdminAgirCorporativo } = useAuth();
+  const theme = useTheme();
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -354,7 +356,13 @@ const UnidadesHospitalares: React.FC = () => {
           <TableContainer component={Paper} elevation={0}>
             <Table>
               <TableHead>
-                <TableRow sx={{ bgcolor: "grey.50" }}>
+                <TableRow
+                  sx={{
+                    bgcolor: theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.05)'
+                      : 'grey.50'
+                  }}
+                >
                   <TableCell sx={{ fontWeight: 600 }}>Código</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Nome</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Endereço</TableCell>
