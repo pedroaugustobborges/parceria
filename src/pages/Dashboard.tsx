@@ -4036,20 +4036,39 @@ const Dashboard: React.FC = () => {
                       layout="vertical"
                       margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                      <XAxis type="number" />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={theme.palette.mode === 'dark' ? '#334155' : '#e0e0e0'}
+                      />
+                      <XAxis
+                        type="number"
+                        tick={{ fill: theme.palette.mode === 'dark' ? '#94a3b8' : '#64748b' }}
+                        axisLine={{ stroke: theme.palette.mode === 'dark' ? '#475569' : '#cbd5e1' }}
+                      />
                       <YAxis
                         dataKey="name"
                         type="category"
                         width={180}
                         style={{ fontSize: 12 }}
+                        tick={{ fill: theme.palette.mode === 'dark' ? '#94a3b8' : '#64748b' }}
+                        axisLine={{ stroke: theme.palette.mode === 'dark' ? '#475569' : '#cbd5e1' }}
                       />
                       <RechartsTooltip
                         contentStyle={{
-                          backgroundColor: "rgba(255, 255, 255, 0.95)",
-                          border: "1px solid #e0e0e0",
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? 'rgba(30, 41, 59, 0.98)'
+                            : 'rgba(255, 255, 255, 0.95)',
+                          border: theme.palette.mode === 'dark'
+                            ? '1px solid #475569'
+                            : '1px solid #e0e0e0',
                           borderRadius: 8,
-                          boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                        }}
+                        labelStyle={{
+                          color: theme.palette.mode === 'dark' ? '#f1f5f9' : '#1e293b',
+                        }}
+                        itemStyle={{
+                          color: theme.palette.mode === 'dark' ? '#e2e8f0' : '#334155',
                         }}
                         formatter={(value: any) => [value, "Total"]}
                       />
