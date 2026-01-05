@@ -65,6 +65,11 @@ import {
   Info,
   Close,
   HowToReg,
+  CheckBox as CheckBoxIcon,
+  CheckBoxOutlineBlank,
+  IndeterminateCheckBox,
+  DoneAll,
+  ThumbDown,
 } from "@mui/icons-material";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -126,6 +131,12 @@ const EscalasMedicas: React.FC = () => {
     null
   );
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
+
+  // Bulk selection state
+  const [selectedEscalas, setSelectedEscalas] = useState<Set<number>>(new Set());
+  const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<StatusEscala>("Aprovado");
+  const [bulkJustificativa, setBulkJustificativa] = useState("");
 
   // Persistent filters - survive navigation between tabs
   const [filtroParceiro, setFiltroParceiro] = usePersistentArray<string>("escalas_filtroParceiro");
@@ -1043,6 +1054,95 @@ const EscalasMedicas: React.FC = () => {
       handleBuscarEscalas();
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  // Bulk selection functions
+  const handleToggleSelection = (escalaId: number, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedEscalas((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(escalaId)) {
+        newSet.delete(escalaId);
+      } else {
+        newSet.add(escalaId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    // Only select escalas that can have status changed (not Aprovado or Reprovado)
+    const selectableEscalas = escalasFiltradas.filter(
+      (e) => e.status !== "Aprovado" && e.status !== "Reprovado"
+    );
+    setSelectedEscalas(new Set(selectableEscalas.map((e) => e.id)));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedEscalas(new Set());
+  };
+
+  const handleOpenBulkStatusDialog = () => {
+    if (selectedEscalas.size === 0) {
+      setError("Selecione pelo menos uma escala");
+      return;
+    }
+    setBulkStatusDialogOpen(true);
+  };
+
+  const handleCloseBulkStatusDialog = () => {
+    setBulkStatusDialogOpen(false);
+    setBulkStatus("Aprovado");
+    setBulkJustificativa("");
+  };
+
+  const handleBulkStatusUpdate = async () => {
+    try {
+      // Validar justificativa obrigatória para status "Reprovado"
+      if (bulkStatus === "Reprovado" && !bulkJustificativa.trim()) {
+        setError("Justificativa é obrigatória para status Reprovado");
+        return;
+      }
+
+      // Filter out escalas that are already Aprovado or Reprovado
+      const escalasToUpdate = Array.from(selectedEscalas).filter((id) => {
+        const escala = escalas.find((e) => e.id === id);
+        return escala && escala.status !== "Aprovado" && escala.status !== "Reprovado";
+      });
+
+      if (escalasToUpdate.length === 0) {
+        setError("Nenhuma escala válida selecionada para atualização");
+        return;
+      }
+
+      setLoading(true);
+
+      // Update all selected escalas
+      const { error: updateError } = await supabase
+        .from("escalas_medicas")
+        .update({
+          status: bulkStatus,
+          justificativa: bulkJustificativa.trim() || null,
+          status_alterado_por: userProfile?.id || null,
+          status_alterado_em: new Date().toISOString(),
+        })
+        .in("id", escalasToUpdate);
+
+      if (updateError) throw updateError;
+
+      setSuccess(
+        `${escalasToUpdate.length} escala${
+          escalasToUpdate.length > 1 ? "s atualizadas" : " atualizada"
+        } com sucesso!`
+      );
+      handleCloseBulkStatusDialog();
+      handleDeselectAll();
+      handleBuscarEscalas();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -2618,6 +2718,76 @@ const EscalasMedicas: React.FC = () => {
               </Grid>
             </Grid>
 
+            {/* Bulk Actions */}
+            {isAdminAgir && escalasFiltradas.length > 0 && (
+              <Box sx={{ mb: 3, display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
+                <Button
+                  variant={selectedEscalas.size === 0 ? "outlined" : "contained"}
+                  startIcon={
+                    selectedEscalas.size === 0 ? (
+                      <CheckBoxOutlineBlank />
+                    ) : selectedEscalas.size === escalasFiltradas.filter(e => e.status !== "Aprovado" && e.status !== "Reprovado").length ? (
+                      <CheckBoxIcon />
+                    ) : (
+                      <IndeterminateCheckBox />
+                    )
+                  }
+                  onClick={
+                    selectedEscalas.size === escalasFiltradas.filter(e => e.status !== "Aprovado" && e.status !== "Reprovado").length
+                      ? handleDeselectAll
+                      : handleSelectAll
+                  }
+                  size="small"
+                >
+                  {selectedEscalas.size === escalasFiltradas.filter(e => e.status !== "Aprovado" && e.status !== "Reprovado").length
+                    ? "Desselecionar Todos"
+                    : `Selecionar Todos (${escalasFiltradas.filter(e => e.status !== "Aprovado" && e.status !== "Reprovado").length})`}
+                </Button>
+
+                {selectedEscalas.size > 0 && (
+                  <>
+                    <Chip
+                      label={`${selectedEscalas.size} selecionada${selectedEscalas.size > 1 ? "s" : ""}`}
+                      color="primary"
+                      onDelete={handleDeselectAll}
+                    />
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<DoneAll />}
+                      onClick={() => {
+                        setBulkStatus("Aprovado");
+                        handleOpenBulkStatusDialog();
+                      }}
+                      size="small"
+                    >
+                      Aprovar Selecionadas
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      startIcon={<ThumbDown />}
+                      onClick={() => {
+                        setBulkStatus("Reprovado");
+                        handleOpenBulkStatusDialog();
+                      }}
+                      size="small"
+                    >
+                      Reprovar Selecionadas
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<Edit />}
+                      onClick={handleOpenBulkStatusDialog}
+                      size="small"
+                    >
+                      Alterar Status
+                    </Button>
+                  </>
+                )}
+              </Box>
+            )}
+
             {/* Escalas List */}
             <Grid container spacing={3}>
               {escalasFiltradas.map((escala) => {
@@ -2645,7 +2815,27 @@ const EscalasMedicas: React.FC = () => {
                           alignItems="start"
                           mb={2}
                         >
-                          <Box display="flex" flexDirection="column" gap={1}>
+                          <Box display="flex" alignItems="start" gap={1}>
+                            {isAdminAgir && escala.status !== "Aprovado" && escala.status !== "Reprovado" && (
+                              <Tooltip title="Selecionar para ação em massa">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => handleToggleSelection(escala.id, e)}
+                                  sx={{
+                                    mt: -0.5,
+                                    ml: -0.5,
+                                    color: selectedEscalas.has(escala.id) ? "primary.main" : "action.disabled",
+                                  }}
+                                >
+                                  {selectedEscalas.has(escala.id) ? (
+                                    <CheckBoxIcon />
+                                  ) : (
+                                    <CheckBoxOutlineBlank />
+                                  )}
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            <Box display="flex" flexDirection="column" gap={1}>
                             <Chip
                               icon={<CalendarMonth />}
                               label={format(
@@ -2727,6 +2917,7 @@ const EscalasMedicas: React.FC = () => {
                                 }}
                               />
                             </Tooltip>
+                            </Box>
                           </Box>
                           {!isTerceiro && (
                             <Box>
@@ -3428,6 +3619,112 @@ const EscalasMedicas: React.FC = () => {
               disabled={novoStatus === "Reprovado" && !novaJustificativa.trim()}
             >
               Salvar Status
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog - Alterar Status em Massa */}
+        <Dialog
+          open={bulkStatusDialogOpen}
+          onClose={handleCloseBulkStatusDialog}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ fontWeight: 700 }}>
+            Alterar Status em Massa
+          </DialogTitle>
+
+          <DialogContent>
+            <Box
+              sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}
+            >
+              {/* Informações sobre a seleção */}
+              <Alert severity="info" icon={<Info />}>
+                <Typography variant="body2">
+                  Você está alterando o status de{" "}
+                  <strong>{selectedEscalas.size}</strong> escala
+                  {selectedEscalas.size > 1 ? "s" : ""} selecionada
+                  {selectedEscalas.size > 1 ? "s" : ""}.
+                </Typography>
+              </Alert>
+
+              {/* Seletor de Status */}
+              <Box>
+                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                  Novo Status
+                </Typography>
+                <Box display="flex" gap={1} flexWrap="wrap">
+                  {(
+                    [
+                      "Programado",
+                      "Pré-Aprovado",
+                      "Aprovação Parcial",
+                      "Atenção",
+                      "Aprovado",
+                      "Reprovado",
+                    ] as StatusEscala[]
+                  ).map((status) => {
+                    const config = getStatusConfig(status);
+                    return (
+                      <Chip
+                        key={status}
+                        icon={config.icon}
+                        label={config.label}
+                        color={config.color}
+                        variant={bulkStatus === status ? "filled" : "outlined"}
+                        onClick={() => setBulkStatus(status)}
+                        sx={{
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          "&:hover": {
+                            transform: "scale(1.05)",
+                          },
+                        }}
+                      />
+                    );
+                  })}
+                </Box>
+              </Box>
+
+              {/* Campo de Justificativa */}
+              <TextField
+                label="Justificativa"
+                value={bulkJustificativa}
+                onChange={(e) => setBulkJustificativa(e.target.value)}
+                multiline
+                rows={4}
+                fullWidth
+                required={bulkStatus === "Reprovado"}
+                error={bulkStatus === "Reprovado" && !bulkJustificativa.trim()}
+                helperText={
+                  bulkStatus === "Reprovado"
+                    ? "Justificativa obrigatória para status Reprovado"
+                    : "Opcional para outros status"
+                }
+                placeholder="Digite a justificativa para a alteração de status em massa..."
+              />
+            </Box>
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={handleCloseBulkStatusDialog}>Cancelar</Button>
+            <Button
+              onClick={handleBulkStatusUpdate}
+              variant="contained"
+              color="primary"
+              startIcon={<DoneAll />}
+              disabled={
+                (bulkStatus === "Reprovado" && !bulkJustificativa.trim()) ||
+                loading
+              }
+            >
+              {loading ? (
+                <CircularProgress size={20} sx={{ color: "white" }} />
+              ) : (
+                `Atualizar ${selectedEscalas.size} Escala${
+                  selectedEscalas.size > 1 ? "s" : ""
+                }`
+              )}
             </Button>
           </DialogActions>
         </Dialog>
