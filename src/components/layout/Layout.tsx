@@ -188,6 +188,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <List sx={{ flex: 1, p: 2 }}>
         {menuItems.map((item) => {
+          // For administrador-terceiro: only show Escalas Médicas
+          if (isAdminTerceiro && item.path !== "/escalas") return null;
+
           if (item.adminOnly && !isAdminAgir) return null;
           if ((item as any).corporativoOnly && !isAdminAgirCorporativo)
             return null;

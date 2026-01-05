@@ -328,9 +328,11 @@ const Dashboard: React.FC = () => {
   ]);
 
   // Atualizar CPFs do contrato filtrado sempre que o filtro de contrato mudar
+  // OU quando for administrador-terceiro (aplica automaticamente seus contratos)
   useEffect(() => {
     const fetchCpfsDoContrato = async () => {
-      if (!filtroContrato) {
+      // Se não há filtro de contrato E não é administrador-terceiro, limpar
+      if (!filtroContrato && !isAdminTerceiro) {
         setCpfsDoContratoFiltrado([]);
         return;
       }
@@ -338,11 +340,28 @@ const Dashboard: React.FC = () => {
       try {
         let cpfs: string[] = [];
 
+        // Determinar qual contrato_id usar
+        let contratoId: number | null = null;
+
+        if (filtroContrato) {
+          // Usuário selecionou um contrato específico
+          contratoId = filtroContrato.id;
+        } else if (isAdminTerceiro && userProfile?.contrato_id) {
+          // Administrador-terceiro: usar seu contrato automaticamente
+          contratoId = userProfile.contrato_id;
+          console.log('🔒 Administrador-terceiro: aplicando filtro automático de contrato:', contratoId);
+        }
+
+        if (!contratoId) {
+          setCpfsDoContratoFiltrado([]);
+          return;
+        }
+
         // Buscar CPFs da tabela usuario_contrato (junction table)
         const { data: usuariosContrato } = await supabase
           .from("usuario_contrato")
           .select("cpf")
-          .eq("contrato_id", filtroContrato.id);
+          .eq("contrato_id", contratoId);
 
         if (usuariosContrato && usuariosContrato.length > 0) {
           cpfs = usuariosContrato.map((u: any) => u.cpf);
@@ -352,7 +371,7 @@ const Dashboard: React.FC = () => {
         const { data: usuariosDirectos } = await supabase
           .from("usuarios")
           .select("cpf")
-          .eq("contrato_id", filtroContrato.id);
+          .eq("contrato_id", contratoId);
 
         if (usuariosDirectos && usuariosDirectos.length > 0) {
           const cpfsDirectos = usuariosDirectos.map((u: any) => u.cpf);
@@ -360,7 +379,13 @@ const Dashboard: React.FC = () => {
           cpfs = [...new Set([...cpfs, ...cpfsDirectos])];
         }
 
-        setCpfsDoContratoFiltrado(cpfs);
+        // Normalizar CPFs
+        const normalizedCpfs = cpfs.map(cpf => normalizeCPFUtil(cpf));
+        setCpfsDoContratoFiltrado(normalizedCpfs);
+
+        if (isAdminTerceiro && !filtroContrato) {
+          console.log(`✅ ${normalizedCpfs.length} CPFs carregados automaticamente para administrador-terceiro`);
+        }
       } catch (err) {
         console.error("Erro ao buscar CPFs do contrato:", err);
         setCpfsDoContratoFiltrado([]);
@@ -368,7 +393,7 @@ const Dashboard: React.FC = () => {
     };
 
     fetchCpfsDoContrato();
-  }, [filtroContrato]);
+  }, [filtroContrato, isAdminTerceiro, userProfile]);
 
   const loadContratos = async () => {
     try {

@@ -51,6 +51,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/dashboard" replace />;
   }
 
+  // Block administrador-terceiro from accessing any page except Escalas Médicas
+  if (isAdminTerceiro && !allowEscalasAccess) {
+    return <Navigate to="/escalas" replace />;
+  }
+
   return <>{children}</>;
 };
 
