@@ -78,6 +78,77 @@ import { useAuth } from "../contexts/AuthContext";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 import { usePersistentState, usePersistentArray, useClearDashboardState } from "../hooks/usePersistentState";
 
+// ============================================================================
+// UTILIDADES DE NORMALIZAÇÃO DE DADOS
+// ============================================================================
+
+/**
+ * Normaliza CPF para formato consistente de 11 dígitos
+ * Converte números para string e adiciona zeros à esquerda quando necessário
+ * Remove pontos, traços e espaços
+ *
+ * Exemplos:
+ *   12345678900 -> "12345678900" (número convertido)
+ *   1234567890 -> "01234567890" (número com zero perdido)
+ *   "123.456.789-00" -> "12345678900" (string formatada)
+ */
+const normalizeCPFUtil = (cpf: string | number | null | undefined): string => {
+  if (cpf === null || cpf === undefined) return '';
+
+  // Converter para string se for número
+  let cpfStr = String(cpf);
+
+  // Remover caracteres de formatação
+  cpfStr = cpfStr.replace(/[.\-\s]/g, '');
+
+  // Garantir 11 dígitos com zeros à esquerda
+  return cpfStr.padStart(11, '0');
+};
+
+/**
+ * Normaliza um objeto de dados aplicando normalizeCPFUtil ao campo 'cpf'
+ */
+const normalizeCPFInObject = <T extends { cpf?: string | number | null }>(obj: T): T => {
+  if (obj.cpf !== undefined) {
+    return {
+      ...obj,
+      cpf: normalizeCPFUtil(obj.cpf) as any
+    };
+  }
+  return obj;
+};
+
+/**
+ * Extrai string de data consistente (ignora timezone)
+ * Trata tanto "2024-01-15" (date) quanto "2024-01-15T10:30:00+00" (timestamptz)
+ *
+ * CRÍTICO: Resolve problema de timezone onde:
+ *   - acessos.data_acesso: timestamptz (pode mudar de dia com timezone)
+ *   - produtividade.data: date (sempre o mesmo dia)
+ *
+ * Solução: Extrai apenas YYYY-MM-DD antes de qualquer conversão de timezone
+ */
+const extractDateStringUtil = (dateValue: string | null | undefined): string => {
+  if (!dateValue) return '';
+
+  // Convert to string if needed
+  const dateStr = String(dateValue);
+
+  // Extract YYYY-MM-DD portion only (before 'T' if exists)
+  const datePart = dateStr.split('T')[0];
+
+  // Validate format and normalize padding
+  const parts = datePart.split('-');
+  if (parts.length !== 3) return '';
+
+  const [year, month, day] = parts.map(p => parseInt(p, 10));
+
+  // Return normalized date string (always YYYY-MM-DD with proper padding)
+  return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+};
+
+// ============================================================================
+
 const Dashboard: React.FC = () => {
   const { userProfile, isAdminTerceiro, isTerceiro } = useAuth();
   const theme = useTheme();
@@ -327,17 +398,48 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const loadProdutividade = async () => {
+  const loadProdutividade = async (dataInicio?: Date, dataFim?: Date) => {
     try {
       console.log("🔄 Carregando dados de produtividade...");
-      const { data, error: fetchError } = await supabase
-        .from("produtividade")
-        .select("*")
-        .order("data", { ascending: false });
 
-      if (fetchError) throw fetchError;
-      console.log(`✅ Produtividade carregada: ${data?.length || 0} registros`);
-      setProdutividade(data || []);
+      // Se não houver filtros de data, carregar tudo com paginação
+      const pageSize = 1000;
+      let allProdutividade: Produtividade[] = [];
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        let query = supabase
+          .from("produtividade")
+          .select("*")
+          .order("data", { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        // Aplicar filtros de data se fornecidos
+        if (dataInicio) {
+          const dataInicioFormatada = format(dataInicio, "yyyy-MM-dd");
+          query = query.gte("data", dataInicioFormatada);
+        }
+        if (dataFim) {
+          const dataFimFormatada = format(dataFim, "yyyy-MM-dd");
+          query = query.lte("data", dataFimFormatada);
+        }
+
+        const { data, error: fetchError } = await query;
+
+        if (fetchError) throw fetchError;
+
+        if (data && data.length > 0) {
+          allProdutividade = [...allProdutividade, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      console.log(`✅ Produtividade carregada: ${allProdutividade.length} registros`);
+      setProdutividade(allProdutividade);
     } catch (err: any) {
       console.error("❌ Erro ao carregar produtividade:", err);
     }
@@ -365,7 +467,12 @@ const Dashboard: React.FC = () => {
         .select("cpf, codigomv, especialidade, nome");
 
       if (fetchError) throw fetchError;
-      setUsuarios(data || []);
+
+      // Normalizar CPFs para garantir formato consistente (11 dígitos)
+      const normalizedData = (data || []).map(normalizeCPFInObject);
+      console.log(`✅ Usuários carregados e CPFs normalizados: ${normalizedData.length} registros`);
+
+      setUsuarios(normalizedData);
     } catch (err: any) {
       console.error("Erro ao carregar usuarios:", err);
     }
@@ -466,7 +573,15 @@ const Dashboard: React.FC = () => {
         }
       }
 
-      setAcessos(allAcessos);
+      // Normalizar CPFs para garantir formato consistente (11 dígitos)
+      const normalizedAcessos = allAcessos.map(normalizeCPFInObject);
+      console.log(`✅ Acessos carregados e CPFs normalizados: ${normalizedAcessos.length} registros`);
+
+      setAcessos(normalizedAcessos);
+
+      // Carregar produtividade com os mesmos filtros de data
+      await loadProdutividade(filtroDataInicio, filtroDataFim);
+
       setBuscaRealizada(true);
     } catch (err: any) {
       setError(err.message || "Erro ao carregar acessos");
@@ -1281,15 +1396,87 @@ const Dashboard: React.FC = () => {
 
   // Calcular inconsistências entre produtividade e acessos
   const inconsistencias = useMemo(() => {
+    // GUARD: Prevenir race condition - só calcular quando os dados estiverem carregados
+    // Verifica se estamos em estado de loading ou se os dados essenciais ainda não foram carregados
+    if (loading || !buscaRealizada || acessos.length === 0 || usuarios.length === 0) {
+      console.log('⏳ Aguardando carregamento completo dos dados antes de calcular inconsistências');
+      return {
+        prodSemAcesso: [],
+        acessoSemProd: []
+      };
+    }
+
+    // Usar a função utilitária de normalização de CPF
+    const normalizeCPF = normalizeCPFUtil;
+
+    // Helper function to normalize names for comparison
+    const normalizeName = (name: string | null | undefined): string => {
+      if (!name) return '';
+      return name
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ') // Remove extra spaces
+        .normalize('NFD') // Decompose accented characters
+        .replace(/[\u0300-\u036f]/g, ''); // Remove diacritics
+    };
+
+    // Usar a função utilitária de extração de data
+    const extractDateString = extractDateStringUtil;
+
     // Mapear os usuarios para ter relação cpf <-> codigomv
     const cpfToCodigoMV = new Map<string, string>();
     const codigoMVToCPF = new Map<string, string>();
+    const duplicateCodigoMV = new Map<string, string[]>(); // Track duplicates
+
     usuarios.forEach((u) => {
       if (u.cpf && u.codigomv) {
-        cpfToCodigoMV.set(u.cpf, u.codigomv);
-        codigoMVToCPF.set(u.codigomv, u.cpf);
+        const normalizedCPF = normalizeCPF(u.cpf);
+
+        // Check for duplicate codigomv
+        if (codigoMVToCPF.has(u.codigomv)) {
+          const existingCPF = codigoMVToCPF.get(u.codigomv);
+          if (!duplicateCodigoMV.has(u.codigomv)) {
+            duplicateCodigoMV.set(u.codigomv, [existingCPF!]);
+          }
+          duplicateCodigoMV.get(u.codigomv)!.push(normalizedCPF);
+          console.warn(`⚠️ codigomv duplicado: "${u.codigomv}" encontrado para CPFs: ${duplicateCodigoMV.get(u.codigomv)!.join(', ')}`);
+        }
+
+        cpfToCodigoMV.set(normalizedCPF, u.codigomv);
+        codigoMVToCPF.set(u.codigomv, normalizedCPF);
       }
     });
+
+    if (duplicateCodigoMV.size > 0) {
+      console.warn(`⚠️ Total de codigomv duplicados: ${duplicateCodigoMV.size}`);
+      console.warn('⚠️ Isso pode causar inconsistências! Cada codigomv deveria ser único.');
+    }
+
+    // Debug: Check CRISTINA in usuarios table
+    const cristinaUsuario = usuarios.find(u => u.nome?.includes('CRISTINA CRUVINEL'));
+    if (cristinaUsuario) {
+      console.log('👤 CRISTINA em usuarios:', {
+        nome: cristinaUsuario.nome,
+        cpf: cristinaUsuario.cpf,
+        codigomv: cristinaUsuario.codigomv,
+        cpf_length: cristinaUsuario.cpf?.length
+      });
+
+      // Check what CPF is mapped for this codigomv
+      const mappedCPF = codigoMVToCPF.get(cristinaUsuario.codigomv || '');
+      console.log(`🔍 Mapeamento para codigomv "${cristinaUsuario.codigomv}": ${mappedCPF}`);
+
+      // Find all users with this codigomv
+      const allWithSameCodigoMV = usuarios.filter(u => u.codigomv === cristinaUsuario.codigomv);
+      if (allWithSameCodigoMV.length > 1) {
+        console.log(`⚠️ Encontrados ${allWithSameCodigoMV.length} usuários com codigomv "${cristinaUsuario.codigomv}":`);
+        allWithSameCodigoMV.forEach(u => {
+          console.log(`   - ${u.nome} (CPF: ${u.cpf})`);
+        });
+      }
+    }
+
+    console.log(`🗺️ Total de mapeamentos codigoMV → CPF: ${codigoMVToCPF.size}`);
 
     // Aplicar filtros de data para normalização
     const dataInicioNormalizada = filtroDataInicio
@@ -1302,44 +1489,181 @@ const Dashboard: React.FC = () => {
 
     // Agrupar acessos por pessoa e data (com filtros aplicados)
     const acessosPorPessoaData = new Map<string, Set<string>>();
+
+    // Debug: Log sample CPFs from acessos to see format
+    console.log('📋 Amostra de CPFs na tabela acessos (primeiros 10):');
+    acessos.slice(0, 10).forEach(a => {
+      console.log(`  ${a.nome}: CPF="${a.cpf}" (length: ${a.cpf?.length})`);
+    });
+
+    // Check if CRISTINA exists in acessos
+    const cristinaAcessos = acessos.filter(a => a.nome?.includes('CRISTINA'));
+    console.log(`📋 Registros de CRISTINA CRUVINEL FREITAS em acessos: ${cristinaAcessos.length}`);
+    if (cristinaAcessos.length > 0) {
+      console.log('   Exemplo:', { nome: cristinaAcessos[0].nome, cpf: cristinaAcessos[0].cpf, data: cristinaAcessos[0].data_acesso });
+    }
+
+    // Debug: Track filtered out acessos for specific CPF
+    let totalAcessos = 0;
+    let filteredByNome = 0;
+    let filteredByUnidade = 0;
+    let filteredByContrato = 0;
+    let filteredByData = 0;
+
     acessos.forEach((acesso) => {
+      totalAcessos++;
+
+      // Normalize CPF for comparison
+      const normalizedCPF = normalizeCPF(acesso.cpf);
+
+      // Debug for specific CPF
+      const isDebugCPF = normalizedCPF === '99282089134';
+      if (isDebugCPF) {
+        console.log('🔍 Acesso encontrado para CRISTINA:', {
+          cpf_original: acesso.cpf,
+          cpf_normalizado: normalizedCPF,
+          nome: acesso.nome,
+          data: acesso.data_acesso,
+          planta: acesso.planta
+        });
+      }
+
       // Aplicar filtros de nome
-      if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome)) return;
+      if (filtroNome.length > 0 && !filtroNome.includes(acesso.nome)) {
+        if (isDebugCPF) console.log('❌ Filtrado por NOME');
+        filteredByNome++;
+        return;
+      }
 
       // Aplicar filtro de unidade hospitalar
-      if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta))
+      if (filtroUnidade.length > 0 && !filtroUnidade.includes(acesso.planta)) {
+        if (isDebugCPF) console.log('❌ Filtrado por UNIDADE');
+        filteredByUnidade++;
         return;
+      }
 
-      // Aplicar filtro de contrato
-      if (
-        cpfsDoContratoFiltrado.length > 0 &&
-        !cpfsDoContratoFiltrado.includes(acesso.cpf)
-      )
-        return;
+      // Aplicar filtro de contrato (normalize CPFs for comparison)
+      if (cpfsDoContratoFiltrado.length > 0) {
+        const normalizedContratosCPFs = cpfsDoContratoFiltrado.map(normalizeCPF);
+        if (!normalizedContratosCPFs.includes(normalizedCPF)) {
+          if (isDebugCPF) console.log('❌ Filtrado por CONTRATO');
+          filteredByContrato++;
+          return;
+        }
+      }
 
       // Aplicar filtros de data
       const dataAcesso = new Date(acesso.data_acesso);
       dataAcesso.setHours(0, 0, 0, 0);
 
-      if (dataInicioNormalizada && dataAcesso < dataInicioNormalizada) return;
-      if (dataFimNormalizada && dataAcesso > dataFimNormalizada) return;
+      if (dataInicioNormalizada && dataAcesso < dataInicioNormalizada) {
+        if (isDebugCPF) console.log('❌ Filtrado por DATA (antes do início)');
+        filteredByData++;
+        return;
+      }
+      if (dataFimNormalizada && dataAcesso > dataFimNormalizada) {
+        if (isDebugCPF) console.log('❌ Filtrado por DATA (depois do fim)');
+        filteredByData++;
+        return;
+      }
 
-      const [year, month, day] = acesso.data_acesso.split("T")[0].split("-");
-      const dataStr = `${year}-${month}-${day}`;
-      const key = `${acesso.cpf}`;
+      // Extract date string (handles timezone consistently)
+      const dataStr = extractDateString(acesso.data_acesso);
+      if (!dataStr) return; // Skip if invalid date
+
+      // Use normalized CPF as key
+      const key = normalizedCPF;
       if (!acessosPorPessoaData.has(key)) {
         acessosPorPessoaData.set(key, new Set());
       }
       acessosPorPessoaData.get(key)!.add(dataStr);
+
+      if (isDebugCPF) {
+        console.log('✅ Acesso ADICIONADO ao mapa:', { cpf_normalizado: key, data: dataStr });
+      }
+
+      // Debug logging for first 3 entries
+      if (acessosPorPessoaData.size <= 3 && acessosPorPessoaData.get(key)!.size === 1) {
+        console.log('📥 Acesso adicionado:', { nome: acesso.nome, cpf: key, data: dataStr, data_original: acesso.data_acesso });
+      }
+    });
+
+    // Criar mapa de nome -> CPF dos acessos filtrados (para fallback de matching)
+    const nomeParaCPFMap = new Map<string, string>();
+    acessosPorPessoaData.forEach((datas, cpf) => {
+      const acesso = acessos.find((a) => normalizeCPF(a.cpf) === cpf);
+      if (acesso && acesso.nome) {
+        const nomeNorm = normalizeName(acesso.nome);
+        // Se houver duplicatas, mantenha o primeiro encontrado
+        if (!nomeParaCPFMap.has(nomeNorm)) {
+          nomeParaCPFMap.set(nomeNorm, cpf);
+        }
+      }
     });
 
     // Agrupar produtividade por pessoa e data (com filtros aplicados)
     // IMPORTANTE: Só considera como produtividade válida se a soma das atividades for > 0
     const produtividadePorPessoaData = new Map<string, Set<string>>();
+
+    // Debug: Check CRISTINA in produtividade
+    const cristinaProd = produtividade.filter(p => p.nome?.includes('CRISTINA'));
+    if (cristinaProd.length > 0) {
+      const cristinaCPF = codigoMVToCPF.get(cristinaProd[0].codigo_mv);
+      console.log('📊 CRISTINA em produtividade:', {
+        nome: cristinaProd[0].nome,
+        codigo_mv: cristinaProd[0].codigo_mv,
+        cpf_mapeado: cristinaCPF,
+        cpf_length: cristinaCPF?.length
+      });
+    }
+
+    // DEBUG: Contador para Cristina
+    let cristinaTotal = 0;
+    let cristinaFiltrados = {
+      semData: 0,
+      semCPF: 0,
+      somaZero: 0,
+      filtroNome: 0,
+      filtroEspecialidade: 0,
+      filtroUnidade: 0,
+      filtroContrato: 0,
+      filtroData: 0,
+      adicionados: 0
+    };
+
     produtividade.forEach((prod) => {
-      if (!prod.data) return;
-      const cpf = codigoMVToCPF.get(prod.codigo_mv);
-      if (!cpf) return;
+      // DEBUG: Rastrear Cristina
+      const isCristina = prod.nome?.includes('CRISTINA');
+      if (isCristina) cristinaTotal++;
+
+      if (!prod.data) {
+        if (isCristina) cristinaFiltrados.semData++;
+        return;
+      }
+
+      // Estratégia 1: Tentar mapear por codigo_mv
+      let cpf = codigoMVToCPF.get(prod.codigo_mv);
+
+      // Estratégia 2: Se não encontrou por codigo_mv, tentar encontrar por nome
+      // Usa o mapa de nomes dos acessos FILTRADOS para garantir consistência
+      if (!cpf && prod.nome) {
+        const nomeNormalizado = normalizeName(prod.nome);
+        cpf = nomeParaCPFMap.get(nomeNormalizado);
+      }
+
+      // Se ainda não encontrou CPF, pular este registro
+      if (!cpf) {
+        if (isCristina) {
+          cristinaFiltrados.semCPF++;
+          console.log('❌ CRISTINA: Registro SEM CPF:', {
+            data: prod.data,
+            codigo_mv: prod.codigo_mv,
+            codigomv_existe: codigoMVToCPF.has(prod.codigo_mv),
+            nome_no_mapa: nomeParaCPFMap.has(normalizeName(prod.nome))
+          });
+        }
+        return;
+      }
 
       // Calcular soma de todas as atividades de produtividade
       const somaProdutividade =
@@ -1358,10 +1682,31 @@ const Dashboard: React.FC = () => {
         prod.evolucao_noturna_cti;
 
       // Se a soma for 0, não é considerado produtividade válida
-      if (somaProdutividade === 0) return;
+      if (somaProdutividade === 0) {
+        if (isCristina) cristinaFiltrados.somaZero++;
+        return;
+      }
 
       // Aplicar filtros de nome
-      if (filtroNome.length > 0 && !filtroNome.includes(prod.nome)) return;
+      if (filtroNome.length > 0 && !filtroNome.includes(prod.nome)) {
+        if (isCristina) cristinaFiltrados.filtroNome++;
+        return;
+      }
+
+      // Aplicar filtro de especialidade
+      if (filtroEspecialidade.length > 0) {
+        const usuario = usuarios.find((u) => normalizeCPF(u.cpf) === cpf);
+        if (
+          !usuario ||
+          !usuario.especialidade ||
+          !usuario.especialidade.some((esp) =>
+            filtroEspecialidade.includes(esp)
+          )
+        ) {
+          if (isCristina) cristinaFiltrados.filtroEspecialidade++;
+          return;
+        }
+      }
 
       // Aplicar filtro de unidade hospitalar
       if (filtroUnidade.length > 0 && prod.unidade_hospitalar_id) {
@@ -1369,6 +1714,7 @@ const Dashboard: React.FC = () => {
           (u) => u.id === prod.unidade_hospitalar_id
         );
         if (!unidadeItem || !filtroUnidade.includes(unidadeItem.codigo)) {
+          if (isCristina) cristinaFiltrados.filtroUnidade++;
           return;
         }
       }
@@ -1378,25 +1724,74 @@ const Dashboard: React.FC = () => {
         cpfsDoContratoFiltrado.length > 0 &&
         !cpfsDoContratoFiltrado.includes(cpf)
       ) {
+        if (isCristina) cristinaFiltrados.filtroContrato++;
         return;
       }
 
       // Aplicar filtros de data
-      const [year, month, day] = prod.data.split("T")[0].split("-").map(Number);
+      const dataStr = extractDateString(prod.data);
+      if (!dataStr) {
+        if (isCristina) cristinaFiltrados.filtroData++;
+        return; // Skip if invalid date
+      }
+
+      // Parse for date comparison (using string parts to avoid timezone issues)
+      const [year, month, day] = dataStr.split("-").map(Number);
       const dataProd = new Date(year, month - 1, day);
 
-      if (dataInicioNormalizada && dataProd < dataInicioNormalizada) return;
-      if (dataFimNormalizada && dataProd > dataFimNormalizada) return;
-
-      const dataStr = `${year.toString().padStart(4, "0")}-${month
-        .toString()
-        .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+      if (dataInicioNormalizada && dataProd < dataInicioNormalizada) {
+        if (isCristina) cristinaFiltrados.filtroData++;
+        return;
+      }
+      if (dataFimNormalizada && dataProd > dataFimNormalizada) {
+        if (isCristina) cristinaFiltrados.filtroData++;
+        return;
+      }
       const key = `${cpf}`;
       if (!produtividadePorPessoaData.has(key)) {
         produtividadePorPessoaData.set(key, new Set());
       }
       produtividadePorPessoaData.get(key)!.add(dataStr);
+
+      // DEBUG: Contador de adicionados
+      if (isCristina) cristinaFiltrados.adicionados++;
+
+      // Debug logging expandido
+      if (produtividadePorPessoaData.size <= 5) {
+        console.log('📊 Produtividade adicionada:', {
+          nome: prod.nome,
+          cpf: key,
+          cpf_length: key.length,
+          data: dataStr,
+          data_original: prod.data,
+          codigo_mv: prod.codigo_mv,
+          fonte: cpf === codigoMVToCPF.get(prod.codigo_mv) ? 'codigo_mv' : 'nome'
+        });
+      }
     });
+
+    // DEBUG: Resumo da Cristina
+    if (cristinaTotal > 0) {
+      console.log('🔍 RESUMO CRISTINA - Processamento de Produtividade:');
+      console.log('  📊 Total de registros:', cristinaTotal);
+      console.log('  ✅ Adicionados ao mapa:', cristinaFiltrados.adicionados);
+      console.log('  ❌ Filtrados:');
+      console.log('    - Sem data:', cristinaFiltrados.semData);
+      console.log('    - Sem CPF:', cristinaFiltrados.semCPF);
+      console.log('    - Soma = 0:', cristinaFiltrados.somaZero);
+      console.log('    - Filtro nome:', cristinaFiltrados.filtroNome);
+      console.log('    - Filtro especialidade:', cristinaFiltrados.filtroEspecialidade);
+      console.log('    - Filtro unidade:', cristinaFiltrados.filtroUnidade);
+      console.log('    - Filtro contrato:', cristinaFiltrados.filtroContrato);
+      console.log('    - Filtro data:', cristinaFiltrados.filtroData);
+      console.log('  ---');
+    }
+
+    // DEBUG: Resumo dos dados processados
+    console.log('📊 RESUMO DO PROCESSAMENTO:');
+    console.log('  Total de CPFs com ACESSO:', acessosPorPessoaData.size);
+    console.log('  Total de CPFs com PRODUTIVIDADE:', produtividadePorPessoaData.size);
+    console.log('  ---');
 
     // Encontrar produtividade sem acesso
     const prodSemAcesso = new Map<string, string[]>();
@@ -1414,6 +1809,15 @@ const Dashboard: React.FC = () => {
           (p) => codigoMVToCPF.get(p.codigo_mv) === cpf
         );
         const nome = prod?.nome || cpf;
+
+        // Debug logging
+        console.log('🔍 Produtividade sem Acesso detectada:');
+        console.log('  Nome:', nome);
+        console.log('  CPF:', cpf);
+        console.log('  Datas com produtividade:', Array.from(datas));
+        console.log('  Datas com acesso:', Array.from(datasAcesso));
+        console.log('  Datas SEM acesso:', datasSemAcesso);
+
         prodSemAcesso.set(nome, datasSemAcesso);
       }
     });
@@ -1430,8 +1834,18 @@ const Dashboard: React.FC = () => {
       });
       if (datasSemProd.length > 0) {
         // Encontrar o nome da pessoa a partir dos registros de acesso
-        const acesso = acessos.find((a) => a.cpf === cpf);
+        const acesso = acessos.find((a) => normalizeCPF(a.cpf) === cpf);
         const nome = acesso?.nome || cpf;
+
+        // DEBUG: Log detalhado para identificar problema
+        console.log('🔍 ACESSO SEM PRODUTIVIDADE DETECTADO:');
+        console.log('  👤 Nome:', nome);
+        console.log('  🆔 CPF:', cpf);
+        console.log('  📅 Datas com ACESSO:', Array.from(datas).sort());
+        console.log('  ✅ Datas com PRODUTIVIDADE:', Array.from(datasProd).sort());
+        console.log('  ❌ Datas SEM produtividade:', datasSemProd.sort());
+        console.log('  ---');
+
         acessoSemProd.set(nome, datasSemProd);
       }
     });
@@ -1450,10 +1864,13 @@ const Dashboard: React.FC = () => {
       acessoSemProd: acessoSemProdArray,
     };
   }, [
+    loading,
+    buscaRealizada,
     acessos,
     produtividade,
     usuarios,
     filtroNome,
+    filtroEspecialidade,
     filtroUnidade,
     filtroDataInicio,
     filtroDataFim,
@@ -1943,8 +2360,7 @@ const Dashboard: React.FC = () => {
         // Buscar todos os registros de produtividade para esta data e pessoa
         const registrosDoDia = produtividade.filter((prod) => {
           if (!prod.data || prod.nome !== nome) return false;
-          const [year, month, day] = prod.data.split("T")[0].split("-");
-          const dataStr = `${year}-${month}-${day}`;
+          const dataStr = extractDateStringUtil(prod.data);
           return dataStr === data;
         });
 
