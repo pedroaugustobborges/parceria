@@ -150,7 +150,7 @@ const extractDateStringUtil = (dateValue: string | null | undefined): string => 
 // ============================================================================
 
 const Dashboard: React.FC = () => {
-  const { userProfile, isAdminTerceiro, isTerceiro } = useAuth();
+  const { userProfile, isAdminTerceiro, isTerceiro, userContratoIds } = useAuth();
   const theme = useTheme();
 
   // Large data arrays - NOT persisted (too large for sessionStorage)
@@ -340,38 +340,50 @@ const Dashboard: React.FC = () => {
       try {
         let cpfs: string[] = [];
 
-        // Determinar qual contrato_id usar
-        let contratoId: number | null = null;
-
         if (filtroContrato) {
           // Usuário selecionou um contrato específico
-          contratoId = filtroContrato.id;
-        } else if (isAdminTerceiro && userProfile?.contrato_id) {
-          // Administrador-terceiro: usar seu contrato automaticamente
-          contratoId = userProfile.contrato_id;
-          console.log('🔒 Administrador-terceiro: aplicando filtro automático de contrato:', contratoId);
+          const { data: usuariosContrato } = await supabase
+            .from("usuario_contrato")
+            .select("cpf")
+            .eq("contrato_id", filtroContrato.id);
+
+          if (usuariosContrato && usuariosContrato.length > 0) {
+            cpfs = usuariosContrato.map((u: any) => u.cpf);
+          }
+        } else if (isAdminTerceiro && userContratoIds.length > 0) {
+          // Administrador-terceiro: buscar CPFs de todos os seus contratos
+          console.log('🔒 Administrador-terceiro: aplicando filtro automático de contratos:', userContratoIds);
+
+          const { data: usuariosContrato } = await supabase
+            .from("usuario_contrato")
+            .select("cpf")
+            .in("contrato_id", userContratoIds);
+
+          if (usuariosContrato && usuariosContrato.length > 0) {
+            cpfs = [...new Set(usuariosContrato.map((u: any) => u.cpf))]; // Remove duplicates
+          }
         }
 
-        if (!contratoId) {
+        if (cpfs.length === 0) {
           setCpfsDoContratoFiltrado([]);
           return;
         }
 
-        // Buscar CPFs da tabela usuario_contrato (junction table)
-        const { data: usuariosContrato } = await supabase
-          .from("usuario_contrato")
-          .select("cpf")
-          .eq("contrato_id", contratoId);
-
-        if (usuariosContrato && usuariosContrato.length > 0) {
-          cpfs = usuariosContrato.map((u: any) => u.cpf);
-        }
-
         // TAMBÉM buscar CPFs da tabela usuarios diretamente (para usuários importados via CSV)
-        const { data: usuariosDirectos } = await supabase
-          .from("usuarios")
-          .select("cpf")
-          .eq("contrato_id", contratoId);
+        let usuariosDirectos;
+        if (filtroContrato) {
+          const { data } = await supabase
+            .from("usuarios")
+            .select("cpf")
+            .eq("contrato_id", filtroContrato.id);
+          usuariosDirectos = data;
+        } else if (isAdminTerceiro && userContratoIds.length > 0) {
+          const { data } = await supabase
+            .from("usuarios")
+            .select("cpf")
+            .in("contrato_id", userContratoIds);
+          usuariosDirectos = data;
+        }
 
         if (usuariosDirectos && usuariosDirectos.length > 0) {
           const cpfsDirectos = usuariosDirectos.map((u: any) => u.cpf);
@@ -572,15 +584,15 @@ const Dashboard: React.FC = () => {
         // Aplicar filtros baseados no tipo de usuário
         if (isTerceiro && userProfile) {
           query = query.eq("cpf", userProfile.cpf);
-        } else if (isAdminTerceiro && userProfile?.contrato_id) {
-          // Buscar CPFs dos usuários vinculados ao contrato do administrador
+        } else if (isAdminTerceiro && userContratoIds.length > 0) {
+          // Buscar CPFs dos usuários vinculados aos contratos do administrador
           const { data: usuariosContrato } = await supabase
             .from("usuario_contrato")
             .select("cpf")
-            .eq("contrato_id", userProfile.contrato_id);
+            .in("contrato_id", userContratoIds);
 
           if (usuariosContrato && usuariosContrato.length > 0) {
-            const cpfs = usuariosContrato.map((u: any) => u.cpf);
+            const cpfs = [...new Set(usuariosContrato.map((u: any) => u.cpf))]; // Remove duplicates
             query = query.in("cpf", cpfs);
           }
         }

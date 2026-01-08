@@ -92,8 +92,8 @@ USER_AGENTS = [
 ]
 
 # --- Range de Datas para Processar ---
-DATA_INICIO = datetime(2025, 12, 1)  # 01/12/2025
-DATA_FIM = datetime(2025, 12, 5)    # 29/12/2025
+DATA_INICIO = datetime(2026, 1, 6)  # 01/12/2025
+DATA_FIM = datetime(2026, 1, 7)    # 29/12/2025
 
 # --- XPaths do Formulário ---
 BASE_CONTAINER = "//div[contains(@id, '_ParametersPanelContainer')]"

@@ -6,6 +6,7 @@ import { Usuario } from '../types/database.types';
 interface AuthContextType {
   user: User | null;
   userProfile: Usuario | null;
+  userContratoIds: string[]; // All contract IDs linked to this user
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -31,6 +32,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<Usuario | null>(null);
+  const [userContratoIds, setUserContratoIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -71,6 +73,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
       setUserProfile(data);
+
+      // Load all contract IDs for this user from usuario_contrato table
+      const { data: userContratos } = await supabase
+        .from('usuario_contrato')
+        .select('contrato_id')
+        .eq('usuario_id', userId);
+
+      const contratoIds = userContratos?.map(uc => uc.contrato_id) || [];
+
+      // Also include the main contrato_id if it exists (for backward compatibility)
+      if (data?.contrato_id && !contratoIds.includes(data.contrato_id)) {
+        contratoIds.push(data.contrato_id);
+      }
+
+      setUserContratoIds(contratoIds);
     } catch (error) {
       console.error('Erro ao carregar perfil do usuário:', error);
     } finally {
@@ -91,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setUserProfile(null);
+    setUserContratoIds([]);
   };
 
   const isAdminAgirCorporativo = userProfile?.tipo === 'administrador-agir-corporativo';
@@ -104,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = {
     user,
     userProfile,
+    userContratoIds,
     loading,
     signIn,
     signOut,

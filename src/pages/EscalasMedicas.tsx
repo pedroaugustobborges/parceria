@@ -91,7 +91,7 @@ import { recalcularStatusEscalas } from "../services/statusAnalysisService";
 import { usePersistentState, usePersistentArray } from "../hooks/usePersistentState";
 
 const EscalasMedicas: React.FC = () => {
-  const { isAdminAgir, isAdminTerceiro, isTerceiro, userProfile } = useAuth();
+  const { isAdminAgir, isAdminTerceiro, isTerceiro, userProfile, userContratoIds } = useAuth();
   const theme = useTheme();
 
   // Large data arrays - NOT persisted (might be large)
@@ -298,9 +298,9 @@ const EscalasMedicas: React.FC = () => {
 
       // Filtrar contratos para administrador-terceiro
       let contratosDisponiveis = contr || [];
-      if (isAdminTerceiro && userProfile?.contrato_id) {
+      if (isAdminTerceiro && userContratoIds.length > 0) {
         contratosDisponiveis = contratosDisponiveis.filter(
-          (contrato) => contrato.id === userProfile.contrato_id
+          (contrato) => userContratoIds.includes(contrato.id)
         );
       }
 
@@ -373,10 +373,10 @@ const EscalasMedicas: React.FC = () => {
       let escalasParaExibir = escal || [];
 
       // Aplicar filtros baseados no tipo de usuário
-      if (isAdminTerceiro && userProfile?.contrato_id) {
+      if (isAdminTerceiro && userContratoIds.length > 0) {
         // Administrador-terceiro: mostrar apenas escalas de contratos vinculados
         escalasParaExibir = escalasParaExibir.filter(
-          (escala) => escala.contrato_id === userProfile.contrato_id
+          (escala) => userContratoIds.includes(escala.contrato_id)
         );
       } else if (isTerceiro && userProfile?.cpf) {
         // Terceiro: mostrar apenas escalas onde seu CPF está na lista de médicos
@@ -803,7 +803,7 @@ const EscalasMedicas: React.FC = () => {
       }
 
       // Bloquear edição para administrador-terceiro se não for do seu contrato
-      if (isAdminTerceiro && userProfile?.contrato_id && escala.contrato_id !== userProfile.contrato_id) {
+      if (isAdminTerceiro && userContratoIds.length > 0 && !userContratoIds.includes(escala.contrato_id)) {
         setError(
           "Você não tem permissão para editar escalas de outros contratos."
         );
@@ -914,7 +914,7 @@ const EscalasMedicas: React.FC = () => {
     }
 
     // Bloquear exclusão para administrador-terceiro se não for do seu contrato
-    if (isAdminTerceiro && userProfile?.contrato_id && escala.contrato_id !== userProfile.contrato_id) {
+    if (isAdminTerceiro && userContratoIds.length > 0 && !userContratoIds.includes(escala.contrato_id)) {
       setError(
         "Você não tem permissão para excluir escalas de outros contratos."
       );
