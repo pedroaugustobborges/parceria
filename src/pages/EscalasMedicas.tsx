@@ -38,6 +38,8 @@ import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { ptBR } from "date-fns/locale";
+import MultiDatePicker from "react-multi-date-picker";
+import "react-multi-date-picker/styles/backgrounds/bg-dark.css";
 import {
   Add,
   CalendarMonth,
@@ -158,7 +160,7 @@ const EscalasMedicas: React.FC = () => {
   const [formData, setFormData] = useState({
     contrato_id: "",
     item_contrato_id: "",
-    data_inicio: null as Date | null,
+    data_inicio: [] as Date[],
     horario_entrada: null as Date | null,
     horario_saida: null as Date | null,
     medico_selecionado: null as Usuario | null,
@@ -577,6 +579,7 @@ const EscalasMedicas: React.FC = () => {
         !formData.contrato_id ||
         !formData.item_contrato_id ||
         !formData.data_inicio ||
+        formData.data_inicio.length === 0 ||
         !formData.horario_entrada ||
         !formData.horario_saida
       ) {
@@ -741,34 +744,38 @@ const EscalasMedicas: React.FC = () => {
       // Admin-Agir cria com "Programado", Admin-Terceiro cria com "Pré-Agendado"
       const statusInicial = isAdminAgir ? "Programado" : "Pré-Agendado";
 
-      const escalaMedica = {
-        contrato_id: formData.contrato_id,
-        item_contrato_id: formData.item_contrato_id,
-        data_inicio: format(formData.data_inicio!, "yyyy-MM-dd"),
-        horario_entrada: format(formData.horario_entrada!, "HH:mm:ss"),
-        horario_saida: format(formData.horario_saida!, "HH:mm:ss"),
-        medicos: previewData.medicos,
-        observacoes: formData.observacoes || null,
-        status: statusInicial as StatusEscala,
-      };
-
-      // Verificar conflitos de agendamento para cada médico
-      for (const medico of previewData.medicos) {
-        const conflictCheck = await checkConflictingSchedules(
-          medico.cpf,
-          escalaMedica.data_inicio,
-          escalaMedica.horario_entrada,
-          escalaMedica.horario_saida,
-          editingEscala?.id
-        );
-
-        if (conflictCheck.hasConflict) {
-          setError(conflictCheck.conflictDetails || "Conflito de agendamento detectado.");
-          return;
-        }
-      }
+      const horarioEntrada = format(formData.horario_entrada!, "HH:mm:ss");
+      const horarioSaida = format(formData.horario_saida!, "HH:mm:ss");
 
       if (editingEscala) {
+        // When editing, use the first date from the array (or keep single date logic)
+        const escalaMedica = {
+          contrato_id: formData.contrato_id,
+          item_contrato_id: formData.item_contrato_id,
+          data_inicio: format(formData.data_inicio[0], "yyyy-MM-dd"),
+          horario_entrada: horarioEntrada,
+          horario_saida: horarioSaida,
+          medicos: previewData.medicos,
+          observacoes: formData.observacoes || null,
+          status: statusInicial as StatusEscala,
+        };
+
+        // Verificar conflitos de agendamento para cada médico
+        for (const medico of previewData.medicos) {
+          const conflictCheck = await checkConflictingSchedules(
+            medico.cpf,
+            escalaMedica.data_inicio,
+            escalaMedica.horario_entrada,
+            escalaMedica.horario_saida,
+            editingEscala?.id
+          );
+
+          if (conflictCheck.hasConflict) {
+            setError(conflictCheck.conflictDetails || "Conflito de agendamento detectado.");
+            return;
+          }
+        }
+
         const { error: updateError } = await supabase
           .from("escalas_medicas")
           .update(escalaMedica)
@@ -777,12 +784,69 @@ const EscalasMedicas: React.FC = () => {
         if (updateError) throw updateError;
         setSuccess("Escala atualizada com sucesso!");
       } else {
-        const { error: insertError } = await supabase
-          .from("escalas_medicas")
-          .insert(escalaMedica);
+        // When creating new, create one escala for each selected date
+        const escalasToCreate = [];
+        const conflictErrors = [];
 
-        if (insertError) throw insertError;
-        setSuccess("Escala criada com sucesso!");
+        for (const dataInicio of formData.data_inicio) {
+          const dataInicioFormatada = format(dataInicio, "yyyy-MM-dd");
+          let hasConflictForThisDate = false;
+
+          // Verificar conflitos de agendamento para cada médico nesta data
+          for (const medico of previewData.medicos) {
+            const conflictCheck = await checkConflictingSchedules(
+              medico.cpf,
+              dataInicioFormatada,
+              horarioEntrada,
+              horarioSaida
+            );
+
+            if (conflictCheck.hasConflict) {
+              conflictErrors.push(conflictCheck.conflictDetails);
+              hasConflictForThisDate = true;
+              break; // Stop checking other medicos for this date
+            }
+          }
+
+          // Se não houver conflitos para esta data, adicionar à lista
+          if (!hasConflictForThisDate) {
+            escalasToCreate.push({
+              contrato_id: formData.contrato_id,
+              item_contrato_id: formData.item_contrato_id,
+              data_inicio: dataInicioFormatada,
+              horario_entrada: horarioEntrada,
+              horario_saida: horarioSaida,
+              medicos: previewData.medicos,
+              observacoes: formData.observacoes || null,
+              status: statusInicial as StatusEscala,
+            });
+          }
+        }
+
+        // Se nenhuma escala foi criada devido a conflitos, mostrar erro
+        if (escalasToCreate.length === 0 && conflictErrors.length > 0) {
+          setError(conflictErrors.join("\n"));
+          return;
+        }
+
+        // Inserir todas as escalas (pode haver algumas com conflitos que foram puladas)
+        if (escalasToCreate.length > 0) {
+          const { error: insertError } = await supabase
+            .from("escalas_medicas")
+            .insert(escalasToCreate);
+
+          if (insertError) throw insertError;
+
+          const numEscalas = escalasToCreate.length;
+          let successMessage = `${numEscalas} escala${numEscalas > 1 ? 's' : ''} criada${numEscalas > 1 ? 's' : ''} com sucesso!`;
+
+          // Se houve conflitos mas algumas escalas foram criadas, avisar
+          if (conflictErrors.length > 0) {
+            successMessage += `\n\nAtenção: ${conflictErrors.length} data${conflictErrors.length > 1 ? 's' : ''} foi${conflictErrors.length > 1 ? 'ram' : ''} ignorada${conflictErrors.length > 1 ? 's' : ''} devido a conflitos:\n${conflictErrors.join("\n")}`;
+          }
+
+          setSuccess(successMessage);
+        }
       }
 
       handleCloseDialog();
@@ -868,7 +932,7 @@ const EscalasMedicas: React.FC = () => {
       setFormData({
         contrato_id: escala.contrato_id,
         item_contrato_id: escala.item_contrato_id,
-        data_inicio: dataInicio,
+        data_inicio: [dataInicio],
         horario_entrada: horarioEntrada,
         horario_saida: horarioSaida,
         medico_selecionado: medicoEscalado || null,
@@ -885,7 +949,7 @@ const EscalasMedicas: React.FC = () => {
       setFormData({
         contrato_id: "",
         item_contrato_id: "",
-        data_inicio: null,
+        data_inicio: [],
         horario_entrada: null,
         horario_saida: null,
         medico_selecionado: null,
@@ -3199,14 +3263,64 @@ const EscalasMedicas: React.FC = () => {
                     </Box>
                   )}
 
-                <DatePicker
-                  label="Data de Início"
-                  value={formData.data_inicio}
-                  onChange={(newValue) =>
-                    setFormData({ ...formData, data_inicio: newValue })
-                  }
-                  slotProps={{ textField: { fullWidth: true, required: true } }}
-                />
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                    Datas de Início *
+                  </Typography>
+                  <Box
+                    sx={{
+                      border: "1px solid",
+                      borderColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.23)" : "rgba(0, 0, 0, 0.23)",
+                      borderRadius: 1,
+                      padding: 2,
+                      "&:hover": {
+                        borderColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.87)" : "rgba(0, 0, 0, 0.87)",
+                      },
+                    }}
+                  >
+                    <MultiDatePicker
+                      value={formData.data_inicio}
+                      onChange={(dates: any) => {
+                        // Convert DateObject to Date[]
+                        const dateArray = Array.isArray(dates)
+                          ? dates.map((d: any) => d.toDate?.() || d)
+                          : [];
+                        setFormData({ ...formData, data_inicio: dateArray });
+                      }}
+                      multiple
+                      format="DD/MM/YYYY"
+                      placeholder="Selecione uma ou mais datas"
+                      style={{
+                        width: "100%",
+                        height: "40px",
+                        fontSize: "16px",
+                        padding: "8px",
+                      }}
+                      containerStyle={{
+                        width: "100%",
+                      }}
+                      calendarPosition="bottom"
+                    />
+                    {formData.data_inicio.length > 0 && (
+                      <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                        {formData.data_inicio.map((date, index) => (
+                          <Chip
+                            key={index}
+                            label={format(date, "dd/MM/yyyy")}
+                            size="small"
+                            onDelete={() => {
+                              const newDates = formData.data_inicio.filter((_, i) => i !== index);
+                              setFormData({ ...formData, data_inicio: newDates });
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                    Clique nas datas no calendário para selecionar múltiplas datas
+                  </Typography>
+                </Box>
 
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
@@ -3316,15 +3430,22 @@ const EscalasMedicas: React.FC = () => {
                       {previewData.contrato?.empresa}
                     </Typography>
                     <Box display="flex" gap={2} mt={2} flexWrap="wrap">
-                      <Chip
-                        icon={<CalendarMonth />}
-                        label={
-                          formData.data_inicio
-                            ? format(formData.data_inicio, "dd/MM/yyyy")
-                            : ""
-                        }
-                        color="primary"
-                      />
+                      {formData.data_inicio.length > 0 ? (
+                        formData.data_inicio.map((date, index) => (
+                          <Chip
+                            key={index}
+                            icon={<CalendarMonth />}
+                            label={format(date, "dd/MM/yyyy")}
+                            color="primary"
+                          />
+                        ))
+                      ) : (
+                        <Chip
+                          icon={<CalendarMonth />}
+                          label="Nenhuma data selecionada"
+                          color="default"
+                        />
+                      )}
                       <Chip
                         icon={<Schedule />}
                         label={`${
