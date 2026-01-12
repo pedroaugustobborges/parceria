@@ -2785,7 +2785,7 @@ const EscalasMedicas: React.FC = () => {
             </Grid>
 
             {/* Bulk Actions */}
-            {isAdminAgir && escalasFiltradas.length > 0 && (
+            {(isAdminAgir || isAdminTerceiro) && escalasFiltradas.length > 0 && (
               <Box sx={{ mb: 3, display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
                 <Button
                   variant={selectedEscalas.size === 0 ? "outlined" : "contained"}
@@ -2817,38 +2817,42 @@ const EscalasMedicas: React.FC = () => {
                       color="primary"
                       onDelete={handleDeselectAll}
                     />
-                    <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<DoneAll />}
-                      onClick={() => {
-                        setBulkStatus("Aprovado");
-                        handleOpenBulkStatusDialog();
-                      }}
-                      size="small"
-                    >
-                      Aprovar Selecionadas
-                    </Button>
-                    <Button
-                      variant="contained"
-                      color="error"
-                      startIcon={<ThumbDown />}
-                      onClick={() => {
-                        setBulkStatus("Reprovado");
-                        handleOpenBulkStatusDialog();
-                      }}
-                      size="small"
-                    >
-                      Reprovar Selecionadas
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<Edit />}
-                      onClick={handleOpenBulkStatusDialog}
-                      size="small"
-                    >
-                      Alterar Status
-                    </Button>
+                    {isAdminAgir && (
+                      <>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          startIcon={<DoneAll />}
+                          onClick={() => {
+                            setBulkStatus("Aprovado");
+                            handleOpenBulkStatusDialog();
+                          }}
+                          size="small"
+                        >
+                          Aprovar Selecionadas
+                        </Button>
+                        <Button
+                          variant="contained"
+                          color="error"
+                          startIcon={<ThumbDown />}
+                          onClick={() => {
+                            setBulkStatus("Reprovado");
+                            handleOpenBulkStatusDialog();
+                          }}
+                          size="small"
+                        >
+                          Reprovar Selecionadas
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          startIcon={<Edit />}
+                          onClick={handleOpenBulkStatusDialog}
+                          size="small"
+                        >
+                          Alterar Status
+                        </Button>
+                      </>
+                    )}
                   </>
                 )}
               </Box>
@@ -2882,7 +2886,7 @@ const EscalasMedicas: React.FC = () => {
                           mb={2}
                         >
                           <Box display="flex" alignItems="start" gap={1}>
-                            {isAdminAgir && escala.status !== "Aprovado" && escala.status !== "Reprovado" && (
+                            {(isAdminAgir || isAdminTerceiro) && escala.status !== "Aprovado" && escala.status !== "Reprovado" && (
                               <Tooltip title="Selecionar para ação em massa">
                                 <IconButton
                                   size="small"
