@@ -855,10 +855,17 @@ const EscalasMedicas: React.FC = () => {
 
   const handleOpenDialog = async (escala?: EscalaMedica) => {
     if (escala) {
-      // Bloquear edição se status não for "Programado" ou "Pré-Agendado"
-      if (escala.status !== "Programado" && escala.status !== "Pré-Agendado") {
+      // Bloquear edição baseado no tipo de usuário e status
+      const canEditStatus = isAdminTerceiro
+        ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção"
+        : escala.status === "Programado" || escala.status === "Pré-Agendado";
+
+      if (!canEditStatus) {
+        const allowedStatuses = isAdminTerceiro
+          ? '"Programado", "Pré-Agendado" ou "Atenção"'
+          : '"Programado" ou "Pré-Agendado"';
         setError(
-          `Não é possível editar uma escala com status "${escala.status}". Apenas escalas com status "Programado" ou "Pré-Agendado" podem ser editadas.`
+          `Não é possível editar uma escala com status "${escala.status}". Apenas escalas com status ${allowedStatuses} podem ser editadas.`
         );
         return;
       }
@@ -2993,18 +3000,25 @@ const EscalasMedicas: React.FC = () => {
                             <Box>
                               <Tooltip
                                 title={
-                                  escala.status !== "Programado" &&
-                                  escala.status !== "Pré-Agendado"
-                                    ? `Não é possível editar. Apenas escalas com status "Programado" ou "Pré-Agendado" podem ser editadas.`
-                                    : "Editar escala"
+                                  (() => {
+                                    const canEdit = isAdminTerceiro
+                                      ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção"
+                                      : escala.status === "Programado" || escala.status === "Pré-Agendado";
+                                    if (canEdit) return "Editar escala";
+                                    const allowedStatuses = isAdminTerceiro
+                                      ? '"Programado", "Pré-Agendado" ou "Atenção"'
+                                      : '"Programado" ou "Pré-Agendado"';
+                                    return `Não é possível editar. Apenas escalas com status ${allowedStatuses} podem ser editadas.`;
+                                  })()
                                 }
                               >
                                 <span>
                                   <IconButton
                                     size="small"
                                     disabled={
-                                      escala.status !== "Programado" &&
-                                      escala.status !== "Pré-Agendado"
+                                      isAdminTerceiro
+                                        ? escala.status !== "Programado" && escala.status !== "Pré-Agendado" && escala.status !== "Atenção"
+                                        : escala.status !== "Programado" && escala.status !== "Pré-Agendado"
                                     }
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -4472,14 +4486,20 @@ const EscalasMedicas: React.FC = () => {
             <Button onClick={handleCloseDetailsDialog} variant="outlined">
               Fechar
             </Button>
-            {isAdminAgir && escalaDetalhes && (
+            {(isAdminAgir || isAdminTerceiro) && escalaDetalhes && (
               <>
                 <Tooltip
                   title={
-                    escalaDetalhes.status !== "Programado" &&
-                    escalaDetalhes.status !== "Pré-Agendado"
-                      ? `Não é possível editar. Apenas escalas com status "Programado" ou "Pré-Agendado" podem ser editadas.`
-                      : ""
+                    (() => {
+                      const canEdit = isAdminTerceiro
+                        ? escalaDetalhes.status === "Programado" || escalaDetalhes.status === "Pré-Agendado" || escalaDetalhes.status === "Atenção"
+                        : escalaDetalhes.status === "Programado" || escalaDetalhes.status === "Pré-Agendado";
+                      if (canEdit) return "";
+                      const allowedStatuses = isAdminTerceiro
+                        ? '"Programado", "Pré-Agendado" ou "Atenção"'
+                        : '"Programado" ou "Pré-Agendado"';
+                      return `Não é possível editar. Apenas escalas com status ${allowedStatuses} podem ser editadas.`;
+                    })()
                   }
                 >
                   <span>
@@ -4491,39 +4511,42 @@ const EscalasMedicas: React.FC = () => {
                       variant="outlined"
                       startIcon={<Edit />}
                       disabled={
-                        escalaDetalhes.status !== "Programado" &&
-                        escalaDetalhes.status !== "Pré-Agendado"
+                        isAdminTerceiro
+                          ? escalaDetalhes.status !== "Programado" && escalaDetalhes.status !== "Pré-Agendado" && escalaDetalhes.status !== "Atenção"
+                          : escalaDetalhes.status !== "Programado" && escalaDetalhes.status !== "Pré-Agendado"
                       }
                     >
                       Editar
                     </Button>
                   </span>
                 </Tooltip>
-                <Tooltip
-                  title={
-                    escalaDetalhes.status === "Aprovado" ||
-                    escalaDetalhes.status === "Reprovado"
-                      ? `Status bloqueado. Escalas ${escalaDetalhes.status.toLowerCase()}s não podem ter o status alterado.`
-                      : ""
-                  }
-                >
-                  <span>
-                    <Button
-                      onClick={() => {
-                        handleCloseDetailsDialog();
-                        handleOpenStatusDialog(escalaDetalhes);
-                      }}
-                      variant="contained"
-                      color="primary"
-                      disabled={
-                        escalaDetalhes.status === "Aprovado" ||
-                        escalaDetalhes.status === "Reprovado"
-                      }
-                    >
-                      Alterar Status
-                    </Button>
-                  </span>
-                </Tooltip>
+                {isAdminAgir && (
+                  <Tooltip
+                    title={
+                      escalaDetalhes.status === "Aprovado" ||
+                      escalaDetalhes.status === "Reprovado"
+                        ? `Status bloqueado. Escalas ${escalaDetalhes.status.toLowerCase()}s não podem ter o status alterado.`
+                        : ""
+                    }
+                  >
+                    <span>
+                      <Button
+                        onClick={() => {
+                          handleCloseDetailsDialog();
+                          handleOpenStatusDialog(escalaDetalhes);
+                        }}
+                        variant="contained"
+                        color="primary"
+                        disabled={
+                          escalaDetalhes.status === "Aprovado" ||
+                          escalaDetalhes.status === "Reprovado"
+                        }
+                      >
+                        Alterar Status
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
               </>
             )}
           </DialogActions>
