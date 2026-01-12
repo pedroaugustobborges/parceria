@@ -163,7 +163,7 @@ const EscalasMedicas: React.FC = () => {
     data_inicio: [] as Date[],
     horario_entrada: null as Date | null,
     horario_saida: null as Date | null,
-    medico_selecionado: null as Usuario | null,
+    medicos_selecionados: [] as Usuario[],
     observacoes: "",
   });
 
@@ -561,7 +561,7 @@ const EscalasMedicas: React.FC = () => {
       ...formData,
       contrato_id: contrato?.id || "",
       item_contrato_id: "",
-      medico_selecionado: null,
+      medicos_selecionados: [],
     });
     if (contrato) {
       loadUsuariosByContrato(contrato.id);
@@ -586,19 +586,17 @@ const EscalasMedicas: React.FC = () => {
         setError("Preencha todos os campos obrigatórios");
         return;
       }
-      if (!formData.medico_selecionado) {
-        setError("Selecione um médico");
+      if (!formData.medicos_selecionados || formData.medicos_selecionados.length === 0) {
+        setError("Selecione pelo menos um médico");
         return;
       }
 
       // Preparar preview
       const contrato = contratos.find((c) => c.id === formData.contrato_id);
-      const medicos: MedicoEscala[] = [
-        {
-          nome: formData.medico_selecionado.nome,
-          cpf: formData.medico_selecionado.cpf,
-        },
-      ];
+      const medicos: MedicoEscala[] = formData.medicos_selecionados.map(medico => ({
+        nome: medico.nome,
+        cpf: medico.cpf,
+      }));
 
       setPreviewData({ contrato: contrato || null, medicos });
       setError("");
@@ -784,16 +782,17 @@ const EscalasMedicas: React.FC = () => {
         if (updateError) throw updateError;
         setSuccess("Escala atualizada com sucesso!");
       } else {
-        // When creating new, create one escala for each selected date
+        // When creating new, create one escala for each date-doctor combination
         const escalasToCreate = [];
         const conflictErrors = [];
 
+        // Loop through each date
         for (const dataInicio of formData.data_inicio) {
           const dataInicioFormatada = format(dataInicio, "yyyy-MM-dd");
-          let hasConflictForThisDate = false;
 
-          // Verificar conflitos de agendamento para cada médico nesta data
+          // Loop through each doctor
           for (const medico of previewData.medicos) {
+            // Check conflict for this specific doctor on this specific date
             const conflictCheck = await checkConflictingSchedules(
               medico.cpf,
               dataInicioFormatada,
@@ -803,23 +802,19 @@ const EscalasMedicas: React.FC = () => {
 
             if (conflictCheck.hasConflict) {
               conflictErrors.push(conflictCheck.conflictDetails);
-              hasConflictForThisDate = true;
-              break; // Stop checking other medicos for this date
+            } else {
+              // No conflict - create individual escala for this doctor on this date
+              escalasToCreate.push({
+                contrato_id: formData.contrato_id,
+                item_contrato_id: formData.item_contrato_id,
+                data_inicio: dataInicioFormatada,
+                horario_entrada: horarioEntrada,
+                horario_saida: horarioSaida,
+                medicos: [medico], // Only this one doctor
+                observacoes: formData.observacoes || null,
+                status: statusInicial as StatusEscala,
+              });
             }
-          }
-
-          // Se não houver conflitos para esta data, adicionar à lista
-          if (!hasConflictForThisDate) {
-            escalasToCreate.push({
-              contrato_id: formData.contrato_id,
-              item_contrato_id: formData.item_contrato_id,
-              data_inicio: dataInicioFormatada,
-              horario_entrada: horarioEntrada,
-              horario_saida: horarioSaida,
-              medicos: previewData.medicos,
-              observacoes: formData.observacoes || null,
-              status: statusInicial as StatusEscala,
-            });
           }
         }
 
@@ -838,11 +833,13 @@ const EscalasMedicas: React.FC = () => {
           if (insertError) throw insertError;
 
           const numEscalas = escalasToCreate.length;
-          let successMessage = `${numEscalas} escala${numEscalas > 1 ? 's' : ''} criada${numEscalas > 1 ? 's' : ''} com sucesso!`;
+          const numDates = formData.data_inicio.length;
+          const numDoctors = previewData.medicos.length;
+          let successMessage = `${numEscalas} escala${numEscalas > 1 ? 's' : ''} criada${numEscalas > 1 ? 's' : ''} com sucesso! (${numDates} data${numDates > 1 ? 's' : ''} × ${numDoctors} médico${numDoctors > 1 ? 's' : ''})`;
 
           // Se houve conflitos mas algumas escalas foram criadas, avisar
           if (conflictErrors.length > 0) {
-            successMessage += `\n\nAtenção: ${conflictErrors.length} data${conflictErrors.length > 1 ? 's' : ''} foi${conflictErrors.length > 1 ? 'ram' : ''} ignorada${conflictErrors.length > 1 ? 's' : ''} devido a conflitos:\n${conflictErrors.join("\n")}`;
+            successMessage += `\n\nAtenção: ${conflictErrors.length} combinação${conflictErrors.length > 1 ? 'ões' : ''} foi${conflictErrors.length > 1 ? 'ram' : ''} ignorada${conflictErrors.length > 1 ? 's' : ''} devido a conflitos:\n${conflictErrors.join("\n")}`;
           }
 
           setSuccess(successMessage);
@@ -929,13 +926,18 @@ const EscalasMedicas: React.FC = () => {
       horarioSaida.setHours(horaS, minS, 0, 0);
 
       // Populate form with escala data
+      // Map all medicos from the escala to the medicos_selecionados
+      const medicosEscalados = escala.medicos
+        .map(m => medicosUsuarios.find(u => u.cpf === m.cpf))
+        .filter(u => u !== undefined) as Usuario[];
+
       setFormData({
         contrato_id: escala.contrato_id,
         item_contrato_id: escala.item_contrato_id,
         data_inicio: [dataInicio],
         horario_entrada: horarioEntrada,
         horario_saida: horarioSaida,
-        medico_selecionado: medicoEscalado || null,
+        medicos_selecionados: medicosEscalados,
         observacoes: escala.observacoes || "",
       });
 
@@ -952,7 +954,7 @@ const EscalasMedicas: React.FC = () => {
         data_inicio: [],
         horario_entrada: null,
         horario_saida: null,
-        medico_selecionado: null,
+        medicos_selecionados: [],
         observacoes: "",
       });
       setPreviewData({ contrato: null, medicos: [] });
@@ -3352,9 +3354,10 @@ const EscalasMedicas: React.FC = () => {
                 </Grid>
 
                 <Autocomplete
-                  value={formData.medico_selecionado}
+                  multiple
+                  value={formData.medicos_selecionados}
                   onChange={(_, newValue) =>
-                    setFormData({ ...formData, medico_selecionado: newValue })
+                    setFormData({ ...formData, medicos_selecionados: newValue })
                   }
                   options={usuarios}
                   getOptionLabel={(option) =>
@@ -3367,7 +3370,7 @@ const EscalasMedicas: React.FC = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Médico"
+                      label="Médicos"
                       required
                       helperText={
                         !formData.contrato_id
