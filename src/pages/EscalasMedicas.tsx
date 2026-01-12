@@ -2885,21 +2885,22 @@ const EscalasMedicas: React.FC = () => {
                       }}
                       onClick={() => handleOpenDetailsDialog(escala)}
                     >
-                      <CardContent>
+                      <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
+                        {/* First Row: Checkbox + Date on left, Status + Actions on right */}
                         <Box
                           display="flex"
                           justifyContent="space-between"
-                          alignItems="start"
-                          mb={2}
+                          alignItems="center"
+                          mb={1.5}
+                          gap={2}
                         >
-                          <Box display="flex" alignItems="start" gap={1}>
+                          <Box display="flex" alignItems="center" gap={1}>
                             {(isAdminAgir || isAdminTerceiro) && escala.status !== "Aprovado" && escala.status !== "Reprovado" && (
                               <Tooltip title="Selecionar para ação em massa">
                                 <IconButton
                                   size="small"
                                   onClick={(e) => handleToggleSelection(escala.id, e)}
                                   sx={{
-                                    mt: -0.5,
                                     ml: -0.5,
                                     color: selectedEscalas.has(escala.id) ? "primary.main" : "action.disabled",
                                   }}
@@ -2912,7 +2913,6 @@ const EscalasMedicas: React.FC = () => {
                                 </IconButton>
                               </Tooltip>
                             )}
-                            <Box display="flex" flexDirection="column" gap={1}>
                             <Chip
                               icon={<CalendarMonth />}
                               label={format(
@@ -2937,6 +2937,8 @@ const EscalasMedicas: React.FC = () => {
                                 },
                               }}
                             />
+                          </Box>
+                          <Box display="flex" alignItems="center" gap={1}>
                             <Tooltip
                               title={
                                 isAdminAgir &&
@@ -2994,10 +2996,8 @@ const EscalasMedicas: React.FC = () => {
                                 }}
                               />
                             </Tooltip>
-                            </Box>
-                          </Box>
-                          {!isTerceiro && (
-                            <Box>
+                            {!isTerceiro && (
+                            <Box sx={{ mr: -1 }}>
                               <Tooltip
                                 title={
                                   (() => {
@@ -3069,21 +3069,18 @@ const EscalasMedicas: React.FC = () => {
                                 </span>
                               </Tooltip>
                             </Box>
-                          )}
+                            )}
+                          </Box>
                         </Box>
 
-                        <Typography variant="h6" fontWeight={600} gutterBottom>
-                          {contrato?.nome || "Contrato não encontrado"}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          gutterBottom
+                        {/* Second Row: Schedule on left, Doctors on right */}
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          mb={1.5}
+                          gap={1}
                         >
-                          {contrato?.empresa}
-                        </Typography>
-
-                        <Box display="flex" gap={1} my={2} flexWrap="wrap">
                           <Chip
                             icon={<Schedule />}
                             label={`${escala.horario_entrada.substring(
@@ -3093,14 +3090,33 @@ const EscalasMedicas: React.FC = () => {
                             size="small"
                             variant="outlined"
                           />
+                          <Box display="flex" alignItems="center" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+                            {escala.medicos.slice(0, 2).map((medico, idx) => (
+                              <Chip
+                                key={idx}
+                                icon={<Person />}
+                                label={medico.nome.split(" ")[0]}
+                                size="small"
+                                sx={{ fontSize: "0.7rem" }}
+                              />
+                            ))}
+                            {escala.medicos.length > 2 && (
+                              <Chip
+                                label={`+${escala.medicos.length - 2}`}
+                                size="small"
+                                sx={{ fontSize: "0.7rem" }}
+                              />
+                            )}
+                          </Box>
                         </Box>
 
-                        <Box mb={2}>
+                        {/* Item de Contrato */}
+                        <Box mb={1.5}>
                           <Typography
                             variant="caption"
                             color="text.secondary"
                             display="block"
-                            gutterBottom
+                            sx={{ mb: 0.5 }}
                           >
                             Item de Contrato:
                           </Typography>
@@ -3116,33 +3132,15 @@ const EscalasMedicas: React.FC = () => {
                           />
                         </Box>
 
+                        {/* Company/Partner Name */}
                         <Box>
                           <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            gutterBottom
-                            display="block"
+                            variant="body2"
+                            color="text.primary"
+                            fontWeight={500}
                           >
-                            Médicos ({escala.medicos.length}):
+                            {contrato?.empresa || "Empresa não encontrada"}
                           </Typography>
-                          <Box display="flex" flexWrap="wrap" gap={0.5}>
-                            {escala.medicos.slice(0, 3).map((medico, idx) => (
-                              <Chip
-                                key={idx}
-                                icon={<Person />}
-                                label={medico.nome.split(" ")[0]}
-                                size="small"
-                                sx={{ fontSize: "0.7rem" }}
-                              />
-                            ))}
-                            {escala.medicos.length > 3 && (
-                              <Chip
-                                label={`+${escala.medicos.length - 3}`}
-                                size="small"
-                                sx={{ fontSize: "0.7rem" }}
-                              />
-                            )}
-                          </Box>
                         </Box>
                       </CardContent>
                     </Card>
