@@ -1,6 +1,7 @@
 """
-Script para importar os últimos 125 registros de acesso do tipo 'Terceiro' POR CPF do Data Warehouse para o Supabase.
-Inclui os campos planta e codin.
+Script para importar registros de acesso do tipo 'Terceiro' para CPFs específicos
+desde dezembro de 2025 até hoje do Data Warehouse para o Supabase.
+CPFs: 04164100575 e 02725459109
 Evita duplicações verificando se o registro já existe antes de inserir.
 """
 
@@ -37,6 +38,9 @@ SUPABASE_SERVICE_KEY = os.getenv('VITE_SUPABASE_SERVICE_ROLE_KEY')
 if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
     raise ValueError("❌ Variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_SERVICE_ROLE_KEY são obrigatórias!")
 
+# CPFs específicos dos Terceiros
+CPFS_MEDICOS = ['12585625702','3189293171','70460241117','2007340160','04164100575', '2725459109', '5142257189','2055839110', '70492224102']
+
 def conectar_data_warehouse():
     """Conecta ao Data Warehouse PostgreSQL na AWS."""
     try:
@@ -55,7 +59,6 @@ def conectar_data_warehouse():
 def conectar_supabase():
     """Conecta ao Supabase usando a service role key."""
     try:
-        # Conexão simples sem opções adicionais (compatível com supabase 2.3.2)
         supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
         print(f"✅ Conectado ao Supabase: {SUPABASE_URL}")
         return supabase
@@ -63,41 +66,31 @@ def conectar_supabase():
         print(f"❌ Erro ao conectar no Supabase: {e}")
         raise
 
-def buscar_cpfs_usuarios(supabase: Client):
-    """Busca todos os CPFs da tabela usuarios."""
-    try:
-        print("\n📋 Buscando CPFs da tabela usuarios...")
-        response = supabase.table('usuarios').select('cpf').execute()
-        cpfs = [usuario['cpf'] for usuario in response.data if usuario.get('cpf')]
-        print(f"  ✅ {len(cpfs)} CPFs encontrados na tabela usuarios")
-        return cpfs
-    except Exception as e:
-        print(f"❌ Erro ao buscar CPFs dos usuárithe os: {e}")
-        raise
-
-def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=125):
+def extrair_acessos_medicos(conn, cpfs_medicos, data_inicio='2025-12-01'):
     """
-    Extrai os últimos N acessos do tipo 'Terceiro' para cada CPF da tabela usuarios.
+    Extrai acessos do tipo 'Terceiro' para CPFs específicos desde dezembro de 2025.
 
     Args:
         conn: Conexão com o Data Warehouse
-        cpfs_usuarios: Lista de CPFs da tabela usuarios
-        limite_por_cpf: Número máximo de registros por CPF (padrão: 125)
+        cpfs_medicos: Lista de CPFs dos Terceiros
+        data_inicio: Data de início do filtro (padrão: '2025-12-01')
     """
     try:
-        if not cpfs_usuarios:
-            print("⚠️ Nenhum CPF encontrado na tabela usuarios. Nada para importar.")
+        if not cpfs_medicos:
+            print("⚠️ Nenhum CPF fornecido. Nada para importar.")
             return []
 
         cursor = conn.cursor()
         todos_resultados = []
-        total_cpfs = len(cpfs_usuarios)
+        total_cpfs = len(cpfs_medicos)
+        data_hoje = datetime.now().strftime('%Y-%m-%d')
 
-        print(f"\n📊 Executando query para buscar os últimos {limite_por_cpf} registros do tipo 'Terceiro' para cada um dos {total_cpfs} CPFs...")
+        print(f"\n📊 Executando query para buscar registros do tipo 'Terceiro' de {data_inicio} até {data_hoje}...")
+        print(f"   CPFs: {', '.join(cpfs_medicos)}")
 
-        for i, cpf in enumerate(cpfs_usuarios, 1):
+        for i, cpf in enumerate(cpfs_medicos, 1):
             try:
-                # Query filtrada por tipo='Terceiro' e incluindo planta e codin
+                # Query filtrada por tipo='Terceiro', CPF e data
                 query = """
                 SELECT
                     tipo, matricula, nome, cpf, data_acesso, sentido, pis,
@@ -106,21 +99,19 @@ def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=125):
                 FROM suricato.acesso_colaborador
                 WHERE cpf = %s
                   AND tipo = 'Terceiro'
-                ORDER BY data_acesso DESC
-                LIMIT %s
+                  AND data_acesso >= %s::timestamp
+                  AND data_acesso <= %s::timestamp
+                ORDER BY data_acesso ASC
                 """
 
-                cursor.execute(query, (cpf, limite_por_cpf))
+                cursor.execute(query, (cpf, data_inicio, data_hoje + ' 23:59:59'))
                 resultados = cursor.fetchall()
 
                 if resultados:
-                    # Inverte para ordem cronológica (mais antigo para mais recente)
-                    resultados.reverse()
                     todos_resultados.extend(resultados)
-
-                # Mostra progresso a cada 10 CPFs ou no último
-                if i % 10 == 0 or i == total_cpfs:
-                    print(f"  Progresso: {i}/{total_cpfs} CPFs processados - {len(todos_resultados)} registros coletados")
+                    print(f"  ✅ CPF {cpf}: {len(resultados)} registros encontrados")
+                else:
+                    print(f"  ℹ️ CPF {cpf}: Nenhum registro encontrado")
 
             except Exception as e:
                 print(f"  ⚠️ Erro ao processar CPF {cpf}: {e}")
@@ -129,7 +120,7 @@ def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=125):
         colunas = [desc[0] for desc in cursor.description] if cursor.description else []
         cursor.close()
 
-        print(f"  ✅ Total de registros encontrados: {len(todos_resultados)}")
+        print(f"\n  ✅ Total de registros encontrados: {len(todos_resultados)}")
 
         dados = [dict(zip(colunas, row)) for row in todos_resultados]
         return dados
@@ -232,42 +223,28 @@ def inserir_em_supabase(supabase: Client, dados):
 def main():
     """Função principal do script."""
     print("=" * 70)
-    print("IMPORTAÇÃO DE ACESSOS DO DATA WAREHOUSE PARA SUPABASE")
-    print("(Últimos 125 registros tipo 'Terceiro' POR CPF com planta e codin)")
+    print("IMPORTAÇÃO DE ACESSOS DE TerceiroS - DEZEMBRO 2025 ATÉ HOJE")
+    print(f"CPFs: {', '.join(CPFS_MEDICOS)}")
+    print(f"Período: 2025-12-01 até {datetime.now().strftime('%Y-%m-%d')}")
     print(f"Horário: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 70)
 
     conn = None
     try:
-        # Conecta ao Supabase primeiro para buscar os CPFs
+        # Conecta ao Supabase
         supabase = conectar_supabase()
-
-        # Busca os CPFs da tabela usuarios
-        cpfs_usuarios = buscar_cpfs_usuarios(supabase)
-
-        if not cpfs_usuarios:
-            print("\n⚠️ Nenhum CPF encontrado na tabela usuarios. Nada para importar.")
-            return
 
         # Conecta ao Data Warehouse
         conn = conectar_data_warehouse()
 
-        # Define o limite de registros por CPF
-        limite_por_cpf = 125
-        if len(sys.argv) > 1:
-            try:
-                limite_por_cpf = int(sys.argv[1])
-                print(f"\n⚙️ Limite por CPF definido via argumento: {limite_por_cpf}")
-            except ValueError:
-                print(f"⚠️ Argumento '{sys.argv[1]}' inválido. Usando o padrão de 125 registros por CPF.")
-
-        print(f"\n📥 Extraindo os últimos {limite_por_cpf} registros do tipo 'Terceiro' para cada CPF do Data Warehouse...")
-        dados_extraidos = extrair_acessos(conn, cpfs_usuarios, limite_por_cpf)
+        # Extrai os dados
+        print(f"\n📥 Extraindo registros de acesso do tipo 'Terceiro' do Data Warehouse...")
+        dados_extraidos = extrair_acessos_medicos(conn, CPFS_MEDICOS)
 
         if dados_extraidos:
             inserir_em_supabase(supabase, dados_extraidos)
         else:
-            print(f"\nℹ️ Nenhum acesso encontrado para os CPFs cadastrados.")
+            print(f"\nℹ️ Nenhum acesso encontrado para os CPFs e período especificados.")
 
     except Exception as e:
         print(f"\n❌ O SCRIPT FOI INTERROMPIDO DEVIDO A UM ERRO: {e}")

@@ -857,12 +857,12 @@ const EscalasMedicas: React.FC = () => {
     if (escala) {
       // Bloquear edição baseado no tipo de usuário e status
       const canEditStatus = isAdminTerceiro
-        ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção"
+        ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção" || escala.status === "Aprovação Parcial"
         : escala.status === "Programado" || escala.status === "Pré-Agendado";
 
       if (!canEditStatus) {
         const allowedStatuses = isAdminTerceiro
-          ? '"Programado", "Pré-Agendado" ou "Atenção"'
+          ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
           : '"Programado" ou "Pré-Agendado"';
         setError(
           `Não é possível editar uma escala com status "${escala.status}". Apenas escalas com status ${allowedStatuses} podem ser editadas.`
@@ -978,10 +978,17 @@ const EscalasMedicas: React.FC = () => {
   };
 
   const handleDelete = async (escala: EscalaMedica) => {
-    // Bloquear exclusão se status não for "Programado" ou "Pré-Agendado"
-    if (escala.status !== "Programado" && escala.status !== "Pré-Agendado") {
+    // Bloquear exclusão baseado no tipo de usuário e status
+    const canDeleteStatus = isAdminTerceiro
+      ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção" || escala.status === "Aprovação Parcial"
+      : escala.status === "Programado" || escala.status === "Pré-Agendado";
+
+    if (!canDeleteStatus) {
+      const allowedStatuses = isAdminTerceiro
+        ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
+        : '"Programado" ou "Pré-Agendado"';
       setError(
-        `Não é possível excluir uma escala com status "${escala.status}". Apenas escalas com status "Programado" ou "Pré-Agendado" podem ser excluídas.`
+        `Não é possível excluir uma escala com status "${escala.status}". Apenas escalas com status ${allowedStatuses} podem ser excluídas.`
       );
       return;
     }
@@ -3002,11 +3009,11 @@ const EscalasMedicas: React.FC = () => {
                                 title={
                                   (() => {
                                     const canEdit = isAdminTerceiro
-                                      ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção"
+                                      ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção" || escala.status === "Aprovação Parcial"
                                       : escala.status === "Programado" || escala.status === "Pré-Agendado";
                                     if (canEdit) return "Editar escala";
                                     const allowedStatuses = isAdminTerceiro
-                                      ? '"Programado", "Pré-Agendado" ou "Atenção"'
+                                      ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
                                       : '"Programado" ou "Pré-Agendado"';
                                     return `Não é possível editar. Apenas escalas com status ${allowedStatuses} podem ser editadas.`;
                                   })()
@@ -3017,7 +3024,7 @@ const EscalasMedicas: React.FC = () => {
                                     size="small"
                                     disabled={
                                       isAdminTerceiro
-                                        ? escala.status !== "Programado" && escala.status !== "Pré-Agendado" && escala.status !== "Atenção"
+                                        ? escala.status !== "Programado" && escala.status !== "Pré-Agendado" && escala.status !== "Atenção" && escala.status !== "Aprovação Parcial"
                                         : escala.status !== "Programado" && escala.status !== "Pré-Agendado"
                                     }
                                     onClick={(e) => {
@@ -3038,10 +3045,16 @@ const EscalasMedicas: React.FC = () => {
                               </Tooltip>
                               <Tooltip
                                 title={
-                                  escala.status !== "Programado" &&
-                                  escala.status !== "Pré-Agendado"
-                                    ? `Não é possível excluir. Apenas escalas com status "Programado" ou "Pré-Agendado" podem ser excluídas.`
-                                    : "Excluir escala"
+                                  (() => {
+                                    const canDelete = isAdminTerceiro
+                                      ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção" || escala.status === "Aprovação Parcial"
+                                      : escala.status === "Programado" || escala.status === "Pré-Agendado";
+                                    if (canDelete) return "Excluir escala";
+                                    const allowedStatuses = isAdminTerceiro
+                                      ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
+                                      : '"Programado" ou "Pré-Agendado"';
+                                    return `Não é possível excluir. Apenas escalas com status ${allowedStatuses} podem ser excluídas.`;
+                                  })()
                                 }
                               >
                                 <span>
@@ -3049,8 +3062,9 @@ const EscalasMedicas: React.FC = () => {
                                     size="small"
                                     color="error"
                                     disabled={
-                                      escala.status !== "Programado" &&
-                                      escala.status !== "Pré-Agendado"
+                                      isAdminTerceiro
+                                        ? escala.status !== "Programado" && escala.status !== "Pré-Agendado" && escala.status !== "Atenção" && escala.status !== "Aprovação Parcial"
+                                        : escala.status !== "Programado" && escala.status !== "Pré-Agendado"
                                     }
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -4490,11 +4504,11 @@ const EscalasMedicas: React.FC = () => {
                   title={
                     (() => {
                       const canEdit = isAdminTerceiro
-                        ? escalaDetalhes.status === "Programado" || escalaDetalhes.status === "Pré-Agendado" || escalaDetalhes.status === "Atenção"
+                        ? escalaDetalhes.status === "Programado" || escalaDetalhes.status === "Pré-Agendado" || escalaDetalhes.status === "Atenção" || escalaDetalhes.status === "Aprovação Parcial"
                         : escalaDetalhes.status === "Programado" || escalaDetalhes.status === "Pré-Agendado";
                       if (canEdit) return "";
                       const allowedStatuses = isAdminTerceiro
-                        ? '"Programado", "Pré-Agendado" ou "Atenção"'
+                        ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
                         : '"Programado" ou "Pré-Agendado"';
                       return `Não é possível editar. Apenas escalas com status ${allowedStatuses} podem ser editadas.`;
                     })()
@@ -4510,7 +4524,7 @@ const EscalasMedicas: React.FC = () => {
                       startIcon={<Edit />}
                       disabled={
                         isAdminTerceiro
-                          ? escalaDetalhes.status !== "Programado" && escalaDetalhes.status !== "Pré-Agendado" && escalaDetalhes.status !== "Atenção"
+                          ? escalaDetalhes.status !== "Programado" && escalaDetalhes.status !== "Pré-Agendado" && escalaDetalhes.status !== "Atenção" && escalaDetalhes.status !== "Aprovação Parcial"
                           : escalaDetalhes.status !== "Programado" && escalaDetalhes.status !== "Pré-Agendado"
                       }
                     >
