@@ -219,6 +219,64 @@ const EscalasMedicas: React.FC = () => {
     filtroDataFim,
   ]);
 
+  // Persist form data to sessionStorage to prevent data loss on tab switch/minimize
+  const FORM_STORAGE_KEY = 'escalas_medicas_form_draft';
+
+  // Restore form data from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const savedDraft = sessionStorage.getItem(FORM_STORAGE_KEY);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+
+        // Only restore if the draft is recent (within last 2 hours) and dialog was open
+        const draftAge = new Date().getTime() - new Date(parsed.timestamp).getTime();
+        const twoHoursInMs = 2 * 60 * 60 * 1000;
+
+        if (draftAge < twoHoursInMs && parsed.dialogOpen) {
+          // Restore form data with proper Date object conversion
+          if (parsed.formData) {
+            setFormData({
+              ...parsed.formData,
+              data_inicio: parsed.formData.data_inicio?.map((d: string) => new Date(d)) || [],
+              horario_entrada: parsed.formData.horario_entrada ? new Date(parsed.formData.horario_entrada) : null,
+              horario_saida: parsed.formData.horario_saida ? new Date(parsed.formData.horario_saida) : null,
+            });
+          }
+
+          // Restore dialog state
+          setDialogOpen(true);
+          setActiveStep(parsed.activeStep || 0);
+
+          console.log('📝 Restored form draft from sessionStorage (age: ' + Math.round(draftAge / 1000 / 60) + ' minutes)');
+        } else {
+          // Draft is too old or dialog wasn't open, clear it
+          sessionStorage.removeItem(FORM_STORAGE_KEY);
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring form draft:', error);
+      sessionStorage.removeItem(FORM_STORAGE_KEY);
+    }
+  }, []);
+
+  // Save form data to sessionStorage whenever it changes
+  useEffect(() => {
+    if (dialogOpen) {
+      try {
+        const draft = {
+          formData,
+          dialogOpen,
+          activeStep,
+          timestamp: new Date().toISOString(),
+        };
+        sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(draft));
+      } catch (error) {
+        console.error('Error saving form draft:', error);
+      }
+    }
+  }, [formData, dialogOpen, activeStep]);
+
   // Calcular métricas dos scorecards
   const scorecardMetrics = useMemo(() => {
     const metrics = {
@@ -975,6 +1033,19 @@ const EscalasMedicas: React.FC = () => {
     setEditingEscala(null);
     setActiveStep(0);
     setError("");
+    // Clear the form draft from sessionStorage
+    sessionStorage.removeItem(FORM_STORAGE_KEY);
+    // Reset form data to initial empty state
+    setFormData({
+      contrato_id: "",
+      item_contrato_id: "",
+      data_inicio: [],
+      horario_entrada: null,
+      horario_saida: null,
+      medicos_selecionados: [],
+      observacoes: "",
+    });
+    setPreviewData({ contrato: null, medicos: [] });
   };
 
   const handleDelete = async (escala: EscalaMedica) => {
@@ -3168,7 +3239,14 @@ const EscalasMedicas: React.FC = () => {
         {/* Dialog - Wizard Form */}
         <Dialog
           open={dialogOpen}
-          onClose={handleCloseDialog}
+          onClose={(event, reason) => {
+            // Prevent closing on backdrop click or ESC key
+            // User must explicitly click Cancel button to close
+            if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+              return;
+            }
+            handleCloseDialog();
+          }}
           maxWidth="md"
           fullWidth
         >
@@ -4567,7 +4645,13 @@ const EscalasMedicas: React.FC = () => {
         {/* Dialog de Upload CSV */}
         <Dialog
           open={csvDialogOpen}
-          onClose={handleCloseCsvDialog}
+          onClose={(event, reason) => {
+            // Prevent closing on backdrop click or ESC key to avoid losing CSV data
+            if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+              return;
+            }
+            handleCloseCsvDialog();
+          }}
           maxWidth="sm"
           fullWidth
         >
