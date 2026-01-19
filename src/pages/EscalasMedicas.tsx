@@ -160,11 +160,11 @@ const EscalasMedicas: React.FC = () => {
   const [bulkJustificativa, setBulkJustificativa] = useState("");
 
   // Persistent filters - survive navigation between tabs
-  const [filtroParceiro, setFiltroParceiro] = usePersistentArray<string>(
-    "escalas_filtroParceiro"
-  );
   const [filtroContrato, setFiltroContrato] = usePersistentArray<string>(
     "escalas_filtroContrato"
+  );
+  const [filtroItemContrato, setFiltroItemContrato] = usePersistentArray<string>(
+    "escalas_filtroItemContrato"
   );
   const [filtroUnidade, setFiltroUnidade] = usePersistentArray<string>(
     "escalas_filtroUnidade"
@@ -252,8 +252,8 @@ const EscalasMedicas: React.FC = () => {
     aplicarFiltros();
   }, [
     escalas,
-    filtroParceiro,
     filtroContrato,
+    filtroItemContrato,
     filtroUnidade,
     filtroNome,
     filtroCpf,
@@ -261,6 +261,24 @@ const EscalasMedicas: React.FC = () => {
     filtroDataInicio,
     filtroDataFim,
   ]);
+
+  // Clear invalid item selections when contract filter changes
+  useEffect(() => {
+    if (filtroItemContrato.length > 0) {
+      const contratoIdsParaFiltrar = filtroContrato.length > 0
+        ? filtroContrato
+        : contratos.map((c) => c.id);
+      const itemIdsValidos = contratoItens
+        .filter((ci) => contratoIdsParaFiltrar.includes(ci.contrato_id))
+        .map((ci) => ci.item_id);
+      const itensValidos = filtroItemContrato.filter((itemId) =>
+        itemIdsValidos.includes(itemId)
+      );
+      if (itensValidos.length !== filtroItemContrato.length) {
+        setFiltroItemContrato(itensValidos);
+      }
+    }
+  }, [filtroContrato]);
 
   // Persist form data to sessionStorage to prevent data loss on tab switch/minimize
   const FORM_STORAGE_KEY = "escalas_medicas_form_draft";
@@ -435,8 +453,8 @@ const EscalasMedicas: React.FC = () => {
   // Clear all filters and data
   const handleClearFilters = () => {
     // Clear all filters
-    setFiltroParceiro([]);
     setFiltroContrato([]);
+    setFiltroItemContrato([]);
     setFiltroUnidade([]);
     setFiltroNome([]);
     setFiltroCpf([]);
@@ -579,18 +597,17 @@ const EscalasMedicas: React.FC = () => {
   const aplicarFiltros = () => {
     let filtered = [...escalas];
 
-    // Filtro por parceiro (empresa)
-    if (filtroParceiro.length > 0) {
-      filtered = filtered.filter((escala) => {
-        const contrato = contratos.find((c) => c.id === escala.contrato_id);
-        return contrato && filtroParceiro.includes(contrato.empresa);
-      });
-    }
-
     // Filtro por contrato
     if (filtroContrato.length > 0) {
       filtered = filtered.filter((escala) =>
         filtroContrato.includes(escala.contrato_id)
+      );
+    }
+
+    // Filtro por item de contrato
+    if (filtroItemContrato.length > 0) {
+      filtered = filtered.filter((escala) =>
+        filtroItemContrato.includes(escala.item_contrato_id)
       );
     }
 
@@ -657,13 +674,27 @@ const EscalasMedicas: React.FC = () => {
   };
 
   // Opções únicas para filtros
-  const parceirosUnicos = Array.from(
-    new Set(contratos.map((c) => c.empresa))
-  ).sort();
   const contratosUnicos = contratos.map((c) => ({
     id: c.id,
     label: `${c.nome} - ${c.empresa}`,
   }));
+  const itensContratoUnicos = (() => {
+    // If contracts are selected in the filter, use those; otherwise use all accessible contracts
+    const contratoIdsParaFiltrar = filtroContrato.length > 0
+      ? filtroContrato
+      : contratos.map((c) => c.id);
+    // Get item IDs linked to the contracts
+    const itemIdsAcessiveis = contratoItens
+      .filter((ci) => contratoIdsParaFiltrar.includes(ci.contrato_id))
+      .map((ci) => ci.item_id);
+    // Filter items to only those linked to the contracts
+    return todosItensContrato
+      .filter((i) => itemIdsAcessiveis.includes(i.id))
+      .map((i) => ({
+        id: i.id,
+        label: i.nome,
+      }));
+  })();
   const unidadesUnicas = unidades.map((u) => u.codigo).sort();
 
   // Extrair nomes e CPFs únicos de todos os médicos nas escalas
@@ -2415,13 +2446,16 @@ const EscalasMedicas: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <Autocomplete
                   multiple
-                  value={filtroParceiro}
-                  onChange={(_, newValue) => setFiltroParceiro(newValue)}
-                  options={parceirosUnicos}
+                  value={filtroContrato}
+                  onChange={(_, newValue) => setFiltroContrato(newValue)}
+                  options={contratosUnicos.map((c) => c.id)}
+                  getOptionLabel={(option) =>
+                    contratosUnicos.find((c) => c.id === option)?.label || ""
+                  }
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Parceiro"
+                      label="Contrato"
                       placeholder="Selecione um ou mais"
                     />
                   )}
@@ -2433,16 +2467,16 @@ const EscalasMedicas: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <Autocomplete
                   multiple
-                  value={filtroContrato}
-                  onChange={(_, newValue) => setFiltroContrato(newValue)}
-                  options={contratosUnicos.map((c) => c.id)}
+                  value={filtroItemContrato}
+                  onChange={(_, newValue) => setFiltroItemContrato(newValue)}
+                  options={itensContratoUnicos.map((i) => i.id)}
                   getOptionLabel={(option) =>
-                    contratosUnicos.find((c) => c.id === option)?.label || ""
+                    itensContratoUnicos.find((i) => i.id === option)?.label || ""
                   }
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Contrato"
+                      label="Item de Contrato"
                       placeholder="Selecione um ou mais"
                     />
                   )}
