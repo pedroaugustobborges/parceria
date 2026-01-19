@@ -72,6 +72,10 @@ import {
   IndeterminateCheckBox,
   DoneAll,
   ThumbDown,
+  ChevronLeft,
+  ChevronRight,
+  ViewModule,
+  CalendarViewWeek,
 } from "@mui/icons-material";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -87,7 +91,17 @@ import {
   ContratoItem,
   StatusEscala,
 } from "../types/database.types";
-import { format, parseISO } from "date-fns";
+import {
+  format,
+  parseISO,
+  startOfWeek,
+  endOfWeek,
+  addWeeks,
+  subWeeks,
+  eachDayOfInterval,
+  isSameDay,
+  isToday,
+} from "date-fns";
 import { useAuth } from "../contexts/AuthContext";
 import { recalcularStatusEscalas } from "../services/statusAnalysisService";
 import {
@@ -130,6 +144,15 @@ const EscalasMedicas: React.FC = () => {
   const [success, setSuccess] = useState("");
   const [recalculando, setRecalculando] = useState(false);
 
+  // Calendar view state
+  const [viewMode, setViewMode] = usePersistentState<"card" | "calendar">(
+    "escalas_viewMode",
+    "card"
+  );
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() =>
+    startOfWeek(new Date(), { weekStartsOn: 0 })
+  );
+
   // Status dialog state
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [escalaParaStatus, setEscalaParaStatus] = useState<EscalaMedica | null>(
@@ -163,9 +186,8 @@ const EscalasMedicas: React.FC = () => {
   const [filtroContrato, setFiltroContrato] = usePersistentArray<string>(
     "escalas_filtroContrato"
   );
-  const [filtroItemContrato, setFiltroItemContrato] = usePersistentArray<string>(
-    "escalas_filtroItemContrato"
-  );
+  const [filtroItemContrato, setFiltroItemContrato] =
+    usePersistentArray<string>("escalas_filtroItemContrato");
   const [filtroUnidade, setFiltroUnidade] = usePersistentArray<string>(
     "escalas_filtroUnidade"
   );
@@ -265,9 +287,8 @@ const EscalasMedicas: React.FC = () => {
   // Clear invalid item selections when contract filter changes
   useEffect(() => {
     if (filtroItemContrato.length > 0) {
-      const contratoIdsParaFiltrar = filtroContrato.length > 0
-        ? filtroContrato
-        : contratos.map((c) => c.id);
+      const contratoIdsParaFiltrar =
+        filtroContrato.length > 0 ? filtroContrato : contratos.map((c) => c.id);
       const itemIdsValidos = contratoItens
         .filter((ci) => contratoIdsParaFiltrar.includes(ci.contrato_id))
         .map((ci) => ci.item_id);
@@ -525,6 +546,11 @@ const EscalasMedicas: React.FC = () => {
 
       setEscalas(escalasParaExibir);
       setBuscaRealizada(true);
+
+      // Sync calendar view to start of the search period
+      if (filtroDataInicio) {
+        setCurrentWeekStart(startOfWeek(filtroDataInicio, { weekStartsOn: 0 }));
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -680,9 +706,8 @@ const EscalasMedicas: React.FC = () => {
   }));
   const itensContratoUnicos = (() => {
     // If contracts are selected in the filter, use those; otherwise use all accessible contracts
-    const contratoIdsParaFiltrar = filtroContrato.length > 0
-      ? filtroContrato
-      : contratos.map((c) => c.id);
+    const contratoIdsParaFiltrar =
+      filtroContrato.length > 0 ? filtroContrato : contratos.map((c) => c.id);
     // Get item IDs linked to the contracts
     const itemIdsAcessiveis = contratoItens
       .filter((ci) => contratoIdsParaFiltrar.includes(ci.contrato_id))
@@ -2471,7 +2496,8 @@ const EscalasMedicas: React.FC = () => {
                   onChange={(_, newValue) => setFiltroItemContrato(newValue)}
                   options={itensContratoUnicos.map((i) => i.id)}
                   getOptionLabel={(option) =>
-                    itensContratoUnicos.find((i) => i.id === option)?.label || ""
+                    itensContratoUnicos.find((i) => i.id === option)?.label ||
+                    ""
                   }
                   renderInput={(params) => (
                     <TextField
@@ -3106,6 +3132,111 @@ const EscalasMedicas: React.FC = () => {
               </Grid>
             </Grid>
 
+            {/* View Toggle and Calendar Navigation */}
+            <Box
+              sx={{
+                mb: 3,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="h6" fontWeight={600}>
+                  {viewMode === "calendar"
+                    ? `${format(currentWeekStart, "dd MMM", { locale: ptBR })} - ${format(
+                        endOfWeek(currentWeekStart, { weekStartsOn: 0 }),
+                        "dd MMM yyyy",
+                        { locale: ptBR }
+                      )}`
+                    : `${escalasFiltradas.length} escala${escalasFiltradas.length !== 1 ? "s" : ""}`}
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                {viewMode === "calendar" && (
+                  <>
+                    <Tooltip title="Semana anterior">
+                      <IconButton
+                        onClick={() =>
+                          setCurrentWeekStart((prev) => subWeeks(prev, 1))
+                        }
+                        size="small"
+                      >
+                        <ChevronLeft />
+                      </IconButton>
+                    </Tooltip>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() =>
+                        setCurrentWeekStart(
+                          startOfWeek(new Date(), { weekStartsOn: 0 })
+                        )
+                      }
+                      sx={{ minWidth: "auto", px: 2 }}
+                    >
+                      Hoje
+                    </Button>
+                    <Tooltip title="Próxima semana">
+                      <IconButton
+                        onClick={() =>
+                          setCurrentWeekStart((prev) => addWeeks(prev, 1))
+                        }
+                        size="small"
+                      >
+                        <ChevronRight />
+                      </IconButton>
+                    </Tooltip>
+                  </>
+                )}
+                <Box
+                  sx={{
+                    display: "flex",
+                    bgcolor: "action.hover",
+                    borderRadius: 1,
+                    p: 0.5,
+                  }}
+                >
+                  <Tooltip title="Visualização em cards">
+                    <IconButton
+                      size="small"
+                      onClick={() => setViewMode("card")}
+                      sx={{
+                        bgcolor:
+                          viewMode === "card" ? "background.paper" : "transparent",
+                        boxShadow: viewMode === "card" ? 1 : 0,
+                        borderRadius: 1,
+                      }}
+                    >
+                      <ViewModule
+                        color={viewMode === "card" ? "primary" : "inherit"}
+                      />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Visualização em calendário">
+                    <IconButton
+                      size="small"
+                      onClick={() => setViewMode("calendar")}
+                      sx={{
+                        bgcolor:
+                          viewMode === "calendar"
+                            ? "background.paper"
+                            : "transparent",
+                        boxShadow: viewMode === "calendar" ? 1 : 0,
+                        borderRadius: 1,
+                      }}
+                    >
+                      <CalendarViewWeek
+                        color={viewMode === "calendar" ? "primary" : "inherit"}
+                      />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
+            </Box>
+
             {/* Bulk Actions */}
             {(isAdminAgir || isAdminTerceiro) &&
               escalasFiltradas.length > 0 && (
@@ -3210,7 +3341,215 @@ const EscalasMedicas: React.FC = () => {
                 </Box>
               )}
 
-            {/* Escalas List */}
+            {/* Calendar View */}
+            {viewMode === "calendar" && (
+              <Box>
+                {/* Calendar Header - Days of Week */}
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(7, 1fr)",
+                    gap: 0,
+                    mb: 0,
+                    bgcolor: "primary.main",
+                    borderRadius: "12px 12px 0 0",
+                    overflow: "hidden",
+                  }}
+                >
+                  {eachDayOfInterval({
+                    start: currentWeekStart,
+                    end: endOfWeek(currentWeekStart, { weekStartsOn: 0 }),
+                  }).map((day, index) => {
+                    const dayNames = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+                    const isTodayDate = isToday(day);
+                    return (
+                      <Box
+                        key={day.toISOString()}
+                        sx={{
+                          textAlign: "center",
+                          py: 1.5,
+                          px: 1,
+                          bgcolor: isTodayDate ? "primary.dark" : "transparent",
+                          borderLeft: index > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
+                        }}
+                      >
+                        <Typography
+                          variant="h5"
+                          fontWeight={700}
+                          sx={{ color: "white" }}
+                        >
+                          {format(day, "d")}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255,255,255,0.8)",
+                            fontWeight: 500,
+                            fontSize: "0.7rem",
+                          }}
+                        >
+                          {dayNames[index]}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
+
+                {/* Calendar Body - Schedule Grid */}
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(7, 1fr)",
+                    gap: 0,
+                    bgcolor: "background.paper",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderTop: "none",
+                    borderRadius: "0 0 12px 12px",
+                    overflow: "hidden",
+                    minHeight: 400,
+                  }}
+                >
+                  {eachDayOfInterval({
+                    start: currentWeekStart,
+                    end: endOfWeek(currentWeekStart, { weekStartsOn: 0 }),
+                  }).map((day, index) => {
+                    const isTodayDate = isToday(day);
+                    const escalasOfDay = escalasFiltradas.filter((escala) =>
+                      isSameDay(parseISO(escala.data_inicio), day)
+                    );
+                    return (
+                      <Box
+                        key={day.toISOString()}
+                        sx={{
+                          borderLeft: index > 0 ? "1px solid" : "none",
+                          borderColor: "divider",
+                          bgcolor: isTodayDate
+                            ? (theme) =>
+                                theme.palette.mode === "dark"
+                                  ? "rgba(99, 102, 241, 0.08)"
+                                  : "rgba(99, 102, 241, 0.04)"
+                            : "transparent",
+                          minHeight: 400,
+                          maxHeight: 600,
+                          overflowY: "auto",
+                          p: 0.5,
+                          "&::-webkit-scrollbar": {
+                            width: 4,
+                          },
+                          "&::-webkit-scrollbar-thumb": {
+                            bgcolor: "divider",
+                            borderRadius: 2,
+                          },
+                        }}
+                      >
+                        {escalasOfDay.length === 0 ? (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              height: "100%",
+                              minHeight: 100,
+                              opacity: 0.3,
+                            }}
+                          >
+                            <Typography variant="caption" color="text.secondary">
+                              -
+                            </Typography>
+                          </Box>
+                        ) : (
+                          escalasOfDay.map((escala) => {
+                            const statusColors: Record<StatusEscala, { bg: string; border: string }> = {
+                              "Aprovado": { bg: "#ecfdf5", border: "#10b981" },
+                              "Reprovado": { bg: "#fef2f2", border: "#ef4444" },
+                              "Programado": { bg: "#eff6ff", border: "#3b82f6" },
+                              "Pré-Agendado": { bg: "#f5f3ff", border: "#8b5cf6" },
+                              "Pré-Aprovado": { bg: "#ecfeff", border: "#06b6d4" },
+                              "Aprovação Parcial": { bg: "#fefce8", border: "#eab308" },
+                              "Atenção": { bg: "#fff7ed", border: "#f97316" },
+                            };
+                            const colors = statusColors[escala.status] || statusColors["Programado"];
+                            return (
+                              <Paper
+                                key={escala.id}
+                                elevation={0}
+                                onClick={() => handleOpenDetailsDialog(escala)}
+                                sx={{
+                                  p: 1,
+                                  mb: 0.5,
+                                  cursor: "pointer",
+                                  borderLeft: "3px solid",
+                                  borderLeftColor: colors.border,
+                                  bgcolor: (theme) =>
+                                    theme.palette.mode === "dark"
+                                      ? "rgba(255,255,255,0.05)"
+                                      : colors.bg,
+                                  transition: "all 0.2s",
+                                  "&:hover": {
+                                    bgcolor: (theme) =>
+                                      theme.palette.mode === "dark"
+                                        ? "rgba(255,255,255,0.1)"
+                                        : "action.hover",
+                                    transform: "translateX(2px)",
+                                  },
+                                }}
+                              >
+                                {escala.medicos.slice(0, 1).map((medico, idx) => (
+                                  <Typography
+                                    key={idx}
+                                    variant="caption"
+                                    sx={{
+                                      display: "block",
+                                      fontWeight: 600,
+                                      color: "primary.main",
+                                      fontSize: "0.7rem",
+                                      lineHeight: 1.2,
+                                      mb: 0.25,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {medico.nome.split(" ").slice(0, 2).join(" ").toUpperCase()}
+                                  </Typography>
+                                ))}
+                                {escala.medicos.length > 1 && (
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      display: "block",
+                                      fontSize: "0.6rem",
+                                      color: "text.secondary",
+                                      mb: 0.25,
+                                    }}
+                                  >
+                                    +{escala.medicos.length - 1} médico{escala.medicos.length > 2 ? "s" : ""}
+                                  </Typography>
+                                )}
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    display: "block",
+                                    fontSize: "0.65rem",
+                                    color: "text.secondary",
+                                  }}
+                                >
+                                  {escala.horario_entrada} - {escala.horario_saida}
+                                </Typography>
+                              </Paper>
+                            );
+                          })
+                        )}
+                      </Box>
+                    );
+                  })}
+                </Box>
+              </Box>
+            )}
+
+            {/* Escalas List - Card View */}
+            {viewMode === "card" && (
             <Grid container spacing={3}>
               {escalasFiltradas.map((escala) => {
                 const contrato = contratos.find(
@@ -3473,7 +3812,10 @@ const EscalasMedicas: React.FC = () => {
                               <Chip
                                 key={idx}
                                 icon={<Person />}
-                                label={medico.nome.split(" ").slice(0, 2).join(" ")}
+                                label={medico.nome
+                                  .split(" ")
+                                  .slice(0, 2)
+                                  .join(" ")}
                                 size="small"
                                 sx={{ fontSize: "0.7rem" }}
                               />
@@ -3518,6 +3860,7 @@ const EscalasMedicas: React.FC = () => {
                 );
               })}
             </Grid>
+            )}
           </Box>
         )}
 
