@@ -90,10 +90,19 @@ import {
 import { format, parseISO } from "date-fns";
 import { useAuth } from "../contexts/AuthContext";
 import { recalcularStatusEscalas } from "../services/statusAnalysisService";
-import { usePersistentState, usePersistentArray } from "../hooks/usePersistentState";
+import {
+  usePersistentState,
+  usePersistentArray,
+} from "../hooks/usePersistentState";
 
 const EscalasMedicas: React.FC = () => {
-  const { isAdminAgir, isAdminTerceiro, isTerceiro, userProfile, userContratoIds } = useAuth();
+  const {
+    isAdminAgir,
+    isAdminTerceiro,
+    isTerceiro,
+    userProfile,
+    userContratoIds,
+  } = useAuth();
   const theme = useTheme();
 
   // Large data arrays - NOT persisted (might be large)
@@ -101,12 +110,20 @@ const EscalasMedicas: React.FC = () => {
   const [escalasFiltradas, setEscalasFiltradas] = useState<EscalaMedica[]>([]);
 
   // Auxiliary data - persisted (smaller, useful for autocomplete)
-  const [contratos, setContratos] = usePersistentArray<Contrato>("escalas_contratos");
-  const [usuarios, setUsuarios] = usePersistentArray<Usuario>("escalas_usuarios");
-  const [unidades, setUnidades] = usePersistentArray<UnidadeHospitalar>("escalas_unidades");
-  const [itensContrato, setItensContrato] = usePersistentArray<ItemContrato>("escalas_itensContrato");
-  const [todosItensContrato, setTodosItensContrato] = usePersistentArray<ItemContrato>("escalas_todosItensContrato");
-  const [contratoItens, setContratoItens] = usePersistentArray<ContratoItem>("escalas_contratoItens");
+  const [contratos, setContratos] =
+    usePersistentArray<Contrato>("escalas_contratos");
+  const [usuarios, setUsuarios] =
+    usePersistentArray<Usuario>("escalas_usuarios");
+  const [unidades, setUnidades] =
+    usePersistentArray<UnidadeHospitalar>("escalas_unidades");
+  const [itensContrato, setItensContrato] = usePersistentArray<ItemContrato>(
+    "escalas_itensContrato"
+  );
+  const [todosItensContrato, setTodosItensContrato] =
+    usePersistentArray<ItemContrato>("escalas_todosItensContrato");
+  const [contratoItens, setContratoItens] = usePersistentArray<ContratoItem>(
+    "escalas_contratoItens"
+  );
   const [loading, setLoading] = useState(false);
   const [loadingUsuarios, setLoadingUsuarios] = useState(false);
   const [error, setError] = useState("");
@@ -135,21 +152,40 @@ const EscalasMedicas: React.FC = () => {
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
 
   // Bulk selection state
-  const [selectedEscalas, setSelectedEscalas] = useState<Set<number>>(new Set());
+  const [selectedEscalas, setSelectedEscalas] = useState<Set<number>>(
+    new Set()
+  );
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<StatusEscala>("Aprovado");
   const [bulkJustificativa, setBulkJustificativa] = useState("");
 
   // Persistent filters - survive navigation between tabs
-  const [filtroParceiro, setFiltroParceiro] = usePersistentArray<string>("escalas_filtroParceiro");
-  const [filtroContrato, setFiltroContrato] = usePersistentArray<string>("escalas_filtroContrato");
-  const [filtroUnidade, setFiltroUnidade] = usePersistentArray<string>("escalas_filtroUnidade");
-  const [filtroNome, setFiltroNome] = usePersistentArray<string>("escalas_filtroNome");
-  const [filtroCpf, setFiltroCpf] = usePersistentArray<string>("escalas_filtroCpf");
-  const [filtroStatus, setFiltroStatus] = usePersistentArray<StatusEscala>("escalas_filtroStatus");
-  const [filtroDataInicio, setFiltroDataInicio] = usePersistentState<Date | null>("escalas_filtroDataInicio", null);
-  const [filtroDataFim, setFiltroDataFim] = usePersistentState<Date | null>("escalas_filtroDataFim", null);
-  const [buscaRealizada, setBuscaRealizada] = usePersistentState<boolean>("escalas_buscaRealizada", false);
+  const [filtroParceiro, setFiltroParceiro] = usePersistentArray<string>(
+    "escalas_filtroParceiro"
+  );
+  const [filtroContrato, setFiltroContrato] = usePersistentArray<string>(
+    "escalas_filtroContrato"
+  );
+  const [filtroUnidade, setFiltroUnidade] = usePersistentArray<string>(
+    "escalas_filtroUnidade"
+  );
+  const [filtroNome, setFiltroNome] =
+    usePersistentArray<string>("escalas_filtroNome");
+  const [filtroCpf, setFiltroCpf] =
+    usePersistentArray<string>("escalas_filtroCpf");
+  const [filtroStatus, setFiltroStatus] = usePersistentArray<StatusEscala>(
+    "escalas_filtroStatus"
+  );
+  const [filtroDataInicio, setFiltroDataInicio] =
+    usePersistentState<Date | null>("escalas_filtroDataInicio", null);
+  const [filtroDataFim, setFiltroDataFim] = usePersistentState<Date | null>(
+    "escalas_filtroDataFim",
+    null
+  );
+  const [buscaRealizada, setBuscaRealizada] = usePersistentState<boolean>(
+    "escalas_buscaRealizada",
+    false
+  );
 
   // Wizard state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -180,13 +216,15 @@ const EscalasMedicas: React.FC = () => {
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
-  const [csvPreviewData, setCsvPreviewData] = useState<Array<{
-    cpf: string;
-    nome: string;
-    data_inicio: string;
-    horario_entrada: string;
-    horario_saida: string;
-  }>>([]);
+  const [csvPreviewData, setCsvPreviewData] = useState<
+    Array<{
+      cpf: string;
+      nome: string;
+      data_inicio: string;
+      horario_entrada: string;
+      horario_saida: string;
+    }>
+  >([]);
   const [csvPreviewOpen, setCsvPreviewOpen] = useState(false);
   const [importingCsv, setImportingCsv] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -199,8 +237,13 @@ const EscalasMedicas: React.FC = () => {
 
     // Auto-reload escalas data if filters are saved and search was previously performed
     // This happens when user navigates back to Escalas Médicas after leaving
-    if (buscaRealizada && filtroDataInicio && filtroDataFim && escalas.length === 0) {
-      console.log('🔄 Auto-reloading escalas data from saved filters...');
+    if (
+      buscaRealizada &&
+      filtroDataInicio &&
+      filtroDataFim &&
+      escalas.length === 0
+    ) {
+      console.log("🔄 Auto-reloading escalas data from saved filters...");
       handleBuscarEscalas();
     }
   }, []);
@@ -220,7 +263,7 @@ const EscalasMedicas: React.FC = () => {
   ]);
 
   // Persist form data to sessionStorage to prevent data loss on tab switch/minimize
-  const FORM_STORAGE_KEY = 'escalas_medicas_form_draft';
+  const FORM_STORAGE_KEY = "escalas_medicas_form_draft";
 
   // Restore form data from sessionStorage on mount
   useEffect(() => {
@@ -230,7 +273,8 @@ const EscalasMedicas: React.FC = () => {
         const parsed = JSON.parse(savedDraft);
 
         // Only restore if the draft is recent (within last 2 hours) and dialog was open
-        const draftAge = new Date().getTime() - new Date(parsed.timestamp).getTime();
+        const draftAge =
+          new Date().getTime() - new Date(parsed.timestamp).getTime();
         const twoHoursInMs = 2 * 60 * 60 * 1000;
 
         if (draftAge < twoHoursInMs && parsed.dialogOpen) {
@@ -238,9 +282,15 @@ const EscalasMedicas: React.FC = () => {
           if (parsed.formData) {
             setFormData({
               ...parsed.formData,
-              data_inicio: parsed.formData.data_inicio?.map((d: string) => new Date(d)) || [],
-              horario_entrada: parsed.formData.horario_entrada ? new Date(parsed.formData.horario_entrada) : null,
-              horario_saida: parsed.formData.horario_saida ? new Date(parsed.formData.horario_saida) : null,
+              data_inicio:
+                parsed.formData.data_inicio?.map((d: string) => new Date(d)) ||
+                [],
+              horario_entrada: parsed.formData.horario_entrada
+                ? new Date(parsed.formData.horario_entrada)
+                : null,
+              horario_saida: parsed.formData.horario_saida
+                ? new Date(parsed.formData.horario_saida)
+                : null,
             });
           }
 
@@ -248,14 +298,18 @@ const EscalasMedicas: React.FC = () => {
           setDialogOpen(true);
           setActiveStep(parsed.activeStep || 0);
 
-          console.log('📝 Restored form draft from sessionStorage (age: ' + Math.round(draftAge / 1000 / 60) + ' minutes)');
+          console.log(
+            "📝 Restored form draft from sessionStorage (age: " +
+              Math.round(draftAge / 1000 / 60) +
+              " minutes)"
+          );
         } else {
           // Draft is too old or dialog wasn't open, clear it
           sessionStorage.removeItem(FORM_STORAGE_KEY);
         }
       }
     } catch (error) {
-      console.error('Error restoring form draft:', error);
+      console.error("Error restoring form draft:", error);
       sessionStorage.removeItem(FORM_STORAGE_KEY);
     }
   }, []);
@@ -272,7 +326,7 @@ const EscalasMedicas: React.FC = () => {
         };
         sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(draft));
       } catch (error) {
-        console.error('Error saving form draft:', error);
+        console.error("Error saving form draft:", error);
       }
     }
   }, [formData, dialogOpen, activeStep]);
@@ -306,7 +360,7 @@ const EscalasMedicas: React.FC = () => {
         horas = (minutosSaida - minutosEntrada) / 60;
       } else {
         // Atravessa meia-noite
-        horas = ((1440 - minutosEntrada) + minutosSaida) / 60;
+        horas = (1440 - minutosEntrada + minutosSaida) / 60;
       }
 
       // Multiplicar pelo número de médicos
@@ -344,23 +398,27 @@ const EscalasMedicas: React.FC = () => {
   // Carregar apenas dados auxiliares (contratos, unidades, itens)
   const loadAuxiliaryData = async () => {
     try {
-      const [{ data: contr }, { data: unid }, { data: itens }, { data: contrItens }] =
-        await Promise.all([
-          supabase.from("contratos").select("*").eq("ativo", true),
-          supabase
-            .from("unidades_hospitalares")
-            .select("*")
-            .eq("ativo", true)
-            .order("codigo"),
-          supabase.from("itens_contrato").select("*").eq("ativo", true),
-          supabase.from("contrato_itens").select("*"),
-        ]);
+      const [
+        { data: contr },
+        { data: unid },
+        { data: itens },
+        { data: contrItens },
+      ] = await Promise.all([
+        supabase.from("contratos").select("*").eq("ativo", true),
+        supabase
+          .from("unidades_hospitalares")
+          .select("*")
+          .eq("ativo", true)
+          .order("codigo"),
+        supabase.from("itens_contrato").select("*").eq("ativo", true),
+        supabase.from("contrato_itens").select("*"),
+      ]);
 
       // Filtrar contratos para administrador-terceiro
       let contratosDisponiveis = contr || [];
       if (isAdminTerceiro && userContratoIds.length > 0) {
-        contratosDisponiveis = contratosDisponiveis.filter(
-          (contrato) => userContratoIds.includes(contrato.id)
+        contratosDisponiveis = contratosDisponiveis.filter((contrato) =>
+          userContratoIds.includes(contrato.id)
         );
       }
 
@@ -392,8 +450,10 @@ const EscalasMedicas: React.FC = () => {
     setBuscaRealizada(false);
 
     // Clear sessionStorage
-    const escalasKeys = Object.keys(sessionStorage).filter(k => k.startsWith('escalas_'));
-    escalasKeys.forEach(k => sessionStorage.removeItem(k));
+    const escalasKeys = Object.keys(sessionStorage).filter((k) =>
+      k.startsWith("escalas_")
+    );
+    escalasKeys.forEach((k) => sessionStorage.removeItem(k));
 
     setError("");
     setSuccess("Filtros limpos com sucesso!");
@@ -435,8 +495,8 @@ const EscalasMedicas: React.FC = () => {
       // Aplicar filtros baseados no tipo de usuário
       if (isAdminTerceiro && userContratoIds.length > 0) {
         // Administrador-terceiro: mostrar apenas escalas de contratos vinculados
-        escalasParaExibir = escalasParaExibir.filter(
-          (escala) => userContratoIds.includes(escala.contrato_id)
+        escalasParaExibir = escalasParaExibir.filter((escala) =>
+          userContratoIds.includes(escala.contrato_id)
         );
       } else if (isTerceiro && userProfile?.cpf) {
         // Terceiro: mostrar apenas escalas onde seu CPF está na lista de médicos
@@ -644,17 +704,22 @@ const EscalasMedicas: React.FC = () => {
         setError("Preencha todos os campos obrigatórios");
         return;
       }
-      if (!formData.medicos_selecionados || formData.medicos_selecionados.length === 0) {
+      if (
+        !formData.medicos_selecionados ||
+        formData.medicos_selecionados.length === 0
+      ) {
         setError("Selecione pelo menos um médico");
         return;
       }
 
       // Preparar preview
       const contrato = contratos.find((c) => c.id === formData.contrato_id);
-      const medicos: MedicoEscala[] = formData.medicos_selecionados.map(medico => ({
-        nome: medico.nome,
-        cpf: medico.cpf,
-      }));
+      const medicos: MedicoEscala[] = formData.medicos_selecionados.map(
+        (medico) => ({
+          nome: medico.nome,
+          cpf: medico.cpf,
+        })
+      );
 
       setPreviewData({ contrato: contrato || null, medicos });
       setError("");
@@ -694,12 +759,15 @@ const EscalasMedicas: React.FC = () => {
     if (end2Min < start2Min) {
       // Cenário 1: comparar com a parte do horário 2 que vai até meia-noite
       const overlap1 =
-        (start1Min < 1440 && start2Min < 1440) &&
-        (start1Min < 1440 && end1Adjusted > start2Min);
+        start1Min < 1440 &&
+        start2Min < 1440 &&
+        start1Min < 1440 &&
+        end1Adjusted > start2Min;
 
       // Cenário 2: comparar com a parte do horário 2 após meia-noite (0 até end2Min)
       const overlap2 =
-        (start1Min < end2Min || end1Min < end2Min) ||
+        start1Min < end2Min ||
+        end1Min < end2Min ||
         (start1Min === 0 && end1Min > 0);
 
       if (overlap1 || overlap2) return true;
@@ -709,12 +777,15 @@ const EscalasMedicas: React.FC = () => {
     if (end1Min < start1Min) {
       // Cenário 1: comparar com a parte do horário 1 que vai até meia-noite
       const overlap1 =
-        (start2Min < 1440 && start1Min < 1440) &&
-        (start2Min < 1440 && end2Adjusted > start1Min);
+        start2Min < 1440 &&
+        start1Min < 1440 &&
+        start2Min < 1440 &&
+        end2Adjusted > start1Min;
 
       // Cenário 2: comparar com a parte do horário 1 após meia-noite (0 até end1Min)
       const overlap2 =
-        (start2Min < end1Min || end2Min < end1Min) ||
+        start2Min < end1Min ||
+        end2Min < end1Min ||
         (start2Min === 0 && end2Min > 0);
 
       if (overlap1 || overlap2) return true;
@@ -772,13 +843,21 @@ const EscalasMedicas: React.FC = () => {
             const medico = medicosComCpf[0];
             return {
               hasConflict: true,
-              conflictDetails: `O médico ${medico.nome} (CPF: ${cpf}) já possui um agendamento no dia ${format(
+              conflictDetails: `O médico ${
+                medico.nome
+              } (CPF: ${cpf}) já possui um agendamento no dia ${format(
                 parseISO(dataInicio),
                 "dd/MM/yyyy"
-              )} das ${escala.horario_entrada.substring(0, 5)} às ${escala.horario_saida.substring(
+              )} das ${escala.horario_entrada.substring(
                 0,
                 5
-              )}, que conflita com o horário ${horarioEntrada.substring(0, 5)} às ${horarioSaida.substring(0, 5)}.`,
+              )} às ${escala.horario_saida.substring(
+                0,
+                5
+              )}, que conflita com o horário ${horarioEntrada.substring(
+                0,
+                5
+              )} às ${horarioSaida.substring(0, 5)}.`,
             };
           }
         }
@@ -827,7 +906,10 @@ const EscalasMedicas: React.FC = () => {
           );
 
           if (conflictCheck.hasConflict) {
-            setError(conflictCheck.conflictDetails || "Conflito de agendamento detectado.");
+            setError(
+              conflictCheck.conflictDetails ||
+                "Conflito de agendamento detectado."
+            );
             return;
           }
         }
@@ -893,11 +975,21 @@ const EscalasMedicas: React.FC = () => {
           const numEscalas = escalasToCreate.length;
           const numDates = formData.data_inicio.length;
           const numDoctors = previewData.medicos.length;
-          let successMessage = `${numEscalas} escala${numEscalas > 1 ? 's' : ''} criada${numEscalas > 1 ? 's' : ''} com sucesso! (${numDates} data${numDates > 1 ? 's' : ''} × ${numDoctors} médico${numDoctors > 1 ? 's' : ''})`;
+          let successMessage = `${numEscalas} escala${
+            numEscalas > 1 ? "s" : ""
+          } criada${numEscalas > 1 ? "s" : ""} com sucesso! (${numDates} data${
+            numDates > 1 ? "s" : ""
+          } × ${numDoctors} médico${numDoctors > 1 ? "s" : ""})`;
 
           // Se houve conflitos mas algumas escalas foram criadas, avisar
           if (conflictErrors.length > 0) {
-            successMessage += `\n\nAtenção: ${conflictErrors.length} combinação${conflictErrors.length > 1 ? 'ões' : ''} foi${conflictErrors.length > 1 ? 'ram' : ''} ignorada${conflictErrors.length > 1 ? 's' : ''} devido a conflitos:\n${conflictErrors.join("\n")}`;
+            successMessage += `\n\nAtenção: ${
+              conflictErrors.length
+            } combinação${conflictErrors.length > 1 ? "ões" : ""} foi${
+              conflictErrors.length > 1 ? "ram" : ""
+            } ignorada${
+              conflictErrors.length > 1 ? "s" : ""
+            } devido a conflitos:\n${conflictErrors.join("\n")}`;
           }
 
           setSuccess(successMessage);
@@ -915,7 +1007,10 @@ const EscalasMedicas: React.FC = () => {
     if (escala) {
       // Bloquear edição baseado no tipo de usuário e status
       const canEditStatus = isAdminTerceiro
-        ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção" || escala.status === "Aprovação Parcial"
+        ? escala.status === "Programado" ||
+          escala.status === "Pré-Agendado" ||
+          escala.status === "Atenção" ||
+          escala.status === "Aprovação Parcial"
         : escala.status === "Programado" || escala.status === "Pré-Agendado";
 
       if (!canEditStatus) {
@@ -929,7 +1024,11 @@ const EscalasMedicas: React.FC = () => {
       }
 
       // Bloquear edição para administrador-terceiro se não for do seu contrato
-      if (isAdminTerceiro && userContratoIds.length > 0 && !userContratoIds.includes(escala.contrato_id)) {
+      if (
+        isAdminTerceiro &&
+        userContratoIds.length > 0 &&
+        !userContratoIds.includes(escala.contrato_id)
+      ) {
         setError(
           "Você não tem permissão para editar escalas de outros contratos."
         );
@@ -993,8 +1092,8 @@ const EscalasMedicas: React.FC = () => {
       // Populate form with escala data
       // Map all medicos from the escala to the medicos_selecionados
       const medicosEscalados = escala.medicos
-        .map(m => medicosUsuarios.find(u => u.cpf === m.cpf))
-        .filter(u => u !== undefined) as Usuario[];
+        .map((m) => medicosUsuarios.find((u) => u.cpf === m.cpf))
+        .filter((u) => u !== undefined) as Usuario[];
 
       setFormData({
         contrato_id: escala.contrato_id,
@@ -1051,7 +1150,10 @@ const EscalasMedicas: React.FC = () => {
   const handleDelete = async (escala: EscalaMedica) => {
     // Bloquear exclusão baseado no tipo de usuário e status
     const canDeleteStatus = isAdminTerceiro
-      ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção" || escala.status === "Aprovação Parcial"
+      ? escala.status === "Programado" ||
+        escala.status === "Pré-Agendado" ||
+        escala.status === "Atenção" ||
+        escala.status === "Aprovação Parcial"
       : escala.status === "Programado" || escala.status === "Pré-Agendado";
 
     if (!canDeleteStatus) {
@@ -1065,7 +1167,11 @@ const EscalasMedicas: React.FC = () => {
     }
 
     // Bloquear exclusão para administrador-terceiro se não for do seu contrato
-    if (isAdminTerceiro && userContratoIds.length > 0 && !userContratoIds.includes(escala.contrato_id)) {
+    if (
+      isAdminTerceiro &&
+      userContratoIds.length > 0 &&
+      !userContratoIds.includes(escala.contrato_id)
+    ) {
       setError(
         "Você não tem permissão para excluir escalas de outros contratos."
       );
@@ -1259,7 +1365,11 @@ const EscalasMedicas: React.FC = () => {
       // Filter out escalas that are already Aprovado or Reprovado
       const escalasToUpdate = Array.from(selectedEscalas).filter((id) => {
         const escala = escalas.find((e) => e.id === id);
-        return escala && escala.status !== "Aprovado" && escala.status !== "Reprovado";
+        return (
+          escala &&
+          escala.status !== "Aprovado" &&
+          escala.status !== "Reprovado"
+        );
       });
 
       if (escalasToUpdate.length === 0) {
@@ -1547,12 +1657,21 @@ const EscalasMedicas: React.FC = () => {
           }> = [];
 
           // Validar colunas obrigatórias
-          const requiredColumns = ["cpf", "data_inicio", "horario_entrada", "horario_saida"];
+          const requiredColumns = [
+            "cpf",
+            "data_inicio",
+            "horario_entrada",
+            "horario_saida",
+          ];
           const headers = results.meta.fields || [];
-          const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+          const missingColumns = requiredColumns.filter(
+            (col) => !headers.includes(col)
+          );
 
           if (missingColumns.length > 0) {
-            errors.push(`Colunas obrigatórias ausentes: ${missingColumns.join(", ")}`);
+            errors.push(
+              `Colunas obrigatórias ausentes: ${missingColumns.join(", ")}`
+            );
             setCsvErrors(errors);
             setImportingCsv(false);
             return;
@@ -1573,7 +1692,9 @@ const EscalasMedicas: React.FC = () => {
             // Validar formato de CPF (8 a 13 dígitos numéricos)
             const cpfLimpo = cpf.replace(/\D/g, "");
             if (cpfLimpo.length < 8 || cpfLimpo.length > 13) {
-              errors.push(`Linha ${lineNumber}: CPF "${cpf}" em formato inválido (deve ter entre 8 e 13 dígitos)`);
+              errors.push(
+                `Linha ${lineNumber}: CPF "${cpf}" em formato inválido (deve ter entre 8 e 13 dígitos)`
+              );
               continue;
             }
 
@@ -1585,7 +1706,9 @@ const EscalasMedicas: React.FC = () => {
               .single();
 
             if (userError || !usuario) {
-              errors.push(`Linha ${lineNumber}: CPF "${cpf}" não encontrado na base de usuários`);
+              errors.push(
+                `Linha ${lineNumber}: CPF "${cpf}" não encontrado na base de usuários`
+              );
               continue;
             }
 
@@ -1598,14 +1721,18 @@ const EscalasMedicas: React.FC = () => {
 
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
             if (!dateRegex.test(dataInicio)) {
-              errors.push(`Linha ${lineNumber}: data_inicio "${dataInicio}" em formato inválido (use YYYY-MM-DD)`);
+              errors.push(
+                `Linha ${lineNumber}: data_inicio "${dataInicio}" em formato inválido (use YYYY-MM-DD)`
+              );
               continue;
             }
 
             // Validar se é uma data válida
             const dataParsed = parseISO(dataInicio);
             if (isNaN(dataParsed.getTime())) {
-              errors.push(`Linha ${lineNumber}: data_inicio "${dataInicio}" é uma data inválida`);
+              errors.push(
+                `Linha ${lineNumber}: data_inicio "${dataInicio}" é uma data inválida`
+              );
               continue;
             }
 
@@ -1618,7 +1745,9 @@ const EscalasMedicas: React.FC = () => {
 
             const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
             if (!timeRegex.test(horarioEntrada)) {
-              errors.push(`Linha ${lineNumber}: horario_entrada "${horarioEntrada}" em formato inválido (use HH:MM ou HH:MM:SS)`);
+              errors.push(
+                `Linha ${lineNumber}: horario_entrada "${horarioEntrada}" em formato inválido (use HH:MM ou HH:MM:SS)`
+              );
               continue;
             }
 
@@ -1633,7 +1762,9 @@ const EscalasMedicas: React.FC = () => {
             }
 
             if (!timeRegex.test(horarioSaida)) {
-              errors.push(`Linha ${lineNumber}: horario_saida "${horarioSaida}" em formato inválido (use HH:MM ou HH:MM:SS)`);
+              errors.push(
+                `Linha ${lineNumber}: horario_saida "${horarioSaida}" em formato inválido (use HH:MM ou HH:MM:SS)`
+              );
               continue;
             }
 
@@ -1649,7 +1780,9 @@ const EscalasMedicas: React.FC = () => {
             );
 
             if (conflictCheck.hasConflict) {
-              errors.push(`Linha ${lineNumber}: ${conflictCheck.conflictDetails}`);
+              errors.push(
+                `Linha ${lineNumber}: ${conflictCheck.conflictDetails}`
+              );
               continue;
             }
 
@@ -1668,10 +1801,14 @@ const EscalasMedicas: React.FC = () => {
 
             if (conflitoDentroCsv) {
               errors.push(
-                `Linha ${lineNumber}: Conflito detectado dentro do CSV. O médico ${usuario.nome} (CPF: ${cpfLimpo}) já possui outro agendamento no mesmo arquivo para o dia ${format(
+                `Linha ${lineNumber}: Conflito detectado dentro do CSV. O médico ${
+                  usuario.nome
+                } (CPF: ${cpfLimpo}) já possui outro agendamento no mesmo arquivo para o dia ${format(
                   parseISO(dataInicio),
                   "dd/MM/yyyy"
-                )} das ${conflitoDentroCsv.horario_entrada} às ${conflitoDentroCsv.horario_saida}.`
+                )} das ${conflitoDentroCsv.horario_entrada} às ${
+                  conflitoDentroCsv.horario_saida
+                }.`
               );
               continue;
             }
@@ -1736,13 +1873,18 @@ const EscalasMedicas: React.FC = () => {
         );
 
         if (conflictCheck.hasConflict) {
-          conflictErrors.push(`Linha ${i + 1}: ${conflictCheck.conflictDetails}`);
+          conflictErrors.push(
+            `Linha ${i + 1}: ${conflictCheck.conflictDetails}`
+          );
         }
 
         // Verificar conflitos dentro do próprio lote de importação
         for (let j = 0; j < i; j++) {
           const prevRow = csvPreviewData[j];
-          if (prevRow.cpf === row.cpf && prevRow.data_inicio === row.data_inicio) {
+          if (
+            prevRow.cpf === row.cpf &&
+            prevRow.data_inicio === row.data_inicio
+          ) {
             const hasOverlap = checkTimeOverlap(
               row.horario_entrada + ":00",
               row.horario_saida + ":00",
@@ -1752,7 +1894,11 @@ const EscalasMedicas: React.FC = () => {
 
             if (hasOverlap) {
               conflictErrors.push(
-                `Conflito detectado entre linhas ${j + 1} e ${i + 1}: O médico ${row.nome} (CPF: ${row.cpf}) possui agendamentos conflitantes no dia ${format(
+                `Conflito detectado entre linhas ${j + 1} e ${
+                  i + 1
+                }: O médico ${row.nome} (CPF: ${
+                  row.cpf
+                }) possui agendamentos conflitantes no dia ${format(
                   parseISO(row.data_inicio),
                   "dd/MM/yyyy"
                 )}.`
@@ -1800,7 +1946,9 @@ const EscalasMedicas: React.FC = () => {
         throw insertError;
       }
 
-      setSuccess(`${csvPreviewData.length} escala(s) importada(s) com sucesso!`);
+      setSuccess(
+        `${csvPreviewData.length} escala(s) importada(s) com sucesso!`
+      );
       setCsvPreviewOpen(false);
       setCsvPreviewData([]);
       setCsvFile(null);
@@ -2216,7 +2364,8 @@ const EscalasMedicas: React.FC = () => {
                 onClick={() => handleOpenDialog()}
                 sx={{
                   height: 42,
-                  background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+                  background:
+                    "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
                   color: "white",
                   "&:hover": {
                     background:
@@ -2583,7 +2732,12 @@ const EscalasMedicas: React.FC = () => {
                   }}
                 >
                   <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="start"
+                      mb={2}
+                    >
                       <Box>
                         <Typography
                           variant="caption"
@@ -2596,7 +2750,12 @@ const EscalasMedicas: React.FC = () => {
                         >
                           Aprovado
                         </Typography>
-                        <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5}>
+                        <Box
+                          display="flex"
+                          alignItems="baseline"
+                          gap={0.5}
+                          mt={0.5}
+                        >
                           <Typography
                             variant="h4"
                             sx={{
@@ -2615,7 +2774,10 @@ const EscalasMedicas: React.FC = () => {
                           >
                             {scorecardMetrics.aprovado.valor.toLocaleString(
                               "pt-BR",
-                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                              {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }
                             )}
                           </Typography>
                         </Box>
@@ -2658,7 +2820,12 @@ const EscalasMedicas: React.FC = () => {
                   }}
                 >
                   <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="start"
+                      mb={2}
+                    >
                       <Box>
                         <Typography
                           variant="caption"
@@ -2671,7 +2838,12 @@ const EscalasMedicas: React.FC = () => {
                         >
                           Pré-Aprovado
                         </Typography>
-                        <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5}>
+                        <Box
+                          display="flex"
+                          alignItems="baseline"
+                          gap={0.5}
+                          mt={0.5}
+                        >
                           <Typography
                             variant="h4"
                             sx={{
@@ -2690,7 +2862,10 @@ const EscalasMedicas: React.FC = () => {
                           >
                             {scorecardMetrics.preAprovado.valor.toLocaleString(
                               "pt-BR",
-                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                              {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }
                             )}
                           </Typography>
                         </Box>
@@ -2733,7 +2908,12 @@ const EscalasMedicas: React.FC = () => {
                   }}
                 >
                   <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="start"
+                      mb={2}
+                    >
                       <Box>
                         <Typography
                           variant="caption"
@@ -2746,7 +2926,12 @@ const EscalasMedicas: React.FC = () => {
                         >
                           Programado
                         </Typography>
-                        <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5}>
+                        <Box
+                          display="flex"
+                          alignItems="baseline"
+                          gap={0.5}
+                          mt={0.5}
+                        >
                           <Typography
                             variant="h4"
                             sx={{
@@ -2765,7 +2950,10 @@ const EscalasMedicas: React.FC = () => {
                           >
                             {scorecardMetrics.programado.valor.toLocaleString(
                               "pt-BR",
-                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                              {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }
                             )}
                           </Typography>
                         </Box>
@@ -2780,7 +2968,9 @@ const EscalasMedicas: React.FC = () => {
                           justifyContent: "center",
                         }}
                       >
-                        <HourglassEmpty sx={{ color: "#8b5cf6", fontSize: 28 }} />
+                        <HourglassEmpty
+                          sx={{ color: "#8b5cf6", fontSize: 28 }}
+                        />
                       </Box>
                     </Box>
                     <Box display="flex" alignItems="center" gap={0.5}>
@@ -2808,7 +2998,12 @@ const EscalasMedicas: React.FC = () => {
                   }}
                 >
                   <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="start"
+                      mb={2}
+                    >
                       <Box>
                         <Typography
                           variant="caption"
@@ -2821,7 +3016,12 @@ const EscalasMedicas: React.FC = () => {
                         >
                           Atenção
                         </Typography>
-                        <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5}>
+                        <Box
+                          display="flex"
+                          alignItems="baseline"
+                          gap={0.5}
+                          mt={0.5}
+                        >
                           <Typography
                             variant="h4"
                             sx={{
@@ -2840,7 +3040,10 @@ const EscalasMedicas: React.FC = () => {
                           >
                             {scorecardMetrics.atencao.valor.toLocaleString(
                               "pt-BR",
-                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                              {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }
                             )}
                           </Typography>
                         </Box>
@@ -2870,78 +3073,108 @@ const EscalasMedicas: React.FC = () => {
             </Grid>
 
             {/* Bulk Actions */}
-            {(isAdminAgir || isAdminTerceiro) && escalasFiltradas.length > 0 && (
-              <Box sx={{ mb: 3, display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
-                <Button
-                  variant={selectedEscalas.size === 0 ? "outlined" : "contained"}
-                  startIcon={
-                    selectedEscalas.size === 0 ? (
-                      <CheckBoxOutlineBlank />
-                    ) : selectedEscalas.size === escalasFiltradas.filter(e => e.status !== "Aprovado" && e.status !== "Reprovado").length ? (
-                      <CheckBoxIcon />
-                    ) : (
-                      <IndeterminateCheckBox />
-                    )
-                  }
-                  onClick={
-                    selectedEscalas.size === escalasFiltradas.filter(e => e.status !== "Aprovado" && e.status !== "Reprovado").length
-                      ? handleDeselectAll
-                      : handleSelectAll
-                  }
-                  size="small"
+            {(isAdminAgir || isAdminTerceiro) &&
+              escalasFiltradas.length > 0 && (
+                <Box
+                  sx={{
+                    mb: 3,
+                    display: "flex",
+                    gap: 2,
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                  }}
                 >
-                  {selectedEscalas.size === escalasFiltradas.filter(e => e.status !== "Aprovado" && e.status !== "Reprovado").length
-                    ? "Desselecionar Todos"
-                    : `Selecionar Todos (${escalasFiltradas.filter(e => e.status !== "Aprovado" && e.status !== "Reprovado").length})`}
-                </Button>
+                  <Button
+                    variant={
+                      selectedEscalas.size === 0 ? "outlined" : "contained"
+                    }
+                    startIcon={
+                      selectedEscalas.size === 0 ? (
+                        <CheckBoxOutlineBlank />
+                      ) : selectedEscalas.size ===
+                        escalasFiltradas.filter(
+                          (e) =>
+                            e.status !== "Aprovado" && e.status !== "Reprovado"
+                        ).length ? (
+                        <CheckBoxIcon />
+                      ) : (
+                        <IndeterminateCheckBox />
+                      )
+                    }
+                    onClick={
+                      selectedEscalas.size ===
+                      escalasFiltradas.filter(
+                        (e) =>
+                          e.status !== "Aprovado" && e.status !== "Reprovado"
+                      ).length
+                        ? handleDeselectAll
+                        : handleSelectAll
+                    }
+                    size="small"
+                  >
+                    {selectedEscalas.size ===
+                    escalasFiltradas.filter(
+                      (e) => e.status !== "Aprovado" && e.status !== "Reprovado"
+                    ).length
+                      ? "Desselecionar Todos"
+                      : `Selecionar Todos (${
+                          escalasFiltradas.filter(
+                            (e) =>
+                              e.status !== "Aprovado" &&
+                              e.status !== "Reprovado"
+                          ).length
+                        })`}
+                  </Button>
 
-                {selectedEscalas.size > 0 && (
-                  <>
-                    <Chip
-                      label={`${selectedEscalas.size} selecionada${selectedEscalas.size > 1 ? "s" : ""}`}
-                      color="primary"
-                      onDelete={handleDeselectAll}
-                    />
-                    {isAdminAgir && (
-                      <>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          startIcon={<DoneAll />}
-                          onClick={() => {
-                            setBulkStatus("Aprovado");
-                            handleOpenBulkStatusDialog();
-                          }}
-                          size="small"
-                        >
-                          Aprovar Selecionadas
-                        </Button>
-                        <Button
-                          variant="contained"
-                          color="error"
-                          startIcon={<ThumbDown />}
-                          onClick={() => {
-                            setBulkStatus("Reprovado");
-                            handleOpenBulkStatusDialog();
-                          }}
-                          size="small"
-                        >
-                          Reprovar Selecionadas
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          startIcon={<Edit />}
-                          onClick={handleOpenBulkStatusDialog}
-                          size="small"
-                        >
-                          Alterar Status
-                        </Button>
-                      </>
-                    )}
-                  </>
-                )}
-              </Box>
-            )}
+                  {selectedEscalas.size > 0 && (
+                    <>
+                      <Chip
+                        label={`${selectedEscalas.size} selecionada${
+                          selectedEscalas.size > 1 ? "s" : ""
+                        }`}
+                        color="primary"
+                        onDelete={handleDeselectAll}
+                      />
+                      {isAdminAgir && (
+                        <>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            startIcon={<DoneAll />}
+                            onClick={() => {
+                              setBulkStatus("Aprovado");
+                              handleOpenBulkStatusDialog();
+                            }}
+                            size="small"
+                          >
+                            Aprovar Selecionadas
+                          </Button>
+                          <Button
+                            variant="contained"
+                            color="error"
+                            startIcon={<ThumbDown />}
+                            onClick={() => {
+                              setBulkStatus("Reprovado");
+                              handleOpenBulkStatusDialog();
+                            }}
+                            size="small"
+                          >
+                            Reprovar Selecionadas
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            startIcon={<Edit />}
+                            onClick={handleOpenBulkStatusDialog}
+                            size="small"
+                          >
+                            Alterar Status
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </Box>
+              )}
 
             {/* Escalas List */}
             <Grid container spacing={3}>
@@ -2973,24 +3206,30 @@ const EscalasMedicas: React.FC = () => {
                           gap={2}
                         >
                           <Box display="flex" alignItems="center" gap={1}>
-                            {(isAdminAgir || isAdminTerceiro) && escala.status !== "Aprovado" && escala.status !== "Reprovado" && (
-                              <Tooltip title="Selecionar para ação em massa">
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => handleToggleSelection(escala.id, e)}
-                                  sx={{
-                                    ml: -0.5,
-                                    color: selectedEscalas.has(escala.id) ? "primary.main" : "action.disabled",
-                                  }}
-                                >
-                                  {selectedEscalas.has(escala.id) ? (
-                                    <CheckBoxIcon />
-                                  ) : (
-                                    <CheckBoxOutlineBlank />
-                                  )}
-                                </IconButton>
-                              </Tooltip>
-                            )}
+                            {(isAdminAgir || isAdminTerceiro) &&
+                              escala.status !== "Aprovado" &&
+                              escala.status !== "Reprovado" && (
+                                <Tooltip title="Selecionar para ação em massa">
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) =>
+                                      handleToggleSelection(escala.id, e)
+                                    }
+                                    sx={{
+                                      ml: -0.5,
+                                      color: selectedEscalas.has(escala.id)
+                                        ? "primary.main"
+                                        : "action.disabled",
+                                    }}
+                                  >
+                                    {selectedEscalas.has(escala.id) ? (
+                                      <CheckBoxIcon />
+                                    ) : (
+                                      <CheckBoxOutlineBlank />
+                                    )}
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                             <Chip
                               icon={<CalendarMonth />}
                               label={format(
@@ -3075,85 +3314,99 @@ const EscalasMedicas: React.FC = () => {
                               />
                             </Tooltip>
                             {!isTerceiro && (
-                            <Box sx={{ mr: -1 }}>
-                              <Tooltip
-                                title={
-                                  (() => {
+                              <Box sx={{ mr: -1 }}>
+                                <Tooltip
+                                  title={(() => {
                                     const canEdit = isAdminTerceiro
-                                      ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção" || escala.status === "Aprovação Parcial"
-                                      : escala.status === "Programado" || escala.status === "Pré-Agendado";
+                                      ? escala.status === "Programado" ||
+                                        escala.status === "Pré-Agendado" ||
+                                        escala.status === "Atenção" ||
+                                        escala.status === "Aprovação Parcial"
+                                      : escala.status === "Programado" ||
+                                        escala.status === "Pré-Agendado";
                                     if (canEdit) return "Editar escala";
                                     const allowedStatuses = isAdminTerceiro
                                       ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
                                       : '"Programado" ou "Pré-Agendado"';
                                     return `Não é possível editar. Apenas escalas com status ${allowedStatuses} podem ser editadas.`;
-                                  })()
-                                }
-                              >
-                                <span>
-                                  <IconButton
-                                    size="small"
-                                    disabled={
-                                      isAdminTerceiro
-                                        ? escala.status !== "Programado" && escala.status !== "Pré-Agendado" && escala.status !== "Atenção" && escala.status !== "Aprovação Parcial"
-                                        : escala.status !== "Programado" && escala.status !== "Pré-Agendado"
-                                    }
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenDialog(escala);
-                                    }}
-                                    sx={{
-                                      opacity:
-                                        escala.status === "Aprovado" ||
-                                        escala.status === "Reprovado"
-                                          ? 0.5
-                                          : 1,
-                                    }}
-                                  >
-                                    <Edit fontSize="small" />
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                              <Tooltip
-                                title={
-                                  (() => {
+                                  })()}
+                                >
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      disabled={
+                                        isAdminTerceiro
+                                          ? escala.status !== "Programado" &&
+                                            escala.status !== "Pré-Agendado" &&
+                                            escala.status !== "Atenção" &&
+                                            escala.status !==
+                                              "Aprovação Parcial"
+                                          : escala.status !== "Programado" &&
+                                            escala.status !== "Pré-Agendado"
+                                      }
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenDialog(escala);
+                                      }}
+                                      sx={{
+                                        opacity:
+                                          escala.status === "Aprovado" ||
+                                          escala.status === "Reprovado"
+                                            ? 0.5
+                                            : 1,
+                                      }}
+                                    >
+                                      <Edit fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                                <Tooltip
+                                  title={(() => {
                                     const canDelete = isAdminTerceiro
-                                      ? escala.status === "Programado" || escala.status === "Pré-Agendado" || escala.status === "Atenção" || escala.status === "Aprovação Parcial"
-                                      : escala.status === "Programado" || escala.status === "Pré-Agendado";
+                                      ? escala.status === "Programado" ||
+                                        escala.status === "Pré-Agendado" ||
+                                        escala.status === "Atenção" ||
+                                        escala.status === "Aprovação Parcial"
+                                      : escala.status === "Programado" ||
+                                        escala.status === "Pré-Agendado";
                                     if (canDelete) return "Excluir escala";
                                     const allowedStatuses = isAdminTerceiro
                                       ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
                                       : '"Programado" ou "Pré-Agendado"';
                                     return `Não é possível excluir. Apenas escalas com status ${allowedStatuses} podem ser excluídas.`;
-                                  })()
-                                }
-                              >
-                                <span>
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    disabled={
-                                      isAdminTerceiro
-                                        ? escala.status !== "Programado" && escala.status !== "Pré-Agendado" && escala.status !== "Atenção" && escala.status !== "Aprovação Parcial"
-                                        : escala.status !== "Programado" && escala.status !== "Pré-Agendado"
-                                    }
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(escala);
-                                    }}
-                                    sx={{
-                                      opacity:
-                                        escala.status === "Aprovado" ||
-                                        escala.status === "Reprovado"
-                                          ? 0.5
-                                          : 1,
-                                    }}
-                                  >
-                                    <Delete fontSize="small" />
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                            </Box>
+                                  })()}
+                                >
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      disabled={
+                                        isAdminTerceiro
+                                          ? escala.status !== "Programado" &&
+                                            escala.status !== "Pré-Agendado" &&
+                                            escala.status !== "Atenção" &&
+                                            escala.status !==
+                                              "Aprovação Parcial"
+                                          : escala.status !== "Programado" &&
+                                            escala.status !== "Pré-Agendado"
+                                      }
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(escala);
+                                      }}
+                                      sx={{
+                                        opacity:
+                                          escala.status === "Aprovado" ||
+                                          escala.status === "Reprovado"
+                                            ? 0.5
+                                            : 1,
+                                      }}
+                                    >
+                                      <Delete fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              </Box>
                             )}
                           </Box>
                         </Box>
@@ -3175,12 +3428,18 @@ const EscalasMedicas: React.FC = () => {
                             size="small"
                             variant="outlined"
                           />
-                          <Box display="flex" alignItems="center" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+                          <Box
+                            display="flex"
+                            alignItems="center"
+                            gap={0.5}
+                            flexWrap="wrap"
+                            justifyContent="flex-end"
+                          >
                             {escala.medicos.slice(0, 2).map((medico, idx) => (
                               <Chip
                                 key={idx}
                                 icon={<Person />}
-                                label={medico.nome.split(" ")[0]}
+                                label={medico.nome.split(" ").slice(0, 2).join(" ")}
                                 size="small"
                                 sx={{ fontSize: "0.7rem" }}
                               />
@@ -3197,14 +3456,6 @@ const EscalasMedicas: React.FC = () => {
 
                         {/* Item de Contrato */}
                         <Box mb={1.5}>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            display="block"
-                            sx={{ mb: 0.5 }}
-                          >
-                            Item de Contrato:
-                          </Typography>
                           <Chip
                             label={
                               todosItensContrato.find(
@@ -3242,7 +3493,7 @@ const EscalasMedicas: React.FC = () => {
           onClose={(event, reason) => {
             // Prevent closing on backdrop click or ESC key
             // User must explicitly click Cancel button to close
-            if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+            if (reason === "backdropClick" || reason === "escapeKeyDown") {
               return;
             }
             handleCloseDialog();
@@ -3368,7 +3619,9 @@ const EscalasMedicas: React.FC = () => {
                         color="text.secondary"
                         sx={{ mt: 1, display: "block" }}
                       >
-                        Formato do CSV: cpf (8-13 dígitos), data_inicio (YYYY-MM-DD), horario_entrada, horario_saida (HH:MM ou HH:MM:SS)
+                        Formato do CSV: cpf (8-13 dígitos), data_inicio
+                        (YYYY-MM-DD), horario_entrada, horario_saida (HH:MM ou
+                        HH:MM:SS)
                       </Typography>
                     </Box>
                   )}
@@ -3380,11 +3633,17 @@ const EscalasMedicas: React.FC = () => {
                   <Box
                     sx={{
                       border: "1px solid",
-                      borderColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.23)" : "rgba(0, 0, 0, 0.23)",
+                      borderColor:
+                        theme.palette.mode === "dark"
+                          ? "rgba(255, 255, 255, 0.23)"
+                          : "rgba(0, 0, 0, 0.23)",
                       borderRadius: 1,
                       padding: 2,
                       "&:hover": {
-                        borderColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.87)" : "rgba(0, 0, 0, 0.87)",
+                        borderColor:
+                          theme.palette.mode === "dark"
+                            ? "rgba(255, 255, 255, 0.87)"
+                            : "rgba(0, 0, 0, 0.87)",
                       },
                     }}
                   >
@@ -3412,23 +3671,40 @@ const EscalasMedicas: React.FC = () => {
                       calendarPosition="bottom"
                     />
                     {formData.data_inicio.length > 0 && (
-                      <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                      <Box
+                        sx={{
+                          mt: 1,
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 0.5,
+                        }}
+                      >
                         {formData.data_inicio.map((date, index) => (
                           <Chip
                             key={index}
                             label={format(date, "dd/MM/yyyy")}
                             size="small"
                             onDelete={() => {
-                              const newDates = formData.data_inicio.filter((_, i) => i !== index);
-                              setFormData({ ...formData, data_inicio: newDates });
+                              const newDates = formData.data_inicio.filter(
+                                (_, i) => i !== index
+                              );
+                              setFormData({
+                                ...formData,
+                                data_inicio: newDates,
+                              });
                             }}
                           />
                         ))}
                       </Box>
                     )}
                   </Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-                    Clique nas datas no calendário para selecionar múltiplas datas
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mt: 0.5, display: "block" }}
+                  >
+                    Clique nas datas no calendário para selecionar múltiplas
+                    datas
                   </Typography>
                 </Box>
 
@@ -3493,7 +3769,9 @@ const EscalasMedicas: React.FC = () => {
                         ...params.InputProps,
                         endAdornment: (
                           <>
-                            {loadingUsuarios ? <CircularProgress color="inherit" size={20} /> : null}
+                            {loadingUsuarios ? (
+                              <CircularProgress color="inherit" size={20} />
+                            ) : null}
                             {params.InputProps.endAdornment}
                           </>
                         ),
@@ -3974,9 +4252,7 @@ const EscalasMedicas: React.FC = () => {
               justifyContent="space-between"
               alignItems="center"
             >
-              <span style={{ fontWeight: 700 }}>
-                Detalhes da Escala Médica
-              </span>
+              <span style={{ fontWeight: 700 }}>Detalhes da Escala Médica</span>
               {escalaDetalhes && (
                 <Chip
                   icon={getStatusConfig(escalaDetalhes.status).icon}
@@ -3996,9 +4272,10 @@ const EscalasMedicas: React.FC = () => {
                 {/* Informações do Contrato */}
                 <Card
                   sx={{
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(59, 130, 246, 0.1)'
-                      : 'primary.50',
+                    bgcolor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(59, 130, 246, 0.1)"
+                        : "primary.50",
                     borderLeft: "4px solid",
                     borderColor: "primary.main",
                   }}
@@ -4101,18 +4378,20 @@ const EscalasMedicas: React.FC = () => {
                     component={Paper}
                     elevation={0}
                     sx={{
-                      border: theme.palette.mode === 'dark'
-                        ? '1px solid rgba(255, 255, 255, 0.12)'
-                        : '1px solid #e0e0e0'
+                      border:
+                        theme.palette.mode === "dark"
+                          ? "1px solid rgba(255, 255, 255, 0.12)"
+                          : "1px solid #e0e0e0",
                     }}
                   >
                     <Table>
                       <TableHead>
                         <TableRow
                           sx={{
-                            bgcolor: theme.palette.mode === 'dark'
-                              ? 'rgba(255, 255, 255, 0.05)'
-                              : 'grey.50'
+                            bgcolor:
+                              theme.palette.mode === "dark"
+                                ? "rgba(255, 255, 255, 0.05)"
+                                : "grey.50",
                           }}
                         >
                           <TableCell>
@@ -4267,9 +4546,10 @@ const EscalasMedicas: React.FC = () => {
                               <TableHead>
                                 <TableRow
                                   sx={{
-                                    bgcolor: theme.palette.mode === 'dark'
-                                      ? 'rgba(255, 255, 255, 0.05)'
-                                      : 'grey.100'
+                                    bgcolor:
+                                      theme.palette.mode === "dark"
+                                        ? "rgba(255, 255, 255, 0.05)"
+                                        : "grey.100",
                                   }}
                                 >
                                   <TableCell>
@@ -4537,9 +4817,10 @@ const EscalasMedicas: React.FC = () => {
                   sx={{
                     p: 2,
                     borderRadius: 1,
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(255, 255, 255, 0.03)'
-                      : 'grey.50',
+                    bgcolor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(255, 255, 255, 0.03)"
+                        : "grey.50",
                     border: "1px dashed",
                     borderColor: "divider",
                   }}
@@ -4579,18 +4860,20 @@ const EscalasMedicas: React.FC = () => {
             {(isAdminAgir || isAdminTerceiro) && escalaDetalhes && (
               <>
                 <Tooltip
-                  title={
-                    (() => {
-                      const canEdit = isAdminTerceiro
-                        ? escalaDetalhes.status === "Programado" || escalaDetalhes.status === "Pré-Agendado" || escalaDetalhes.status === "Atenção" || escalaDetalhes.status === "Aprovação Parcial"
-                        : escalaDetalhes.status === "Programado" || escalaDetalhes.status === "Pré-Agendado";
-                      if (canEdit) return "";
-                      const allowedStatuses = isAdminTerceiro
-                        ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
-                        : '"Programado" ou "Pré-Agendado"';
-                      return `Não é possível editar. Apenas escalas com status ${allowedStatuses} podem ser editadas.`;
-                    })()
-                  }
+                  title={(() => {
+                    const canEdit = isAdminTerceiro
+                      ? escalaDetalhes.status === "Programado" ||
+                        escalaDetalhes.status === "Pré-Agendado" ||
+                        escalaDetalhes.status === "Atenção" ||
+                        escalaDetalhes.status === "Aprovação Parcial"
+                      : escalaDetalhes.status === "Programado" ||
+                        escalaDetalhes.status === "Pré-Agendado";
+                    if (canEdit) return "";
+                    const allowedStatuses = isAdminTerceiro
+                      ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
+                      : '"Programado" ou "Pré-Agendado"';
+                    return `Não é possível editar. Apenas escalas com status ${allowedStatuses} podem ser editadas.`;
+                  })()}
                 >
                   <span>
                     <Button
@@ -4602,8 +4885,12 @@ const EscalasMedicas: React.FC = () => {
                       startIcon={<Edit />}
                       disabled={
                         isAdminTerceiro
-                          ? escalaDetalhes.status !== "Programado" && escalaDetalhes.status !== "Pré-Agendado" && escalaDetalhes.status !== "Atenção" && escalaDetalhes.status !== "Aprovação Parcial"
-                          : escalaDetalhes.status !== "Programado" && escalaDetalhes.status !== "Pré-Agendado"
+                          ? escalaDetalhes.status !== "Programado" &&
+                            escalaDetalhes.status !== "Pré-Agendado" &&
+                            escalaDetalhes.status !== "Atenção" &&
+                            escalaDetalhes.status !== "Aprovação Parcial"
+                          : escalaDetalhes.status !== "Programado" &&
+                            escalaDetalhes.status !== "Pré-Agendado"
                       }
                     >
                       Editar
@@ -4647,7 +4934,7 @@ const EscalasMedicas: React.FC = () => {
           open={csvDialogOpen}
           onClose={(event, reason) => {
             // Prevent closing on backdrop click or ESC key to avoid losing CSV data
-            if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+            if (reason === "backdropClick" || reason === "escapeKeyDown") {
               return;
             }
             handleCloseCsvDialog();
@@ -4658,9 +4945,7 @@ const EscalasMedicas: React.FC = () => {
           <DialogTitle>
             <Box display="flex" alignItems="center" gap={1}>
               <CloudUpload sx={{ color: "primary.main" }} />
-              <span style={{ fontWeight: 700 }}>
-                Importar Escalas via CSV
-              </span>
+              <span style={{ fontWeight: 700 }}>Importar Escalas via CSV</span>
             </Box>
           </DialogTitle>
 
