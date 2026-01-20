@@ -370,14 +370,16 @@ const EscalasMedicas: React.FC = () => {
     }
   }, [formData, dialogOpen, activeStep]);
 
-  // Calcular métricas dos scorecards
+  // Calcular métricas dos scorecards - incluindo todos os 7 status
   const scorecardMetrics = useMemo(() => {
     const metrics = {
-      aprovado: { valor: 0, horas: 0 },
-      preAprovado: { valor: 0, horas: 0 },
-      aprovacaoParcial: { valor: 0, horas: 0 },
-      programado: { valor: 0, horas: 0 },
-      atencao: { valor: 0, horas: 0 },
+      preAgendado: { valor: 0, horas: 0, count: 0 },
+      programado: { valor: 0, horas: 0, count: 0 },
+      preAprovado: { valor: 0, horas: 0, count: 0 },
+      aprovacaoParcial: { valor: 0, horas: 0, count: 0 },
+      atencao: { valor: 0, horas: 0, count: 0 },
+      aprovado: { valor: 0, horas: 0, count: 0 },
+      reprovado: { valor: 0, horas: 0, count: 0 },
     };
 
     escalasFiltradas.forEach((escala) => {
@@ -385,8 +387,6 @@ const EscalasMedicas: React.FC = () => {
       const contratoItem = contratoItens.find(
         (ci) => ci.item_id === escala.item_contrato_id
       );
-
-      if (!contratoItem || !contratoItem.valor_unitario) return;
 
       // Calcular horas da escala
       const [horaE, minE] = escala.horario_entrada.split(":").map(Number);
@@ -404,35 +404,115 @@ const EscalasMedicas: React.FC = () => {
 
       // Multiplicar pelo número de médicos
       const totalHoras = horas * escala.medicos.length;
-      const valor = contratoItem.valor_unitario * totalHoras;
+      const valor = contratoItem?.valor_unitario
+        ? contratoItem.valor_unitario * totalHoras
+        : 0;
 
       // Acumular por status
       switch (escala.status) {
-        case "Aprovado":
-          metrics.aprovado.valor += valor;
-          metrics.aprovado.horas += totalHoras;
-          break;
-        case "Pré-Aprovado":
-          metrics.preAprovado.valor += valor;
-          metrics.preAprovado.horas += totalHoras;
-          break;
-        case "Aprovação Parcial":
-          metrics.aprovacaoParcial.valor += valor;
-          metrics.aprovacaoParcial.horas += totalHoras;
+        case "Pré-Agendado":
+          metrics.preAgendado.valor += valor;
+          metrics.preAgendado.horas += totalHoras;
+          metrics.preAgendado.count++;
           break;
         case "Programado":
           metrics.programado.valor += valor;
           metrics.programado.horas += totalHoras;
+          metrics.programado.count++;
+          break;
+        case "Pré-Aprovado":
+          metrics.preAprovado.valor += valor;
+          metrics.preAprovado.horas += totalHoras;
+          metrics.preAprovado.count++;
+          break;
+        case "Aprovação Parcial":
+          metrics.aprovacaoParcial.valor += valor;
+          metrics.aprovacaoParcial.horas += totalHoras;
+          metrics.aprovacaoParcial.count++;
           break;
         case "Atenção":
           metrics.atencao.valor += valor;
           metrics.atencao.horas += totalHoras;
+          metrics.atencao.count++;
+          break;
+        case "Aprovado":
+          metrics.aprovado.valor += valor;
+          metrics.aprovado.horas += totalHoras;
+          metrics.aprovado.count++;
+          break;
+        case "Reprovado":
+          metrics.reprovado.valor += valor;
+          metrics.reprovado.horas += totalHoras;
+          metrics.reprovado.count++;
           break;
       }
     });
 
     return metrics;
   }, [escalasFiltradas, contratoItens]);
+
+  // Configuração dos scorecards - ordem semântica do fluxo de aprovação
+  const scorecardConfig = useMemo(
+    () => [
+      {
+        key: "preAgendado",
+        label: "Pré-Agendado",
+        color: "#6366f1",
+        bgColor: "#eef2ff",
+        icon: Schedule,
+        metrics: scorecardMetrics.preAgendado,
+      },
+      {
+        key: "programado",
+        label: "Programado",
+        color: "#8b5cf6",
+        bgColor: "#f5f3ff",
+        icon: HourglassEmpty,
+        metrics: scorecardMetrics.programado,
+      },
+      {
+        key: "preAprovado",
+        label: "Pré-Aprovado",
+        color: "#3b82f6",
+        bgColor: "#eff6ff",
+        icon: ThumbUpAlt,
+        metrics: scorecardMetrics.preAprovado,
+      },
+      {
+        key: "aprovacaoParcial",
+        label: "Aprov. Parcial",
+        color: "#06b6d4",
+        bgColor: "#ecfeff",
+        icon: HowToReg,
+        metrics: scorecardMetrics.aprovacaoParcial,
+      },
+      {
+        key: "atencao",
+        label: "Atenção",
+        color: "#f59e0b",
+        bgColor: "#fffbeb",
+        icon: Warning,
+        metrics: scorecardMetrics.atencao,
+      },
+      {
+        key: "aprovado",
+        label: "Aprovado",
+        color: "#10b981",
+        bgColor: "#ecfdf5",
+        icon: CheckCircle,
+        metrics: scorecardMetrics.aprovado,
+      },
+      {
+        key: "reprovado",
+        label: "Reprovado",
+        color: "#ef4444",
+        bgColor: "#fef2f2",
+        icon: Cancel,
+        metrics: scorecardMetrics.reprovado,
+      },
+    ],
+    [scorecardMetrics]
+  );
 
   // Carregar apenas dados auxiliares (contratos, unidades, itens)
   const loadAuxiliaryData = async () => {
@@ -2775,362 +2855,152 @@ const EscalasMedicas: React.FC = () => {
           </Card>
         ) : (
           <Box>
-            {/* Scorecards de Métricas */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-              {/* Aprovado */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  sx={{
-                    position: "relative",
-                    overflow: "hidden",
-                    borderLeft: "4px solid #10b981",
-                    transition: "all 0.3s",
-                    "&:hover": {
-                      boxShadow: "0 8px 24px rgba(16, 185, 129, 0.15)",
-                      transform: "translateY(-2px)",
-                    },
-                  }}
-                >
-                  <CardContent>
-                    <Box
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="start"
-                      mb={2}
-                    >
-                      <Box>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: "#6b7280",
-                            fontWeight: 600,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
-                          }}
-                        >
-                          Aprovado
-                        </Typography>
-                        <Box
-                          display="flex"
-                          alignItems="baseline"
-                          gap={0.5}
-                          mt={0.5}
-                        >
+            {/* Scorecards de Métricas - Todos os 7 Status */}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(4, 1fr)",
+                },
+                gap: { xs: 2, sm: 2.5, md: 3 },
+                mb: 4,
+                transition: "all 0.3s ease",
+              }}
+            >
+              {scorecardConfig.map((card) => {
+                const IconComponent = card.icon;
+                return (
+                  <Card
+                    key={card.key}
+                    sx={{
+                      position: "relative",
+                      overflow: "hidden",
+                      borderLeft: `4px solid ${card.color}`,
+                      transition: "all 0.3s",
+                      height: "100%",
+                      "&:hover": {
+                        boxShadow: `0 8px 24px ${card.color}26`,
+                        transform: "translateY(-2px)",
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="start"
+                        mb={1.5}
+                      >
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
                           <Typography
-                            variant="h4"
+                            variant="caption"
                             sx={{
-                              fontWeight: 700,
-                              color: "#10b981",
+                              color: "#6b7280",
+                              fontWeight: 600,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px",
+                              fontSize: { xs: "0.65rem", sm: "0.7rem" },
+                              display: "block",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
                             }}
                           >
-                            R$
+                            {card.label}
                           </Typography>
-                          <Typography
-                            variant="h4"
-                            sx={{
-                              fontWeight: 700,
-                              color: "#10b981",
-                            }}
+                          <Box
+                            display="flex"
+                            alignItems="baseline"
+                            gap={0.5}
+                            mt={0.5}
+                            flexWrap="wrap"
                           >
-                            {scorecardMetrics.aprovado.valor.toLocaleString(
-                              "pt-BR",
-                              {
+                            <Typography
+                              sx={{
+                                fontWeight: 700,
+                                color: card.color,
+                                fontSize: { xs: "1.1rem", sm: "1.25rem", md: "1.5rem" },
+                                lineHeight: 1.2,
+                              }}
+                            >
+                              R$
+                            </Typography>
+                            <Typography
+                              sx={{
+                                fontWeight: 700,
+                                color: card.color,
+                                fontSize: { xs: "1.1rem", sm: "1.25rem", md: "1.5rem" },
+                                lineHeight: 1.2,
+                              }}
+                            >
+                              {card.metrics.valor.toLocaleString("pt-BR", {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
-                              }
-                            )}
-                          </Typography>
+                              })}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box
+                          sx={{
+                            bgcolor: card.bgColor,
+                            borderRadius: "50%",
+                            p: { xs: 0.75, sm: 1 },
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                            ml: 1,
+                          }}
+                        >
+                          <IconComponent
+                            sx={{
+                              color: card.color,
+                              fontSize: { xs: 22, sm: 26, md: 28 },
+                            }}
+                          />
                         </Box>
                       </Box>
                       <Box
-                        sx={{
-                          bgcolor: "#ecfdf5",
-                          borderRadius: "50%",
-                          p: 1,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        gap={1}
+                        flexWrap="wrap"
                       >
-                        <CheckCircle sx={{ color: "#10b981", fontSize: 28 }} />
-                      </Box>
-                    </Box>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <AccessTime sx={{ fontSize: 16, color: "#9ca3af" }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {scorecardMetrics.aprovado.horas.toFixed(1)}h
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Pré-Aprovado */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  sx={{
-                    position: "relative",
-                    overflow: "hidden",
-                    borderLeft: "4px solid #3b82f6",
-                    transition: "all 0.3s",
-                    "&:hover": {
-                      boxShadow: "0 8px 24px rgba(59, 130, 246, 0.15)",
-                      transform: "translateY(-2px)",
-                    },
-                  }}
-                >
-                  <CardContent>
-                    <Box
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="start"
-                      mb={2}
-                    >
-                      <Box>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: "#6b7280",
-                            fontWeight: 600,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
-                          }}
-                        >
-                          Pré-Aprovado
-                        </Typography>
-                        <Box
-                          display="flex"
-                          alignItems="baseline"
-                          gap={0.5}
-                          mt={0.5}
-                        >
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                          <AccessTime
+                            sx={{ fontSize: { xs: 14, sm: 16 }, color: "#9ca3af" }}
+                          />
                           <Typography
-                            variant="h4"
-                            sx={{
-                              fontWeight: 700,
-                              color: "#3b82f6",
-                            }}
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
                           >
-                            R$
-                          </Typography>
-                          <Typography
-                            variant="h4"
-                            sx={{
-                              fontWeight: 700,
-                              color: "#3b82f6",
-                            }}
-                          >
-                            {scorecardMetrics.preAprovado.valor.toLocaleString(
-                              "pt-BR",
-                              {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }
-                            )}
+                            {card.metrics.horas.toFixed(1)}h
                           </Typography>
                         </Box>
-                      </Box>
-                      <Box
-                        sx={{
-                          bgcolor: "#eff6ff",
-                          borderRadius: "50%",
-                          p: 1,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <ThumbUpAlt sx={{ color: "#3b82f6", fontSize: 28 }} />
-                      </Box>
-                    </Box>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <AccessTime sx={{ fontSize: 16, color: "#9ca3af" }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {scorecardMetrics.preAprovado.horas.toFixed(1)}h
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Programado */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  sx={{
-                    position: "relative",
-                    overflow: "hidden",
-                    borderLeft: "4px solid #8b5cf6",
-                    transition: "all 0.3s",
-                    "&:hover": {
-                      boxShadow: "0 8px 24px rgba(139, 92, 246, 0.15)",
-                      transform: "translateY(-2px)",
-                    },
-                  }}
-                >
-                  <CardContent>
-                    <Box
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="start"
-                      mb={2}
-                    >
-                      <Box>
-                        <Typography
-                          variant="caption"
+                        <Chip
+                          label={`${card.metrics.count} escala${card.metrics.count !== 1 ? "s" : ""}`}
+                          size="small"
                           sx={{
-                            color: "#6b7280",
+                            height: { xs: 20, sm: 22 },
+                            fontSize: { xs: "0.65rem", sm: "0.7rem" },
+                            bgcolor: `${card.color}15`,
+                            color: card.color,
                             fontWeight: 600,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
+                            "& .MuiChip-label": {
+                              px: 1,
+                            },
                           }}
-                        >
-                          Programado
-                        </Typography>
-                        <Box
-                          display="flex"
-                          alignItems="baseline"
-                          gap={0.5}
-                          mt={0.5}
-                        >
-                          <Typography
-                            variant="h4"
-                            sx={{
-                              fontWeight: 700,
-                              color: "#8b5cf6",
-                            }}
-                          >
-                            R$
-                          </Typography>
-                          <Typography
-                            variant="h4"
-                            sx={{
-                              fontWeight: 700,
-                              color: "#8b5cf6",
-                            }}
-                          >
-                            {scorecardMetrics.programado.valor.toLocaleString(
-                              "pt-BR",
-                              {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }
-                            )}
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box
-                        sx={{
-                          bgcolor: "#f5f3ff",
-                          borderRadius: "50%",
-                          p: 1,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <HourglassEmpty
-                          sx={{ color: "#8b5cf6", fontSize: 28 }}
                         />
                       </Box>
-                    </Box>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <AccessTime sx={{ fontSize: 16, color: "#9ca3af" }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {scorecardMetrics.programado.horas.toFixed(1)}h
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Atenção */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  sx={{
-                    position: "relative",
-                    overflow: "hidden",
-                    borderLeft: "4px solid #f59e0b",
-                    transition: "all 0.3s",
-                    "&:hover": {
-                      boxShadow: "0 8px 24px rgba(245, 158, 11, 0.15)",
-                      transform: "translateY(-2px)",
-                    },
-                  }}
-                >
-                  <CardContent>
-                    <Box
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="start"
-                      mb={2}
-                    >
-                      <Box>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: "#6b7280",
-                            fontWeight: 600,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
-                          }}
-                        >
-                          Atenção
-                        </Typography>
-                        <Box
-                          display="flex"
-                          alignItems="baseline"
-                          gap={0.5}
-                          mt={0.5}
-                        >
-                          <Typography
-                            variant="h4"
-                            sx={{
-                              fontWeight: 700,
-                              color: "#f59e0b",
-                            }}
-                          >
-                            R$
-                          </Typography>
-                          <Typography
-                            variant="h4"
-                            sx={{
-                              fontWeight: 700,
-                              color: "#f59e0b",
-                            }}
-                          >
-                            {scorecardMetrics.atencao.valor.toLocaleString(
-                              "pt-BR",
-                              {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }
-                            )}
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box
-                        sx={{
-                          bgcolor: "#fffbeb",
-                          borderRadius: "50%",
-                          p: 1,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Warning sx={{ color: "#f59e0b", fontSize: 28 }} />
-                      </Box>
-                    </Box>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <AccessTime sx={{ fontSize: 16, color: "#9ca3af" }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {scorecardMetrics.atencao.horas.toFixed(1)}h
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </Box>
 
             {/* View Toggle and Calendar Navigation */}
             <Box
