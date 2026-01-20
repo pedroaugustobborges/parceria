@@ -1358,43 +1358,72 @@ const EscalasMedicas: React.FC = () => {
     }
   };
 
+  // Cores padronizadas para cada status (mesmas dos scorecards)
+  const statusColorMap: Record<
+    StatusEscala,
+    { hex: string; bg: string; border: string }
+  > = {
+    "Pré-Agendado": { hex: "#6366f1", bg: "#eef2ff", border: "#6366f1" },
+    Programado: { hex: "#8b5cf6", bg: "#f5f3ff", border: "#8b5cf6" },
+    "Pré-Aprovado": { hex: "#3b82f6", bg: "#eff6ff", border: "#3b82f6" },
+    "Aprovação Parcial": { hex: "#06b6d4", bg: "#ecfeff", border: "#06b6d4" },
+    Atenção: { hex: "#f59e0b", bg: "#fffbeb", border: "#f59e0b" },
+    Aprovado: { hex: "#10b981", bg: "#ecfdf5", border: "#10b981" },
+    Reprovado: { hex: "#ef4444", bg: "#fef2f2", border: "#ef4444" },
+  };
+
   // Funções auxiliares para Status
   const getStatusConfig = (status: StatusEscala) => {
+    const colors = statusColorMap[status] || statusColorMap.Programado;
     const configs = {
       "Pré-Agendado": {
         color: "default" as const,
         icon: <Schedule />,
         label: "Pré-Agendado",
+        hex: colors.hex,
+        bg: colors.bg,
       },
       Programado: {
         color: "info" as const,
         icon: <HourglassEmpty />,
         label: "Programado",
+        hex: colors.hex,
+        bg: colors.bg,
       },
       "Pré-Aprovado": {
-        color: "warning" as const,
+        color: "primary" as const,
         icon: <ThumbUpAlt />,
         label: "Pré-Aprovado",
+        hex: colors.hex,
+        bg: colors.bg,
       },
       "Aprovação Parcial": {
-        color: "warning" as const,
+        color: "info" as const,
         icon: <HowToReg />,
         label: "Aprovação Parcial",
+        hex: colors.hex,
+        bg: colors.bg,
       },
       Atenção: {
-        color: "error" as const,
+        color: "warning" as const,
         icon: <Warning />,
         label: "Atenção",
+        hex: colors.hex,
+        bg: colors.bg,
       },
       Aprovado: {
         color: "success" as const,
         icon: <CheckCircle />,
         label: "Aprovado",
+        hex: colors.hex,
+        bg: colors.bg,
       },
       Reprovado: {
         color: "error" as const,
         icon: <Cancel />,
         label: "Reprovado",
+        hex: colors.hex,
+        bg: colors.bg,
       },
     };
     return configs[status] || configs.Programado;
@@ -2673,13 +2702,21 @@ const EscalasMedicas: React.FC = () => {
                   renderTags={(value, getTagProps) =>
                     value.map((option, index) => {
                       const config = getStatusConfig(option);
+                      const statusColor = statusColorMap[option];
                       return (
                         <Chip
                           {...getTagProps({ index })}
                           label={config.label}
-                          color={config.color}
                           size="small"
                           icon={config.icon}
+                          sx={{
+                            bgcolor: statusColor?.bg,
+                            color: statusColor?.hex,
+                            border: `1px solid ${statusColor?.hex}`,
+                            "& .MuiChip-icon": {
+                              color: statusColor?.hex,
+                            },
+                          }}
                         />
                       );
                     })
@@ -3330,16 +3367,7 @@ const EscalasMedicas: React.FC = () => {
                           </Box>
                         ) : (
                           escalasOfDay.map((escala) => {
-                            const statusColors: Record<StatusEscala, { bg: string; border: string }> = {
-                              "Aprovado": { bg: "#ecfdf5", border: "#10b981" },
-                              "Reprovado": { bg: "#fef2f2", border: "#ef4444" },
-                              "Programado": { bg: "#eff6ff", border: "#3b82f6" },
-                              "Pré-Agendado": { bg: "#f5f3ff", border: "#8b5cf6" },
-                              "Pré-Aprovado": { bg: "#ecfeff", border: "#06b6d4" },
-                              "Aprovação Parcial": { bg: "#fefce8", border: "#eab308" },
-                              "Atenção": { bg: "#fff7ed", border: "#f97316" },
-                            };
-                            const colors = statusColors[escala.status] || statusColors["Programado"];
+                            const colors = statusColorMap[escala.status] || statusColorMap["Programado"];
                             return (
                               <Paper
                                 key={escala.id}
@@ -3372,7 +3400,7 @@ const EscalasMedicas: React.FC = () => {
                                     sx={{
                                       display: "block",
                                       fontWeight: 600,
-                                      color: "primary.main",
+                                      color: colors.hex,
                                       fontSize: "0.7rem",
                                       lineHeight: 1.2,
                                       mb: 0.25,
@@ -3517,7 +3545,6 @@ const EscalasMedicas: React.FC = () => {
                               <Chip
                                 icon={getStatusConfig(escala.status).icon}
                                 label={getStatusConfig(escala.status).label}
-                                color={getStatusConfig(escala.status).color}
                                 size="small"
                                 onClick={
                                   isAdminAgir &&
@@ -3530,6 +3557,12 @@ const EscalasMedicas: React.FC = () => {
                                     : undefined
                                 }
                                 sx={{
+                                  bgcolor: statusColorMap[escala.status]?.bg,
+                                  color: statusColorMap[escala.status]?.hex,
+                                  border: `1px solid ${statusColorMap[escala.status]?.hex}`,
+                                  "& .MuiChip-icon": {
+                                    color: statusColorMap[escala.status]?.hex,
+                                  },
                                   cursor:
                                     isAdminAgir &&
                                     escala.status !== "Aprovado" &&
@@ -4279,21 +4312,29 @@ const EscalasMedicas: React.FC = () => {
                     const isDisabled =
                       status === "Programado" && escalaNoPassado;
 
+                    const statusColor = statusColorMap[status];
+                    const isSelected = novoStatus === status;
                     const chip = (
                       <Chip
                         key={status}
                         icon={config.icon}
                         label={config.label}
-                        color={config.color}
-                        variant={novoStatus === status ? "filled" : "outlined"}
+                        variant={isSelected ? "filled" : "outlined"}
                         onClick={() => !isDisabled && setNovoStatus(status)}
                         disabled={isDisabled}
                         sx={{
+                          bgcolor: isSelected ? statusColor?.hex : statusColor?.bg,
+                          color: isSelected ? "#fff" : statusColor?.hex,
+                          borderColor: statusColor?.hex,
+                          "& .MuiChip-icon": {
+                            color: isSelected ? "#fff" : statusColor?.hex,
+                          },
                           cursor: isDisabled ? "not-allowed" : "pointer",
                           transition: "all 0.2s",
                           opacity: isDisabled ? 0.5 : 1,
                           "&:hover": {
                             transform: isDisabled ? "none" : "scale(1.05)",
+                            bgcolor: isSelected ? statusColor?.hex : `${statusColor?.hex}20`,
                           },
                         }}
                       />
@@ -4352,8 +4393,15 @@ const EscalasMedicas: React.FC = () => {
                     <Chip
                       icon={getStatusConfig(escalaParaStatus.status).icon}
                       label={getStatusConfig(escalaParaStatus.status).label}
-                      color={getStatusConfig(escalaParaStatus.status).color}
                       size="small"
+                      sx={{
+                        bgcolor: statusColorMap[escalaParaStatus.status]?.bg,
+                        color: statusColorMap[escalaParaStatus.status]?.hex,
+                        border: `1px solid ${statusColorMap[escalaParaStatus.status]?.hex}`,
+                        "& .MuiChip-icon": {
+                          color: statusColorMap[escalaParaStatus.status]?.hex,
+                        },
+                      }}
                     />
                     {escalaParaStatus.justificativa && (
                       <Typography variant="caption" color="text.secondary">
@@ -4422,19 +4470,27 @@ const EscalasMedicas: React.FC = () => {
                     ] as StatusEscala[]
                   ).map((status) => {
                     const config = getStatusConfig(status);
+                    const statusColor = statusColorMap[status];
+                    const isSelected = bulkStatus === status;
                     return (
                       <Chip
                         key={status}
                         icon={config.icon}
                         label={config.label}
-                        color={config.color}
-                        variant={bulkStatus === status ? "filled" : "outlined"}
+                        variant={isSelected ? "filled" : "outlined"}
                         onClick={() => setBulkStatus(status)}
                         sx={{
+                          bgcolor: isSelected ? statusColor?.hex : statusColor?.bg,
+                          color: isSelected ? "#fff" : statusColor?.hex,
+                          borderColor: statusColor?.hex,
+                          "& .MuiChip-icon": {
+                            color: isSelected ? "#fff" : statusColor?.hex,
+                          },
                           cursor: "pointer",
                           transition: "all 0.2s",
                           "&:hover": {
                             transform: "scale(1.05)",
+                            bgcolor: isSelected ? statusColor?.hex : `${statusColor?.hex}20`,
                           },
                         }}
                       />
@@ -4504,8 +4560,15 @@ const EscalasMedicas: React.FC = () => {
                 <Chip
                   icon={getStatusConfig(escalaDetalhes.status).icon}
                   label={getStatusConfig(escalaDetalhes.status).label}
-                  color={getStatusConfig(escalaDetalhes.status).color}
                   size="small"
+                  sx={{
+                    bgcolor: statusColorMap[escalaDetalhes.status]?.bg,
+                    color: statusColorMap[escalaDetalhes.status]?.hex,
+                    border: `1px solid ${statusColorMap[escalaDetalhes.status]?.hex}`,
+                    "& .MuiChip-icon": {
+                      color: statusColorMap[escalaDetalhes.status]?.hex,
+                    },
+                  }}
                 />
               )}
             </Box>
@@ -4687,7 +4750,14 @@ const EscalasMedicas: React.FC = () => {
                           <Chip
                             icon={getStatusConfig(escalaDetalhes.status).icon}
                             label={getStatusConfig(escalaDetalhes.status).label}
-                            color={getStatusConfig(escalaDetalhes.status).color}
+                            sx={{
+                              bgcolor: statusColorMap[escalaDetalhes.status]?.bg,
+                              color: statusColorMap[escalaDetalhes.status]?.hex,
+                              border: `1px solid ${statusColorMap[escalaDetalhes.status]?.hex}`,
+                              "& .MuiChip-icon": {
+                                color: statusColorMap[escalaDetalhes.status]?.hex,
+                              },
+                            }}
                           />
                         </Box>
                       </Grid>
