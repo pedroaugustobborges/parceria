@@ -147,7 +147,7 @@ const EscalasMedicas: React.FC = () => {
   // Calendar view state
   const [viewMode, setViewMode] = usePersistentState<"card" | "calendar">(
     "escalas_viewMode",
-    "card"
+    "calendar"
   );
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() =>
     startOfWeek(new Date(), { weekStartsOn: 0 })
@@ -3106,22 +3106,6 @@ const EscalasMedicas: React.FC = () => {
                     p: 0.5,
                   }}
                 >
-                  <Tooltip title="Visualização em cards">
-                    <IconButton
-                      size="small"
-                      onClick={() => setViewMode("card")}
-                      sx={{
-                        bgcolor:
-                          viewMode === "card" ? "background.paper" : "transparent",
-                        boxShadow: viewMode === "card" ? 1 : 0,
-                        borderRadius: 1,
-                      }}
-                    >
-                      <ViewModule
-                        color={viewMode === "card" ? "primary" : "inherit"}
-                      />
-                    </IconButton>
-                  </Tooltip>
                   <Tooltip title="Visualização em calendário">
                     <IconButton
                       size="small"
@@ -3137,6 +3121,22 @@ const EscalasMedicas: React.FC = () => {
                     >
                       <CalendarViewWeek
                         color={viewMode === "calendar" ? "primary" : "inherit"}
+                      />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Visualização em cards">
+                    <IconButton
+                      size="small"
+                      onClick={() => setViewMode("card")}
+                      sx={{
+                        bgcolor:
+                          viewMode === "card" ? "background.paper" : "transparent",
+                        boxShadow: viewMode === "card" ? 1 : 0,
+                        borderRadius: 1,
+                      }}
+                    >
+                      <ViewModule
+                        color={viewMode === "card" ? "primary" : "inherit"}
                       />
                     </IconButton>
                   </Tooltip>
