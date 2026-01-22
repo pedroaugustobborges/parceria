@@ -3322,9 +3322,9 @@ const EscalasMedicas: React.FC = () => {
                     end: endOfWeek(currentWeekStart, { weekStartsOn: 0 }),
                   }).map((day, index) => {
                     const isTodayDate = isToday(day);
-                    const escalasOfDay = escalasFiltradas.filter((escala) =>
-                      isSameDay(parseISO(escala.data_inicio), day)
-                    );
+                    const escalasOfDay = escalasFiltradas
+                      .filter((escala) => isSameDay(parseISO(escala.data_inicio), day))
+                      .sort((a, b) => a.horario_entrada.localeCompare(b.horario_entrada));
                     return (
                       <Box
                         key={day.toISOString()}
