@@ -643,27 +643,65 @@ const EscalasMedicas: React.FC = () => {
     try {
       console.log("Carregando usuários para o contrato:", contratoId);
 
-      const { data: usuariosData, error: usuariosError } = await supabase
+      // First, get user IDs from the usuario_contrato linking table
+      const { data: usuarioContratos, error: linkError } = await supabase
+        .from("usuario_contrato")
+        .select("usuario_id")
+        .eq("contrato_id", contratoId);
+
+      if (linkError) {
+        console.error("Erro ao buscar vínculos usuario_contrato:", linkError);
+      }
+
+      const usuarioIdsFromLink = usuarioContratos?.map((uc) => uc.usuario_id) || [];
+      console.log("Usuários vinculados via usuario_contrato:", usuarioIdsFromLink);
+
+      // Build the query to get users either directly linked or via usuario_contrato table
+      let usuariosData: Usuario[] = [];
+
+      if (usuarioIdsFromLink.length > 0) {
+        // Get users linked via usuario_contrato table
+        const { data: usuariosFromLink, error: usersLinkError } = await supabase
+          .from("usuarios")
+          .select("*")
+          .in("id", usuarioIdsFromLink)
+          .eq("tipo", "terceiro");
+
+        if (usersLinkError) {
+          console.error("Erro ao buscar usuários via link:", usersLinkError);
+        } else if (usuariosFromLink) {
+          usuariosData = [...usuariosFromLink];
+        }
+      }
+
+      // Also get users directly linked via contrato_id field (legacy support)
+      const { data: usuariosDiretos, error: usersDirectError } = await supabase
         .from("usuarios")
         .select("*")
         .eq("contrato_id", contratoId)
         .eq("tipo", "terceiro");
 
-      if (usuariosError) {
-        console.error("Erro ao buscar usuários:", usuariosError);
-        setError("Erro ao carregar dados dos médicos");
-        setUsuarios([]);
-        return;
+      if (usersDirectError) {
+        console.error("Erro ao buscar usuários diretos:", usersDirectError);
+      } else if (usuariosDiretos) {
+        // Merge and deduplicate users
+        usuariosDiretos.forEach((usuario) => {
+          if (!usuariosData.some((u) => u.id === usuario.id)) {
+            usuariosData.push(usuario);
+          }
+        });
       }
 
-      console.log("Usuários encontrados:", usuariosData);
+      console.log("Total de usuários encontrados:", usuariosData.length);
 
-      if (!usuariosData || usuariosData.length === 0) {
+      if (usuariosData.length === 0) {
         console.warn("Nenhum médico vinculado a este contrato");
         setUsuarios([]);
         return;
       }
 
+      // Sort users by name for better UX
+      usuariosData.sort((a, b) => a.nome.localeCompare(b.nome));
       setUsuarios(usuariosData);
     } catch (err: any) {
       console.error("Erro ao carregar usuários:", err);
