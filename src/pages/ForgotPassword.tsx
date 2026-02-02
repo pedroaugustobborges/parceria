@@ -20,6 +20,7 @@ const ForgotPassword: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [cooldown, setCooldown] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,9 +33,16 @@ const ForgotPassword: React.FC = () => {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
-      if (resetError) throw resetError;
+      if (resetError) {
+        if (resetError.message?.toLowerCase().includes('rate limit') || resetError.status === 429) {
+          throw new Error('Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.');
+        }
+        throw resetError;
+      }
 
       setSuccess(true);
+      setCooldown(true);
+      setTimeout(() => setCooldown(false), 60000);
     } catch (err: any) {
       setError(err.message || 'Erro ao enviar email de recuperação. Tente novamente.');
     } finally {
@@ -138,7 +146,7 @@ const ForgotPassword: React.FC = () => {
                     type="submit"
                     variant="contained"
                     size="large"
-                    disabled={loading}
+                    disabled={loading || cooldown}
                     sx={{
                       py: 1.8,
                       fontSize: '1rem',

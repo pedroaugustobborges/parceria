@@ -1,5 +1,5 @@
 """
-Script para importar registros de acesso do tipo 'Empregado' para CPFs específicos
+Script para importar registros de acesso do tipo 'Terceiro' para CPFs específicos
 desde dezembro de 2025 até hoje do Data Warehouse para o Supabase.
 CPFs: 04164100575 e 02725459109
 Evita duplicações verificando se o registro já existe antes de inserir.
@@ -38,7 +38,7 @@ SUPABASE_SERVICE_KEY = os.getenv('VITE_SUPABASE_SERVICE_ROLE_KEY')
 if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
     raise ValueError("❌ Variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_SERVICE_ROLE_KEY são obrigatórias!")
 
-# CPFs específicos dos Empregados
+# CPFs específicos dos Terceiros
 CPFS_MEDICOS = [ 
     '795365144',
     '4164100575',
@@ -71,11 +71,11 @@ def conectar_supabase():
 
 def extrair_acessos_medicos(conn, cpfs_medicos, data_inicio='2025-12-01'):
     """
-    Extrai acessos do tipo 'Empregado' para CPFs específicos desde dezembro de 2025.
+    Extrai acessos do tipo 'Terceiro' para CPFs específicos desde dezembro de 2025.
 
     Args:
         conn: Conexão com o Data Warehouse
-        cpfs_medicos: Lista de CPFs dos Empregados
+        cpfs_medicos: Lista de CPFs dos Terceiros
         data_inicio: Data de início do filtro (padrão: '2025-12-01')
     """
     try:
@@ -88,12 +88,12 @@ def extrair_acessos_medicos(conn, cpfs_medicos, data_inicio='2025-12-01'):
         total_cpfs = len(cpfs_medicos)
         data_hoje = datetime.now().strftime('%Y-%m-%d')
 
-        print(f"\n📊 Executando query para buscar registros do tipo 'Empregado' de {data_inicio} até {data_hoje}...")
+        print(f"\n📊 Executando query para buscar registros do tipo 'Terceiro' de {data_inicio} até {data_hoje}...")
         print(f"   CPFs: {', '.join(cpfs_medicos)}")
 
         for i, cpf in enumerate(cpfs_medicos, 1):
             try:
-                # Query filtrada por tipo='Empregado', CPF e data
+                # Query filtrada por tipo='Terceiro', CPF e data
                 query = """
                 SELECT
                     tipo, matricula, nome, cpf, data_acesso, sentido, pis,
@@ -101,7 +101,7 @@ def extrair_acessos_medicos(conn, cpfs_medicos, data_inicio='2025-12-01'):
                     tipo_acesso, descr_acesso, modelo, cod_planta, cod_codin
                 FROM suricato.acesso_colaborador
                 WHERE cpf = %s
-                  AND tipo = 'Empregado'
+                  AND tipo = 'Terceiro'
                   AND data_acesso >= %s::timestamp
                   AND data_acesso <= %s::timestamp
                 ORDER BY data_acesso ASC
@@ -226,7 +226,7 @@ def inserir_em_supabase(supabase: Client, dados):
 def main():
     """Função principal do script."""
     print("=" * 70)
-    print("IMPORTAÇÃO DE ACESSOS DE EmpregadoS - DEZEMBRO 2025 ATÉ HOJE")
+    print("IMPORTAÇÃO DE ACESSOS DE TerceiroS - DEZEMBRO 2025 ATÉ HOJE")
     print(f"CPFs: {', '.join(CPFS_MEDICOS)}")
     print(f"Período: 2025-12-01 até {datetime.now().strftime('%Y-%m-%d')}")
     print(f"Horário: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -241,7 +241,7 @@ def main():
         conn = conectar_data_warehouse()
 
         # Extrai os dados
-        print(f"\n📥 Extraindo registros de acesso do tipo 'Empregado' do Data Warehouse...")
+        print(f"\n📥 Extraindo registros de acesso do tipo 'Terceiro' do Data Warehouse...")
         dados_extraidos = extrair_acessos_medicos(conn, CPFS_MEDICOS)
 
         if dados_extraidos:
