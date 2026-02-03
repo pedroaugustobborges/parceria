@@ -85,10 +85,7 @@ const ChatBot: React.FC = () => {
         "Status das escalas pendentes",
       ];
     }
-    return [
-      "Minhas escalas este mes",
-      "Minha produtividade recente",
-    ];
+    return ["Minhas escalas este mes", "Minha produtividade recente"];
   })();
 
   const handleToggle = () => {
@@ -126,7 +123,7 @@ const ChatBot: React.FC = () => {
       const response = await chatWithData(
         pergunta,
         userProfile?.id || "",
-        historico
+        historico,
       );
 
       const assistantMessage: Message = {
@@ -192,7 +189,9 @@ const ChatBot: React.FC = () => {
     }
   };
 
-  const rotaColor = (rota?: RotaChat): "primary" | "secondary" | "info" | "default" => {
+  const rotaColor = (
+    rota?: RotaChat,
+  ): "primary" | "secondary" | "info" | "default" => {
     switch (rota) {
       case "sql":
         return "primary";
@@ -272,7 +271,7 @@ const ChatBot: React.FC = () => {
               </Avatar>
               <Box>
                 <Typography variant="h6" fontWeight={700}>
-                  Parcer<span style={{ color: "#fbbf24" }}>IA</span> Assistant
+                  Parcer<span style={{ color: "#fbbf24" }}>IA</span> Assistente
                 </Typography>
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <Box
@@ -335,9 +334,7 @@ const ChatBot: React.FC = () => {
                   <Avatar
                     sx={{
                       bgcolor:
-                        msg.role === "user"
-                          ? "primary.main"
-                          : "transparent",
+                        msg.role === "user" ? "primary.main" : "transparent",
                       background:
                         msg.role === "assistant"
                           ? "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)"
@@ -361,9 +358,7 @@ const ChatBot: React.FC = () => {
                       bgcolor: msg.role === "user" ? "#0ea5e9" : "white",
                       color: msg.role === "user" ? "white" : "text.primary",
                       border:
-                        msg.role === "assistant"
-                          ? "1px solid #e5e7eb"
-                          : "none",
+                        msg.role === "assistant" ? "1px solid #e5e7eb" : "none",
                     }}
                   >
                     {/* Chip de rota */}
