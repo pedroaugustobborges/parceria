@@ -1,0 +1,20 @@
+# Configuracao do Supabase CLI para ParcerIA
+# Execute: supabase link --project-ref <SEU_PROJECT_REF>
+# Secrets: supabase secrets set OPENAI_API_KEY=<YOUR_API_KEY>
+
+project_id = "qszqzdnlhxpglllyqtht"
+
+[api]
+port = 54321
+schemas = ["public", "auth", "storage"]
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
+
+[functions]
+# Global settings for all edge functions
+[functions.global]
+verify_jwt = true

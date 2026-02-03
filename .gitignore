@@ -33,3 +33,9 @@ dist-ssr
 # Data files
 *.csv
 !Acessos.csv
+
+# Supabase temp files
+supabase/.temp/
+
+# PDF files (may contain sensitive data)
+*.pdf

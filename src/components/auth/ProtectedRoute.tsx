@@ -7,16 +7,22 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
   requireAdminAgir?: boolean;
+  requireAdminAgirCorporativo?: boolean;
+  requireAdminAgirAny?: boolean; // corporativo OR planta
   allowEscalasAccess?: boolean;
+  allowAllAuthenticated?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireAdmin = false,
   requireAdminAgir = false,
+  requireAdminAgirCorporativo = false,
+  requireAdminAgirAny = false,
   allowEscalasAccess = false,
+  allowAllAuthenticated = false,
 }) => {
-  const { user, userProfile, loading, isAdmin, isAdminAgir, isAdminTerceiro, isTerceiro } = useAuth();
+  const { user, userProfile, loading, isAdmin, isAdminAgir, isAdminAgirCorporativo, isAdminTerceiro, isTerceiro } = useAuth();
 
   if (loading) {
     return (
@@ -38,12 +44,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" replace />;
   }
 
+  if (requireAdminAgirCorporativo && !isAdminAgirCorporativo) {
+    return <Navigate to="/escalas" replace />;
+  }
+
+  if (requireAdminAgirAny && !isAdminAgir) {
+    return <Navigate to="/escalas" replace />;
+  }
+
   if (requireAdminAgir && !isAdminAgir) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/escalas" replace />;
   }
 
   if (requireAdmin && !isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/escalas" replace />;
   }
 
   // For Escalas Médicas: allow admin, admin-terceiro, and terceiro users
@@ -51,8 +65,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Block administrador-terceiro from accessing any page except Escalas Médicas
-  if (isAdminTerceiro && !allowEscalasAccess) {
+  // Block administrador-terceiro from accessing pages except Escalas and allowed pages
+  if (isAdminTerceiro && !allowEscalasAccess && !allowAllAuthenticated) {
     return <Navigate to="/escalas" replace />;
   }
 

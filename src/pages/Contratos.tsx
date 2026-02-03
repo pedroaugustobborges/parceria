@@ -25,6 +25,7 @@ import {
   TableFooter,
   Paper,
   Divider,
+  CircularProgress,
 } from "@mui/material";
 import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
 import {
@@ -34,6 +35,9 @@ import {
   Description,
   Remove,
   Inventory,
+  CloudUpload,
+  Download,
+  PictureAsPdf,
 } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -46,6 +50,7 @@ import {
   ContratoItem,
   Parceiro,
   UnidadeHospitalar,
+  DocumentoContrato,
 } from "../types/database.types";
 import { format, parseISO } from "date-fns";
 import { useAuth } from "../contexts/AuthContext";
@@ -59,7 +64,7 @@ interface ItemSelecionado {
 }
 
 const Contratos: React.FC = () => {
-  const { isAdminAgirCorporativo, isAdminAgirPlanta, unidadeHospitalarId } =
+  const { isAdminAgirCorporativo, isAdminAgirPlanta, unidadeHospitalarId, userProfile } =
     useAuth();
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +88,10 @@ const Contratos: React.FC = () => {
   );
   const [itemParaAdicionar, setItemParaAdicionar] =
     useState<ItemContrato | null>(null);
+
+  // Documentos state
+  const [documentos, setDocumentos] = useState<DocumentoContrato[]>([]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   // Parceiros state
   const [parceiros, setParceiros] = useState<Parceiro[]>([]);
@@ -192,6 +201,136 @@ const Contratos: React.FC = () => {
     }
   };
 
+  const loadDocumentos = async (contratoId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("documentos_contrato")
+        .select("*")
+        .eq("contrato_id", contratoId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setDocumentos((data as DocumentoContrato[]) || []);
+    } catch (err: any) {
+      console.error("Erro ao carregar documentos:", err);
+    }
+  };
+
+  const handleUploadDocumento = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    contratoId: string
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      setError("Apenas arquivos PDF sao permitidos");
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Arquivo muito grande. Limite: 20MB");
+      return;
+    }
+
+    try {
+      setUploadingDoc(true);
+      setError("");
+
+      const nomeArquivoSeguro = file.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "_");
+      const caminho = `${contratoId}/${Date.now()}_${nomeArquivoSeguro}`;
+
+      // Upload para Storage
+      const { error: uploadError } = await supabase.storage
+        .from("documentos-contratos")
+        .upload(caminho, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error("Erro upload storage:", uploadError);
+        throw new Error(`Erro no upload: ${uploadError.message}`);
+      }
+
+      // Inserir registro na tabela
+      const { data: doc, error: insertError } = await supabase
+        .from("documentos_contrato")
+        .insert({
+          contrato_id: contratoId,
+          nome_arquivo: file.name,
+          caminho_storage: caminho,
+          tamanho_bytes: file.size,
+          mime_type: file.type,
+          enviado_por: userProfile?.id,
+          status: "pendente",
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Disparar processamento via Edge Function
+      supabase.functions
+        .invoke("processar-documento", {
+          body: { documento_id: doc.id },
+        })
+        .catch((err) =>
+          console.error("Erro ao disparar processamento:", err)
+        );
+
+      setSuccess("Documento enviado! Processamento iniciado.");
+      await loadDocumentos(contratoId);
+    } catch (err: any) {
+      setError(err.message || "Erro ao enviar documento");
+    } finally {
+      setUploadingDoc(false);
+      // Reset input
+      event.target.value = "";
+    }
+  };
+
+  const handleDownloadDocumento = async (doc: DocumentoContrato) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("documentos-contratos")
+        .download(doc.caminho_storage);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = doc.nome_arquivo;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError("Erro ao baixar documento");
+    }
+  };
+
+  const handleExcluirDocumento = async (doc: DocumentoContrato) => {
+    if (!confirm(`Excluir documento "${doc.nome_arquivo}"?`)) return;
+
+    try {
+      await supabase.storage
+        .from("documentos-contratos")
+        .remove([doc.caminho_storage]);
+
+      await supabase.from("documentos_contrato").delete().eq("id", doc.id);
+
+      setSuccess("Documento excluido");
+      if (editingContrato) {
+        await loadDocumentos(editingContrato.id);
+      }
+    } catch (err: any) {
+      setError("Erro ao excluir documento");
+    }
+  };
+
   const handleOpenDialog = async (contrato?: Contrato) => {
     if (contrato) {
       setEditingContrato(contrato);
@@ -205,7 +344,9 @@ const Contratos: React.FC = () => {
         unidade_hospitalar_id: contrato.unidade_hospitalar_id,
       });
       await loadContratoItens(contrato.id);
+      await loadDocumentos(contrato.id);
     } else {
+      setDocumentos([]);
       setEditingContrato(null);
       setFormData({
         nome: "",
@@ -993,6 +1134,183 @@ const Contratos: React.FC = () => {
                   </Alert>
                 )}
               </Box>
+
+              {/* Secao de Documentos do Contrato (apenas na edicao) */}
+              {editingContrato && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Box>
+                    <Typography
+                      variant="h6"
+                      fontWeight={600}
+                      gutterBottom
+                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                    >
+                      <PictureAsPdf color="error" />
+                      Documentos do Contrato
+                    </Typography>
+
+                    <Box sx={{ display: "flex", gap: 1, mb: 2, alignItems: "center" }}>
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        startIcon={
+                          uploadingDoc ? (
+                            <CircularProgress size={18} />
+                          ) : (
+                            <CloudUpload />
+                          )
+                        }
+                        disabled={uploadingDoc}
+                        size="small"
+                      >
+                        {uploadingDoc ? "Enviando..." : "Enviar PDF"}
+                        <input
+                          type="file"
+                          hidden
+                          accept="application/pdf"
+                          onChange={(e) =>
+                            handleUploadDocumento(e, editingContrato.id)
+                          }
+                        />
+                      </Button>
+                      <Typography variant="caption" color="text.secondary">
+                        Limite: 20MB, apenas PDF
+                      </Typography>
+                    </Box>
+
+                    {documentos.length > 0 ? (
+                      <TableContainer
+                        component={Paper}
+                        variant="outlined"
+                        sx={{ maxHeight: 250 }}
+                      >
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow sx={{ bgcolor: "action.hover" }}>
+                              <TableCell>
+                                <Typography variant="subtitle2" fontWeight={700}>
+                                  Documento
+                                </Typography>
+                              </TableCell>
+                              <TableCell width={120}>
+                                <Typography variant="subtitle2" fontWeight={700}>
+                                  Status
+                                </Typography>
+                              </TableCell>
+                              <TableCell width={120}>
+                                <Typography variant="subtitle2" fontWeight={700}>
+                                  Data
+                                </Typography>
+                              </TableCell>
+                              <TableCell width={100} align="center">
+                                <Typography variant="subtitle2" fontWeight={700}>
+                                  Acoes
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {documentos.map((doc) => (
+                              <TableRow key={doc.id}>
+                                <TableCell>
+                                  <Box display="flex" alignItems="center" gap={1}>
+                                    <PictureAsPdf
+                                      fontSize="small"
+                                      color="error"
+                                    />
+                                    <Box>
+                                      <Typography variant="body2" fontWeight={600}>
+                                        {doc.nome_arquivo}
+                                      </Typography>
+                                      {doc.tamanho_bytes && (
+                                        <Typography
+                                          variant="caption"
+                                          color="text.secondary"
+                                        >
+                                          {(
+                                            doc.tamanho_bytes /
+                                            1024 /
+                                            1024
+                                          ).toFixed(1)}{" "}
+                                          MB
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  </Box>
+                                </TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={
+                                      doc.status === "pronto"
+                                        ? "Processado"
+                                        : doc.status === "processando"
+                                        ? "Processando"
+                                        : doc.status === "erro"
+                                        ? "Erro"
+                                        : "Pendente"
+                                    }
+                                    size="small"
+                                    color={
+                                      doc.status === "pronto"
+                                        ? "success"
+                                        : doc.status === "processando"
+                                        ? "warning"
+                                        : doc.status === "erro"
+                                        ? "error"
+                                        : "default"
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant="caption">
+                                    {format(
+                                      parseISO(doc.created_at),
+                                      "dd/MM/yyyy"
+                                    )}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="center">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() =>
+                                      handleDownloadDocumento(doc)
+                                    }
+                                    title="Baixar"
+                                  >
+                                    <Download fontSize="small" />
+                                  </IconButton>
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() =>
+                                      handleExcluirDocumento(doc)
+                                    }
+                                    title="Excluir"
+                                  >
+                                    <Delete fontSize="small" />
+                                  </IconButton>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    ) : (
+                      <Alert severity="info">
+                        Nenhum documento enviado para este contrato
+                      </Alert>
+                    )}
+
+                    {documentos.some((d) => d.status === "erro") && (
+                      <Alert severity="warning" sx={{ mt: 1 }}>
+                        Alguns documentos tiveram erro no processamento. Tente
+                        excluir e enviar novamente.
+                      </Alert>
+                    )}
+                  </Box>
+                </>
+              )}
             </Box>
           </DialogContent>
           <DialogActions>

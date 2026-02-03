@@ -108,6 +108,86 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['unidades_hospitalares']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['unidades_hospitalares']['Insert']>;
       };
+      documentos_contrato: {
+        Row: {
+          id: string;
+          contrato_id: string;
+          nome_arquivo: string;
+          caminho_storage: string;
+          tamanho_bytes: number | null;
+          mime_type: string;
+          enviado_por: string | null;
+          status: string;
+          mensagem_erro: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          contrato_id: string;
+          nome_arquivo: string;
+          caminho_storage: string;
+          tamanho_bytes?: number | null;
+          mime_type?: string;
+          enviado_por?: string | null;
+          status?: string;
+          mensagem_erro?: string | null;
+        };
+        Update: Partial<Database['public']['Tables']['documentos_contrato']['Insert']>;
+      };
+      documento_chunks: {
+        Row: {
+          id: string;
+          documento_id: string;
+          contrato_id: string;
+          unidade_hospitalar_id: string | null;
+          indice_chunk: number;
+          conteudo: string;
+          titulo_secao: string | null;
+          numero_pagina: number | null;
+          contagem_tokens: number | null;
+          metadata: Record<string, any>;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['documento_chunks']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['documento_chunks']['Insert']>;
+      };
+      conversas_chat: {
+        Row: {
+          id: string;
+          usuario_id: string;
+          titulo: string | null;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['conversas_chat']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['conversas_chat']['Insert']>;
+      };
+      mensagens_chat: {
+        Row: {
+          id: string;
+          conversa_id: string;
+          role: string;
+          conteudo: string;
+          rota: string | null;
+          citacoes: any | null;
+          sql_executado: string | null;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['mensagens_chat']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['mensagens_chat']['Insert']>;
+      };
+      insights_ia: {
+        Row: {
+          id: string;
+          diagnostico: string;
+          data_analise: string;
+          usuario_id: string | null;
+          unidade_hospitalar_id: string | null;
+          role_tipo: string | null;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['insights_ia']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['insights_ia']['Insert']>;
+      };
     };
   };
 }
@@ -265,6 +345,56 @@ export interface InsightIA {
   id: string;
   diagnostico: string;
   data_analise: string;
+  usuario_id?: string;
+  unidade_hospitalar_id?: string;
+  role_tipo?: string;
+  created_at: string;
+}
+
+export interface DocumentoContrato {
+  id: string;
+  contrato_id: string;
+  nome_arquivo: string;
+  caminho_storage: string;
+  tamanho_bytes: number | null;
+  mime_type: string;
+  enviado_por: string | null;
+  status: 'pendente' | 'processando' | 'pronto' | 'erro';
+  mensagem_erro: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Citacao {
+  documento: string;
+  secao: string;
+  pagina?: number;
+}
+
+export type RotaChat = 'sql' | 'rag' | 'hibrido';
+
+export interface RespostaChat {
+  resposta: string;
+  rota: RotaChat;
+  citacoes?: Citacao[];
+  sqlExecutado?: string;
+}
+
+export interface ConversaChat {
+  id: string;
+  usuario_id: string;
+  titulo: string | null;
+  created_at: string;
+}
+
+export interface MensagemChat {
+  id: string;
+  conversa_id: string;
+  role: 'user' | 'assistant' | 'system';
+  conteudo: string;
+  rota?: RotaChat;
+  citacoes?: Citacao[];
+  sql_executado?: string;
   created_at: string;
 }
 

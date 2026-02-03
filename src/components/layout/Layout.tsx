@@ -46,6 +46,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useContractExpirationAlert } from "../../hooks/useContractExpirationAlert";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import ChatBot from "../ChatBot";
 
 const drawerWidth = 280;
 const collapsedDrawerWidth = 72;
@@ -100,12 +101,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: <Dashboard />,
       path: "/dashboard",
       adminOnly: false,
+      adminAgirOnly: true, // Only for administrador-agir-corporativo and administrador-agir-planta
     },
     {
       text: "Insights da IA",
       icon: <Psychology />,
       path: "/insights-ia",
-      adminOnly: true,
+      adminOnly: false,
+      corporativoOnly: true,
     },
     {
       text: "Escalas Médicas",
@@ -188,10 +191,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <List sx={{ flex: 1, p: 2 }}>
         {menuItems.map((item) => {
-          // For administrador-terceiro: only show Escalas Médicas
+          // For administrador-terceiro: show only Escalas Medicas
           if (isAdminTerceiro && item.path !== "/escalas") return null;
 
+          // For terceiro: show only Escalas Medicas
+          if (isTerceiro && item.path !== "/escalas") return null;
+
           if (item.adminOnly && !isAdminAgir) return null;
+          if ((item as any).adminAgirOnly && !isAdminAgir) return null;
           if ((item as any).corporativoOnly && !isAdminAgirCorporativo)
             return null;
 
@@ -520,6 +527,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Toolbar />
         {children}
       </Box>
+
+      {/* ChatBot global - disponivel em todas as paginas */}
+      <ChatBot />
     </Box>
   );
 };

@@ -11,6 +11,7 @@ import {
   CircularProgress,
   Chip,
   Tooltip,
+  Collapse,
 } from "@mui/material";
 import {
   Chat,
@@ -19,27 +20,39 @@ import {
   SmartToy,
   Person,
   AutoAwesome,
+  Storage,
+  FindInPage,
+  MergeType,
+  ExpandMore,
+  ExpandLess,
+  DeleteSweep,
 } from "@mui/icons-material";
+import ReactMarkdown from "react-markdown";
 import { useAuth } from "../contexts/AuthContext";
 import { chatWithData } from "../services/chatService";
+import { RotaChat, Citacao } from "../types/database.types";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  rota?: RotaChat;
+  citacoes?: Citacao[];
+  sqlExecutado?: string;
 }
 
-interface ChatBotProps {
-  context?: string;
-}
-
-const ChatBot: React.FC<ChatBotProps> = ({ context }) => {
+const ChatBot: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { userProfile } = useAuth();
+  const {
+    userProfile,
+    isAdminAgirCorporativo,
+    isAdminAgirPlanta,
+    isAdminTerceiro,
+  } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -49,26 +62,55 @@ const ChatBot: React.FC<ChatBotProps> = ({ context }) => {
     scrollToBottom();
   }, [messages]);
 
+  // Perguntas sugeridas baseadas no role
+  const perguntasSugeridas = (() => {
+    if (isAdminAgirCorporativo) {
+      return [
+        "Quantas escalas medicas este mes?",
+        "Comparar produtividade entre unidades",
+        "Resumo de contratos ativos",
+      ];
+    }
+    if (isAdminAgirPlanta) {
+      return [
+        "Total de escalas aprovadas este mes",
+        "Produtividade da minha unidade",
+        "Contratos proximos ao vencimento",
+      ];
+    }
+    if (isAdminTerceiro) {
+      return [
+        "Escalas do meu contrato este mes",
+        "Quais clausulas do meu contrato?",
+        "Status das escalas pendentes",
+      ];
+    }
+    return [
+      "Minhas escalas este mes",
+      "Minha produtividade recente",
+    ];
+  })();
+
   const handleToggle = () => {
     setOpen(!open);
     if (!open && messages.length === 0) {
-      // Mensagem de boas-vindas
       setMessages([
         {
           role: "assistant",
-          content: `Olá! 👋 Sou o assistente inteligente da **ParcerIA**.\n\nPosso te ajudar a analisar dados de:\n- Contratos e parceiros\n- Escalas médicas\n- Produtividade\n- Acessos e registros\n\nPergunte-me qualquer coisa sobre seus dados!`,
+          content: `Ola! Sou o assistente inteligente da **ParcerIA**.\n\nPosso te ajudar com:\n- **Metricas e dados** (escalas, produtividade, acessos)\n- **Documentos de contrato** (clausulas, SLAs, termos)\n- **Analises combinadas** (comparar dados reais com contratos)\n\nPergunte-me qualquer coisa!`,
           timestamp: new Date(),
         },
       ]);
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
+  const handleSend = async (texto?: string) => {
+    const pergunta = texto || input.trim();
+    if (!pergunta || loading) return;
 
     const userMessage: Message = {
       role: "user",
-      content: input,
+      content: pergunta,
       timestamp: new Date(),
     };
 
@@ -77,20 +119,30 @@ const ChatBot: React.FC<ChatBotProps> = ({ context }) => {
     setLoading(true);
 
     try {
-      // Chamar serviço de chat que busca dados e consulta IA
-      const response = await chatWithData(input, userProfile?.id || "");
+      const historico = messages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      const response = await chatWithData(
+        pergunta,
+        userProfile?.id || "",
+        historico
+      );
 
       const assistantMessage: Message = {
         role: "assistant",
-        content: response,
+        content: response.resposta,
         timestamp: new Date(),
+        rota: response.rota,
+        citacoes: response.citacoes,
+        sqlExecutado: response.sqlExecutado,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
       const errorMessage: Message = {
         role: "assistant",
-        content: `Desculpe, ocorreu um erro ao processar sua pergunta: ${error.message}. Por favor, tente novamente.`,
+        content: `Desculpe, ocorreu um erro: ${error.message}. Tente novamente.`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -106,9 +158,56 @@ const ChatBot: React.FC<ChatBotProps> = ({ context }) => {
     }
   };
 
+  const handleLimparConversa = () => {
+    setMessages([
+      {
+        role: "assistant",
+        content: "Conversa limpa. Como posso ajudar?",
+        timestamp: new Date(),
+      },
+    ]);
+  };
+
+  const rotaIcon = (rota: RotaChat) => {
+    switch (rota) {
+      case "sql":
+        return <Storage sx={{ fontSize: 14 }} />;
+      case "rag":
+        return <FindInPage sx={{ fontSize: 14 }} />;
+      case "hibrido":
+        return <MergeType sx={{ fontSize: 14 }} />;
+    }
+  };
+
+  const rotaLabel = (rota?: RotaChat) => {
+    switch (rota) {
+      case "sql":
+        return "Dados";
+      case "rag":
+        return "Documentos";
+      case "hibrido":
+        return "Hibrido";
+      default:
+        return null;
+    }
+  };
+
+  const rotaColor = (rota?: RotaChat): "primary" | "secondary" | "info" | "default" => {
+    switch (rota) {
+      case "sql":
+        return "primary";
+      case "rag":
+        return "secondary";
+      case "hibrido":
+        return "info";
+      default:
+        return "default";
+    }
+  };
+
   return (
     <>
-      {/* Botão flutuante */}
+      {/* Botao flutuante */}
       <Zoom in={!open}>
         <Fab
           color="primary"
@@ -141,8 +240,8 @@ const ChatBot: React.FC<ChatBotProps> = ({ context }) => {
             position: "fixed",
             bottom: 24,
             right: 24,
-            width: { xs: "calc(100vw - 48px)", sm: 400 },
-            height: 600,
+            width: { xs: "calc(100vw - 48px)", sm: 420 },
+            height: 650,
             borderRadius: "20px",
             display: open ? "flex" : "none",
             flexDirection: "column",
@@ -195,12 +294,23 @@ const ChatBot: React.FC<ChatBotProps> = ({ context }) => {
                 </Box>
               </Box>
             </Box>
-            <IconButton onClick={handleToggle} sx={{ color: "white" }}>
-              <Close />
-            </IconButton>
+            <Box>
+              <Tooltip title="Limpar conversa">
+                <IconButton
+                  onClick={handleLimparConversa}
+                  sx={{ color: "white", mr: 0.5 }}
+                  size="small"
+                >
+                  <DeleteSweep fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <IconButton onClick={handleToggle} sx={{ color: "white" }}>
+                <Close />
+              </IconButton>
+            </Box>
           </Box>
 
-          {/* Área de mensagens */}
+          {/* Area de mensagens */}
           <Box
             sx={{
               flex: 1,
@@ -213,76 +323,146 @@ const ChatBot: React.FC<ChatBotProps> = ({ context }) => {
             }}
           >
             {messages.map((msg, index) => (
-              <Box
-                key={index}
-                sx={{
-                  display: "flex",
-                  gap: 1,
-                  alignItems: "flex-start",
-                  flexDirection: msg.role === "user" ? "row-reverse" : "row",
-                }}
-              >
-                <Avatar
+              <Box key={index}>
+                <Box
                   sx={{
-                    bgcolor:
-                      msg.role === "user"
-                        ? "primary.main"
-                        : "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
-                    width: 32,
-                    height: 32,
+                    display: "flex",
+                    gap: 1,
+                    alignItems: "flex-start",
+                    flexDirection: msg.role === "user" ? "row-reverse" : "row",
                   }}
                 >
-                  {msg.role === "user" ? (
-                    <Person fontSize="small" />
-                  ) : (
-                    <SmartToy fontSize="small" />
-                  )}
-                </Avatar>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 1.5,
-                    maxWidth: "75%",
-                    borderRadius: "12px",
-                    bgcolor: msg.role === "user" ? "#0ea5e9" : "white",
-                    color: msg.role === "user" ? "white" : "text.primary",
-                    border:
-                      msg.role === "assistant" ? "1px solid #e5e7eb" : "none",
-                  }}
-                >
-                  <Typography
-                    variant="body2"
+                  <Avatar
                     sx={{
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                      "& strong": { fontWeight: 700 },
+                      bgcolor:
+                        msg.role === "user"
+                          ? "primary.main"
+                          : "transparent",
+                      background:
+                        msg.role === "assistant"
+                          ? "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)"
+                          : undefined,
+                      width: 32,
+                      height: 32,
                     }}
                   >
-                    {msg.content.split("**").map((part, i) =>
-                      i % 2 === 0 ? (
-                        part
-                      ) : (
-                        <strong key={i}>{part}</strong>
-                      )
+                    {msg.role === "user" ? (
+                      <Person fontSize="small" />
+                    ) : (
+                      <SmartToy fontSize="small" />
                     )}
-                  </Typography>
-                  <Typography
-                    variant="caption"
+                  </Avatar>
+                  <Paper
+                    elevation={0}
                     sx={{
-                      opacity: 0.7,
-                      mt: 0.5,
-                      display: "block",
-                      fontSize: "0.65rem",
+                      p: 1.5,
+                      maxWidth: "80%",
+                      borderRadius: "12px",
+                      bgcolor: msg.role === "user" ? "#0ea5e9" : "white",
+                      color: msg.role === "user" ? "white" : "text.primary",
+                      border:
+                        msg.role === "assistant"
+                          ? "1px solid #e5e7eb"
+                          : "none",
                     }}
                   >
-                    {msg.timestamp.toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </Typography>
-                </Paper>
+                    {/* Chip de rota */}
+                    {msg.rota && (
+                      <Chip
+                        icon={rotaIcon(msg.rota)}
+                        label={rotaLabel(msg.rota)}
+                        size="small"
+                        color={rotaColor(msg.rota)}
+                        variant="outlined"
+                        sx={{
+                          mb: 1,
+                          height: 22,
+                          fontSize: "0.65rem",
+                        }}
+                      />
+                    )}
+
+                    {/* Conteudo com Markdown */}
+                    {msg.role === "assistant" ? (
+                      <Box
+                        sx={{
+                          "& p": { m: 0, mb: 1 },
+                          "& p:last-child": { mb: 0 },
+                          "& ul, & ol": { pl: 2, m: 0, mb: 1 },
+                          "& li": { mb: 0.5 },
+                          "& h1, & h2, & h3": { mt: 1, mb: 0.5 },
+                          "& code": {
+                            bgcolor: "grey.100",
+                            px: 0.5,
+                            borderRadius: 0.5,
+                            fontSize: "0.8rem",
+                          },
+                          "& pre": {
+                            bgcolor: "grey.100",
+                            p: 1,
+                            borderRadius: 1,
+                            overflow: "auto",
+                          },
+                          fontSize: "0.875rem",
+                        }}
+                      >
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </Box>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {msg.content}
+                      </Typography>
+                    )}
+
+                    {/* Citacoes colapsaveis */}
+                    {msg.citacoes && msg.citacoes.length > 0 && (
+                      <CitacoesColapsavel citacoes={msg.citacoes} />
+                    )}
+
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        opacity: 0.7,
+                        mt: 0.5,
+                        display: "block",
+                        fontSize: "0.65rem",
+                      }}
+                    >
+                      {msg.timestamp.toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Typography>
+                  </Paper>
+                </Box>
               </Box>
             ))}
+
+            {/* Perguntas sugeridas (quando so tem boas-vindas) */}
+            {messages.length === 1 && !loading && (
+              <Box display="flex" gap={0.5} flexWrap="wrap">
+                {perguntasSugeridas.map((p, i) => (
+                  <Chip
+                    key={i}
+                    label={p}
+                    size="small"
+                    variant="outlined"
+                    onClick={() => handleSend(p)}
+                    sx={{
+                      fontSize: "0.7rem",
+                      cursor: "pointer",
+                      "&:hover": { bgcolor: "primary.50" },
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
 
             {loading && (
               <Box display="flex" gap={1} alignItems="center">
@@ -349,7 +529,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ context }) => {
                 <span>
                   <IconButton
                     color="primary"
-                    onClick={handleSend}
+                    onClick={() => handleSend()}
                     disabled={!input.trim() || loading}
                     sx={{
                       background:
@@ -374,7 +554,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ context }) => {
             <Box display="flex" gap={0.5} mt={1} flexWrap="wrap">
               <Chip
                 icon={<AutoAwesome />}
-                label="Powered by DeepSeek"
+                label="Powered by OpenAI"
                 size="small"
                 sx={{
                   fontSize: "0.65rem",
@@ -388,6 +568,56 @@ const ChatBot: React.FC<ChatBotProps> = ({ context }) => {
         </Paper>
       </Zoom>
     </>
+  );
+};
+
+// Componente de citacoes colapsavel
+const CitacoesColapsavel: React.FC<{ citacoes: Citacao[] }> = ({
+  citacoes,
+}) => {
+  const [aberto, setAberto] = useState(false);
+
+  return (
+    <Box sx={{ mt: 1 }}>
+      <Chip
+        label={`${citacoes.length} fonte${citacoes.length > 1 ? "s" : ""}`}
+        size="small"
+        icon={aberto ? <ExpandLess /> : <ExpandMore />}
+        onClick={() => setAberto(!aberto)}
+        sx={{
+          fontSize: "0.65rem",
+          height: 22,
+          cursor: "pointer",
+          bgcolor: "rgba(139, 92, 246, 0.1)",
+          color: "secondary.main",
+        }}
+      />
+      <Collapse in={aberto}>
+        <Box
+          sx={{
+            mt: 0.5,
+            p: 1,
+            bgcolor: "grey.50",
+            borderRadius: 1,
+            border: "1px solid",
+            borderColor: "grey.200",
+          }}
+        >
+          {citacoes.map((c, i) => (
+            <Typography
+              key={i}
+              variant="caption"
+              display="block"
+              sx={{ mb: 0.25 }}
+            >
+              [{i + 1}] {c.documento}
+              {c.secao ? ` - ${c.secao}` : ""}
+              {c.pagina ? `, p. ${c.pagina}` : ""}
+            </Typography>
+          ))}
+        </Box>
+      </Collapse>
+    </Box>
   );
 };
 

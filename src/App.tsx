@@ -34,7 +34,7 @@ const App: React.FC = () => {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdminAgirAny>
                   <Layout>
                     <Dashboard />
                   </Layout>
@@ -89,7 +89,7 @@ const App: React.FC = () => {
             <Route
               path="/insights-ia"
               element={
-                <ProtectedRoute requireAdminAgir>
+                <ProtectedRoute requireAdminAgirCorporativo>
                   <Layout>
                     <InsightsIA />
                   </Layout>
@@ -123,7 +123,7 @@ const App: React.FC = () => {
               path="/"
               element={
                 <ProtectedRoute>
-                  <Navigate to="/dashboard" replace />
+                  <Navigate to="/escalas" replace />
                 </ProtectedRoute>
               }
             />
@@ -131,7 +131,7 @@ const App: React.FC = () => {
               path="*"
               element={
                 <ProtectedRoute>
-                  <Navigate to="/dashboard" replace />
+                  <Navigate to="/escalas" replace />
                 </ProtectedRoute>
               }
             />

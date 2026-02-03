@@ -43,7 +43,6 @@ import {
   jaTemAnaliseHoje,
 } from "../services/deepseekService";
 import { InsightIA } from "../types/database.types";
-import ChatBot from "../components/ChatBot";
 
 const InsightsIA: React.FC = () => {
   const [insightAtual, setInsightAtual] = useState<InsightIA | null>(null);
@@ -174,7 +173,7 @@ const InsightsIA: React.FC = () => {
           </Box>
           <Box>
             <Typography variant="h4" fontWeight={700} gutterBottom>
-              Insights da IA - em construção!
+              Insights da IA
             </Typography>
             <Typography variant="body1" color="text.secondary">
               Análise inteligente de produtividade e gestão de contratos médicos
@@ -445,8 +444,6 @@ const InsightsIA: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* ChatBot */}
-      <ChatBot />
     </Container>
   );
 };
