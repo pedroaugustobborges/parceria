@@ -155,14 +155,16 @@ async function classificarIntencao(
 
 Classifique a pergunta do usuario em uma das 3 rotas:
 
-**SQL** - Perguntas sobre metricas, quantidades, contagens, datas, medias, rankings, comparacoes numericas.
-Exemplos: "Quantas escalas medicas em dezembro?", "Qual o total de procedimentos?", "Ranking de produtividade"
+**SQL** - Perguntas sobre metricas operacionais: escalas medicas, produtividade, acessos, contagens, rankings.
+Exemplos: "Quantas escalas medicas em dezembro?", "Qual o total de procedimentos?", "Ranking de produtividade", "Quantos medicos trabalharam?"
 
-**RAG** - Perguntas sobre clausulas de contrato, politicas, SLAs, definicoes, termos contratuais, obrigacoes.
-Exemplos: "O que diz o contrato sobre SLA?", "Quais sao as clausulas de penalidade?", "Explique os termos do contrato X"
+**RAG** - Perguntas sobre conteudo de documentos: clausulas, termos, politicas, SLAs, definicoes contratuais, resumo de contratos.
+Exemplos: "O que diz o contrato sobre SLA?", "Quais sao as clausulas de penalidade?", "Faca um resumo do contrato X"
 
-**HIBRIDO** - Precisa de numeros do banco E contexto de documentos/contratos.
-Exemplos: "Estamos cumprindo o SLA?", "Como a produtividade se compara ao contratado?", "Quais metas nao foram atingidas?"
+**HIBRIDO** - Perguntas sobre VALORES FINANCEIROS de contratos, comparacoes entre dados operacionais e contratuais, ou visao geral que combina metricas com informacoes de documentos.
+Exemplos: "Qual o valor total dos contratos do HUGOL?", "Estamos cumprindo o SLA?", "Quanto custa o contrato com empresa X?", "Qual o valor do contrato?", "Soma dos valores dos contratos"
+
+IMPORTANTE: Perguntas sobre VALORES MONETARIOS (R$, valor, custo, preco, soma de contratos) devem ir para HIBRIDO pois os valores podem estar tanto no banco quanto nos documentos PDF.
 
 Responda APENAS com JSON: {"rota": "sql"|"rag"|"hibrido", "confianca": 0.0-1.0}
 
@@ -214,25 +216,46 @@ Pergunta: "${pergunta}"`;
 
 function classificarPorPalavrasChave(pergunta: string): ResultadoClassificacao {
   const p = pergunta.toLowerCase();
+
+  // Perguntas sobre valores financeiros -> hibrido
+  if (
+    p.includes("valor") ||
+    p.includes("custo") ||
+    p.includes("preco") ||
+    p.includes("r$") ||
+    p.includes("reais") ||
+    (p.includes("soma") && p.includes("contrato")) ||
+    (p.includes("total") && p.includes("contrato"))
+  ) {
+    return { rota: "hibrido", confianca: 0.7 };
+  }
+
+  // Perguntas sobre clausulas/termos de contrato -> RAG
   if (
     p.includes("contrato") &&
     (p.includes("clausula") ||
       p.includes("sla") ||
       p.includes("termo") ||
-      p.includes("obrigac"))
+      p.includes("obrigac") ||
+      p.includes("resumo") ||
+      p.includes("explique"))
   ) {
     return { rota: "rag", confianca: 0.6 };
   }
+
+  // Perguntas sobre metricas operacionais -> SQL
   if (
-    p.includes("quanto") ||
-    p.includes("total") ||
+    p.includes("quantas") ||
+    p.includes("quantos") ||
     p.includes("media") ||
     p.includes("ranking") ||
-    p.includes("quantas") ||
-    p.includes("quantos")
+    p.includes("escala") ||
+    p.includes("produtividade") ||
+    p.includes("acesso")
   ) {
     return { rota: "sql", confianca: 0.6 };
   }
+
   return { rota: "sql", confianca: 0.5 };
 }
 
@@ -247,6 +270,7 @@ const SCHEMA_DESCRICAO = `
 - id (uuid), nome (text), numero_contrato (text), empresa (text)
 - data_inicio (date), data_fim (date), ativo (boolean)
 - unidade_hospitalar_id (uuid FK)
+- valor_total (decimal) - Valor total do contrato (calculado automaticamente de contrato_itens)
 
 ### escalas_medicas
 - id (uuid), contrato_id (uuid FK), item_contrato_id (uuid FK)
@@ -279,6 +303,13 @@ Exemplo correto:
 
 ### unidades_hospitalares
 - id (uuid), codigo (text), nome (text), ativo (boolean)
+- IMPORTANTE: Nome completo do hospital. Use ILIKE para busca parcial ou busque pelo codigo.
+- Nomes completos:
+  - HUGOL = "Hospital Estadual de Urgências Governador Otávio Lage de Siqueira"
+  - HECAD = "Hospital Estadual da Criança e do Adolescente"
+  - CRER = "Centro de Reabilitação e Readaptação Dr. Henrique Santillo"
+- Codigos das unidades: HUGOL, HECAD, CRER
+- Para buscar por sigla/apelido, use: codigo = 'HUGOL' ou nome ILIKE '%HUGOL%'
 
 ### itens_contrato
 - id (uuid), nome (text), descricao (text), unidade_medida (text), ativo (boolean)
@@ -286,6 +317,9 @@ Exemplo correto:
 ### contrato_itens
 - id (uuid), contrato_id (uuid FK), item_id (uuid FK)
 - quantidade (numeric), valor_unitario (numeric), observacoes (text)
+- IMPORTANTE: Esta tabela contem os VALORES dos contratos
+- Valor total de um item = quantidade * valor_unitario
+- Para valor total de um contrato: SUM(quantidade * valor_unitario) WHERE contrato_id = X
 
 ### parceiros
 - id (uuid), nome (text), cnpj (text), telefone (text), email (text), ativo (boolean)
@@ -296,6 +330,27 @@ Exemplo correto:
 ### vm_acessos_mensal (mes, planta, tipo, total_registros, entradas, saidas, pessoas_unicas)
 
 ## CONCEITOS DE NEGOCIO IMPORTANTES
+
+### VALOR TOTAL DE CONTRATOS
+A coluna contratos.valor_total contem o valor total do contrato (ja calculado).
+Para somar valores de contratos de uma unidade:
+SELECT c.nome AS contrato, c.empresa, c.valor_total
+FROM contratos c
+JOIN unidades_hospitalares u ON u.id = c.unidade_hospitalar_id
+WHERE c.ativo = true AND u.nome ILIKE '%NOME_UNIDADE%'
+
+Para soma total de todos os contratos de uma unidade:
+SELECT SUM(c.valor_total) AS soma_total
+FROM contratos c
+JOIN unidades_hospitalares u ON u.id = c.unidade_hospitalar_id
+WHERE c.ativo = true AND u.nome ILIKE '%NOME_UNIDADE%'
+
+### SIGLAS E APELIDOS DE UNIDADES
+Os usuarios podem usar siglas como "HUGOL", "HECAD", "CRER", etc.
+Para buscar unidades, use o codigo OU nome com ILIKE:
+- WHERE u.codigo = 'HUGOL' (busca exata pelo codigo)
+- WHERE u.nome ILIKE '%HUGOL%' (busca parcial pelo nome)
+Isso encontrara "Hospital Estadual de Urgências Governador Otávio Lage de Siqueira"
 
 ### ABSENTEISMO (faltas)
 Absenteismo = medico que estava ESCALADO (em escalas_medicas) mas NAO registrou ACESSO (em acessos) naquele dia.
