@@ -94,7 +94,7 @@ const ChatBot: React.FC = () => {
       setMessages([
         {
           role: "assistant",
-          content: `Ola! Sou o assistente inteligente da **ParcerIA**.\n\nPosso te ajudar com:\n- **Metricas e dados** (escalas, produtividade, acessos)\n- **Documentos de contrato** (clausulas, SLAs, termos)\n- **Analises combinadas** (comparar dados reais com contratos)\n\nPergunte-me qualquer coisa!`,
+          content: `Ola! Sou o assistente inteligente do **ParcerIA**.\n\nPosso te ajudar com:\n- **Metricas e dados** (escalas, produtividade, acessos)\n- **Documentos de contrato** (clausulas, SLAs, termos)\n- **Analises combinadas** (comparar dados reais com contratos)\n\nPergunte-me qualquer coisa!`,
           timestamp: new Date(),
         },
       ]);
@@ -271,7 +271,7 @@ const ChatBot: React.FC = () => {
               </Avatar>
               <Box>
                 <Typography variant="h6" fontWeight={700}>
-                  Parcer<span style={{ color: "#fbbf24" }}>IA</span> Assistente
+                  Assistente Parcer<span style={{ color: "#fbbf24" }}>IA</span>
                 </Typography>
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <Box
@@ -549,7 +549,7 @@ const ChatBot: React.FC = () => {
             <Box display="flex" gap={0.5} mt={1} flexWrap="wrap">
               <Chip
                 icon={<AutoAwesome />}
-                label="Powered by OpenAI"
+                label="Powered by Daherlab"
                 size="small"
                 sx={{
                   fontSize: "0.65rem",
