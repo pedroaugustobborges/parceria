@@ -1,6 +1,7 @@
 // chat-gateway/index.ts - Ponto de entrada unico para interacoes do chat ParcerIA
 // Consolidado em arquivo unico para compatibilidade com Supabase CLI
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Suporta streaming SSE (Server-Sent Events) para efeito typewriter
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,21 +37,128 @@ interface Citacao {
   pagina?: number;
 }
 
-interface ResultadoSQL {
-  resposta: string;
-  sqlExecutado: string;
-  dados: any;
+interface DadosPreparadosSQL {
+  sql: string;
+  mensagens: Array<{ role: string; content: string }>;
 }
 
-interface ResultadoRAG {
-  resposta: string;
+interface DadosPreparadosRAG {
+  mensagens: Array<{ role: string; content: string }> | null;
   citacoes: Citacao[];
+  respostaEstatica: string | null;
 }
 
-interface ResultadoHibrido {
-  resposta: string;
+interface DadosPreparadosHibrido {
+  mensagens: Array<{ role: string; content: string }> | null;
   citacoes: Citacao[];
   sqlExecutado: string | null;
+  respostaEstatica: string | null;
+}
+
+// ============================================================
+// HELPERS SSE (Server-Sent Events)
+// ============================================================
+
+function enviarEvento(
+  controller: ReadableStreamDefaultController,
+  encoder: TextEncoder,
+  evento: object
+): void {
+  controller.enqueue(encoder.encode(`data: ${JSON.stringify(evento)}\n\n`));
+}
+
+async function streamOpenAI(
+  controller: ReadableStreamDefaultController,
+  encoder: TextEncoder,
+  mensagens: Array<{ role: string; content: string }>,
+  apiKey: string,
+  temperature: number = 0.5,
+  maxTokens: number = 1500
+): Promise<string> {
+  const resposta = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: mensagens,
+      temperature,
+      max_tokens: maxTokens,
+      stream: true,
+    }),
+  });
+
+  if (!resposta.ok) {
+    const erroTexto = await resposta.text();
+    throw new Error(`Erro OpenAI streaming: ${resposta.status} ${erroTexto}`);
+  }
+
+  const reader = resposta.body!.getReader();
+  const decoder = new TextDecoder();
+  let textoCompleto = "";
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const linhas = buffer.split("\n");
+    buffer = linhas.pop() || "";
+
+    for (const linha of linhas) {
+      const trimmed = linha.trim();
+      if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+      const dados = trimmed.slice(6);
+      if (dados === "[DONE]") continue;
+
+      try {
+        const parsed = JSON.parse(dados);
+        const delta = parsed.choices?.[0]?.delta?.content;
+        if (delta) {
+          textoCompleto += delta;
+          enviarEvento(controller, encoder, { tipo: "token", conteudo: delta });
+        }
+      } catch {
+        // Ignorar chunks nao-parseavel
+      }
+    }
+  }
+
+  return textoCompleto;
+}
+
+// Chamada OpenAI nao-streaming (para etapas intermediarias)
+async function chamarOpenAI(
+  mensagens: Array<{ role: string; content: string }>,
+  apiKey: string,
+  temperature: number = 0.5,
+  maxTokens: number = 1500
+): Promise<string> {
+  const resposta = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: mensagens,
+      temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!resposta.ok) {
+    const erroTexto = await resposta.text();
+    throw new Error(`Erro OpenAI: ${resposta.status} ${erroTexto}`);
+  }
+
+  const dados = await resposta.json();
+  return dados.choices[0].message.content;
 }
 
 // ============================================================
@@ -204,12 +312,10 @@ Pergunta: "${pergunta}"`;
       }
       return JSON.parse(conteudo);
     } catch {
-      // Fallback por palavras-chave
       return classificarPorPalavrasChave(pergunta);
     }
   } catch (erro: any) {
     console.error("Erro ao classificar intencao:", erro.message);
-    // Fallback por palavras-chave se OpenAI falhar
     return classificarPorPalavrasChave(pergunta);
   }
 }
@@ -217,7 +323,6 @@ Pergunta: "${pergunta}"`;
 function classificarPorPalavrasChave(pergunta: string): ResultadoClassificacao {
   const p = pergunta.toLowerCase();
 
-  // Perguntas sobre valores financeiros -> hibrido
   if (
     p.includes("valor") ||
     p.includes("custo") ||
@@ -230,7 +335,6 @@ function classificarPorPalavrasChave(pergunta: string): ResultadoClassificacao {
     return { rota: "hibrido", confianca: 0.7 };
   }
 
-  // Perguntas sobre clausulas/termos de contrato -> RAG
   if (
     p.includes("contrato") &&
     (p.includes("clausula") ||
@@ -243,7 +347,6 @@ function classificarPorPalavrasChave(pergunta: string): ResultadoClassificacao {
     return { rota: "rag", confianca: 0.6 };
   }
 
-  // Perguntas sobre metricas operacionais -> SQL
   if (
     p.includes("quantas") ||
     p.includes("quantos") ||
@@ -260,7 +363,7 @@ function classificarPorPalavrasChave(pergunta: string): ResultadoClassificacao {
 }
 
 // ============================================================
-// GERADOR SQL
+// SCHEMA DO BANCO
 // ============================================================
 
 const SCHEMA_DESCRICAO = `
@@ -276,7 +379,14 @@ const SCHEMA_DESCRICAO = `
 - id (uuid), contrato_id (uuid FK), item_contrato_id (uuid FK)
 - data_inicio (date), horario_entrada (time), horario_saida (time)
 - medicos (jsonb array de objetos: [{"nome": "Dr. X", "cpf": "12345678900"}, ...])
-- status (text: Pre-Agendado/Programado/Pre-Aprovado/Aprovacao Parcial/Atencao/Aprovado/Reprovado)
+- status (text) - VALORES EXATOS com acentos: 'Pré-Agendado', 'Programado', 'Pré-Aprovado', 'Aprovação Parcial', 'Atenção', 'Aprovado', 'Reprovado'
+- IMPORTANTE: Os valores de status TEM acentos e cedilha. Use EXATAMENTE como listado acima.
+  - CORRETO: WHERE status = 'Atenção'
+  - ERRADO: WHERE status = 'Atencao'
+  - CORRETO: WHERE status = 'Pré-Agendado'
+  - ERRADO: WHERE status = 'Pre-Agendado'
+  - CORRETO: WHERE status = 'Aprovação Parcial'
+  - ERRADO: WHERE status = 'Aprovacao Parcial'
 - observacoes (text), justificativa (text), ativo (boolean)
 
 **IMPORTANTE para consultar medicos em escalas_medicas:**
@@ -385,15 +495,20 @@ ORDER BY total_ausencias DESC
 - O status (Aprovado, Reprovado, etc) refere-se a APROVACAO ADMINISTRATIVA da escala, nao a presenca do medico
 - Reprovado = escala foi rejeitada administrativamente (ex: documentacao incorreta)
 - Aprovado = escala foi aprovada administrativamente
+- LEMBRETE: Sempre use os valores de status COM acentos: 'Atenção' (nao 'Atencao'), 'Pré-Agendado' (nao 'Pre-Agendado'), 'Aprovação Parcial' (nao 'Aprovacao Parcial')
 `;
 
-async function gerarEExecutarSQL(
+// ============================================================
+// PREPARAR DADOS SQL (sem chamada final de formatacao)
+// ============================================================
+
+async function prepararSQL(
   pergunta: string,
   contexto: ContextoUsuario,
   historicoMensagens: Array<{ role: string; content: string }>,
   supabase: SupabaseClient,
   apiKey: string
-): Promise<ResultadoSQL> {
+): Promise<DadosPreparadosSQL> {
   const restricoes = gerarRestricoesTenant(contexto);
 
   const colunasProibidas =
@@ -401,7 +516,6 @@ async function gerarEExecutarSQL(
       ? "\n\nIMPORTANTE: NAO inclua colunas valor_unitario, valor_total, custo ou preco nas consultas. O usuario nao tem permissao para ver valores monetarios."
       : "";
 
-  // Data atual para contexto temporal
   const dataAtual = new Date();
   const anoAtual = dataAtual.getFullYear();
   const mesAtual = dataAtual.getMonth() + 1;
@@ -445,35 +559,19 @@ Pergunta do usuario: "${pergunta}"
 
 Responda APENAS com a consulta SQL, sem explicacao, sem markdown, sem \`\`\`.`;
 
-  // Gerar SQL via OpenAI
-  const respostaSQL = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: promptSQL },
-        ...historicoMensagens.slice(-4),
-        { role: "user", content: pergunta },
-      ],
-      temperature: 0.1,
-      max_tokens: 500,
-    }),
-  });
+  // Gerar SQL via OpenAI (nao-streaming)
+  const respostaSQL = await chamarOpenAI(
+    [
+      { role: "system", content: promptSQL },
+      ...historicoMensagens.slice(-4),
+      { role: "user", content: pergunta },
+    ],
+    apiKey,
+    0.1,
+    500
+  );
 
-  if (!respostaSQL.ok) {
-    const erroTexto = await respostaSQL.text();
-    console.error("Erro OpenAI SQL:", respostaSQL.status, erroTexto);
-    throw new Error(`Erro ao gerar SQL: ${respostaSQL.status} ${erroTexto}`);
-  }
-
-  const dadosSQL = await respostaSQL.json();
-  let sql = dadosSQL.choices[0].message.content.trim();
-
-  // Limpar possivel markdown e trailing semicolons
+  let sql = respostaSQL.trim();
   sql = sql.replace(/```sql\n?/g, "").replace(/```\n?/g, "").trim();
   sql = sql.replace(/;\s*$/, "").trim();
 
@@ -491,7 +589,7 @@ Responda APENAS com a consulta SQL, sem explicacao, sem markdown, sem \`\`\`.`;
     throw new Error("Consulta SQL invalida: operacoes de modificacao nao sao permitidas");
   }
 
-  // Executar SQL via funcao segura do banco
+  // Executar SQL
   const { data: resultado, error: erroExecucao } = await supabase.rpc(
     "executar_consulta_analytics",
     {
@@ -505,7 +603,7 @@ Responda APENAS com a consulta SQL, sem explicacao, sem markdown, sem \`\`\`.`;
     throw new Error(`Erro ao executar consulta: ${erroExecucao.message}`);
   }
 
-  // Formatar resultado em linguagem natural via OpenAI
+  // Montar mensagens para a chamada de formatacao (sera streaming)
   const promptFormatacao = `Voce e o assistente ParcerIA. Formate os dados abaixo em uma resposta clara e objetiva em portugues.
 
 Pergunta original: "${pergunta}"
@@ -520,41 +618,20 @@ Regras:
 - Ofereca insights adicionais quando relevante
 - Use markdown para formatacao`;
 
-  const respostaFormatada = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "Voce e o assistente inteligente ParcerIA, especializado em gestao hospitalar.",
-        },
-        { role: "user", content: promptFormatacao },
-      ],
-      temperature: 0.5,
-      max_tokens: 1000,
-    }),
-  });
-
-  if (!respostaFormatada.ok) {
-    throw new Error(`Erro ao formatar resposta: ${respostaFormatada.statusText}`);
-  }
-
-  const dadosFormatados = await respostaFormatada.json();
-
   return {
-    resposta: dadosFormatados.choices[0].message.content,
-    sqlExecutado: sql,
-    dados: resultado,
+    sql,
+    mensagens: [
+      {
+        role: "system",
+        content: "Voce e o assistente inteligente ParcerIA, especializado em gestao hospitalar.",
+      },
+      { role: "user", content: promptFormatacao },
+    ],
   };
 }
 
 // ============================================================
-// RECUPERADOR RAG
+// PREPARAR DADOS RAG (sem chamada final de resposta)
 // ============================================================
 
 async function gerarEmbedding(texto: string, apiKey: string): Promise<number[]> {
@@ -578,44 +655,42 @@ async function gerarEmbedding(texto: string, apiKey: string): Promise<number[]> 
   return dados.data[0].embedding;
 }
 
-async function buscarEResponderRAG(
+async function prepararRAG(
   pergunta: string,
   contexto: ContextoUsuario,
   historicoMensagens: Array<{ role: string; content: string }>,
   supabase: SupabaseClient,
   apiKey: string
-): Promise<ResultadoRAG> {
+): Promise<DadosPreparadosRAG> {
   if (contexto.tipo === "terceiro") {
     return {
-      resposta:
-        "Desculpe, voce nao tem permissao para acessar documentos de contrato. Entre em contato com o administrador para mais informacoes.",
+      mensagens: null,
       citacoes: [],
+      respostaEstatica:
+        "Desculpe, voce nao tem permissao para acessar documentos de contrato. Entre em contato com o administrador para mais informacoes.",
     };
   }
 
   console.log(`[RAG] Gerando embedding para pergunta: "${pergunta.substring(0, 50)}..."`);
   const embeddingConsulta = await gerarEmbedding(pergunta, apiKey);
-  console.log(`[RAG] Embedding gerado, dimensao: ${embeddingConsulta.length}`);
 
   const filtroContratos = obterFiltroContratosRAG(contexto);
-  console.log(`[RAG] Filtro de contratos: ${filtroContratos ? JSON.stringify(filtroContratos) : "null (sem filtro)"}`);
 
   if (filtroContratos && filtroContratos.length === 0) {
     return {
-      resposta: "Nao foram encontrados documentos vinculados ao seu perfil.",
+      mensagens: null,
       citacoes: [],
+      respostaEstatica: "Nao foram encontrados documentos vinculados ao seu perfil.",
     };
   }
 
-  // Converter embedding array para string format que pgvector aceita
   const embeddingString = `[${embeddingConsulta.join(",")}]`;
 
-  console.log(`[RAG] Buscando chunks similares...`);
   const { data: chunks, error: erroChunks } = await supabase.rpc(
     "buscar_chunks_similares",
     {
       embedding_consulta: embeddingString,
-      limite_similaridade: 0.5, // Reduzido de 0.7 para 0.5 para mais resultados
+      limite_similaridade: 0.5,
       limite_resultados: 5,
       filtro_contrato_ids: filtroContratos,
     }
@@ -626,23 +701,14 @@ async function buscarEResponderRAG(
     throw new Error(`Erro na busca vetorial: ${erroChunks.message}`);
   }
 
-  console.log(`[RAG] Chunks encontrados: ${chunks?.length || 0}`);
-
   if (!chunks || chunks.length === 0) {
-    // Debug: verificar se existem chunks no banco
-    const { data: totalChunks } = await supabase
-      .from("documento_chunks")
-      .select("id", { count: "exact", head: true });
-    console.log(`[RAG] Total de chunks no banco (via query direta): ${totalChunks?.length || "erro ao contar"}`);
-
     return {
-      resposta:
-        "Nao encontrei informacoes relevantes nos documentos disponiveis para responder sua pergunta. Tente reformular ou perguntar sobre outro topico.",
+      mensagens: null,
       citacoes: [],
+      respostaEstatica:
+        "Nao encontrei informacoes relevantes nos documentos disponiveis para responder sua pergunta. Tente reformular ou perguntar sobre outro topico.",
     };
   }
-
-  console.log(`[RAG] Primeiro chunk similaridade: ${chunks[0]?.similaridade}`);
 
   const contextoDocs = chunks
     .map(
@@ -668,33 +734,6 @@ ${contextoDocs}
 
 Pergunta: "${pergunta}"`;
 
-  const resposta = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "Voce e o assistente ParcerIA. Responda sempre com citacoes dos documentos.",
-        },
-        ...historicoMensagens.slice(-4),
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 1500,
-    }),
-  });
-
-  if (!resposta.ok) {
-    throw new Error(`Erro ao gerar resposta RAG: ${resposta.statusText}`);
-  }
-
-  const dados = await resposta.json();
-
   const citacoes: Citacao[] = chunks.map((c: any) => ({
     documento: c.nome_arquivo,
     secao: c.titulo_secao || "Secao nao identificada",
@@ -702,36 +741,68 @@ Pergunta: "${pergunta}"`;
   }));
 
   return {
-    resposta: dados.choices[0].message.content,
+    mensagens: [
+      {
+        role: "system",
+        content: "Voce e o assistente ParcerIA. Responda sempre com citacoes dos documentos.",
+      },
+      ...historicoMensagens.slice(-4),
+      { role: "user", content: prompt },
+    ],
     citacoes,
+    respostaEstatica: null,
   };
 }
 
 // ============================================================
-// HIBRIDO
+// PREPARAR DADOS HIBRIDO
 // ============================================================
 
-async function executarHibrido(
+async function prepararHibrido(
   pergunta: string,
   contexto: ContextoUsuario,
   historicoMensagens: Array<{ role: string; content: string }>,
   supabase: SupabaseClient,
   apiKey: string
-): Promise<ResultadoHibrido> {
+): Promise<DadosPreparadosHibrido> {
+  // Preparar SQL e RAG em paralelo
   const [resultadoSQL, resultadoRAG] = await Promise.allSettled([
-    gerarEExecutarSQL(pergunta, contexto, historicoMensagens, supabase, apiKey),
-    buscarEResponderRAG(pergunta, contexto, historicoMensagens, supabase, apiKey),
+    prepararSQL(pergunta, contexto, historicoMensagens, supabase, apiKey),
+    prepararRAG(pergunta, contexto, historicoMensagens, supabase, apiKey),
   ]);
 
-  const dadosSQL =
-    resultadoSQL.status === "fulfilled" ? resultadoSQL.value : null;
-  const dadosRAG =
-    resultadoRAG.status === "fulfilled" ? resultadoRAG.value : null;
+  const dadosSQL = resultadoSQL.status === "fulfilled" ? resultadoSQL.value : null;
+  const dadosRAG = resultadoRAG.status === "fulfilled" ? resultadoRAG.value : null;
 
   if (!dadosSQL && !dadosRAG) {
-    throw new Error(
-      "Nao foi possivel obter dados do banco nem dos documentos. Tente reformular sua pergunta."
-    );
+    return {
+      mensagens: null,
+      citacoes: [],
+      sqlExecutado: null,
+      respostaEstatica:
+        "Nao foi possivel obter dados do banco nem dos documentos. Tente reformular sua pergunta.",
+    };
+  }
+
+  // Para o hibrido, precisamos das respostas intermediarias (nao-streaming)
+  let respostaSQL = "Nao foi possivel obter dados do banco de dados.";
+  let respostaRAG = "Nao foram encontrados documentos relevantes.";
+
+  // Executar formatacoes intermediarias em paralelo
+  const [formatadoSQL, formatadoRAG] = await Promise.allSettled([
+    dadosSQL
+      ? chamarOpenAI(dadosSQL.mensagens, apiKey, 0.5, 1000)
+      : Promise.resolve(null),
+    dadosRAG && dadosRAG.mensagens
+      ? chamarOpenAI(dadosRAG.mensagens, apiKey, 0.3, 1500)
+      : Promise.resolve(dadosRAG?.respostaEstatica || null),
+  ]);
+
+  if (formatadoSQL.status === "fulfilled" && formatadoSQL.value) {
+    respostaSQL = formatadoSQL.value;
+  }
+  if (formatadoRAG.status === "fulfilled" && formatadoRAG.value) {
+    respostaRAG = formatadoRAG.value;
   }
 
   const promptCombinado = `Voce e o assistente ParcerIA. Combine as informacoes abaixo para responder a pergunta do usuario.
@@ -740,10 +811,10 @@ async function executarHibrido(
 "${pergunta}"
 
 ## Dados do Banco (Metricas)
-${dadosSQL ? dadosSQL.resposta : "Nao foi possivel obter dados do banco de dados."}
+${respostaSQL}
 
 ## Dados dos Documentos (Contratos)
-${dadosRAG ? dadosRAG.resposta : "Nao foram encontrados documentos relevantes."}
+${respostaRAG}
 
 ## Regras
 1. Combine ambas as fontes de forma coerente
@@ -753,42 +824,41 @@ ${dadosRAG ? dadosRAG.resposta : "Nao foram encontrados documentos relevantes."}
 5. Use markdown para formatacao
 6. Seja objetivo e ofereca insights acionaveis`;
 
-  const resposta = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Voce e o assistente ParcerIA, combinando dados reais do banco com clausulas de contratos.",
-        },
-        { role: "user", content: promptCombinado },
-      ],
-      temperature: 0.4,
-      max_tokens: 2000,
-    }),
-  });
-
-  if (!resposta.ok) {
-    throw new Error(`Erro ao gerar resposta hibrida: ${resposta.statusText}`);
-  }
-
-  const dados = await resposta.json();
-
   return {
-    resposta: dados.choices[0].message.content,
+    mensagens: [
+      {
+        role: "system",
+        content:
+          "Voce e o assistente ParcerIA, combinando dados reais do banco com clausulas de contratos.",
+      },
+      { role: "user", content: promptCombinado },
+    ],
     citacoes: dadosRAG?.citacoes || [],
-    sqlExecutado: dadosSQL?.sqlExecutado || null,
+    sqlExecutado: dadosSQL?.sql || null,
+    respostaEstatica: null,
   };
 }
 
 // ============================================================
-// HANDLER PRINCIPAL
+// MASCARAMENTO MONETARIO
+// ============================================================
+
+function mascararValoresMonetarios(texto: string): string {
+  const padroes = [
+    /R\$\s*[\d.,]+/g,
+    /\b\d{1,3}(?:\.\d{3})*,\d{2}\b(?=\s*(?:reais|real|R\$))/gi,
+  ];
+
+  let resultado = texto;
+  for (const padrao of padroes) {
+    resultado = resultado.replace(padrao, "[valor restrito]");
+  }
+
+  return resultado;
+}
+
+// ============================================================
+// HANDLER PRINCIPAL (com streaming SSE)
 // ============================================================
 
 Deno.serve(async (req) => {
@@ -853,78 +923,130 @@ Deno.serve(async (req) => {
     const classificacao = await classificarIntencao(pergunta, openaiApiKey);
     console.log(`[chat-gateway] Rota: ${classificacao.rota}, Confianca: ${classificacao.confianca}`);
 
-    let respostaFinal: any;
+    const roleRestrito =
+      contexto.tipo === "terceiro" || contexto.tipo === "administrador-terceiro";
 
-    switch (classificacao.rota) {
-      case "sql": {
-        const resultado = await gerarEExecutarSQL(
-          pergunta,
-          contexto,
-          historico,
-          supabase,
-          openaiApiKey
-        );
-        respostaFinal = {
-          resposta: resultado.resposta,
-          rota: "sql",
-          sqlExecutado: resultado.sqlExecutado,
-          citacoes: null,
-        };
-        break;
-      }
+    // Criar ReadableStream para SSE
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
 
-      case "rag": {
-        const resultado = await buscarEResponderRAG(
-          pergunta,
-          contexto,
-          historico,
-          supabase,
-          openaiApiKey
-        );
-        respostaFinal = {
-          resposta: resultado.resposta,
-          rota: "rag",
-          citacoes: resultado.citacoes,
-          sqlExecutado: null,
-        };
-        break;
-      }
+        try {
+          let mensagensParaStream: Array<{ role: string; content: string }> | null = null;
+          let citacoes: Citacao[] = [];
+          let sqlExecutado: string | null = null;
+          let respostaEstatica: string | null = null;
+          let temperature = 0.5;
+          let maxTokens = 1500;
 
-      case "hibrido": {
-        const resultado = await executarHibrido(
-          pergunta,
-          contexto,
-          historico,
-          supabase,
-          openaiApiKey
-        );
-        respostaFinal = {
-          resposta: resultado.resposta,
-          rota: "hibrido",
-          citacoes: resultado.citacoes,
-          sqlExecutado: resultado.sqlExecutado,
-        };
-        break;
-      }
-    }
+          switch (classificacao.rota) {
+            case "sql": {
+              const preparado = await prepararSQL(
+                pergunta, contexto, historico, supabase, openaiApiKey
+              );
+              mensagensParaStream = preparado.mensagens;
+              sqlExecutado = preparado.sql;
+              temperature = 0.5;
+              maxTokens = 1000;
+              break;
+            }
 
-    // Pos-processamento: mascarar valores monetarios para roles restritos
-    if (
-      contexto.tipo === "terceiro" ||
-      contexto.tipo === "administrador-terceiro"
-    ) {
-      respostaFinal.resposta = mascararValoresMonetarios(
-        respostaFinal.resposta
-      );
-    }
+            case "rag": {
+              const preparado = await prepararRAG(
+                pergunta, contexto, historico, supabase, openaiApiKey
+              );
+              mensagensParaStream = preparado.mensagens;
+              citacoes = preparado.citacoes;
+              respostaEstatica = preparado.respostaEstatica;
+              temperature = 0.3;
+              maxTokens = 1500;
+              break;
+            }
 
-    console.log(`[chat-gateway] Resposta gerada com sucesso via rota: ${classificacao.rota}`);
+            case "hibrido": {
+              const preparado = await prepararHibrido(
+                pergunta, contexto, historico, supabase, openaiApiKey
+              );
+              mensagensParaStream = preparado.mensagens;
+              citacoes = preparado.citacoes;
+              sqlExecutado = preparado.sqlExecutado;
+              respostaEstatica = preparado.respostaEstatica;
+              temperature = 0.4;
+              maxTokens = 2000;
+              break;
+            }
+          }
 
-    return new Response(JSON.stringify(respostaFinal), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+          // Enviar metadata (rota, sqlExecutado)
+          enviarEvento(controller, encoder, {
+            tipo: "metadata",
+            rota: classificacao.rota,
+            sqlExecutado,
+          });
+
+          if (respostaEstatica) {
+            // Resposta estatica (sem streaming) - enviar como tokens para manter protocolo consistente
+            enviarEvento(controller, encoder, {
+              tipo: "token",
+              conteudo: respostaEstatica,
+            });
+          } else if (mensagensParaStream) {
+            // Stream da resposta final do LLM
+            const textoCompleto = await streamOpenAI(
+              controller,
+              encoder,
+              mensagensParaStream,
+              openaiApiKey,
+              temperature,
+              maxTokens
+            );
+
+            // Mascaramento monetario para roles restritos
+            if (roleRestrito) {
+              const textoMascarado = mascararValoresMonetarios(textoCompleto);
+              if (textoMascarado !== textoCompleto) {
+                // Enviar correcao: o frontend substituira o texto acumulado
+                enviarEvento(controller, encoder, {
+                  tipo: "replace",
+                  conteudo: textoMascarado,
+                });
+              }
+            }
+          }
+
+          // Enviar citacoes se houver
+          if (citacoes.length > 0) {
+            enviarEvento(controller, encoder, {
+              tipo: "citacoes",
+              citacoes,
+            });
+          }
+
+          // Sinalizar fim do stream
+          enviarEvento(controller, encoder, { tipo: "done" });
+
+          console.log(`[chat-gateway] Stream concluido via rota: ${classificacao.rota}`);
+        } catch (erro: any) {
+          console.error("[chat-gateway] ERRO no stream:", erro.message, erro.stack);
+          enviarEvento(controller, encoder, {
+            tipo: "erro",
+            mensagem: erro.message || "Erro ao processar sua pergunta.",
+          });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+      },
     });
   } catch (erro: any) {
-    console.error("[chat-gateway] ERRO:", erro.message, erro.stack);
+    console.error("[chat-gateway] ERRO pre-stream:", erro.message, erro.stack);
     return new Response(
       JSON.stringify({
         erro: "Erro ao processar sua pergunta. Tente novamente.",
@@ -937,17 +1059,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
-function mascararValoresMonetarios(texto: string): string {
-  const padroes = [
-    /R\$\s*[\d.,]+/g,
-    /\b\d{1,3}(?:\.\d{3})*,\d{2}\b(?=\s*(?:reais|real|R\$))/gi,
-  ];
-
-  let resultado = texto;
-  for (const padrao of padroes) {
-    resultado = resultado.replace(padrao, "[valor restrito]");
-  }
-
-  return resultado;
-}

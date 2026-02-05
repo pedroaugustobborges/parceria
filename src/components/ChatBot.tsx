@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Box,
   IconButton,
@@ -29,7 +29,7 @@ import {
 } from "@mui/icons-material";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "../contexts/AuthContext";
-import { chatWithData } from "../services/chatService";
+import { chatWithDataStream } from "../services/chatService";
 import { RotaChat, Citacao } from "../types/database.types";
 
 interface Message {
@@ -46,7 +46,9 @@ const ChatBot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const streamContentRef = useRef("");
   const {
     userProfile,
     isAdminAgirCorporativo,
@@ -54,13 +56,21 @@ const ChatBot: React.FC = () => {
     isAdminTerceiro,
   } = useAuth();
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
+
+  // Auto-scroll durante streaming
+  useEffect(() => {
+    if (streaming) {
+      const interval = setInterval(scrollToBottom, 100);
+      return () => clearInterval(interval);
+    }
+  }, [streaming, scrollToBottom]);
 
   // Perguntas sugeridas baseadas no role
   const perguntasSugeridas = (() => {
@@ -103,7 +113,7 @@ const ChatBot: React.FC = () => {
 
   const handleSend = async (texto?: string) => {
     const pergunta = texto || input.trim();
-    if (!pergunta || loading) return;
+    if (!pergunta || loading || streaming) return;
 
     const userMessage: Message = {
       role: "user",
@@ -111,41 +121,102 @@ const ChatBot: React.FC = () => {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    // Adicionar mensagem do usuario + placeholder do assistente
+    const placeholderMessage: Message = {
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage, placeholderMessage]);
     setInput("");
     setLoading(true);
+    streamContentRef.current = "";
 
-    try {
-      const historico = messages
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({ role: m.role, content: m.content }));
+    const historico = messages
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .map((m) => ({ role: m.role, content: m.content }));
 
-      const response = await chatWithData(
-        pergunta,
-        userProfile?.id || "",
-        historico,
-      );
+    await chatWithDataStream(
+      pergunta,
+      userProfile?.id || "",
+      historico,
+      {
+        onMetadata: (meta) => {
+          setLoading(false);
+          setStreaming(true);
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            updated[updated.length - 1] = {
+              ...last,
+              rota: meta.rota,
+              sqlExecutado: meta.sqlExecutado,
+            };
+            return updated;
+          });
+        },
 
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: response.resposta,
-        timestamp: new Date(),
-        rota: response.rota,
-        citacoes: response.citacoes,
-        sqlExecutado: response.sqlExecutado,
-      };
+        onToken: (token) => {
+          streamContentRef.current += token;
+          const currentContent = streamContentRef.current;
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            updated[updated.length - 1] = {
+              ...last,
+              content: currentContent,
+            };
+            return updated;
+          });
+        },
 
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error: any) {
-      const errorMessage: Message = {
-        role: "assistant",
-        content: `Desculpe, ocorreu um erro: ${error.message}. Tente novamente.`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setLoading(false);
-    }
+        onCitacoes: (citacoes) => {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            updated[updated.length - 1] = {
+              ...last,
+              citacoes,
+            };
+            return updated;
+          });
+        },
+
+        onReplace: (conteudo) => {
+          streamContentRef.current = conteudo;
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            updated[updated.length - 1] = {
+              ...last,
+              content: conteudo,
+            };
+            return updated;
+          });
+        },
+
+        onDone: () => {
+          setStreaming(false);
+          streamContentRef.current = "";
+        },
+
+        onError: (error) => {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            updated[updated.length - 1] = {
+              ...last,
+              content: `Desculpe, ocorreu um erro: ${error.message}. Tente novamente.`,
+            };
+            return updated;
+          });
+          setLoading(false);
+          setStreaming(false);
+          streamContentRef.current = "";
+        },
+      }
+    );
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -203,6 +274,8 @@ const ChatBot: React.FC = () => {
         return "default";
     }
   };
+
+  const isDisabled = loading || streaming;
 
   return (
     <>
@@ -321,126 +394,142 @@ const ChatBot: React.FC = () => {
               gap: 2,
             }}
           >
-            {messages.map((msg, index) => (
-              <Box key={index}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    gap: 1,
-                    alignItems: "flex-start",
-                    flexDirection: msg.role === "user" ? "row-reverse" : "row",
-                  }}
-                >
-                  <Avatar
+            {messages.map((msg, index) => {
+              // Esconder placeholder vazio durante loading (antes do primeiro token)
+              if (
+                msg.role === "assistant" &&
+                msg.content === "" &&
+                !msg.rota &&
+                index === messages.length - 1 &&
+                loading
+              ) {
+                return null;
+              }
+
+              return (
+                <Box key={index}>
+                  <Box
                     sx={{
-                      bgcolor:
-                        msg.role === "user" ? "primary.main" : "transparent",
-                      background:
-                        msg.role === "assistant"
-                          ? "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)"
-                          : undefined,
-                      width: 32,
-                      height: 32,
+                      display: "flex",
+                      gap: 1,
+                      alignItems: "flex-start",
+                      flexDirection:
+                        msg.role === "user" ? "row-reverse" : "row",
                     }}
                   >
-                    {msg.role === "user" ? (
-                      <Person fontSize="small" />
-                    ) : (
-                      <SmartToy fontSize="small" />
-                    )}
-                  </Avatar>
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 1.5,
-                      maxWidth: "80%",
-                      borderRadius: "12px",
-                      bgcolor: msg.role === "user" ? "#0ea5e9" : "white",
-                      color: msg.role === "user" ? "white" : "text.primary",
-                      border:
-                        msg.role === "assistant" ? "1px solid #e5e7eb" : "none",
-                    }}
-                  >
-                    {/* Chip de rota */}
-                    {msg.rota && (
-                      <Chip
-                        icon={rotaIcon(msg.rota)}
-                        label={rotaLabel(msg.rota)}
-                        size="small"
-                        color={rotaColor(msg.rota)}
-                        variant="outlined"
-                        sx={{
-                          mb: 1,
-                          height: 22,
-                          fontSize: "0.65rem",
-                        }}
-                      />
-                    )}
-
-                    {/* Conteudo com Markdown */}
-                    {msg.role === "assistant" ? (
-                      <Box
-                        sx={{
-                          "& p": { m: 0, mb: 1 },
-                          "& p:last-child": { mb: 0 },
-                          "& ul, & ol": { pl: 2, m: 0, mb: 1 },
-                          "& li": { mb: 0.5 },
-                          "& h1, & h2, & h3": { mt: 1, mb: 0.5 },
-                          "& code": {
-                            bgcolor: "grey.100",
-                            px: 0.5,
-                            borderRadius: 0.5,
-                            fontSize: "0.8rem",
-                          },
-                          "& pre": {
-                            bgcolor: "grey.100",
-                            p: 1,
-                            borderRadius: 1,
-                            overflow: "auto",
-                          },
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </Box>
-                    ) : (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {msg.content}
-                      </Typography>
-                    )}
-
-                    {/* Citacoes colapsaveis */}
-                    {msg.citacoes && msg.citacoes.length > 0 && (
-                      <CitacoesColapsavel citacoes={msg.citacoes} />
-                    )}
-
-                    <Typography
-                      variant="caption"
+                    <Avatar
                       sx={{
-                        opacity: 0.7,
-                        mt: 0.5,
-                        display: "block",
-                        fontSize: "0.65rem",
+                        bgcolor:
+                          msg.role === "user" ? "primary.main" : "transparent",
+                        background:
+                          msg.role === "assistant"
+                            ? "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)"
+                            : undefined,
+                        width: 32,
+                        height: 32,
                       }}
                     >
-                      {msg.timestamp.toLocaleTimeString("pt-BR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </Typography>
-                  </Paper>
+                      {msg.role === "user" ? (
+                        <Person fontSize="small" />
+                      ) : (
+                        <SmartToy fontSize="small" />
+                      )}
+                    </Avatar>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 1.5,
+                        maxWidth: "80%",
+                        borderRadius: "12px",
+                        bgcolor: msg.role === "user" ? "#0ea5e9" : "white",
+                        color: msg.role === "user" ? "white" : "text.primary",
+                        border:
+                          msg.role === "assistant"
+                            ? "1px solid #e5e7eb"
+                            : "none",
+                      }}
+                    >
+                      {/* Chip de rota */}
+                      {msg.rota && (
+                        <Chip
+                          icon={rotaIcon(msg.rota)}
+                          label={rotaLabel(msg.rota)}
+                          size="small"
+                          color={rotaColor(msg.rota)}
+                          variant="outlined"
+                          sx={{
+                            mb: 1,
+                            height: 22,
+                            fontSize: "0.65rem",
+                          }}
+                        />
+                      )}
+
+                      {/* Conteudo com Markdown */}
+                      {msg.role === "assistant" ? (
+                        <Box
+                          sx={{
+                            "& p": { m: 0, mb: 1 },
+                            "& p:last-child": { mb: 0 },
+                            "& ul, & ol": { pl: 2, m: 0, mb: 1 },
+                            "& li": { mb: 0.5 },
+                            "& h1, & h2, & h3": { mt: 1, mb: 0.5 },
+                            "& code": {
+                              bgcolor: "grey.100",
+                              px: 0.5,
+                              borderRadius: 0.5,
+                              fontSize: "0.8rem",
+                            },
+                            "& pre": {
+                              bgcolor: "grey.100",
+                              p: 1,
+                              borderRadius: 1,
+                              overflow: "auto",
+                            },
+                            fontSize: "0.875rem",
+                          }}
+                        >
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </Box>
+                      ) : (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {msg.content}
+                        </Typography>
+                      )}
+
+                      {/* Citacoes colapsaveis */}
+                      {msg.citacoes && msg.citacoes.length > 0 && (
+                        <CitacoesColapsavel citacoes={msg.citacoes} />
+                      )}
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          opacity: 0.7,
+                          mt: 0.5,
+                          display: "block",
+                          fontSize: "0.65rem",
+                        }}
+                      >
+                        {msg.timestamp.toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </Typography>
+                    </Paper>
+                  </Box>
                 </Box>
-              </Box>
-            ))}
+              );
+            })}
 
             {/* Perguntas sugeridas (quando so tem boas-vindas) */}
-            {messages.length === 1 && !loading && (
+            {messages.length === 1 && !loading && !streaming && (
               <Box display="flex" gap={0.5} flexWrap="wrap">
                 {perguntasSugeridas.map((p, i) => (
                   <Chip
@@ -510,7 +599,7 @@ const ChatBot: React.FC = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                disabled={loading}
+                disabled={isDisabled}
                 variant="outlined"
                 size="small"
                 sx={{
@@ -525,7 +614,7 @@ const ChatBot: React.FC = () => {
                   <IconButton
                     color="primary"
                     onClick={() => handleSend()}
-                    disabled={!input.trim() || loading}
+                    disabled={!input.trim() || isDisabled}
                     sx={{
                       background:
                         "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
