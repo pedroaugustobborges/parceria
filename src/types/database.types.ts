@@ -365,6 +365,22 @@ export interface DocumentoContrato {
   updated_at: string;
 }
 
+export interface DocumentoGestao {
+  id: string;
+  unidade_hospitalar_id: string;
+  nome_arquivo: string;
+  caminho_storage: string;
+  tamanho_bytes: number | null;
+  mime_type: string;
+  enviado_por: string | null;
+  status: 'pendente' | 'processando' | 'pronto' | 'erro';
+  mensagem_erro: string | null;
+  versao: number;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Citacao {
   documento: string;
   secao: string;

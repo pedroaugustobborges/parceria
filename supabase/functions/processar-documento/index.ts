@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { documento_id } = await req.json();
+    const { documento_id, tabela = "documentos_contrato" } = await req.json();
 
     if (!documento_id) {
       return new Response(
@@ -76,12 +76,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[processar-documento] Iniciando processamento do documento: ${documento_id}`);
+    // Validar tabela
+    const tabelasValidas = ["documentos_contrato", "documentos_gestao"];
+    if (!tabelasValidas.includes(tabela)) {
+      return new Response(
+        JSON.stringify({ erro: "Tabela invalida. Use documentos_contrato ou documentos_gestao" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    // Buscar documento
+    // Determinar configuracoes baseado no tipo de documento
+    const isGestao = tabela === "documentos_gestao";
+    const tabelaDocumentos = isGestao ? "documentos_gestao" : "documentos_contrato";
+    const tabelaChunks = isGestao ? "documento_gestao_chunks" : "documento_chunks";
+    const bucketStorage = isGestao ? "documentos-gestao" : "documentos-contratos";
+
+    console.log(`[processar-documento] Iniciando processamento do documento: ${documento_id} (tabela: ${tabelaDocumentos})`);
+
+    // Buscar documento da tabela correta
     const { data: documento, error: erroDoc } = await supabaseAdmin
-      .from("documentos_contrato")
-      .select("*, contratos(unidade_hospitalar_id)")
+      .from(tabelaDocumentos)
+      .select(isGestao ? "*" : "*, contratos(unidade_hospitalar_id)")
       .eq("id", documento_id)
       .single();
 
@@ -94,15 +109,15 @@ Deno.serve(async (req) => {
 
     // Atualizar status para 'processando'
     await supabaseAdmin
-      .from("documentos_contrato")
+      .from(tabelaDocumentos)
       .update({ status: "processando" })
       .eq("id", documento_id);
 
     try {
-      // 1. Baixar PDF do Storage
-      console.log(`[processar-documento] Baixando PDF do storage: ${documento.caminho_storage}`);
+      // 1. Baixar PDF do Storage (bucket depende do tipo de documento)
+      console.log(`[processar-documento] Baixando PDF do storage: ${bucketStorage}/${documento.caminho_storage}`);
       const { data: arquivoPDF, error: erroDownload } = await supabaseAdmin.storage
-        .from("documentos-contratos")
+        .from(bucketStorage)
         .download(documento.caminho_storage);
 
       if (erroDownload || !arquivoPDF) {
@@ -127,7 +142,10 @@ Deno.serve(async (req) => {
       console.log(`[processar-documento] Dividido em ${chunks.length} chunks`);
 
       // 4. Gerar embeddings e inserir chunks
-      const unidadeId = documento.contratos?.unidade_hospitalar_id || null;
+      // Para gestao, unidade_id vem direto do documento; para contrato, vem do join
+      const unidadeId = isGestao
+        ? documento.unidade_hospitalar_id
+        : documento.contratos?.unidade_hospitalar_id || null;
 
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
@@ -142,23 +160,30 @@ Deno.serve(async (req) => {
         // Inserir chunk com embedding - converter array para formato pgvector
         const embeddingString = `[${embedding.join(",")}]`;
 
+        // Montar dados do chunk (estrutura diferente para gestao vs contrato)
+        const chunkData: Record<string, any> = {
+          documento_id: documento_id,
+          unidade_hospitalar_id: unidadeId,
+          indice_chunk: i,
+          conteudo: chunk.conteudo,
+          titulo_secao: chunk.tituloSecao,
+          numero_pagina: chunk.numeroPagina,
+          contagem_tokens: chunk.contagemTokens,
+          embedding: embeddingString,
+          metadata: {
+            posicao_inicio: chunk.posicaoInicio,
+            posicao_fim: chunk.posicaoFim,
+          },
+        };
+
+        // Adicionar contrato_id apenas para documentos de contrato
+        if (!isGestao) {
+          chunkData.contrato_id = documento.contrato_id;
+        }
+
         const { error: erroInsert } = await supabaseAdmin
-          .from("documento_chunks")
-          .insert({
-            documento_id: documento_id,
-            contrato_id: documento.contrato_id,
-            unidade_hospitalar_id: unidadeId,
-            indice_chunk: i,
-            conteudo: chunk.conteudo,
-            titulo_secao: chunk.tituloSecao,
-            numero_pagina: chunk.numeroPagina,
-            contagem_tokens: chunk.contagemTokens,
-            embedding: embeddingString,
-            metadata: {
-              posicao_inicio: chunk.posicaoInicio,
-              posicao_fim: chunk.posicaoFim,
-            },
-          });
+          .from(tabelaChunks)
+          .insert(chunkData);
 
         if (erroInsert) {
           console.error(`[processar-documento] Erro ao inserir chunk ${i}:`, erroInsert);
@@ -170,7 +195,7 @@ Deno.serve(async (req) => {
 
       // 5. Atualizar status para 'pronto'
       await supabaseAdmin
-        .from("documentos_contrato")
+        .from(tabelaDocumentos)
         .update({ status: "pronto" })
         .eq("id", documento_id);
 
@@ -182,9 +207,9 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } catch (erroProcessamento: any) {
-      // Atualizar status para 'erro'
+      // Atualizar status para 'erro' na tabela correta
       await supabaseAdmin
-        .from("documentos_contrato")
+        .from(tabelaDocumentos)
         .update({
           status: "erro",
           mensagem_erro: erroProcessamento.message,

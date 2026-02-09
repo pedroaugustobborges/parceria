@@ -251,6 +251,36 @@ function obterFiltroContratosRAG(contexto: ContextoUsuario): string[] | null {
   }
 }
 
+// Retorna filtros para busca RAG multi-tabela (contratos + gestao)
+interface FiltrosRAG {
+  filtroContratoIds: string[] | null;
+  filtroUnidadeId: string | null;
+  incluirGestao: boolean;
+}
+
+function obterFiltrosRAG(contexto: ContextoUsuario): FiltrosRAG {
+  switch (contexto.tipo) {
+    case "administrador-agir-corporativo":
+      // Corporativo: busca em tudo (contratos e gestao de todas unidades)
+      return { filtroContratoIds: null, filtroUnidadeId: null, incluirGestao: true };
+
+    case "administrador-agir-planta":
+      // Planta: contratos da unidade + gestao apenas da propria unidade
+      return { filtroContratoIds: null, filtroUnidadeId: contexto.unidadeHospitalarId, incluirGestao: true };
+
+    case "administrador-terceiro":
+      // Admin-terceiro: apenas contratos que gerencia, SEM gestao
+      return { filtroContratoIds: contexto.contratoIds, filtroUnidadeId: null, incluirGestao: false };
+
+    case "terceiro":
+      // Terceiro: bloqueado de tudo
+      return { filtroContratoIds: [], filtroUnidadeId: null, incluirGestao: false };
+
+    default:
+      return { filtroContratoIds: [], filtroUnidadeId: null, incluirGestao: false };
+  }
+}
+
 // ============================================================
 // CLASSIFICADOR DE INTENCAO
 // ============================================================
@@ -674,9 +704,10 @@ async function prepararRAG(
   console.log(`[RAG] Gerando embedding para pergunta: "${pergunta.substring(0, 50)}..."`);
   const embeddingConsulta = await gerarEmbedding(pergunta, apiKey);
 
-  const filtroContratos = obterFiltroContratosRAG(contexto);
+  // Usar nova funcao de filtros que inclui documentos de gestao
+  const filtros = obterFiltrosRAG(contexto);
 
-  if (filtroContratos && filtroContratos.length === 0) {
+  if (filtros.filtroContratoIds && filtros.filtroContratoIds.length === 0 && !filtros.incluirGestao) {
     return {
       mensagens: null,
       citacoes: [],
@@ -686,13 +717,16 @@ async function prepararRAG(
 
   const embeddingString = `[${embeddingConsulta.join(",")}]`;
 
+  // Usar nova funcao que busca em ambas tabelas (contratos + gestao)
   const { data: chunks, error: erroChunks } = await supabase.rpc(
-    "buscar_chunks_similares",
+    "buscar_chunks_similares_v2",
     {
       embedding_consulta: embeddingString,
       limite_similaridade: 0.5,
       limite_resultados: 5,
-      filtro_contrato_ids: filtroContratos,
+      filtro_contrato_ids: filtros.filtroContratoIds,
+      filtro_unidade_id: filtros.filtroUnidadeId,
+      incluir_gestao: filtros.incluirGestao,
     }
   );
 
@@ -710,16 +744,18 @@ async function prepararRAG(
     };
   }
 
+  // Incluir tipo_documento no contexto para diferenciar contratos de gestao
   const contextoDocs = chunks
     .map(
       (c: any, i: number) =>
-        `[Fonte ${i + 1}] Documento: "${c.nome_arquivo}"${c.titulo_secao ? `, Secao: ${c.titulo_secao}` : ""}${c.numero_pagina ? `, Pagina: ${c.numero_pagina}` : ""}\n${c.conteudo}`
+        `[Fonte ${i + 1}] ${c.tipo_documento === 'gestao' ? '[Contrato de Gestao] ' : ''}Documento: "${c.nome_arquivo}"${c.titulo_secao ? `, Secao: ${c.titulo_secao}` : ""}${c.numero_pagina ? `, Pagina: ${c.numero_pagina}` : ""}\n${c.conteudo}`
     )
     .join("\n\n---\n\n");
 
   const prompt = `Voce e o assistente ParcerIA, especializado em gestao de contratos hospitalares.
 
 Responda a pergunta do usuario usando APENAS as informacoes dos documentos fornecidos abaixo.
+NOTA: Documentos marcados como [Contrato de Gestao] sao contratos entre o governo e a organizacao que definem metas e objetivos estrategicos.
 
 ## Documentos Relevantes
 ${contextoDocs}
