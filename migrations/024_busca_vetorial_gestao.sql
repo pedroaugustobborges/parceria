@@ -26,6 +26,7 @@ RETURNS TABLE (
 LANGUAGE sql STABLE SECURITY INVOKER
 AS $$
   -- Buscar em documento_chunks (contratos)
+  -- Filtra por contrato_ids OU por unidade_id quando especificado
   SELECT
     dc.id,
     dc.conteudo,
@@ -41,6 +42,7 @@ AS $$
   WHERE
     doc.status = 'pronto'
     AND (filtro_contrato_ids IS NULL OR dc.contrato_id = ANY(filtro_contrato_ids))
+    AND (filtro_unidade_id IS NULL OR dc.unidade_hospitalar_id = filtro_unidade_id)
     AND 1 - (dc.embedding <=> embedding_consulta) >= limite_similaridade
 
   UNION ALL

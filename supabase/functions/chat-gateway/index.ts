@@ -281,6 +281,44 @@ function obterFiltrosRAG(contexto: ContextoUsuario): FiltrosRAG {
   }
 }
 
+// Detecta mencoes a hospitais/unidades na pergunta e retorna o ID
+async function detectarUnidadeMencionada(
+  pergunta: string,
+  supabase: SupabaseClient
+): Promise<string | null> {
+  const perguntaLower = pergunta.toLowerCase();
+
+  // Mapeamento de siglas/nomes comuns para codigos
+  const padroes: { regex: RegExp; codigo: string }[] = [
+    { regex: /\bhugol\b/i, codigo: "HUGOL" },
+    { regex: /\bhecad\b/i, codigo: "HECAD" },
+    { regex: /\bcrer\b/i, codigo: "CRER" },
+    { regex: /hospital\s+(estadual\s+)?(de\s+)?urg[eê]ncias?\b/i, codigo: "HUGOL" },
+    { regex: /hospital\s+(estadual\s+)?(da\s+)?crian[cç]a/i, codigo: "HECAD" },
+    { regex: /centro\s+(de\s+)?reabilita[cç][aã]o/i, codigo: "CRER" },
+    { regex: /henrique\s+santillo/i, codigo: "CRER" },
+    { regex: /ot[aá]vio\s+lage/i, codigo: "HUGOL" },
+  ];
+
+  for (const padrao of padroes) {
+    if (padrao.regex.test(pergunta)) {
+      // Buscar ID da unidade pelo codigo
+      const { data: unidade, error } = await supabase
+        .from("unidades_hospitalares")
+        .select("id")
+        .eq("codigo", padrao.codigo)
+        .single();
+
+      if (!error && unidade) {
+        console.log(`[RAG] Unidade detectada na pergunta: ${padrao.codigo} -> ${unidade.id}`);
+        return unidade.id;
+      }
+    }
+  }
+
+  return null;
+}
+
 // ============================================================
 // CLASSIFICADOR DE INTENCAO
 // ============================================================
@@ -707,6 +745,17 @@ async function prepararRAG(
   // Usar nova funcao de filtros que inclui documentos de gestao
   const filtros = obterFiltrosRAG(contexto);
 
+  // Detectar se o usuario mencionou uma unidade especifica na pergunta
+  // Isso permite que corporativo filtre por unidade quando menciona explicitamente
+  const unidadeMencionada = await detectarUnidadeMencionada(pergunta, supabase);
+
+  // Se usuario mencionou uma unidade, usar como filtro (sobrescreve filtro de contexto para gestao)
+  let filtroUnidadeFinal = filtros.filtroUnidadeId;
+  if (unidadeMencionada) {
+    filtroUnidadeFinal = unidadeMencionada;
+    console.log(`[RAG] Filtrando por unidade mencionada: ${unidadeMencionada}`);
+  }
+
   if (filtros.filtroContratoIds && filtros.filtroContratoIds.length === 0 && !filtros.incluirGestao) {
     return {
       mensagens: null,
@@ -725,7 +774,7 @@ async function prepararRAG(
       limite_similaridade: 0.5,
       limite_resultados: 5,
       filtro_contrato_ids: filtros.filtroContratoIds,
-      filtro_unidade_id: filtros.filtroUnidadeId,
+      filtro_unidade_id: filtroUnidadeFinal,
       incluir_gestao: filtros.incluirGestao,
     }
   );

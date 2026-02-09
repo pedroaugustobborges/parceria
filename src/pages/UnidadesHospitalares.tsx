@@ -757,13 +757,16 @@ const UnidadesHospitalares: React.FC = () => {
                                                 color="error"
                                               />
                                               <Box>
-                                                <Typography
-                                                  variant="body2"
-                                                  fontWeight={doc.ativo ? 600 : 400}
+                                                <Box
+                                                  component="span"
                                                   sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
                                                     color: doc.ativo
                                                       ? "text.primary"
                                                       : "text.secondary",
+                                                    fontWeight: doc.ativo ? 600 : 400,
+                                                    fontSize: '0.875rem',
                                                   }}
                                                 >
                                                   {doc.nome_arquivo}
@@ -775,7 +778,7 @@ const UnidadesHospitalares: React.FC = () => {
                                                       sx={{ ml: 1, height: 18, fontSize: '0.65rem' }}
                                                     />
                                                   )}
-                                                </Typography>
+                                                </Box>
                                                 {doc.tamanho_bytes && (
                                                   <Typography
                                                     variant="caption"

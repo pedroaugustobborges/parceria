@@ -12,6 +12,20 @@ const TAMANHO_CHUNK_TOKENS = 800;
 const OVERLAP_TOKENS = 200;
 const CHARS_POR_TOKEN = 4; // Aproximacao
 
+// Sanitiza texto removendo caracteres problematicos para PostgreSQL
+function sanitizarTexto(texto: string): string {
+  return texto
+    // Remover caracteres nulos (causa erro no PostgreSQL)
+    .replace(/\u0000/g, "")
+    // Remover outros caracteres de controle problematicos (exceto newline, tab, carriage return)
+    .replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    // Remover caracteres Unicode de substituicao
+    .replace(/\uFFFD/g, "")
+    // Normalizar espacos multiplos
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -161,12 +175,16 @@ Deno.serve(async (req) => {
         const embeddingString = `[${embedding.join(",")}]`;
 
         // Montar dados do chunk (estrutura diferente para gestao vs contrato)
+        // Sanitizar conteudo novamente para garantir que nao ha caracteres problematicos
+        const conteudoSanitizado = sanitizarTexto(chunk.conteudo);
+        const tituloSanitizado = chunk.tituloSecao ? sanitizarTexto(chunk.tituloSecao) : null;
+
         const chunkData: Record<string, any> = {
           documento_id: documento_id,
           unidade_hospitalar_id: unidadeId,
           indice_chunk: i,
-          conteudo: chunk.conteudo,
-          titulo_secao: chunk.tituloSecao,
+          conteudo: conteudoSanitizado,
+          titulo_secao: tituloSanitizado,
           numero_pagina: chunk.numeroPagina,
           contagem_tokens: chunk.contagemTokens,
           embedding: embeddingString,
@@ -261,7 +279,8 @@ async function extrairTextoUnpdf(arrayBuffer: ArrayBuffer): Promise<string> {
   const pdf = await getDocumentProxy(uint8Array);
   const { text } = await extractText(pdf, { mergePages: true });
 
-  return text.replace(/\s+/g, " ").trim();
+  // Sanitizar texto para remover caracteres problematicos
+  return sanitizarTexto(text);
 }
 
 // Parsing manual como fallback
@@ -335,9 +354,11 @@ function extrairTextoManual(arrayBuffer: ArrayBuffer): string {
     }
   }
 
-  const resultado = textos.join(" ").replace(/\s+/g, " ").trim();
-  console.log(`[processar-documento] Parsing manual extraiu ${resultado.length} caracteres`);
-  return resultado;
+  const resultado = textos.join(" ");
+  // Sanitizar texto para remover caracteres problematicos
+  const resultadoSanitizado = sanitizarTexto(resultado);
+  console.log(`[processar-documento] Parsing manual extraiu ${resultadoSanitizado.length} caracteres`);
+  return resultadoSanitizado;
 }
 
 interface ChunkInfo {
@@ -386,6 +407,9 @@ function dividirEmChunks(texto: string): ChunkInfo[] {
 }
 
 async function gerarEmbedding(texto: string, apiKey: string): Promise<number[]> {
+  // Sanitizar texto antes de enviar para API
+  const textoLimpo = sanitizarTexto(texto).slice(0, 8000);
+
   const resposta = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: {
@@ -394,7 +418,7 @@ async function gerarEmbedding(texto: string, apiKey: string): Promise<number[]> 
     },
     body: JSON.stringify({
       model: "text-embedding-3-small",
-      input: texto.slice(0, 8000),
+      input: textoLimpo,
     }),
   });
 
