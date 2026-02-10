@@ -42,11 +42,37 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             main: '#0ea5e9',
             light: '#38bdf8',
             dark: '#0284c7',
+            contrastText: '#ffffff',
           },
           secondary: {
             main: '#8b5cf6',
             light: '#a78bfa',
             dark: '#7c3aed',
+            contrastText: '#ffffff',
+          },
+          success: {
+            main: '#22c55e',
+            light: '#4ade80',
+            dark: '#16a34a',
+            contrastText: '#ffffff',
+          },
+          error: {
+            main: '#ef4444',
+            light: '#f87171',
+            dark: '#dc2626',
+            contrastText: '#ffffff',
+          },
+          warning: {
+            main: '#f59e0b',
+            light: '#fbbf24',
+            dark: '#d97706',
+            contrastText: '#ffffff',
+          },
+          info: {
+            main: '#3b82f6',
+            light: '#60a5fa',
+            dark: '#2563eb',
+            contrastText: '#ffffff',
           },
           background: {
             default: mode === 'light' ? '#f8fafc' : '#0f172a',
@@ -105,6 +131,21 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             styleOverrides: {
               root: {
                 fontWeight: 600,
+              },
+            },
+          },
+          MuiStepIcon: {
+            styleOverrides: {
+              root: {
+                '&.Mui-active': {
+                  color: '#0ea5e9',
+                },
+                '&.Mui-completed': {
+                  color: '#0ea5e9',
+                },
+              },
+              text: {
+                fill: '#ffffff',
               },
             },
           },
