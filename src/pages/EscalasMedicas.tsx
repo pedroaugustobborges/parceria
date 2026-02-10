@@ -3982,6 +3982,9 @@ const EscalasMedicas: React.FC = () => {
                         height: "40px",
                         fontSize: "16px",
                         padding: "8px",
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
+                        border: "none",
                       }}
                       containerStyle={{
                         width: "100%",
