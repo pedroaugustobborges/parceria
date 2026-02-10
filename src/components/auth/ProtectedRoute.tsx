@@ -11,6 +11,7 @@ interface ProtectedRouteProps {
   requireAdminAgirAny?: boolean; // corporativo OR planta
   allowEscalasAccess?: boolean;
   allowAllAuthenticated?: boolean;
+  allowContratosAccess?: boolean; // Allows admins and administrador-terceiro (read-only for partners)
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
@@ -21,6 +22,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAdminAgirAny = false,
   allowEscalasAccess = false,
   allowAllAuthenticated = false,
+  allowContratosAccess = false,
 }) => {
   const { user, userProfile, loading, isAdmin, isAdminAgir, isAdminAgirCorporativo, isAdminTerceiro, isTerceiro } = useAuth();
 
@@ -65,8 +67,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Block administrador-terceiro from accessing pages except Escalas and allowed pages
-  if (isAdminTerceiro && !allowEscalasAccess && !allowAllAuthenticated) {
+  // For Contratos: allow admins and administrador-terceiro (read-only)
+  if (allowContratosAccess && !isAdminAgir && !isAdminTerceiro) {
+    return <Navigate to="/escalas" replace />;
+  }
+
+  // Block administrador-terceiro from accessing pages except Escalas, Contratos, and allowed pages
+  if (isAdminTerceiro && !allowEscalasAccess && !allowContratosAccess && !allowAllAuthenticated) {
     return <Navigate to="/escalas" replace />;
   }
 

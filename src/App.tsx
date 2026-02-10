@@ -56,7 +56,7 @@ const App: React.FC = () => {
             <Route
               path="/contratos"
               element={
-                <ProtectedRoute requireAdminAgir>
+                <ProtectedRoute allowContratosAccess>
                   <Layout>
                     <Contratos />
                   </Layout>

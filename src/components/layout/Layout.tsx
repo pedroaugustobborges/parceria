@@ -140,7 +140,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       text: "Contratos",
       icon: <Description />,
       path: "/contratos",
-      adminOnly: true,
+      adminOnly: false,
+      allowContratosAccess: true, // Visible for admins and administrador-terceiro
     },
     { text: "Usuários", icon: <People />, path: "/usuarios", adminOnly: true },
   ];
@@ -191,8 +192,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <List sx={{ flex: 1, p: 2 }}>
         {menuItems.map((item) => {
-          // For administrador-terceiro: show only Escalas Medicas
-          if (isAdminTerceiro && item.path !== "/escalas") return null;
+          // For administrador-terceiro: show Escalas Medicas and Contratos (read-only)
+          if (isAdminTerceiro && item.path !== "/escalas" && item.path !== "/contratos") return null;
 
           // For terceiro: show only Escalas Medicas
           if (isTerceiro && item.path !== "/escalas") return null;
@@ -205,6 +206,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           // Custom visibility for Escalas Médicas - show for admin, admin-terceiro, and terceiro
           if ((item as any).customVisibility && item.path === "/escalas") {
             if (!isAdminAgir && !isAdminTerceiro && !isTerceiro) return null;
+          }
+
+          // Custom visibility for Contratos - show for admin and administrador-terceiro
+          if ((item as any).allowContratosAccess) {
+            if (!isAdminAgir && !isAdminTerceiro) return null;
           }
 
           const isActive = location.pathname === item.path;

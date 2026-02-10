@@ -38,6 +38,7 @@ import {
   CloudUpload,
   Download,
   PictureAsPdf,
+  Visibility,
 } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -64,8 +65,11 @@ interface ItemSelecionado {
 }
 
 const Contratos: React.FC = () => {
-  const { isAdminAgirCorporativo, isAdminAgirPlanta, unidadeHospitalarId, userProfile } =
+  const { isAdminAgirCorporativo, isAdminAgirPlanta, isAdminTerceiro, unidadeHospitalarId, userProfile, userContratoIds } =
     useAuth();
+
+  // Partners (administrador-terceiro) have read-only access
+  const isReadOnly = isAdminTerceiro;
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -115,15 +119,27 @@ const Contratos: React.FC = () => {
     loadItens();
     loadParceiros();
     loadUnidades();
-  }, []);
+  }, [isAdminTerceiro, userContratoIds]);
 
   const loadContratos = async () => {
     try {
       setLoading(true);
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from("contratos")
         .select("*")
         .order("created_at", { ascending: false });
+
+      // Partners can only see their own contracts
+      if (isAdminTerceiro && userContratoIds.length > 0) {
+        query = query.in("id", userContratoIds);
+      } else if (isAdminTerceiro && userContratoIds.length === 0) {
+        // Partner has no contracts linked, show empty list
+        setContratos([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
       setContratos(data || []);
@@ -659,8 +675,8 @@ const Contratos: React.FC = () => {
           label={params.value ? "Ativo" : "Inativo"}
           color={params.value ? "success" : "default"}
           size="small"
-          onClick={() => handleToggleAtivo(params.row)}
-          sx={{ cursor: "pointer" }}
+          onClick={isReadOnly ? undefined : () => handleToggleAtivo(params.row)}
+          sx={{ cursor: isReadOnly ? "default" : "pointer" }}
         />
       ),
     },
@@ -677,20 +693,33 @@ const Contratos: React.FC = () => {
       sortable: false,
       renderCell: (params) => (
         <Box>
-          <IconButton
-            size="small"
-            color="primary"
-            onClick={() => handleOpenDialog(params.row)}
-          >
-            <Edit fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            color="error"
-            onClick={() => handleOpenDeleteDialog(params.row)}
-          >
-            <Delete fontSize="small" />
-          </IconButton>
+          {isReadOnly ? (
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={() => handleOpenDialog(params.row)}
+              title="Visualizar"
+            >
+              <Visibility fontSize="small" />
+            </IconButton>
+          ) : (
+            <>
+              <IconButton
+                size="small"
+                color="primary"
+                onClick={() => handleOpenDialog(params.row)}
+              >
+                <Edit fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                color="error"
+                onClick={() => handleOpenDeleteDialog(params.row)}
+              >
+                <Delete fontSize="small" />
+              </IconButton>
+            </>
+          )}
         </Box>
       ),
     },
@@ -709,27 +738,31 @@ const Contratos: React.FC = () => {
         >
           <Box>
             <Typography variant="h4" fontWeight={700} gutterBottom>
-              Gestão de Contratos
+              {isReadOnly ? "Meus Contratos" : "Gestão de Contratos"}
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Cadastre e gerencie os contratos com empresas terceiras
+              {isReadOnly
+                ? "Visualize os detalhes dos contratos vinculados à sua empresa"
+                : "Cadastre e gerencie os contratos com empresas terceiras"}
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpenDialog()}
-            sx={{
-              height: 42,
-              background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
-              color: "white",
-              "&:hover": {
-                background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
-              },
-            }}
-          >
-            Novo Contrato
-          </Button>
+          {!isReadOnly && (
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => handleOpenDialog()}
+              sx={{
+                height: 42,
+                background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+                color: "white",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
+                },
+              }}
+            >
+              Novo Contrato
+            </Button>
+          )}
         </Box>
 
         {error && (
@@ -781,7 +814,7 @@ const Contratos: React.FC = () => {
           <DialogTitle>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Description color="primary" />
-              {editingContrato ? "Editar Contrato" : "Novo Contrato"}
+              {isReadOnly ? "Visualizar Contrato" : (editingContrato ? "Editar Contrato" : "Novo Contrato")}
             </Box>
           </DialogTitle>
           <DialogContent>
@@ -796,7 +829,8 @@ const Contratos: React.FC = () => {
                 }
                 fullWidth
                 required
-                helperText="Ex: Contrato de Manutenção 2024"
+                disabled={isReadOnly}
+                helperText={isReadOnly ? "" : "Ex: Contrato de Manutenção 2024"}
               />
 
               <TextField
@@ -806,7 +840,8 @@ const Contratos: React.FC = () => {
                   setFormData({ ...formData, numero_contrato: e.target.value })
                 }
                 fullWidth
-                helperText="Ex: 001/2024, CT-2024-001, etc."
+                disabled={isReadOnly}
+                helperText={isReadOnly ? "" : "Ex: 001/2024, CT-2024-001, etc."}
               />
 
               <Autocomplete
@@ -818,12 +853,13 @@ const Contratos: React.FC = () => {
                 }
                 options={parceiros}
                 getOptionLabel={(option) => option.nome}
+                disabled={isReadOnly}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Empresa Contratada"
                     required
-                    helperText="Selecione a empresa parceira"
+                    helperText={isReadOnly ? "" : "Selecione a empresa parceira"}
                   />
                 )}
                 fullWidth
@@ -843,14 +879,16 @@ const Contratos: React.FC = () => {
                 }
                 options={unidades}
                 getOptionLabel={(option) => `${option.codigo} - ${option.nome}`}
-                disabled={isAdminAgirPlanta}
+                disabled={isAdminAgirPlanta || isReadOnly}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Unidade Hospitalar"
                     required
                     helperText={
-                      isAdminAgirPlanta
+                      isReadOnly
+                        ? ""
+                        : isAdminAgirPlanta
                         ? "Automaticamente vinculado à sua unidade"
                         : "Selecione a unidade hospitalar"
                     }
@@ -865,6 +903,7 @@ const Contratos: React.FC = () => {
                 onChange={(newValue) =>
                   setFormData({ ...formData, data_inicio: newValue })
                 }
+                disabled={isReadOnly}
                 slotProps={{ textField: { fullWidth: true, required: true } }}
               />
 
@@ -874,6 +913,7 @@ const Contratos: React.FC = () => {
                 onChange={(newValue) =>
                   setFormData({ ...formData, data_fim: newValue })
                 }
+                disabled={isReadOnly}
                 slotProps={{ textField: { fullWidth: true } }}
               />
 
@@ -885,6 +925,7 @@ const Contratos: React.FC = () => {
                       setFormData({ ...formData, ativo: e.target.checked })
                     }
                     color="primary"
+                    disabled={isReadOnly}
                   />
                 }
                 label="Contrato Ativo"
@@ -904,33 +945,35 @@ const Contratos: React.FC = () => {
                   Itens do Contrato
                 </Typography>
 
-                <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
-                  <Autocomplete
-                    value={itemParaAdicionar}
-                    onChange={(_, newValue) => setItemParaAdicionar(newValue)}
-                    options={itensDisponiveis}
-                    getOptionLabel={(option) =>
-                      `${option.nome} (${option.unidade_medida})`
-                    }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Selecione um item"
-                        size="small"
-                      />
-                    )}
-                    sx={{ flex: 1 }}
-                    size="small"
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={handleAdicionarItem}
-                    disabled={!itemParaAdicionar}
-                    size="small"
-                  >
-                    Adicionar
-                  </Button>
-                </Box>
+                {!isReadOnly && (
+                  <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+                    <Autocomplete
+                      value={itemParaAdicionar}
+                      onChange={(_, newValue) => setItemParaAdicionar(newValue)}
+                      options={itensDisponiveis}
+                      getOptionLabel={(option) =>
+                        `${option.nome} (${option.unidade_medida})`
+                      }
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Selecione um item"
+                          size="small"
+                        />
+                      )}
+                      sx={{ flex: 1 }}
+                      size="small"
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={handleAdicionarItem}
+                      disabled={!itemParaAdicionar}
+                      size="small"
+                    >
+                      Adicionar
+                    </Button>
+                  </Box>
+                )}
 
                 {itensSelecionados.length > 0 && (
                   <TableContainer
@@ -961,11 +1004,13 @@ const Contratos: React.FC = () => {
                               Valor Total (R$)
                             </Typography>
                           </TableCell>
-                          <TableCell width={60} align="center">
-                            <Typography variant="subtitle2" fontWeight={700}>
-                              Ações
-                            </Typography>
-                          </TableCell>
+                          {!isReadOnly && (
+                            <TableCell width={60} align="center">
+                              <Typography variant="subtitle2" fontWeight={700}>
+                                Ações
+                              </Typography>
+                            </TableCell>
+                          )}
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -990,49 +1035,67 @@ const Contratos: React.FC = () => {
                                 </Typography>
                               </TableCell>
                               <TableCell>
-                                <TextField
-                                  type="number"
-                                  value={is.quantidade}
-                                  onChange={(e) =>
-                                    handleUpdateItemQuantidade(
-                                      is.item.id,
-                                      parseFloat(e.target.value) || 0
-                                    )
-                                  }
-                                  size="small"
-                                  inputProps={{ min: 0, step: 0.01 }}
-                                  fullWidth
-                                  sx={{
-                                    "& .MuiOutlinedInput-root": {
-                                      bgcolor: "background.paper",
-                                    },
-                                  }}
-                                />
+                                {isReadOnly ? (
+                                  <Typography variant="body2">
+                                    {is.quantidade.toLocaleString("pt-BR", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}
+                                  </Typography>
+                                ) : (
+                                  <TextField
+                                    type="number"
+                                    value={is.quantidade}
+                                    onChange={(e) =>
+                                      handleUpdateItemQuantidade(
+                                        is.item.id,
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    size="small"
+                                    inputProps={{ min: 0, step: 0.01 }}
+                                    fullWidth
+                                    sx={{
+                                      "& .MuiOutlinedInput-root": {
+                                        bgcolor: "background.paper",
+                                      },
+                                    }}
+                                  />
+                                )}
                               </TableCell>
                               <TableCell>
-                                <TextField
-                                  type="number"
-                                  value={is.valor_unitario}
-                                  onChange={(e) =>
-                                    handleUpdateItemValor(
-                                      is.item.id,
-                                      parseFloat(e.target.value) || 0
-                                    )
-                                  }
-                                  size="small"
-                                  inputProps={{
-                                    min: 0,
-                                    step: 0.01,
-                                  }}
-                                  required
-                                  fullWidth
-                                  sx={{
-                                    "& .MuiOutlinedInput-root": {
-                                      bgcolor: "background.paper",
-                                    },
-                                  }}
-                                  placeholder="0,00"
-                                />
+                                {isReadOnly ? (
+                                  <Typography variant="body2">
+                                    {is.valor_unitario.toLocaleString("pt-BR", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}
+                                  </Typography>
+                                ) : (
+                                  <TextField
+                                    type="number"
+                                    value={is.valor_unitario}
+                                    onChange={(e) =>
+                                      handleUpdateItemValor(
+                                        is.item.id,
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    size="small"
+                                    inputProps={{
+                                      min: 0,
+                                      step: 0.01,
+                                    }}
+                                    required
+                                    fullWidth
+                                    sx={{
+                                      "& .MuiOutlinedInput-root": {
+                                        bgcolor: "background.paper",
+                                      },
+                                    }}
+                                    placeholder="0,00"
+                                  />
+                                )}
                               </TableCell>
                               <TableCell>
                                 <Box
@@ -1057,20 +1120,22 @@ const Contratos: React.FC = () => {
                                   </Typography>
                                 </Box>
                               </TableCell>
-                              <TableCell align="center">
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={() => handleRemoverItem(is.item.id)}
-                                  sx={{
-                                    "&:hover": {
-                                      bgcolor: "error.50",
-                                    },
-                                  }}
-                                >
-                                  <Remove fontSize="small" />
-                                </IconButton>
-                              </TableCell>
+                              {!isReadOnly && (
+                                <TableCell align="center">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleRemoverItem(is.item.id)}
+                                    sx={{
+                                      "&:hover": {
+                                        bgcolor: "error.50",
+                                      },
+                                    }}
+                                  >
+                                    <Remove fontSize="small" />
+                                  </IconButton>
+                                </TableCell>
+                              )}
                             </TableRow>
                           );
                         })}
@@ -1083,7 +1148,7 @@ const Contratos: React.FC = () => {
                             borderColor: "primary.main",
                           }}
                         >
-                          <TableCell colSpan={3}>
+                          <TableCell colSpan={isReadOnly ? 3 : 3}>
                             <Typography
                               variant="subtitle1"
                               fontWeight={700}
@@ -1121,7 +1186,7 @@ const Contratos: React.FC = () => {
                               </Typography>
                             </Box>
                           </TableCell>
-                          <TableCell />
+                          {!isReadOnly && <TableCell />}
                         </TableRow>
                       </TableFooter>
                     </Table>
@@ -1150,34 +1215,36 @@ const Contratos: React.FC = () => {
                       Documentos do Contrato
                     </Typography>
 
-                    <Box sx={{ display: "flex", gap: 1, mb: 2, alignItems: "center" }}>
-                      <Button
-                        variant="outlined"
-                        component="label"
-                        startIcon={
-                          uploadingDoc ? (
-                            <CircularProgress size={18} />
-                          ) : (
-                            <CloudUpload />
-                          )
-                        }
-                        disabled={uploadingDoc}
-                        size="small"
-                      >
-                        {uploadingDoc ? "Enviando..." : "Enviar PDF"}
-                        <input
-                          type="file"
-                          hidden
-                          accept="application/pdf"
-                          onChange={(e) =>
-                            handleUploadDocumento(e, editingContrato.id)
+                    {!isReadOnly && (
+                      <Box sx={{ display: "flex", gap: 1, mb: 2, alignItems: "center" }}>
+                        <Button
+                          variant="outlined"
+                          component="label"
+                          startIcon={
+                            uploadingDoc ? (
+                              <CircularProgress size={18} />
+                            ) : (
+                              <CloudUpload />
+                            )
                           }
-                        />
-                      </Button>
-                      <Typography variant="caption" color="text.secondary">
-                        Limite: 20MB, apenas PDF
-                      </Typography>
-                    </Box>
+                          disabled={uploadingDoc}
+                          size="small"
+                        >
+                          {uploadingDoc ? "Enviando..." : "Enviar PDF"}
+                          <input
+                            type="file"
+                            hidden
+                            accept="application/pdf"
+                            onChange={(e) =>
+                              handleUploadDocumento(e, editingContrato.id)
+                            }
+                          />
+                        </Button>
+                        <Typography variant="caption" color="text.secondary">
+                          Limite: 20MB, apenas PDF
+                        </Typography>
+                      </Box>
+                    )}
 
                     {documentos.length > 0 ? (
                       <TableContainer
@@ -1280,16 +1347,18 @@ const Contratos: React.FC = () => {
                                   >
                                     <Download fontSize="small" />
                                   </IconButton>
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() =>
-                                      handleExcluirDocumento(doc)
-                                    }
-                                    title="Excluir"
-                                  >
-                                    <Delete fontSize="small" />
-                                  </IconButton>
+                                  {!isReadOnly && (
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={() =>
+                                        handleExcluirDocumento(doc)
+                                      }
+                                      title="Excluir"
+                                    >
+                                      <Delete fontSize="small" />
+                                    </IconButton>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -1314,10 +1383,12 @@ const Contratos: React.FC = () => {
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDialog}>Cancelar</Button>
-            <Button onClick={handleSave} variant="contained">
-              Salvar
-            </Button>
+            <Button onClick={handleCloseDialog}>{isReadOnly ? "Fechar" : "Cancelar"}</Button>
+            {!isReadOnly && (
+              <Button onClick={handleSave} variant="contained">
+                Salvar
+              </Button>
+            )}
           </DialogActions>
         </Dialog>
 
