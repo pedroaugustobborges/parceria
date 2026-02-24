@@ -65,8 +65,14 @@ interface ItemSelecionado {
 }
 
 const Contratos: React.FC = () => {
-  const { isAdminAgirCorporativo, isAdminAgirPlanta, isAdminTerceiro, unidadeHospitalarId, userProfile, userContratoIds } =
-    useAuth();
+  const {
+    isAdminAgirCorporativo,
+    isAdminAgirPlanta,
+    isAdminTerceiro,
+    unidadeHospitalarId,
+    userProfile,
+    userContratoIds,
+  } = useAuth();
 
   // Partners (administrador-terceiro) have read-only access
   const isReadOnly = isAdminTerceiro;
@@ -80,7 +86,7 @@ const Contratos: React.FC = () => {
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contratoToDelete, setContratoToDelete] = useState<Contrato | null>(
-    null
+    null,
   );
   const [deleteRelatedItems, setDeleteRelatedItems] = useState<any[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -88,7 +94,7 @@ const Contratos: React.FC = () => {
   // Items state
   const [itensDisponiveis, setItensDisponiveis] = useState<ItemContrato[]>([]);
   const [itensSelecionados, setItensSelecionados] = useState<ItemSelecionado[]>(
-    []
+    [],
   );
   const [itemParaAdicionar, setItemParaAdicionar] =
     useState<ItemContrato | null>(null);
@@ -234,7 +240,7 @@ const Contratos: React.FC = () => {
 
   const handleUploadDocumento = async (
     event: React.ChangeEvent<HTMLInputElement>,
-    contratoId: string
+    contratoId: string,
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -294,9 +300,7 @@ const Contratos: React.FC = () => {
         .invoke("processar-documento", {
           body: { documento_id: doc.id },
         })
-        .catch((err) =>
-          console.error("Erro ao disparar processamento:", err)
-        );
+        .catch((err) => console.error("Erro ao disparar processamento:", err));
 
       setSuccess("Documento enviado! Processamento iniciado.");
       await loadDocumentos(contratoId);
@@ -409,23 +413,23 @@ const Contratos: React.FC = () => {
 
   const handleRemoverItem = (itemId: string) => {
     setItensSelecionados(
-      itensSelecionados.filter((is) => is.item.id !== itemId)
+      itensSelecionados.filter((is) => is.item.id !== itemId),
     );
   };
 
   const handleUpdateItemQuantidade = (itemId: string, quantidade: number) => {
     setItensSelecionados(
       itensSelecionados.map((is) =>
-        is.item.id === itemId ? { ...is, quantidade } : is
-      )
+        is.item.id === itemId ? { ...is, quantidade } : is,
+      ),
     );
   };
 
   const handleUpdateItemValor = (itemId: string, valor_unitario: number) => {
     setItensSelecionados(
       itensSelecionados.map((is) =>
-        is.item.id === itemId ? { ...is, valor_unitario } : is
-      )
+        is.item.id === itemId ? { ...is, valor_unitario } : is,
+      ),
     );
   };
 
@@ -441,18 +445,18 @@ const Contratos: React.FC = () => {
         !formData.unidade_hospitalar_id
       ) {
         setError(
-          "Preencha todos os campos obrigatórios (incluindo Unidade Hospitalar)"
+          "Preencha todos os campos obrigatórios (incluindo Unidade Hospitalar)",
         );
         return;
       }
 
       // Validar que todos os itens tenham valor unitário preenchido
       const itemSemValor = itensSelecionados.find(
-        (is) => !is.valor_unitario || is.valor_unitario <= 0
+        (is) => !is.valor_unitario || is.valor_unitario <= 0,
       );
       if (itemSemValor) {
         setError(
-          `O item "${itemSemValor.item.nome}" precisa ter um valor unitário maior que zero`
+          `O item "${itemSemValor.item.nome}" precisa ter um valor unitário maior que zero`,
         );
         return;
       }
@@ -620,7 +624,7 @@ const Contratos: React.FC = () => {
       if (updateError) throw updateError;
 
       setSuccess(
-        `Contrato ${!contrato.ativo ? "ativado" : "desativado"} com sucesso!`
+        `Contrato ${!contrato.ativo ? "ativado" : "desativado"} com sucesso!`,
       );
       loadContratos();
     } catch (err: any) {
@@ -631,7 +635,7 @@ const Contratos: React.FC = () => {
   const columns: GridColDef[] = [
     {
       field: "nome",
-      headerName: "Objeto do Contrato",
+      headerName: "Contrato",
       flex: 1,
       minWidth: 250,
       renderCell: (params) => (
@@ -644,6 +648,12 @@ const Contratos: React.FC = () => {
           </Typography>
         </Box>
       ),
+    },
+    {
+      field: "empresa",
+      headerName: "Empresa",
+      width: 200,
+      filterable: true,
     },
     {
       field: "numero_contrato",
@@ -756,7 +766,8 @@ const Contratos: React.FC = () => {
                 background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
                 color: "white",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
+                  background:
+                    "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
                 },
               }}
             >
@@ -791,6 +802,11 @@ const Contratos: React.FC = () => {
                 pageSizeOptions={[10, 25, 50]}
                 initialState={{
                   pagination: { paginationModel: { pageSize: 25 } },
+                  columns: {
+                    columnVisibilityModel: {
+                      empresa: false,
+                    },
+                  },
                 }}
                 slots={{ toolbar: GridToolbar }}
                 slotProps={{
@@ -814,7 +830,11 @@ const Contratos: React.FC = () => {
           <DialogTitle>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Description color="primary" />
-              {isReadOnly ? "Visualizar Contrato" : (editingContrato ? "Editar Contrato" : "Novo Contrato")}
+              {isReadOnly
+                ? "Visualizar Contrato"
+                : editingContrato
+                  ? "Editar Contrato"
+                  : "Novo Contrato"}
             </Box>
           </DialogTitle>
           <DialogContent>
@@ -859,7 +879,9 @@ const Contratos: React.FC = () => {
                     {...params}
                     label="Empresa Contratada"
                     required
-                    helperText={isReadOnly ? "" : "Selecione a empresa parceira"}
+                    helperText={
+                      isReadOnly ? "" : "Selecione a empresa parceira"
+                    }
                   />
                 )}
                 fullWidth
@@ -868,7 +890,7 @@ const Contratos: React.FC = () => {
               <Autocomplete
                 value={
                   unidades.find(
-                    (u) => u.id === formData.unidade_hospitalar_id
+                    (u) => u.id === formData.unidade_hospitalar_id,
                   ) || null
                 }
                 onChange={(_, newValue) =>
@@ -889,8 +911,8 @@ const Contratos: React.FC = () => {
                       isReadOnly
                         ? ""
                         : isAdminAgirPlanta
-                        ? "Automaticamente vinculado à sua unidade"
-                        : "Selecione a unidade hospitalar"
+                          ? "Automaticamente vinculado à sua unidade"
+                          : "Selecione a unidade hospitalar"
                     }
                   />
                 )}
@@ -1049,7 +1071,7 @@ const Contratos: React.FC = () => {
                                     onChange={(e) =>
                                       handleUpdateItemQuantidade(
                                         is.item.id,
-                                        parseFloat(e.target.value) || 0
+                                        parseFloat(e.target.value) || 0,
                                       )
                                     }
                                     size="small"
@@ -1078,7 +1100,7 @@ const Contratos: React.FC = () => {
                                     onChange={(e) =>
                                       handleUpdateItemValor(
                                         is.item.id,
-                                        parseFloat(e.target.value) || 0
+                                        parseFloat(e.target.value) || 0,
                                       )
                                     }
                                     size="small"
@@ -1125,7 +1147,9 @@ const Contratos: React.FC = () => {
                                   <IconButton
                                     size="small"
                                     color="error"
-                                    onClick={() => handleRemoverItem(is.item.id)}
+                                    onClick={() =>
+                                      handleRemoverItem(is.item.id)
+                                    }
                                     sx={{
                                       "&:hover": {
                                         bgcolor: "error.50",
@@ -1177,7 +1201,7 @@ const Contratos: React.FC = () => {
                                   .reduce(
                                     (total, is) =>
                                       total + is.quantidade * is.valor_unitario,
-                                    0
+                                    0,
                                   )
                                   .toLocaleString("pt-BR", {
                                     minimumFractionDigits: 2,
@@ -1216,7 +1240,14 @@ const Contratos: React.FC = () => {
                     </Typography>
 
                     {!isReadOnly && (
-                      <Box sx={{ display: "flex", gap: 1, mb: 2, alignItems: "center" }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 1,
+                          mb: 2,
+                          alignItems: "center",
+                        }}
+                      >
                         <Button
                           variant="outlined"
                           component="label"
@@ -1256,22 +1287,34 @@ const Contratos: React.FC = () => {
                           <TableHead>
                             <TableRow sx={{ bgcolor: "action.hover" }}>
                               <TableCell>
-                                <Typography variant="subtitle2" fontWeight={700}>
+                                <Typography
+                                  variant="subtitle2"
+                                  fontWeight={700}
+                                >
                                   Documento
                                 </Typography>
                               </TableCell>
                               <TableCell width={120}>
-                                <Typography variant="subtitle2" fontWeight={700}>
+                                <Typography
+                                  variant="subtitle2"
+                                  fontWeight={700}
+                                >
                                   Status
                                 </Typography>
                               </TableCell>
                               <TableCell width={120}>
-                                <Typography variant="subtitle2" fontWeight={700}>
+                                <Typography
+                                  variant="subtitle2"
+                                  fontWeight={700}
+                                >
                                   Data
                                 </Typography>
                               </TableCell>
                               <TableCell width={100} align="center">
-                                <Typography variant="subtitle2" fontWeight={700}>
+                                <Typography
+                                  variant="subtitle2"
+                                  fontWeight={700}
+                                >
                                   Acoes
                                 </Typography>
                               </TableCell>
@@ -1281,13 +1324,20 @@ const Contratos: React.FC = () => {
                             {documentos.map((doc) => (
                               <TableRow key={doc.id}>
                                 <TableCell>
-                                  <Box display="flex" alignItems="center" gap={1}>
+                                  <Box
+                                    display="flex"
+                                    alignItems="center"
+                                    gap={1}
+                                  >
                                     <PictureAsPdf
                                       fontSize="small"
                                       color="error"
                                     />
                                     <Box>
-                                      <Typography variant="body2" fontWeight={600}>
+                                      <Typography
+                                        variant="body2"
+                                        fontWeight={600}
+                                      >
                                         {doc.nome_arquivo}
                                       </Typography>
                                       {doc.tamanho_bytes && (
@@ -1312,20 +1362,20 @@ const Contratos: React.FC = () => {
                                       doc.status === "pronto"
                                         ? "Processado"
                                         : doc.status === "processando"
-                                        ? "Processando"
-                                        : doc.status === "erro"
-                                        ? "Erro"
-                                        : "Pendente"
+                                          ? "Processando"
+                                          : doc.status === "erro"
+                                            ? "Erro"
+                                            : "Pendente"
                                     }
                                     size="small"
                                     color={
                                       doc.status === "pronto"
                                         ? "success"
                                         : doc.status === "processando"
-                                        ? "warning"
-                                        : doc.status === "erro"
-                                        ? "error"
-                                        : "default"
+                                          ? "warning"
+                                          : doc.status === "erro"
+                                            ? "error"
+                                            : "default"
                                     }
                                   />
                                 </TableCell>
@@ -1333,16 +1383,14 @@ const Contratos: React.FC = () => {
                                   <Typography variant="caption">
                                     {format(
                                       parseISO(doc.created_at),
-                                      "dd/MM/yyyy"
+                                      "dd/MM/yyyy",
                                     )}
                                   </Typography>
                                 </TableCell>
                                 <TableCell align="center">
                                   <IconButton
                                     size="small"
-                                    onClick={() =>
-                                      handleDownloadDocumento(doc)
-                                    }
+                                    onClick={() => handleDownloadDocumento(doc)}
                                     title="Baixar"
                                   >
                                     <Download fontSize="small" />
@@ -1383,7 +1431,9 @@ const Contratos: React.FC = () => {
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDialog}>{isReadOnly ? "Fechar" : "Cancelar"}</Button>
+            <Button onClick={handleCloseDialog}>
+              {isReadOnly ? "Fechar" : "Cancelar"}
+            </Button>
             {!isReadOnly && (
               <Button onClick={handleSave} variant="contained">
                 Salvar

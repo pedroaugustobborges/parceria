@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ParcerIA | Preparação Técnica (AWS → Supabase) – MV Produtividade</title>
+  <meta name="description" content="Aula prática + checklist para alinhar AWS (TI) e Supabase (Postgres) na integração de dados de produtividade vindos da MV." />
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1a2e;
+      --panel2:#101f39;
+      --text:#e7eefc;
+      --muted:#a8b6d6;
+      --border:rgba(255,255,255,.10);
+      --accent:#7aa7ff;
+      --accent2:#7ff3c8;
+      --warn:#ffd37a;
+      --bad:#ff7a7a;
+      --good:#7ff3a8;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      --shadow: 0 10px 28px rgba(0,0,0,.35);
+      --radius: 16px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:
+        radial-gradient(900px 600px at 20% -10%, rgba(122,167,255,.25), transparent 60%),
+        radial-gradient(900px 600px at 80% 0%, rgba(127,243,200,.18), transparent 55%),
+        radial-gradient(1000px 800px at 40% 110%, rgba(255,211,122,.10), transparent 50%),
+        var(--bg);
+      line-height:1.55;
+    }
+    a{ color:var(--accent2); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+    .wrap{
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      gap:18px;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+    header{
+      grid-column:1 / -1;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px 18px 14px;
+    }
+    header .kicker{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      color:var(--muted);
+      font-size: 13px;
+    }
+    .pill{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:6px 10px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background: rgba(255,255,255,.03);
+      color:var(--muted);
+      font-size: 12px;
+      white-space:nowrap;
+    }
+    .dot{ width:8px; height:8px; border-radius:999px; background:var(--accent2); display:inline-block; }
+    h1{
+      margin: 10px 0 6px;
+      font-size: 24px;
+      letter-spacing:.2px;
+    }
+    .sub{
+      margin:0;
+      color:var(--muted);
+      max-width: 980px;
+      font-size: 14px;
+    }
+
+    nav{
+      position: sticky;
+      top: 14px;
+      height: fit-content;
+      background: rgba(255,255,255,.02);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+    nav h2{
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: var(--muted);
+      letter-spacing:.2px;
+    }
+    .toc{
+      list-style:none;
+      margin:0;
+      padding:0;
+      display:grid;
+      gap:8px;
+    }
+    .toc a{
+      display:block;
+      padding:8px 10px;
+      border-radius: 10px;
+      border:1px solid transparent;
+      color: var(--text);
+      background: rgba(255,255,255,.02);
+    }
+    .toc a:hover{
+      border-color: rgba(127,243,200,.30);
+      background: rgba(127,243,200,.06);
+    }
+    .small{
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    main{
+      display:grid;
+      gap: 14px;
+    }
+    section{
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    section h2{
+      margin:0 0 10px;
+      font-size: 18px;
+    }
+    section h3{
+      margin: 14px 0 8px;
+      font-size: 14px;
+      color: var(--muted);
+      letter-spacing:.2px;
+      text-transform: uppercase;
+    }
+    p{ margin: 8px 0; color: var(--text); }
+    ul{ margin: 8px 0 8px 18px; color: var(--text); }
+    li{ margin: 6px 0; color: var(--text); }
+    .callout{
+      border:1px solid rgba(122,167,255,.25);
+      background: rgba(122,167,255,.06);
+      padding: 12px;
+      border-radius: 14px;
+      margin: 10px 0;
+    }
+    .callout strong{ color: var(--accent2); }
+    .warn{
+      border-color: rgba(255,211,122,.28);
+      background: rgba(255,211,122,.06);
+    }
+    .bad{
+      border-color: rgba(255,122,122,.28);
+      background: rgba(255,122,122,.06);
+    }
+    .good{
+      border-color: rgba(127,243,168,.28);
+      background: rgba(127,243,168,.06);
+    }
+
+    details{
+      border:1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255,255,255,.02);
+      padding: 10px 12px;
+      margin: 10px 0;
+    }
+    details summary{
+      cursor:pointer;
+      user-select:none;
+      font-weight: 600;
+      color: var(--text);
+    }
+    details summary::marker{ color: var(--accent2); }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 980px){
+      .wrap{ grid-template-columns: 1fr; }
+      nav{ position:relative; top:auto; }
+      .grid2{ grid-template-columns: 1fr; }
+    }
+
+    table{
+      width:100%;
+      border-collapse: collapse;
+      overflow:hidden;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.12);
+    }
+    th, td{
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      vertical-align: top;
+      font-size: 13px;
+    }
+    th{
+      text-align:left;
+      color: var(--muted);
+      background: rgba(255,255,255,.03);
+      font-weight: 600;
+      letter-spacing:.2px;
+    }
+    tr:last-child td{ border-bottom:none; }
+
+    pre{
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.08);
+      overflow:auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    code{ font-family: var(--mono); font-size: 12px; }
+    .muted{ color: var(--muted); }
+
+    .badgeRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top: 10px;
+    }
+    .badge{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .badge b{ color: var(--text); font-weight: 600; }
+
+    .footer{
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 0 2px 14px;
+      text-align:center;
+      opacity: .95;
+    }
+
+    .hr{
+      height:1px;
+      background: rgba(255,255,255,.10);
+      margin: 12px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div class="kicker">
+        <span class="pill"><span class="dot"></span> Playbook de Integração</span>
+        <span class="pill">MV API → AWS → Supabase (Postgres)</span>
+        <span class="pill">Tabela alvo: <code>produtividade</code></span>
+      </div>
+      <h1>ParcerIA | Preparação Técnica: AWS + SQL + Supabase (Produtividade)</h1>
+      <p class="sub">
+        Esta página HTML é uma “cola” técnica + aula para você alinhar com a equipe de TI sobre a ingestão de dados via API da MV
+        no AWS e a sincronização para o Supabase (Postgres) do ParcerIA.
+        Ela antecipa as perguntas que infra/segurança/dados geralmente fazem: rede, autenticação, schema, chaves, upsert e operação.
+      </p>
+      <div class="badgeRow">
+        <span class="badge"><b>Origem</b>: API MV Saúde (substitui scraping do relatório id=7076)</span>
+        <span class="badge"><b>Landing</b>: Tabela/BD no AWS (TI)</span>
+        <span class="badge"><b>Destino</b>: Supabase Postgres <code>produtividade</code> (SaaS: ParcerIA)</span>
+      </div>
+    </header>
+
+    <nav aria-label="Sumário">
+      <h2>Sumário</h2>
+      <ol class="toc">
+        <li><a href="#goal">1) O que estamos construindo (ponta a ponta)</a></li>
+        <li><a href="#schema">2) Schema alvo: produtividade (com base no arquivo)</a></li>
+        <li><a href="#aws101">3) Aula AWS: onde essa tabela deve morar</a></li>
+        <li><a href="#sync">4) Padrões de sincronização: push, pull, CDC</a></li>
+        <li><a href="#sql">5) Aula SQL: chaves, índices, upsert, idempotência</a></li>
+        <li><a href="#supabase">6) Integração Supabase: formas seguras de escrever</a></li>
+        <li><a href="#recommended">7) Arquitetura recomendada (robusta + realista)</a></li>
+        <li><a href="#questions">8) Perguntas que a TI vai fazer (e como responder)</a></li>
+        <li><a href="#checklist">9) Checklist prático para kickoff & go-live</a></li>
+        <li><a href="#snippets">10) Snippets de referência (DDL + upsert)</a></li>
+      </ol>
+      <p class="small">
+        Dica: mantenha isto aberto na reunião e use (<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>F</kbd>) para “IAM”, “VPC”, “upsert”, “RLS”.
+      </p>
+    </nav>
+
+    <main>
+      <section id="goal">
+        <h2>1) O que estamos construindo (ponta a ponta)</h2>
+
+        <div class="callout good">
+          <strong>Objetivo de negócio:</strong> parar de “scrapar” o relatório web da MV e passar a consumir dados oficiais via API da MV Saúde,
+          ingerindo no AWS e sincronizando para o Supabase para alimentar análises + chatbot/RAG do ParcerIA.
+        </div>
+
+        <h3>Fluxo de dados (conceitual)</h3>
+        <ul>
+          <li><b>API da MV</b> entrega métricas de produtividade por profissional/especialidade (normalmente em granularidade diária).</li>
+          <li><b>Tabela de landing no AWS</b> vira o “system of record” dos dados ingeridos (governança da TI).</li>
+          <li><b>Job de sincronização</b> move registros curados para o Supabase <code>produtividade</code> com chaves corretas e deduplicação.</li>
+          <li><b>Supabase</b> serve o SaaS (consultas Postgres, dashboards e indexação RAG).</li>
+        </ul>
+
+        <details>
+          <summary>Por que a TI prefere “AWS primeiro”</summary>
+          <ul>
+            <li><b>Fronteira de segurança:</b> credenciais/segredos isolados no AWS (IAM + KMS + VPC).</li>
+            <li><b>Controle operacional:</b> monitoramento/alertas via CloudWatch, backups e processos padronizados.</li>
+            <li><b>Retenção do dado bruto:</b> manter payload bruto para reprocessar se o schema do SaaS evoluir.</li>
+          </ul>
+        </details>
+
+        <div class="callout warn">
+          <strong>Ponto crítico:</strong> decidir quem “dona” da lógica incremental (watermark, retries, dedupe).
+          Em muitos cenários, TI ingere no AWS; o time do produto sincroniza para o Supabase.
+        </div>
+      </section>
+
+      <section id="schema">
+        <h2>2) Schema alvo: <code>produtividade</code> (com base no arquivo anexado)</h2>
+        <p class="muted">
+          A estrutura abaixo reflete as colunas encontradas no CSV de exemplo. Trate isso como o contrato da tabela destino no Supabase.
+        </p>
+
+        <table aria-label="schema produtividade">
+          <thead>
+            <tr>
+              <th>Coluna</th>
+              <th>Tipo sugerido (Postgres)</th>
+              <th>Significado / observações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>id</code></td><td><code>uuid</code></td><td>Chave primária no Supabase. Geralmente gerada no Supabase, não no AWS.</td></tr>
+            <tr><td><code>codigo_mv</code></td><td><code>bigint</code></td><td>Código/identificador do profissional na MV (componente estável de chave natural).</td></tr>
+            <tr><td><code>nome</code></td><td><code>text</code></td><td>Nome do profissional (pode mudar; não use como chave).</td></tr>
+            <tr><td><code>especialidade</code></td><td><code>text</code></td><td>Rótulo da especialidade (usado para agrupamentos).</td></tr>
+            <tr><td><code>vinculo</code></td><td><code>text</code></td><td>Vínculo (ex.: “PESSOA FÍSICA”, “FUNCIONÁRIO”).</td></tr>
+
+            <tr><td><code>procedimento</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>parecer_solicitado</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>parecer_realizado</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>cirurgia_realizada</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>prescricao</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>evolucao</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>urgencia</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>ambulatorio</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>auxiliar</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>encaminhamento</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>folha_objetivo_diario</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>evolucao_diurna_cti</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+            <tr><td><code>evolucao_noturna_cti</code></td><td><code>integer</code></td><td>Métrica (contagem diária).</td></tr>
+
+            <tr><td><code>created_at</code></td><td><code>timestamptz</code></td><td>Timestamp de criação (convenção Supabase).</td></tr>
+            <tr><td><code>updated_at</code></td><td><code>timestamptz</code></td><td>Timestamp da última atualização (importante para sync incremental).</td></tr>
+            <tr><td><code>data</code></td><td><code>date</code></td><td>Data de referência da produtividade (grão diário).</td></tr>
+            <tr><td><code>unidade_hospitalar_id</code></td><td><code>uuid</code> (nullable)</td><td>FK da unidade hospitalar. Nos exemplos veio nulo; o ideal é preencher.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <strong>Decisão crítica:</strong> definir uma <em>chave única natural</em> para o upsert.
+          Sugestão comum: <code>(unidade_hospitalar_id, data, codigo_mv, especialidade, vinculo)</code> (ou variante),
+          dependendo de como a MV define unicidade.
+        </div>
+
+        <details>
+          <summary>O que validar com a TI sobre “granularidade” (diário, plantão, mensal?)</summary>
+          <ul>
+            <li>Cada linha é <b>um profissional por dia</b> ou pode haver múltiplas linhas por dia por profissional?</li>
+            <li>As métricas são cumulativas ou já são “totais do dia”?</li>
+            <li>A API da MV entrega algum “record id” estável para cada registro diário?</li>
+          </ul>
+        </details>
+      </section>
+
+      <section id="aws101">
+        <h2>3) Aula AWS: onde essa tabela deve morar</h2>
+
+        <p>
+          No AWS, “uma tabela” normalmente significa uma tabela dentro de um serviço gerenciado de banco de dados.
+          A escolha ideal depende de latência, volume, governança e se você precisa de SQL com joins.
+        </p>
+
+        <div class="grid2">
+          <div>
+            <h3>Melhores opções para este caso</h3>
+            <ul>
+              <li><b>Amazon RDS / Aurora (PostgreSQL)</b>: escolha “padrão ouro” se você quer SQL tradicional + sync incremental simples.</li>
+              <li><b>S3 + Athena</b>: ótimo se a TI vai aterrar JSON/CSV no S3 e consultar por batch (analytics barato).</li>
+              <li><b>Redshift</b>: bom para volumes enormes e perfil fortemente analítico (data warehouse).</li>
+            </ul>
+            <div class="callout warn">
+              <strong>Na prática:</strong> se você quer sincronização previsível para o Supabase, um Postgres no AWS (RDS/Aurora)
+              costuma ser o caminho mais simples de operar.
+            </div>
+          </div>
+
+          <div>
+            <h3>O que a TI vai priorizar</h3>
+            <ul>
+              <li><b>VPC:</b> sub-redes privadas vs acesso público, NAT, security groups.</li>
+              <li><b>IAM + Segredos:</b> onde ficam credenciais da API (Secrets Manager), e quem pode descriptografar (KMS).</li>
+              <li><b>Backup/retenção:</b> PITR, snapshots, retenção do dado bruto para auditoria.</li>
+              <li><b>Observabilidade:</b> métricas/logs no CloudWatch, alarmes e runbooks.</li>
+            </ul>
+          </div>
+        </div>
+
+        <details>
+          <summary>Termos AWS que você precisa dominar na reunião</summary>
+          <ul>
+            <li><b>VPC</b>: limite da rede privada; define quem acessa o banco.</li>
+            <li><b>Security Group</b>: regras de firewall (origem + porta) controlando acesso ao BD.</li>
+            <li><b>IAM Role/Policy</b>: permissões para serviços (Lambda, ECS) ler Secrets Manager e acessar recursos.</li>
+            <li><b>KMS</b>: chaves de criptografia protegendo segredos e dados em repouso.</li>
+            <li><b>RDS Proxy</b>: pool de conexões para Lambdas falando com Postgres (evita “tempestade de conexões”).</li>
+          </ul>
+        </details>
+      </section>
+
+      <section id="sync">
+        <h2>4) Padrões de sincronização: push, pull, CDC</h2>
+
+        <p class="muted">
+          Aqui é onde a maioria dos projetos dá certo ou dá errado. Escolha o padrão compatível com suas restrições e maturidade operacional.
+        </p>
+
+        <h3>Padrão A — Pull (seu job lê AWS → escreve Supabase)</h3>
+        <div class="callout">
+          <strong>Como funciona:</strong> um job agendado (Lambda/ECS ou seu backend) consulta a tabela no AWS buscando “novos/alterados”
+          desde um watermark e faz upsert no Supabase.
+        </div>
+        <ul>
+          <li><b>Prós:</b> modelo mental simples; você controla transformações; backfill fácil.</li>
+          <li><b>Contras:</b> precisa de um caminho seguro do job para o BD no AWS e para o Supabase.</li>
+        </ul>
+
+        <h3>Padrão B — Push (job da TI escreve direto no Supabase)</h3>
+        <div class="callout">
+          <strong>Como funciona:</strong> após gravar no AWS, o pipeline da TI também faz upsert no Supabase (API/BD).
+        </div>
+        <ul>
+          <li><b>Prós:</b> menos componentes sob sua responsabilidade; TI pode “dona” do fim a fim.</li>
+          <li><b>Contras:</b> TI precisa gerenciar credenciais do Supabase com cuidado; acoplamento maior ao schema do SaaS.</li>
+        </ul>
+
+        <h3>Padrão C — CDC (Change Data Capture) / Replicação</h3>
+        <div class="callout warn">
+          <strong>Como funciona:</strong> ferramentas como AWS DMS “streamam” mudanças do BD do AWS para um destino.
+          Pode ser ótimo, mas adiciona complexidade.
+        </div>
+        <ul>
+          <li><b>Prós:</b> quase em tempo real; robusto se bem configurado.</li>
+          <li><b>Contras:</b> rede + drift de schema + operação mais complexa; muitas vezes é overkill para dados diários.</li>
+        </ul>
+
+        <details>
+          <summary>O que você deve recomendar por padrão</summary>
+          <p>
+            Se o dado é diário e o volume não é absurdo, recomende <b>Padrão A (Pull) com watermark + upsert</b>.
+            É o mais controlável e o mais fácil de depurar.
+          </p>
+        </details>
+      </section>
+
+      <section id="sql">
+        <h2>5) Aula SQL: chaves, índices, upsert, idempotência</h2>
+
+        <h3>Duas chaves que você precisa entender</h3>
+        <ul>
+          <li><b>Chave primária (surrogate)</b>: seu <code>id uuid</code> no Supabase. Ótimo internamente, mas não necessariamente para dedupe.</li>
+          <li><b>Chave única natural</b>: combinação de campos do negócio que define um registro unicamente (usada no <code>UPSERT</code>).</li>
+        </ul>
+
+        <div class="callout good">
+          <strong>Idempotência:</strong> o sync deve ser seguro para rodar várias vezes com o mesmo input sem gerar duplicatas.
+          Em SQL, isso significa <code>INSERT ... ON CONFLICT (...) DO UPDATE</code> usando uma <b>unique constraint</b>.
+        </div>
+
+        <h3>Índices que importam (performance)</h3>
+        <ul>
+          <li><code>(data)</code> para filtros por data</li>
+          <li><code>(unidade_hospitalar_id, data)</code> para dashboards por unidade</li>
+          <li><code>(codigo_mv, data)</code> para histórico por profissional</li>
+          <li>Índice único para o alvo do conflito (sua chave natural)</li>
+        </ul>
+
+        <details>
+          <summary>Armadilhas de timezone e coluna “data”</summary>
+          <ul>
+            <li><code>data</code> deve ser <b>date</b> (sem timezone). Defina como “dia” é calculado (Brasil vs UTC).</li>
+            <li>Use <code>timestamptz</code> para <code>created_at</code>/<code>updated_at</code> (padrão: armazenar em UTC).</li>
+          </ul>
+        </details>
+      </section>
+
+      <section id="supabase">
+        <h2>6) Integração Supabase: formas seguras de escrever</h2>
+
+        <p>
+          <b>Supabase é Postgres</b> com APIs. Você pode gravar dados via:
+        </p>
+
+        <h3>Opção 1 — PostgREST (API REST do Supabase) com Service Role Key</h3>
+        <ul>
+          <li><b>Uso:</b> server-to-server com upsert sem abrir portas do banco.</li>
+          <li><b>Segurança:</b> Service Role ignora RLS. Guarde apenas no servidor (Lambda/ECS/Edge Function).</li>
+          <li><b>Operação:</b> excelente para cargas pequenas/médias em batch.</li>
+        </ul>
+
+        <h3>Opção 2 — Conexão direta Postgres (driver/psql) com credenciais do BD</h3>
+        <ul>
+          <li><b>Uso:</b> bulk load, COPY, ou transformações SQL pesadas.</li>
+          <li><b>Segurança:</b> requer rede/credenciais bem controladas.</li>
+        </ul>
+
+        <div class="callout warn">
+          <strong>RLS (Row Level Security):</strong> para pipelines de ingestão, normalmente você bypassa RLS (service role)
+          e garante qualidade com constraints + auditoria. Clientes não devem escrever dado de ingestão diretamente.
+        </div>
+
+        <details>
+          <summary>O que a TI vai perguntar sobre rede do Supabase</summary>
+          <ul>
+            <li>“O BD do Supabase é acessível publicamente?” → Pode ser via string de conexão; restrinja e use segredos.</li>
+            <li>“Dá para conectar do AWS de forma privada?” → Depende de plano e setup; se não, use escrita por API HTTPS.</li>
+            <li>“Você precisa de acesso inbound ao BD do AWS?” → Não. O job roda dentro do AWS e lê o BD privadamente.</li>
+          </ul>
+        </details>
+      </section>
+
+      <section id="recommended">
+        <h2>7) Arquitetura recomendada (robusta + realista)</h2>
+
+        <div class="callout good">
+          <strong>Recomendação padrão:</strong>
+          TI ingere a API da MV em <b>AWS Aurora/RDS Postgres</b> (raw + curated),
+          e um <b>job agendado no AWS</b> (Lambda ou ECS) lê incremental e faz upsert no Supabase via PostgREST (Service Role).
+        </div>
+
+        <h3>Por que isso é robusto</h3>
+        <ul>
+          <li><b>Menor privilégio:</b> job com acesso somente leitura ao view/tabela curada no AWS e somente escrita no Supabase.</li>
+          <li><b>Incremental + retomável:</b> armazenar watermark (último <code>updated_at</code> ou <code>data</code>) numa tabela de estado.</li>
+          <li><b>Upsert idempotente:</b> unique constraint impede duplicatas; reruns são seguros.</li>
+          <li><b>Operação clara:</b> CloudWatch logs + alarmes; backfill simples ajustando o watermark.</li>
+        </ul>
+
+        <details>
+          <summary>Raw vs curated (o que você deve pedir para a TI criar)</summary>
+          <ul>
+            <li><b>raw_mv_produtividade</b>: payload bruto (JSON), timestamps de ingestão, metadados da requisição.</li>
+            <li><b>mv_produtividade_curated</b>: colunas tipadas alinhadas ao destino, com chave única e <code>source_updated_at</code>.</li>
+            <li><b>View para sync</b>: view expondo apenas campos necessários e suportando leitura incremental.</li>
+          </ul>
+        </details>
+      </section>
+
+      <section id="questions">
+        <h2>8) Perguntas que a TI vai fazer (e como responder)</h2>
+
+        <details open>
+          <summary>P1) “Qual é o identificador único? Como vamos deduplicar?”</summary>
+          <p>
+            Vamos definir uma chave única natural no grão diário. Proposta:
+            <code>(unidade_hospitalar_id, data, codigo_mv, especialidade, vinculo)</code>.
+            Se a API da MV garantir unicidade sem especialidade/vínculo, simplificamos.
+            Vamos impor isso com <b>unique constraint</b> no Supabase e usar <b>UPSERT</b>.
+          </p>
+        </details>
+
+        <details>
+          <summary>P2) “Você quer recarga completa ou incremental?”</summary>
+          <p>
+            Incremental. Usar watermark: <code>source_updated_at</code> (preferível) ou uma combinação de <code>data</code> + tempo de ingestão.
+            Manter <code>sync_state</code> com <code>last_successful_watermark</code>. Backfill via “rewind” do watermark.
+          </p>
+        </details>
+
+        <details>
+          <summary>P3) “Qual frequência você precisa?”</summary>
+          <p>
+            Começar diário (ex.: 02:00 horário local) a menos que o produto exija near real-time. Depois podemos ir para horário.
+            O pipeline deve ser idempotente e seguro para rerun.
+          </p>
+        </details>
+
+        <details>
+          <summary>P4) “Como o AWS vai escrever no Supabase com segurança?”</summary>
+          <p>
+            Preferível: usar API REST do Supabase (PostgREST) com Service Role Key no AWS Secrets Manager.
+            Job roda no AWS (Lambda/ECS) e escreve no Supabase via HTTPS. Sem exposição no client.
+          </p>
+        </details>
+
+        <details>
+          <summary>P5) “O Supabase precisa acessar o AWS?”</summary>
+          <p>
+            Não, se o job rodar dentro do AWS. O job lê o BD no AWS de forma privada e escreve no Supabase por HTTPS.
+            Isso evita abrir inbound para o BD no AWS.
+          </p>
+        </details>
+
+        <details>
+          <summary>P6) “E RLS/auditoria?”</summary>
+          <p>
+            Ingestão usa Service Role (bypassa RLS). Garantimos qualidade com constraints e, se necessário, adicionamos:
+            <code>source_system</code>, <code>ingested_by</code>, <code>ingested_at</code> ou uma tabela de auditoria.
+          </p>
+        </details>
+
+        <details>
+          <summary>P7) “Qual volume e restrição de performance?”</summary>
+          <p>
+            São agregados diários por profissional, então o volume tende a ser administrável.
+            Vamos fazer upserts em batch (ex.: 500–2.000 linhas por request) e indexar por data e unidade.
+          </p>
+        </details>
+
+        <details>
+          <summary>P8) “Como lidar com mudança de schema na API da MV?”</summary>
+          <p>
+            Guardar payload bruto (tabela raw ou S3) para reprocessar. A tabela/view curada é o contrato estável.
+            Novas métricas entram como novas colunas opcionais no Supabase com migração controlada.
+          </p>
+        </details>
+      </section>
+
+      <section id="checklist">
+        <h2>9) Checklist prático para kickoff & go-live</h2>
+
+        <h3>Contrato de dados</h3>
+        <ul>
+          <li>Confirmar granularidade e chave de dedupe (diário? por profissional? por especialidade?).</li>
+          <li>Confirmar mapeamento para <code>unidade_hospitalar_id</code> (como a MV identifica a unidade).</li>
+          <li>Definir regra de timezone para <code>data</code>.</li>
+        </ul>
+
+        <h3>Segurança</h3>
+        <ul>
+          <li>Credenciais da MV no AWS Secrets Manager + KMS.</li>
+          <li>Service Role do Supabase no Secrets Manager (somente servidor).</li>
+          <li>Usuário do BD no AWS somente leitura para tabela/view curada.</li>
+        </ul>
+
+        <h3>Confiabilidade</h3>
+        <ul>
+          <li>Retries com backoff exponencial para MV API e escrita no Supabase.</li>
+          <li>Estratégia de “dead-letter” (batches com falha logados para replay).</li>
+          <li>Alarmes no CloudWatch para falhas e anomalia de “sem dados ingeridos”.</li>
+        </ul>
+
+        <h3>Operação</h3>
+        <ul>
+          <li>Procedimento de backfill (rewind do watermark + reprocessamento).</li>
+          <li>Runbook: “o que fazer quando a MV API cair?”</li>
+          <li>Dashboard: contagem diária ingerida; métricas de lag do sync.</li>
+        </ul>
+
+        <div class="callout bad">
+          <strong>Falha comum:</strong> não ter unique constraint + sync “só insert” = duplicatas silenciosas.
+          Sempre imponha unicidade e use upsert.
+        </div>
+      </section>
+
+      <section id="snippets">
+        <h2>10) Snippets de referência (DDL + upsert)</h2>
+
+        <h3>Supabase (Postgres) — constraints + índices sugeridos</h3>
+        <pre><code>-- Alvo: public.produtividade (Supabase Postgres)
+
+-- 1) PK default (se ainda não existir)
+ALTER TABLE public.produtividade
+  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
+-- 2) Chave natural (ajuste conforme a MV definir unicidade)
+-- Exemplo: unidade + data + profissional + especialidade + vínculo
+CREATE UNIQUE INDEX IF NOT EXISTS ux_produtividade_natural_key
+ON public.produtividade (unidade_hospitalar_id, data, codigo_mv, especialidade, vinculo);
+
+-- 3) Índices úteis
+CREATE INDEX IF NOT EXISTS ix_produtividade_data
+ON public.produtividade (data);
+
+CREATE INDEX IF NOT EXISTS ix_produtividade_unidade_data
+ON public.produtividade (unidade_hospitalar_id, data);
+
+CREATE INDEX IF NOT EXISTS ix_produtividade_codigo_data
+ON public.produtividade (codigo_mv, data);</code></pre>
+
+        <h3>Exemplo de Upsert (SQL)</h3>
+        <pre><code>-- Escrita idempotente: insere ou atualiza se já existir
+INSERT INTO public.produtividade (
+  unidade_hospitalar_id, data, codigo_mv, nome, especialidade, vinculo,
+  procedimento, parecer_solicitado, parecer_realizado, cirurgia_realizada,
+  prescricao, evolucao, urgencia, ambulatorio, auxiliar, encaminhamento,
+  folha_objetivo_diario, evolucao_diurna_cti, evolucao_noturna_cti,
+  created_at, updated_at
+)
+VALUES
+  -- (... linhas em batch aqui ...)
+ON CONFLICT (unidade_hospitalar_id, data, codigo_mv, especialidade, vinculo)
+DO UPDATE SET
+  nome = EXCLUDED.nome,
+  procedimento = EXCLUDED.procedimento,
+  parecer_solicitado = EXCLUDED.parecer_solicitado,
+  parecer_realizado = EXCLUDED.parecer_realizado,
+  cirurgia_realizada = EXCLUDED.cirurgia_realizada,
+  prescricao = EXCLUDED.prescricao,
+  evolucao = EXCLUDED.evolucao,
+  urgencia = EXCLUDED.urgencia,
+  ambulatorio = EXCLUDED.ambulatorio,
+  auxiliar = EXCLUDED.auxiliar,
+  encaminhamento = EXCLUDED.encaminhamento,
+  folha_objetivo_diario = EXCLUDED.folha_objetivo_diario,
+  evolucao_diurna_cti = EXCLUDED.evolucao_diurna_cti,
+  evolucao_noturna_cti = EXCLUDED.evolucao_noturna_cti,
+  vinculo = EXCLUDED.vinculo,
+  updated_at = NOW();</code></pre>
+
+        <h3>Tabela mínima de “sync_state” (watermark)</h3>
+        <pre><code>CREATE TABLE IF NOT EXISTS public.sync_state (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  pipeline text NOT NULL UNIQUE,             -- ex.: 'mv_produtividade'
+  last_watermark timestamptz NOT NULL,       -- último source_updated_at bem-sucedido
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Inicializar uma vez:
+INSERT INTO public.sync_state (pipeline, last_watermark)
+VALUES ('mv_produtividade', '2000-01-01T00:00:00Z')
+ON CONFLICT (pipeline) DO NOTHING;</code></pre>
+
+        <details>
+          <summary>Como explicar isso para a TI em 1 minuto</summary>
+          <p>
+            “AWS é a fonte da verdade. O job lê apenas o que mudou desde um watermark e faz upsert no Supabase usando uma chave natural única.
+            Isso deixa o pipeline retomável, tolerante a falhas e fácil de backfilling.”
+          </p>
+        </details>
+      </section>
+    </main>
+
+    <div class="footer">
+      Feito para a migração da produtividade (MV): MV API → AWS → Supabase. Mantenha simples: chaves fortes, upsert, watermark e bom monitoramento.
+    </div>
+  </div>
+
+  <script>
+    // UX leve: destaca o item do sumário conforme o scroll (sem dependências)
+    (function(){
+      const links = Array.from(document.querySelectorAll('.toc a'));
+      const sections = links
+        .map(a => document.querySelector(a.getAttribute('href')))
+        .filter(Boolean);
+
+      const setActive = () => {
+        const y = window.scrollY + 120;
+        let idx = 0;
+        for (let i=0;i<sections.length;i++){
+          if (sections[i].offsetTop <= y) idx = i;
+        }
+        links.forEach((a,i)=>{
+          a.style.borderColor = i===idx ? 'rgba(127,243,200,.35)' : 'transparent';
+          a.style.background  = i===idx ? 'rgba(127,243,200,.08)' : 'rgba(255,255,255,.02)';
+        });
+      };
+      window.addEventListener('scroll', setActive, { passive:true });
+      setActive();
+    })();
+  </script>
+</body>
+</html>

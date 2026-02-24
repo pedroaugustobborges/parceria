@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integração MV Saúde + AWS + Supabase | ParcerIA</title>
+    <style>
+        :root {
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --secondary: #8b5cf6;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: 16px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-top: 1rem;
+        }
+
+        .badge-aws { background: #ff9900; color: #000; }
+        .badge-supabase { background: #3ecf8e; color: #000; }
+        .badge-sql { background: #336791; color: #fff; }
+
+        section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        h2 {
+            color: var(--primary);
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        h3 {
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            margin: 1.5rem 0 1rem;
+        }
+
+        h4 {
+            color: var(--secondary);
+            font-size: 1.1rem;
+            margin: 1.25rem 0 0.75rem;
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        ul, ol {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        code {
+            background: var(--bg-dark);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9em;
+            color: var(--success);
+        }
+
+        pre {
+            background: var(--bg-dark);
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+        }
+
+        pre code {
+            padding: 0;
+            background: transparent;
+            color: var(--text-primary);
+        }
+
+        .comment { color: #6b7280; }
+        .keyword { color: #c084fc; }
+        .string { color: #34d399; }
+        .function { color: #60a5fa; }
+        .number { color: #fbbf24; }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .card {
+            background: var(--bg-dark);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .card h4 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .icon-aws { background: rgba(255, 153, 0, 0.2); }
+        .icon-supabase { background: rgba(62, 207, 142, 0.2); }
+        .icon-sql { background: rgba(51, 103, 145, 0.2); }
+        .icon-security { background: rgba(239, 68, 68, 0.2); }
+
+        .diagram {
+            background: var(--bg-dark);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .diagram-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .diagram-box {
+            background: var(--bg-card);
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            min-width: 120px;
+        }
+
+        .diagram-box.aws { border-color: #ff9900; }
+        .diagram-box.supabase { border-color: #3ecf8e; }
+        .diagram-box.mv { border-color: var(--secondary); }
+
+        .diagram-arrow {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background: rgba(14, 165, 233, 0.1);
+            border-color: var(--primary);
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--warning);
+        }
+
+        .alert-success {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: var(--success);
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--error);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-dark);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        td {
+            color: var(--text-secondary);
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .toc {
+            background: var(--bg-dark);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .toc ol {
+            margin-bottom: 0;
+        }
+
+        .toc a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover {
+            color: var(--primary);
+        }
+
+        .comparison-table {
+            overflow-x: auto;
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 0.25rem;
+        }
+
+        .tag-required { background: var(--error); color: #fff; }
+        .tag-optional { background: var(--text-secondary); color: var(--bg-dark); }
+        .tag-recommended { background: var(--success); color: #fff; }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border);
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            header h1 {
+                font-size: 1.75rem;
+            }
+
+            .diagram-flow {
+                flex-direction: column;
+            }
+
+            .diagram-arrow {
+                transform: rotate(90deg);
+            }
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                color: #000;
+            }
+
+            section, .card, .diagram, pre, .toc, .alert {
+                background: #f5f5f5;
+                border-color: #ddd;
+            }
+
+            h2, h4, .toc h3 {
+                color: #0066cc;
+            }
+
+            code {
+                background: #eee;
+                color: #333;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Integração MV Saúde + AWS + Supabase</h1>
+            <p>Documentação Técnica para Migração do Pipeline de Produtividade</p>
+            <div>
+                <span class="badge badge-aws">AWS</span>
+                <span class="badge badge-supabase">Supabase</span>
+                <span class="badge badge-sql">PostgreSQL</span>
+            </div>
+        </header>
+
+        <nav class="toc">
+            <h3>Índice</h3>
+            <ol>
+                <li><a href="#contexto">Contexto e Motivação</a></li>
+                <li><a href="#arquitetura">Arquitetura da Solução</a></li>
+                <li><a href="#aws">Fundamentos AWS</a></li>
+                <li><a href="#sql">Modelagem SQL</a></li>
+                <li><a href="#supabase">Integração com Supabase</a></li>
+                <li><a href="#seguranca">Segurança e Boas Práticas</a></li>
+                <li><a href="#perguntas">Perguntas Técnicas Frequentes</a></li>
+                <li><a href="#checklist">Checklist de Implementação</a></li>
+            </ol>
+        </nav>
+
+        <!-- SEÇÃO 1: CONTEXTO -->
+        <section id="contexto">
+            <h2>1. Contexto e Motivação</h2>
+
+            <h3>Situação Atual (Legado)</h3>
+            <div class="diagram">
+                <div class="diagram-flow">
+                    <div class="diagram-box mv">
+                        <strong>MV Saúde</strong><br>
+                        <small>Report Viewer</small><br>
+                        <code style="font-size: 0.7em;">id=7076</code>
+                    </div>
+                    <span class="diagram-arrow">→</span>
+                    <div class="diagram-box">
+                        <strong>Python Cron</strong><br>
+                        <small>Web Scraping</small><br>
+                        <code style="font-size: 0.7em;">coletar-produtividade-mv.py</code>
+                    </div>
+                    <span class="diagram-arrow">→</span>
+                    <div class="diagram-box supabase">
+                        <strong>Supabase</strong><br>
+                        <small>produtividade</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>Problemas do Web Scraping:</strong>
+                <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                    <li>Fragilidade: qualquer mudança no HTML quebra o script</li>
+                    <li>Performance: parsing de HTML é lento e consome recursos</li>
+                    <li>Confiabilidade: depende da disponibilidade visual do sistema</li>
+                    <li>Manutenção: difícil de debugar e atualizar</li>
+                    <li>Sem contrato: não há garantia de formato dos dados</li>
+                </ul>
+            </div>
+
+            <h3>Nova Arquitetura (API)</h3>
+            <div class="diagram">
+                <div class="diagram-flow">
+                    <div class="diagram-box mv">
+                        <strong>MV Saúde</strong><br>
+                        <small>API REST</small>
+                    </div>
+                    <span class="diagram-arrow">→</span>
+                    <div class="diagram-box aws">
+                        <strong>AWS</strong><br>
+                        <small>Tabela Staging</small>
+                    </div>
+                    <span class="diagram-arrow">→</span>
+                    <div class="diagram-box">
+                        <strong>ETL/Sync</strong><br>
+                        <small>Lambda/Cron</small>
+                    </div>
+                    <span class="diagram-arrow">→</span>
+                    <div class="diagram-box supabase">
+                        <strong>Supabase</strong><br>
+                        <small>produtividade</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-success">
+                <strong>Vantagens da API:</strong>
+                <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                    <li>Contrato definido: schema JSON documentado</li>
+                    <li>Performance: dados estruturados, sem parsing HTML</li>
+                    <li>Confiabilidade: endpoints versionados</li>
+                    <li>Segurança: autenticação e rate limiting</li>
+                    <li>Rastreabilidade: logs e métricas nativas</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 2: ARQUITETURA -->
+        <section id="arquitetura">
+            <h2>2. Arquitetura da Solução</h2>
+
+            <h3>Fluxo de Dados Detalhado</h3>
+            <pre><code><span class="comment">┌─────────────────────────────────────────────────────────────────────────────┐</span>
+<span class="comment">│                           FLUXO DE DADOS                                    │</span>
+<span class="comment">├─────────────────────────────────────────────────────────────────────────────┤</span>
+<span class="comment">│                                                                             │</span>
+<span class="comment">│  ┌──────────┐      ┌──────────────┐      ┌──────────────┐                  │</span>
+<span class="comment">│  │ MV Saúde │      │     AWS      │      │   Supabase   │                  │</span>
+<span class="comment">│  │   API    │ ───► │   RDS/Table  │ ───► │ produtividade│                  │</span>
+<span class="comment">│  └──────────┘      └──────────────┘      └──────────────┘                  │</span>
+<span class="comment">│       │                   │                     │                          │</span>
+<span class="comment">│       │                   │                     │                          │</span>
+<span class="comment">│  Autenticação        EventBridge            Row Level                      │</span>
+<span class="comment">│  (Token/API Key)     (Scheduler)            Security                       │</span>
+<span class="comment">│                           │                                                │</span>
+<span class="comment">│                      Lambda/ECS                                            │</span>
+<span class="comment">│                      (ETL Logic)                                           │</span>
+<span class="comment">│                                                                             │</span>
+<span class="comment">└─────────────────────────────────────────────────────────────────────────────┘</span></code></pre>
+
+            <h3>Componentes da Arquitetura</h3>
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-icon icon-aws">🔶</div>
+                    <h4>Fonte: MV Saúde API</h4>
+                    <p>API REST fornecida pelo MV que substitui o relatório web. Fornece dados de produtividade em formato JSON estruturado.</p>
+                    <ul>
+                        <li>Endpoint autenticado</li>
+                        <li>Paginação de resultados</li>
+                        <li>Filtros por data/unidade</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon icon-aws">🔶</div>
+                    <h4>Staging: AWS</h4>
+                    <p>Tabela intermediária na AWS para receber os dados brutos da API antes de processá-los.</p>
+                    <ul>
+                        <li>RDS PostgreSQL ou Aurora</li>
+                        <li>Ou DynamoDB (NoSQL)</li>
+                        <li>Ou S3 + Athena (Data Lake)</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon icon-supabase">🟢</div>
+                    <h4>Destino: Supabase</h4>
+                    <p>Tabela <code>produtividade</code> no ParcerIA que alimenta dashboards e relatórios.</p>
+                    <ul>
+                        <li>PostgreSQL gerenciado</li>
+                        <li>API REST automática</li>
+                        <li>Realtime subscriptions</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon icon-security">🔐</div>
+                    <h4>Orquestração</h4>
+                    <p>Componente que coordena a extração, transformação e carga dos dados.</p>
+                    <ul>
+                        <li>AWS Lambda (serverless)</li>
+                        <li>EventBridge (scheduler)</li>
+                        <li>Step Functions (workflows)</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 3: AWS -->
+        <section id="aws">
+            <h2>3. Fundamentos AWS</h2>
+
+            <h3>3.1 Serviços Relevantes para Este Projeto</h3>
+
+            <h4>Amazon RDS (Relational Database Service)</h4>
+            <p>Banco de dados relacional gerenciado. É a opção mais comum para tabelas SQL na AWS.</p>
+
+            <div class="highlight">
+                <strong>Por que usar RDS?</strong>
+                <ul>
+                    <li>Compatível com PostgreSQL (mesmo engine do Supabase)</li>
+                    <li>Backups automáticos</li>
+                    <li>Multi-AZ para alta disponibilidade</li>
+                    <li>Escalabilidade vertical (aumentar instância)</li>
+                </ul>
+            </div>
+
+            <pre><code><span class="comment">-- Exemplo: Criar tabela staging no RDS PostgreSQL</span>
+<span class="keyword">CREATE TABLE</span> staging_produtividade (
+    id <span class="function">SERIAL</span> <span class="keyword">PRIMARY KEY</span>,
+    data_extracao <span class="function">TIMESTAMP</span> <span class="keyword">DEFAULT</span> <span class="function">NOW</span>(),
+    payload <span class="function">JSONB</span> <span class="keyword">NOT NULL</span>,
+    processado <span class="function">BOOLEAN</span> <span class="keyword">DEFAULT</span> <span class="keyword">FALSE</span>,
+    erro <span class="function">TEXT</span>
+);
+
+<span class="comment">-- Índice para queries de processamento</span>
+<span class="keyword">CREATE INDEX</span> idx_staging_processado
+<span class="keyword">ON</span> staging_produtividade(processado)
+<span class="keyword">WHERE</span> processado = <span class="keyword">FALSE</span>;</code></pre>
+
+            <h4>Amazon Aurora</h4>
+            <p>Versão turbinada do RDS, compatível com PostgreSQL mas até 5x mais rápido.</p>
+            <ul>
+                <li>Ideal para cargas de trabalho intensivas</li>
+                <li>Serverless v2: escala automaticamente</li>
+                <li>Custo maior, mas melhor performance</li>
+            </ul>
+
+            <h4>AWS Lambda</h4>
+            <p>Funções serverless que executam código sem gerenciar servidores.</p>
+
+            <pre><code><span class="comment"># Exemplo: Lambda para sincronizar dados com Supabase</span>
+<span class="keyword">import</span> json
+<span class="keyword">import</span> boto3
+<span class="keyword">import</span> requests
+<span class="keyword">from</span> datetime <span class="keyword">import</span> datetime
+
+<span class="keyword">def</span> <span class="function">lambda_handler</span>(event, context):
+    <span class="comment"># 1. Conectar ao RDS e buscar dados não processados</span>
+    <span class="comment"># 2. Transformar dados para o schema do Supabase</span>
+    <span class="comment"># 3. Inserir no Supabase via API REST</span>
+    <span class="comment"># 4. Marcar como processado no RDS</span>
+
+    supabase_url = <span class="string">"https://xxx.supabase.co/rest/v1/produtividade"</span>
+    headers = {
+        <span class="string">"apikey"</span>: os.environ[<span class="string">"SUPABASE_KEY"</span>],
+        <span class="string">"Authorization"</span>: <span class="string">f"Bearer {os.environ['SUPABASE_KEY']}"</span>,
+        <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span>,
+        <span class="string">"Prefer"</span>: <span class="string">"return=minimal"</span>
+    }
+
+    response = requests.<span class="function">post</span>(supabase_url, headers=headers, json=dados)
+
+    <span class="keyword">return</span> {
+        <span class="string">"statusCode"</span>: <span class="number">200</span>,
+        <span class="string">"body"</span>: json.<span class="function">dumps</span>({<span class="string">"processados"</span>: len(dados)})
+    }</code></pre>
+
+            <h4>Amazon EventBridge (CloudWatch Events)</h4>
+            <p>Serviço de agendamento e eventos. Substitui o cron tradicional.</p>
+
+            <pre><code><span class="comment"># Exemplo: Regra EventBridge para executar Lambda a cada hora</span>
+{
+    <span class="string">"Name"</span>: <span class="string">"sync-produtividade-hourly"</span>,
+    <span class="string">"ScheduleExpression"</span>: <span class="string">"rate(1 hour)"</span>,
+    <span class="string">"State"</span>: <span class="string">"ENABLED"</span>,
+    <span class="string">"Targets"</span>: [{
+        <span class="string">"Id"</span>: <span class="string">"lambda-sync"</span>,
+        <span class="string">"Arn"</span>: <span class="string">"arn:aws:lambda:us-east-1:123456789:function:sync-produtividade"</span>
+    }]
+}
+
+<span class="comment"># Ou usando cron expression (mais flexível)</span>
+<span class="string">"ScheduleExpression"</span>: <span class="string">"cron(0 */2 * * ? *)"</span>  <span class="comment"># A cada 2 horas</span></code></pre>
+
+            <h4>AWS Secrets Manager</h4>
+            <p>Armazenamento seguro de credenciais (API keys, senhas de banco, etc).</p>
+            <div class="alert alert-info">
+                <strong>Importante:</strong> Nunca hardcode credenciais no código! Use Secrets Manager ou Parameter Store.
+            </div>
+
+            <h3>3.2 Opções de Arquitetura AWS</h3>
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Opção</th>
+                            <th>Serviços</th>
+                            <th>Custo</th>
+                            <th>Complexidade</th>
+                            <th>Melhor para</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Serverless Simples</strong></td>
+                            <td>Lambda + EventBridge</td>
+                            <td>$ Baixo</td>
+                            <td>Baixa</td>
+                            <td>Volumes pequenos, sync simples</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Com Staging SQL</strong></td>
+                            <td>RDS + Lambda + EventBridge</td>
+                            <td>$$ Médio</td>
+                            <td>Média</td>
+                            <td>Transformações complexas, auditoria</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Data Lake</strong></td>
+                            <td>S3 + Glue + Athena</td>
+                            <td>$$ Médio</td>
+                            <td>Alta</td>
+                            <td>Analytics, histórico longo</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Enterprise</strong></td>
+                            <td>Aurora + Step Functions + SNS</td>
+                            <td>$$$ Alto</td>
+                            <td>Alta</td>
+                            <td>Missão crítica, SLAs rigorosos</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 4: SQL -->
+        <section id="sql">
+            <h2>4. Modelagem SQL</h2>
+
+            <h3>4.1 Schema da Tabela AWS (Staging)</h3>
+            <p>A tabela de staging na AWS deve ser flexível para receber os dados brutos da API MV:</p>
+
+            <pre><code><span class="comment">-- Tabela de staging para dados brutos da API MV</span>
+<span class="keyword">CREATE TABLE</span> mv_produtividade_raw (
+    <span class="comment">-- Identificação</span>
+    id <span class="function">UUID</span> <span class="keyword">PRIMARY KEY DEFAULT</span> <span class="function">gen_random_uuid</span>(),
+
+    <span class="comment">-- Metadados da extração</span>
+    extracted_at <span class="function">TIMESTAMP WITH TIME ZONE</span> <span class="keyword">DEFAULT</span> <span class="function">NOW</span>(),
+    source_endpoint <span class="function">TEXT</span>,
+    request_params <span class="function">JSONB</span>,
+
+    <span class="comment">-- Dados brutos da API</span>
+    raw_response <span class="function">JSONB</span> <span class="keyword">NOT NULL</span>,
+
+    <span class="comment">-- Controle de processamento</span>
+    processed <span class="function">BOOLEAN</span> <span class="keyword">DEFAULT FALSE</span>,
+    processed_at <span class="function">TIMESTAMP WITH TIME ZONE</span>,
+    sync_status <span class="function">TEXT</span> <span class="keyword">CHECK</span> (sync_status <span class="keyword">IN</span> (<span class="string">'pending'</span>, <span class="string">'synced'</span>, <span class="string">'error'</span>)),
+    error_message <span class="function">TEXT</span>,
+    retry_count <span class="function">INTEGER</span> <span class="keyword">DEFAULT</span> <span class="number">0</span>
+);
+
+<span class="comment">-- Índices para performance</span>
+<span class="keyword">CREATE INDEX</span> idx_raw_pending <span class="keyword">ON</span> mv_produtividade_raw(sync_status)
+    <span class="keyword">WHERE</span> sync_status = <span class="string">'pending'</span>;
+<span class="keyword">CREATE INDEX</span> idx_raw_extracted <span class="keyword">ON</span> mv_produtividade_raw(extracted_at);</code></pre>
+
+            <h3>4.2 Schema da Tabela Supabase (Destino)</h3>
+            <p>A tabela <code>produtividade</code> no Supabase deve ter um schema bem definido:</p>
+
+            <pre><code><span class="comment">-- Tabela final no Supabase (ParcerIA)</span>
+<span class="keyword">CREATE TABLE</span> produtividade (
+    <span class="comment">-- Chave primária</span>
+    id <span class="function">UUID</span> <span class="keyword">PRIMARY KEY DEFAULT</span> <span class="function">gen_random_uuid</span>(),
+
+    <span class="comment">-- Referências</span>
+    unidade_hospitalar_id <span class="function">UUID</span> <span class="keyword">REFERENCES</span> unidades_hospitalares(id),
+    contrato_id <span class="function">UUID</span> <span class="keyword">REFERENCES</span> contratos(id),
+    profissional_id <span class="function">UUID</span> <span class="keyword">REFERENCES</span> usuarios(id),
+
+    <span class="comment">-- Dados de produtividade</span>
+    data_referencia <span class="function">DATE</span> <span class="keyword">NOT NULL</span>,
+    tipo_atendimento <span class="function">TEXT</span>,
+    quantidade_atendimentos <span class="function">INTEGER</span> <span class="keyword">DEFAULT</span> <span class="number">0</span>,
+    horas_trabalhadas <span class="function">DECIMAL</span>(<span class="number">5</span>,<span class="number">2</span>),
+    valor_total <span class="function">DECIMAL</span>(<span class="number">12</span>,<span class="number">2</span>),
+
+    <span class="comment">-- Metadados MV</span>
+    mv_id <span class="function">TEXT</span>,  <span class="comment">-- ID original do MV para deduplicação</span>
+    mv_codigo_procedimento <span class="function">TEXT</span>,
+
+    <span class="comment">-- Auditoria</span>
+    created_at <span class="function">TIMESTAMP WITH TIME ZONE</span> <span class="keyword">DEFAULT</span> <span class="function">NOW</span>(),
+    updated_at <span class="function">TIMESTAMP WITH TIME ZONE</span> <span class="keyword">DEFAULT</span> <span class="function">NOW</span>(),
+    source <span class="function">TEXT</span> <span class="keyword">DEFAULT</span> <span class="string">'mv_api'</span>,
+
+    <span class="comment">-- Constraint para evitar duplicatas</span>
+    <span class="keyword">UNIQUE</span>(mv_id)
+);
+
+<span class="comment">-- Índices para queries do dashboard</span>
+<span class="keyword">CREATE INDEX</span> idx_prod_data <span class="keyword">ON</span> produtividade(data_referencia);
+<span class="keyword">CREATE INDEX</span> idx_prod_unidade <span class="keyword">ON</span> produtividade(unidade_hospitalar_id);
+<span class="keyword">CREATE INDEX</span> idx_prod_contrato <span class="keyword">ON</span> produtividade(contrato_id);
+
+<span class="comment">-- Trigger para updated_at</span>
+<span class="keyword">CREATE TRIGGER</span> update_produtividade_timestamp
+    <span class="keyword">BEFORE UPDATE ON</span> produtividade
+    <span class="keyword">FOR EACH ROW</span>
+    <span class="keyword">EXECUTE FUNCTION</span> <span class="function">update_updated_at_column</span>();
+
+<span class="comment">-- Row Level Security</span>
+<span class="keyword">ALTER TABLE</span> produtividade <span class="keyword">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="keyword">CREATE POLICY</span> <span class="string">"Admins podem ver tudo"</span> <span class="keyword">ON</span> produtividade
+    <span class="keyword">FOR SELECT</span>
+    <span class="keyword">USING</span> (
+        <span class="function">auth.jwt</span>() ->> <span class="string">'tipo'</span> <span class="keyword">IN</span> (<span class="string">'administrador-agir-corporativo'</span>, <span class="string">'administrador-agir-planta'</span>)
+    );
+
+<span class="keyword">CREATE POLICY</span> <span class="string">"Parceiros veem apenas seus dados"</span> <span class="keyword">ON</span> produtividade
+    <span class="keyword">FOR SELECT</span>
+    <span class="keyword">USING</span> (
+        contrato_id <span class="keyword">IN</span> (
+            <span class="keyword">SELECT</span> contrato_id <span class="keyword">FROM</span> usuario_contrato
+            <span class="keyword">WHERE</span> usuario_id = <span class="function">auth.uid</span>()
+        )
+    );</code></pre>
+
+            <h3>4.3 Query de Transformação (ETL)</h3>
+            <pre><code><span class="comment">-- Query para transformar dados do staging para o formato final</span>
+<span class="keyword">INSERT INTO</span> produtividade (
+    unidade_hospitalar_id,
+    contrato_id,
+    profissional_id,
+    data_referencia,
+    tipo_atendimento,
+    quantidade_atendimentos,
+    horas_trabalhadas,
+    valor_total,
+    mv_id,
+    mv_codigo_procedimento
+)
+<span class="keyword">SELECT</span>
+    <span class="comment">-- Mapear código MV para UUID da unidade</span>
+    (<span class="keyword">SELECT</span> id <span class="keyword">FROM</span> unidades_hospitalares
+     <span class="keyword">WHERE</span> codigo_mv = raw.raw_response->><span class="string">'codigo_unidade'</span>) <span class="keyword">AS</span> unidade_hospitalar_id,
+
+    <span class="comment">-- Mapear contrato (pode precisar de lógica adicional)</span>
+    (<span class="keyword">SELECT</span> id <span class="keyword">FROM</span> contratos
+     <span class="keyword">WHERE</span> numero_contrato = raw.raw_response->><span class="string">'contrato'</span>) <span class="keyword">AS</span> contrato_id,
+
+    <span class="comment">-- Mapear profissional por CPF</span>
+    (<span class="keyword">SELECT</span> id <span class="keyword">FROM</span> usuarios
+     <span class="keyword">WHERE</span> cpf = raw.raw_response->><span class="string">'cpf_profissional'</span>) <span class="keyword">AS</span> profissional_id,
+
+    <span class="comment">-- Dados diretos</span>
+    (raw.raw_response->><span class="string">'data_atendimento'</span>)::<span class="function">DATE</span>,
+    raw.raw_response->><span class="string">'tipo_atendimento'</span>,
+    (raw.raw_response->><span class="string">'qtd_atendimentos'</span>)::<span class="function">INTEGER</span>,
+    (raw.raw_response->><span class="string">'horas'</span>)::<span class="function">DECIMAL</span>,
+    (raw.raw_response->><span class="string">'valor'</span>)::<span class="function">DECIMAL</span>,
+    raw.raw_response->><span class="string">'id_mv'</span>,
+    raw.raw_response->><span class="string">'codigo_procedimento'</span>
+
+<span class="keyword">FROM</span> mv_produtividade_raw raw
+<span class="keyword">WHERE</span> raw.sync_status = <span class="string">'pending'</span>
+<span class="keyword">ON CONFLICT</span> (mv_id) <span class="keyword">DO UPDATE SET</span>
+    quantidade_atendimentos = <span class="keyword">EXCLUDED</span>.quantidade_atendimentos,
+    horas_trabalhadas = <span class="keyword">EXCLUDED</span>.horas_trabalhadas,
+    valor_total = <span class="keyword">EXCLUDED</span>.valor_total,
+    updated_at = <span class="function">NOW</span>();</code></pre>
+        </section>
+
+        <!-- SEÇÃO 5: SUPABASE -->
+        <section id="supabase">
+            <h2>5. Integração com Supabase</h2>
+
+            <h3>5.1 O que é Supabase?</h3>
+            <p>Supabase é uma plataforma Backend-as-a-Service (BaaS) open source que oferece:</p>
+
+            <div class="card-grid">
+                <div class="card">
+                    <h4>PostgreSQL Gerenciado</h4>
+                    <p>Banco de dados PostgreSQL completo com extensões (PostGIS, pg_vector, etc).</p>
+                </div>
+                <div class="card">
+                    <h4>API REST Automática</h4>
+                    <p>PostgREST gera endpoints REST automaticamente para todas as tabelas.</p>
+                </div>
+                <div class="card">
+                    <h4>Realtime</h4>
+                    <p>WebSockets para atualizações em tempo real via PostgreSQL LISTEN/NOTIFY.</p>
+                </div>
+                <div class="card">
+                    <h4>Auth Integrado</h4>
+                    <p>Sistema de autenticação com JWT, OAuth, Magic Links, etc.</p>
+                </div>
+            </div>
+
+            <h3>5.2 Métodos de Integração AWS → Supabase</h3>
+
+            <h4>Opção A: API REST (Recomendado)</h4>
+            <p>Usar a API REST do Supabase para inserir dados. Mais simples e seguro.</p>
+
+            <pre><code><span class="comment"># Python: Inserir dados via API REST do Supabase</span>
+<span class="keyword">import</span> requests
+<span class="keyword">import</span> os
+
+SUPABASE_URL = os.environ[<span class="string">"SUPABASE_URL"</span>]  <span class="comment"># https://xxx.supabase.co</span>
+SUPABASE_KEY = os.environ[<span class="string">"SUPABASE_SERVICE_KEY"</span>]  <span class="comment"># service_role key para bypass RLS</span>
+
+<span class="keyword">def</span> <span class="function">sync_to_supabase</span>(records: list[dict]):
+    <span class="string">"""Sincroniza registros para a tabela produtividade no Supabase"""</span>
+
+    url = <span class="string">f"{SUPABASE_URL}/rest/v1/produtividade"</span>
+
+    headers = {
+        <span class="string">"apikey"</span>: SUPABASE_KEY,
+        <span class="string">"Authorization"</span>: <span class="string">f"Bearer {SUPABASE_KEY}"</span>,
+        <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span>,
+        <span class="string">"Prefer"</span>: <span class="string">"resolution=merge-duplicates"</span>,  <span class="comment"># Upsert</span>
+    }
+
+    <span class="comment"># Batch insert (max 1000 por request)</span>
+    batch_size = <span class="number">1000</span>
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(<span class="number">0</span>, <span class="function">len</span>(records), batch_size):
+        batch = records[i:i + batch_size]
+        response = requests.<span class="function">post</span>(url, headers=headers, json=batch)
+
+        <span class="keyword">if</span> response.status_code <span class="keyword">not in</span> [<span class="number">200</span>, <span class="number">201</span>]:
+            <span class="keyword">raise</span> <span class="function">Exception</span>(<span class="string">f"Erro Supabase: {response.text}"</span>)
+
+    <span class="keyword">return</span> <span class="function">len</span>(records)
+
+<span class="comment"># Exemplo de uso</span>
+dados = [
+    {
+        <span class="string">"data_referencia"</span>: <span class="string">"2024-01-15"</span>,
+        <span class="string">"unidade_hospitalar_id"</span>: <span class="string">"uuid-da-unidade"</span>,
+        <span class="string">"quantidade_atendimentos"</span>: <span class="number">42</span>,
+        <span class="string">"mv_id"</span>: <span class="string">"MV-123456"</span>
+    }
+]
+<span class="function">sync_to_supabase</span>(dados)</code></pre>
+
+            <h4>Opção B: Conexão Direta PostgreSQL</h4>
+            <p>Conectar diretamente ao PostgreSQL do Supabase (requer IP allowlist).</p>
+
+            <pre><code><span class="comment"># Python: Conexão direta ao PostgreSQL do Supabase</span>
+<span class="keyword">import</span> psycopg2
+<span class="keyword">from</span> psycopg2.extras <span class="keyword">import</span> execute_values
+
+<span class="comment"># Connection string do Supabase (Settings > Database)</span>
+DATABASE_URL = <span class="string">"postgresql://postgres.[project-ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres"</span>
+
+<span class="keyword">def</span> <span class="function">bulk_insert_direct</span>(records: list[tuple]):
+    <span class="string">"""Inserção direta via PostgreSQL - mais rápido para grandes volumes"""</span>
+
+    conn = psycopg2.<span class="function">connect</span>(DATABASE_URL)
+    <span class="keyword">try</span>:
+        <span class="keyword">with</span> conn.<span class="function">cursor</span>() <span class="keyword">as</span> cur:
+            <span class="function">execute_values</span>(
+                cur,
+                <span class="string">"""
+                INSERT INTO produtividade
+                (data_referencia, unidade_hospitalar_id, quantidade_atendimentos, mv_id)
+                VALUES %s
+                ON CONFLICT (mv_id) DO UPDATE SET
+                    quantidade_atendimentos = EXCLUDED.quantidade_atendimentos,
+                    updated_at = NOW()
+                """</span>,
+                records
+            )
+        conn.<span class="function">commit</span>()
+    <span class="keyword">finally</span>:
+        conn.<span class="function">close</span>()</code></pre>
+
+            <div class="alert alert-warning">
+                <strong>Atenção para Conexão Direta:</strong>
+                <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                    <li>Requer configurar IP allowlist no Supabase ou usar connection pooling</li>
+                    <li>Lambda tem IPs dinâmicos - use NAT Gateway ou VPC para IP fixo</li>
+                    <li>Prefira a API REST para simplicidade</li>
+                </ul>
+            </div>
+
+            <h4>Opção C: Supabase Edge Functions + Webhook</h4>
+            <p>AWS envia webhook para Edge Function do Supabase processar.</p>
+
+            <pre><code><span class="comment">// Supabase Edge Function (Deno/TypeScript)</span>
+<span class="comment">// supabase/functions/sync-produtividade/index.ts</span>
+
+<span class="keyword">import</span> { createClient } <span class="keyword">from</span> <span class="string">'@supabase/supabase-js'</span>
+
+Deno.serve(<span class="keyword">async</span> (req) => {
+    <span class="comment">// Validar secret do webhook</span>
+    <span class="keyword">const</span> authHeader = req.headers.get(<span class="string">'x-webhook-secret'</span>)
+    <span class="keyword">if</span> (authHeader !== Deno.env.get(<span class="string">'WEBHOOK_SECRET'</span>)) {
+        <span class="keyword">return new</span> Response(<span class="string">'Unauthorized'</span>, { status: <span class="number">401</span> })
+    }
+
+    <span class="keyword">const</span> supabase = <span class="function">createClient</span>(
+        Deno.env.get(<span class="string">'SUPABASE_URL'</span>)!,
+        Deno.env.get(<span class="string">'SUPABASE_SERVICE_ROLE_KEY'</span>)!
+    )
+
+    <span class="keyword">const</span> payload = <span class="keyword">await</span> req.<span class="function">json</span>()
+
+    <span class="keyword">const</span> { error } = <span class="keyword">await</span> supabase
+        .<span class="function">from</span>(<span class="string">'produtividade'</span>)
+        .<span class="function">upsert</span>(payload.records, { onConflict: <span class="string">'mv_id'</span> })
+
+    <span class="keyword">if</span> (error) {
+        <span class="keyword">return new</span> Response(JSON.<span class="function">stringify</span>({ error }), { status: <span class="number">500</span> })
+    }
+
+    <span class="keyword">return new</span> Response(JSON.<span class="function">stringify</span>({ success: <span class="keyword">true</span> }))
+})</code></pre>
+
+            <h3>5.3 Comparação dos Métodos</h3>
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Método</th>
+                            <th>Latência</th>
+                            <th>Volume</th>
+                            <th>Complexidade</th>
+                            <th>Segurança</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>API REST</strong></td>
+                            <td>~100-300ms</td>
+                            <td>Até 1000/req</td>
+                            <td>Baixa</td>
+                            <td>Alta (HTTPS + Key)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>PostgreSQL Direto</strong></td>
+                            <td>~10-50ms</td>
+                            <td>Ilimitado</td>
+                            <td>Média</td>
+                            <td>Média (requer IP config)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Edge Function</strong></td>
+                            <td>~50-150ms</td>
+                            <td>Depende</td>
+                            <td>Média</td>
+                            <td>Alta</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 6: SEGURANÇA -->
+        <section id="seguranca">
+            <h2>6. Segurança e Boas Práticas</h2>
+
+            <h3>6.1 Gestão de Credenciais</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <h4>AWS Secrets Manager</h4>
+                    <pre><code><span class="comment"># Buscar secret no Lambda</span>
+<span class="keyword">import</span> boto3
+<span class="keyword">import</span> json
+
+<span class="keyword">def</span> <span class="function">get_secret</span>(secret_name):
+    client = boto3.<span class="function">client</span>(<span class="string">'secretsmanager'</span>)
+    response = client.<span class="function">get_secret_value</span>(
+        SecretId=secret_name
+    )
+    <span class="keyword">return</span> json.<span class="function">loads</span>(response[<span class="string">'SecretString'</span>])
+
+<span class="comment"># Uso</span>
+secrets = <span class="function">get_secret</span>(<span class="string">'parceria/supabase'</span>)
+supabase_key = secrets[<span class="string">'service_key'</span>]</code></pre>
+                </div>
+                <div class="card">
+                    <h4>Supabase Vault</h4>
+                    <pre><code><span class="comment">-- Armazenar secret no Vault</span>
+<span class="keyword">SELECT</span> vault.<span class="function">create_secret</span>(
+    <span class="string">'mv_api_key'</span>,
+    <span class="string">'chave-secreta-da-api-mv'</span>
+);
+
+<span class="comment">-- Usar em função</span>
+<span class="keyword">CREATE FUNCTION</span> <span class="function">get_mv_key</span>()
+<span class="keyword">RETURNS TEXT AS</span> $$
+    <span class="keyword">SELECT</span> <span class="function">decrypted_secret</span>
+    <span class="keyword">FROM</span> vault.decrypted_secrets
+    <span class="keyword">WHERE</span> name = <span class="string">'mv_api_key'</span>;
+$$ <span class="keyword">LANGUAGE SQL SECURITY DEFINER</span>;</code></pre>
+                </div>
+            </div>
+
+            <h3>6.2 Princípios de Segurança</h3>
+            <div class="alert alert-error">
+                <strong>NUNCA faça isso:</strong>
+                <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                    <li>Hardcode de credenciais no código fonte</li>
+                    <li>Commitar arquivos .env no Git</li>
+                    <li>Usar a <code>anon</code> key para operações server-side</li>
+                    <li>Expor connection strings em logs</li>
+                    <li>Desabilitar RLS "para facilitar"</li>
+                </ul>
+            </div>
+
+            <div class="alert alert-success">
+                <strong>SEMPRE faça isso:</strong>
+                <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                    <li>Use <code>service_role</code> key apenas em backends seguros</li>
+                    <li>Implemente RLS em todas as tabelas com dados sensíveis</li>
+                    <li>Rotacione credenciais periodicamente</li>
+                    <li>Use IAM roles em vez de access keys na AWS</li>
+                    <li>Mantenha logs de auditoria</li>
+                </ul>
+            </div>
+
+            <h3>6.3 IAM Policy para Lambda</h3>
+            <pre><code>{
+    <span class="string">"Version"</span>: <span class="string">"2012-10-17"</span>,
+    <span class="string">"Statement"</span>: [
+        {
+            <span class="string">"Effect"</span>: <span class="string">"Allow"</span>,
+            <span class="string">"Action"</span>: [
+                <span class="string">"secretsmanager:GetSecretValue"</span>
+            ],
+            <span class="string">"Resource"</span>: <span class="string">"arn:aws:secretsmanager:us-east-1:*:secret:parceria/*"</span>
+        },
+        {
+            <span class="string">"Effect"</span>: <span class="string">"Allow"</span>,
+            <span class="string">"Action"</span>: [
+                <span class="string">"rds:Connect"</span>
+            ],
+            <span class="string">"Resource"</span>: <span class="string">"arn:aws:rds-db:us-east-1:*:dbuser:*/lambda_user"</span>
+        },
+        {
+            <span class="string">"Effect"</span>: <span class="string">"Allow"</span>,
+            <span class="string">"Action"</span>: [
+                <span class="string">"logs:CreateLogGroup"</span>,
+                <span class="string">"logs:CreateLogStream"</span>,
+                <span class="string">"logs:PutLogEvents"</span>
+            ],
+            <span class="string">"Resource"</span>: <span class="string">"*"</span>
+        }
+    ]
+}</code></pre>
+        </section>
+
+        <!-- SEÇÃO 7: PERGUNTAS -->
+        <section id="perguntas">
+            <h2>7. Perguntas Técnicas Frequentes</h2>
+
+            <div class="highlight">
+                <h4>P: Como garantir que não haverá duplicatas?</h4>
+                <p><strong>R:</strong> Usar o campo <code>mv_id</code> (ID original do MV) como identificador único. Implementar constraint UNIQUE e usar UPSERT (<code>ON CONFLICT DO UPDATE</code>) nas inserções. A API REST do Supabase suporta isso via header <code>Prefer: resolution=merge-duplicates</code>.</p>
+            </div>
+
+            <div class="highlight">
+                <h4>P: Qual a frequência de sincronização recomendada?</h4>
+                <p><strong>R:</strong> Depende do volume e requisitos de negócio. Para produtividade médica, sincronização a cada 1-2 horas geralmente é suficiente. Se precisar de dados mais frescos, pode-se usar near-realtime (5-15 min). Considerar horários de pico do sistema MV.</p>
+            </div>
+
+            <div class="highlight">
+                <h4>P: Como lidar com falhas na sincronização?</h4>
+                <p><strong>R:</strong> Implementar retry com backoff exponencial. Usar Dead Letter Queue (DLQ) para mensagens que falharem após N tentativas. Manter campo <code>sync_status</code> e <code>retry_count</code> na tabela staging. Configurar alertas no CloudWatch para falhas.</p>
+            </div>
+
+            <div class="highlight">
+                <h4>P: Como a AWS vai conectar no Supabase se o IP muda?</h4>
+                <p><strong>R:</strong> Duas opções:
+                <ol>
+                    <li><strong>Recomendado:</strong> Usar API REST do Supabase (não precisa de IP fixo)</li>
+                    <li>Se precisar conexão direta: Lambda em VPC com NAT Gateway (IP fixo) ou usar o Connection Pooler do Supabase com SSL</li>
+                </ol>
+                </p>
+            </div>
+
+            <div class="highlight">
+                <h4>P: Quem vai criar a tabela na AWS?</h4>
+                <p><strong>R:</strong> O time de TI/Infraestrutura cria a tabela no RDS. Você deve fornecer:
+                <ul>
+                    <li>Schema SQL desejado (DDL)</li>
+                    <li>Requisitos de índices</li>
+                    <li>Estimativa de volume de dados</li>
+                    <li>Requisitos de retenção</li>
+                </ul>
+                </p>
+            </div>
+
+            <div class="highlight">
+                <h4>P: E se a API do MV estiver fora do ar?</h4>
+                <p><strong>R:</strong> O sistema deve ser resiliente:
+                <ul>
+                    <li>Retry automático com backoff</li>
+                    <li>Circuit breaker para evitar sobrecarregar API em recuperação</li>
+                    <li>Alerta para equipe quando falhar por muito tempo</li>
+                    <li>Os dados do Supabase continuam disponíveis (última sincronização)</li>
+                </ul>
+                </p>
+            </div>
+
+            <div class="highlight">
+                <h4>P: Como validar que os dados estão corretos?</h4>
+                <p><strong>R:</strong> Implementar verificações:
+                <ul>
+                    <li>Comparar totais: soma de atendimentos AWS vs Supabase</li>
+                    <li>Verificar ranges: datas dentro do período esperado</li>
+                    <li>Alertar anomalias: variação > 20% do dia anterior</li>
+                    <li>Reconciliação periódica com relatório original do MV</li>
+                </ul>
+                </p>
+            </div>
+
+            <div class="highlight">
+                <h4>P: Qual o custo estimado dessa arquitetura?</h4>
+                <p><strong>R:</strong> Estimativa mensal para volume médio:
+                <table style="margin-top: 0.5rem;">
+                    <tr><td>Lambda (1000 execuções/mês)</td><td>~$0-1</td></tr>
+                    <tr><td>EventBridge</td><td>~$0</td></tr>
+                    <tr><td>RDS db.t3.micro (se usado)</td><td>~$15-20</td></tr>
+                    <tr><td>Secrets Manager</td><td>~$0.40/secret</td></tr>
+                    <tr><td>CloudWatch Logs</td><td>~$1-5</td></tr>
+                    <tr><td><strong>Total (serverless)</strong></td><td><strong>~$5-30/mês</strong></td></tr>
+                </table>
+                </p>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 8: CHECKLIST -->
+        <section id="checklist">
+            <h2>8. Checklist de Implementação</h2>
+
+            <h3>Fase 1: Preparação</h3>
+            <table>
+                <tr>
+                    <td><input type="checkbox"> Documentação da API MV Saúde recebida</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Credenciais de acesso à API MV</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Schema da tabela AWS definido</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Mapeamento de campos MV → Supabase</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Ambiente de desenvolvimento/staging</td>
+                    <td><span class="tag tag-recommended">Recomendado</span></td>
+                </tr>
+            </table>
+
+            <h3>Fase 2: Infraestrutura AWS</h3>
+            <table>
+                <tr>
+                    <td><input type="checkbox"> Tabela RDS criada (se aplicável)</td>
+                    <td><span class="tag tag-optional">Opcional</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Lambda function criada</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> IAM role configurada</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Secrets Manager configurado</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> EventBridge rule criada</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> CloudWatch alarms configurados</td>
+                    <td><span class="tag tag-recommended">Recomendado</span></td>
+                </tr>
+            </table>
+
+            <h3>Fase 3: Supabase</h3>
+            <table>
+                <tr>
+                    <td><input type="checkbox"> Tabela <code>produtividade</code> criada/atualizada</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Índices otimizados</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> RLS policies configuradas</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Service role key gerada</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+            </table>
+
+            <h3>Fase 4: Testes e Go-Live</h3>
+            <table>
+                <tr>
+                    <td><input type="checkbox"> Teste unitário do ETL</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Teste de integração end-to-end</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Validação dos dados migrados</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Desativar cron antigo (scraping)</td>
+                    <td><span class="tag tag-required">Obrigatório</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Monitoramento ativo por 1 semana</td>
+                    <td><span class="tag tag-recommended">Recomendado</span></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"> Documentação final atualizada</td>
+                    <td><span class="tag tag-recommended">Recomendado</span></td>
+                </tr>
+            </table>
+        </section>
+
+        <footer>
+            <p>Documentação técnica para o projeto <strong>ParcerIA</strong></p>
+            <p>Gerado em <script>document.write(new Date().toLocaleDateString('pt-BR'))</script></p>
+            <p style="margin-top: 1rem; font-size: 0.9rem;">
+                <em>"Dados confiáveis são a base de decisões inteligentes."</em>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

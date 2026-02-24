@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Briefing Técnico: Integração API MV Saúde</title>
+    <style>
+        :root {
+            --primary-color: #333;
+            --secondary-color: #555;
+            --bg-color: #f4f4f4;
+            --code-bg: #e8e8e8;
+            --border-color: #ddd;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--primary-color);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+        }
+
+        h1, h2, h3 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .container {
+            margin-bottom: 40px;
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--code-bg);
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .qa-section {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-left: 5px solid #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .question {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .answer {
+            margin-left: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #eee;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Estratégia de Migração: Scraper MV Saúde para API</h1>
+        <p><strong>Objetivo:</strong> Substituir o cron job em Python <code>coletar-produtividade-mv.py</code> por uma integração direta entre o ambiente AWS do hospital e o SaaS ParcerIA (Supabase).</p>
+    </header>
+
+    <div class="container">
+        <h2>1. Visão Geral da Arquitetura</h2>
+        <p>A transição altera o modelo de <strong>extração via cliente (scraping)</strong> para um modelo de <strong>integração via servidor</strong>.</p>
+        
+        <h3>Estado Atual (Obsoleto)</h3>
+        <ul>
+            <li><strong>Fonte:</strong> Visualizador de Relatórios HTML (<code>http://mvpepprd.saude.go.gov.br...</code>).</li>
+            <li><strong>Método:</strong> Script Python que faz o parse de elementos DOM do HTML.</li>
+            <li><strong>Risco:</strong> Alta fragilidade. Alterações na interface (UI) quebram o pipeline. A autenticação depende de cookies de sessão ou emulação de navegador.</li>
+        </ul>
+
+        <h3>Estado Futuro (Alvo)</h3>
+        <ul>
+            <li><strong>Fonte:</strong> Ambiente AWS (Data Lake ou Warehouse gerenciado pela TI).</li>
+            <li><strong>Método:</strong> Transferência de Dados Estruturados (JSON/CSV ou Replicação SQL).</li>
+            <li><strong>Destino:</strong> Supabase (PostgreSQL) tabela <code>produtividade</code>.</li>
+            <li><strong>Benefício:</strong> Estabilidade, garantia de schema, auditabilidade e segurança.</li>
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>2. Definição do Esquema do Banco de Dados</h2>
+        <p>Com base no arquivo <code>produtividade - produtividade_rows.csv</code>, a tabela de destino no Supabase requer a seguinte estrutura SQL. Certifique-se de que a equipe de TI forneça o mapeamento de dados para estas colunas.</p>
+
+<pre><code>CREATE TABLE public.produtividade (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo_mv BIGINT NOT NULL,
+    nome TEXT NOT NULL,
+    especialidade TEXT,
+    vinculo TEXT,
+    
+    -- Métricas (Tipos inteiros para contagens)
+    procedimento INTEGER DEFAULT 0,
+    parecer_solicitado INTEGER DEFAULT 0,
+    parecer_realizado INTEGER DEFAULT 0,
+    cirurgia_realizada INTEGER DEFAULT 0,
+    prescricao INTEGER DEFAULT 0,
+    evolucao INTEGER DEFAULT 0,
+    urgencia INTEGER DEFAULT 0,
+    ambulatorio INTEGER DEFAULT 0,
+    auxiliar INTEGER DEFAULT 0,
+    encaminhamento INTEGER DEFAULT 0,
+    folha_objetivo_diario INTEGER DEFAULT 0,
+    evolucao_diurna_cti INTEGER DEFAULT 0,
+    evolucao_noturna_cti INTEGER DEFAULT 0,
+    
+    -- Metadados
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    data DATE NOT NULL,
+    unidade_hospitalar_id BIGINT
+);
+
+-- Índices para performance em consultas comuns
+CREATE INDEX idx_produtividade_data ON public.produtividade(data);
+CREATE INDEX idx_produtividade_codigo_mv ON public.produtividade(codigo_mv);</code></pre>
+    </div>
+
+    <div class="container">
+        <h2>3. Padrões de Integração AWS para Supabase</h2>
+        <p>A equipe de TI perguntará como mover os dados do ambiente AWS deles para o Supabase. Apresente estes três padrões:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Padrão</th>
+                    <th>Mecanismo</th>
+                    <th>Prós</th>
+                    <th>Contras</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Postgres FDW (Foreign Data Wrapper)</strong></td>
+                    <td>O Supabase conecta diretamente ao AWS RDS usando a extensão <code>postgres_fdw</code>.</td>
+                    <td>Acesso em tempo real; Sem código ETL necessário; Trata tabelas AWS como tabelas locais.</td>
+                    <td>Requer liberação de rede (allow-listing); Performance depende da latência da rede.</td>
+                </tr>
+                <tr>
+                    <td><strong>AWS Lambda (Push)</strong></td>
+                    <td>Uma função AWS Lambda é acionada com novos dados e chama a API do Supabase (`supabase-js`).</td>
+                    <td>Arquitetura desacoplada; A equipe da AWS controla o agendamento; Seguro.</td>
+                    <td>Requer manutenção do código da função Lambda.</td>
+                </tr>
+                <tr>
+                    <td><strong>Importação S3 (Batch)</strong></td>
+                    <td>A TI exporta CSVs para um bucket S3. Uma Edge Function do Supabase lê e importa o arquivo.</td>
+                    <td>Bom para grandes atualizações em lote; Padroniza o formato.</td>
+                    <td>Não é tempo real; Gerenciar o estado de bloqueio/processamento de arquivos adiciona complexidade.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="container">
+        <h2>4. Preparação para Perguntas e Respostas Técnicas</h2>
+        <p>Prepare-se para as seguintes perguntas da equipe de AWS/TI:</p>
+
+        <div class="qa-section">
+            <div class="question">P1: "Como nos autenticamos no seu banco de dados?"</div>
+            <div class="answer">
+                <p><strong>Resposta:</strong> "O Supabase fornece uma string de conexão PostgreSQL padrão. Podemos criar um usuário/role dedicado para o pipeline da AWS com permissões limitadas (apenas INSERT/UPDATE) na tabela <code>produtividade</code> para manter a segurança."</p>
+            </div>
+        </div>
+
+        <div class="qa-section">
+            <div class="question">P2: "Qual é a estratégia de chave primária? Como lidamos com duplicatas?"</div>
+            <div class="answer">
+                <p><strong>Resposta:</strong> "A tabela usa um UUID como chave primária. No entanto, para integridade dos dados, devemos definir uma restrição única composta (composite unique constraint), provavelmente em <code>codigo_mv</code> + <code>data</code>. Se vocês enviarem um registro que já existe, podemos usar uma estratégia de <code>UPSERT</code> (ON CONFLICT UPDATE) para atualizar as métricas sem criar duplicatas."</p>
+            </div>
+        </div>
+
+        <div class="qa-section">
+            <div class="question">P3: "Vocês precisam de VPN ou VPC Peering?"</div>
+            <div class="answer">
+                <p><strong>Resposta:</strong> "O Supabase roda na AWS (ou infraestrutura de nuvem similar dependendo da região). Podemos colocar na lista de permissões (whitelist) os endereços IP do seu NAT Gateway ou das funções Lambda. O VPC peering é possível, mas geralmente requer um plano Enterprise; a conexão padrão via SSL/TLS é geralmente suficiente para este nível de sensibilidade de dados."</p>
+            </div>
+        </div>
+
+        <div class="qa-section">
+            <div class="question">P4: "Quais tipos de dados vocês esperam para as métricas?"</div>
+            <div class="answer">
+                <p><strong>Resposta:</strong> "Esperamos inteiros (integers) para todos os campos baseados em contagem (ex: <code>evolucao</code>, <code>prescricao</code>). O campo <code>data</code> deve estar no formato ISO 8601 (AAAA-MM-DD). Valores nulos nas métricas devem ser padronizados como 0 para evitar erros de cálculo no dashboard."</p>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

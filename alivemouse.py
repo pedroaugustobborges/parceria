@@ -23,7 +23,8 @@ def permitir_suspensao():
         ES_CONTINUOUS
     )
 
-# --- Execução Principal ---
+# --- Execução Principal --- 138.68.27. 138.68.27.70
+# scp root@<138.68.27.70>:/tmp/screenshot_timeout_1771883434.png ./screenshot.png
 start_time = time.time()
 end_time = start_time + DURACAO_TOTAL_SEGUNDOS
 

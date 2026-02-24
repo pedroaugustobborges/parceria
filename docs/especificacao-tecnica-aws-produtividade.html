@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Especificação Técnica | Tabela AWS - Produtividade MV</title>
+    <style>
+        :root {
+            --primary: #0ea5e9;
+            --secondary: #8b5cf6;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --aws-orange: #ff9900;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--aws-orange) 0%, #c9510c 100%);
+            border-radius: 16px;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .meta-info {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .meta-item {
+            text-align: center;
+        }
+
+        .meta-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            opacity: 0.8;
+        }
+
+        .meta-value {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        h2 {
+            color: var(--aws-orange);
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        h3 {
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            margin: 1.5rem 0 1rem;
+        }
+
+        h4 {
+            color: var(--primary);
+            font-size: 1rem;
+            margin: 1rem 0 0.5rem;
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        pre {
+            background: var(--bg-dark);
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+
+        code {
+            color: var(--success);
+        }
+
+        .comment { color: #6b7280; }
+        .keyword { color: #c084fc; }
+        .string { color: #34d399; }
+        .type { color: #60a5fa; }
+        .number { color: #fbbf24; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-dark);
+            color: var(--aws-orange);
+            font-weight: 600;
+        }
+
+        td {
+            color: var(--text-secondary);
+        }
+
+        td code {
+            background: var(--bg-dark);
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .highlight-box {
+            background: rgba(255, 153, 0, 0.1);
+            border: 1px solid var(--aws-orange);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .highlight-box h4 {
+            color: var(--aws-orange);
+            margin-top: 0;
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background: rgba(14, 165, 233, 0.1);
+            border-color: var(--primary);
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--warning);
+        }
+
+        .alert-success {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: var(--success);
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--error);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .stat-card {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 1.25rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--aws-orange);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .tag-pk { background: var(--error); color: #fff; }
+        .tag-fk { background: var(--secondary); color: #fff; }
+        .tag-idx { background: var(--primary); color: #fff; }
+        .tag-nullable { background: var(--text-secondary); color: var(--bg-dark); }
+        .tag-unique { background: var(--warning); color: var(--bg-dark); }
+
+        .copy-btn {
+            background: var(--aws-orange);
+            color: #000;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            float: right;
+            margin-bottom: 0.5rem;
+        }
+
+        .copy-btn:hover {
+            background: #cc7a00;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border);
+            margin-top: 2rem;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                color: #000;
+                padding: 1rem;
+            }
+
+            section, .stat-card, .highlight-box, pre, .alert {
+                background: #f5f5f5;
+                border-color: #ddd;
+            }
+
+            h2, h4, .stat-value {
+                color: #c9510c;
+            }
+
+            .copy-btn {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Especificação Técnica</h1>
+            <p>Tabela AWS RDS para Integração MV Saúde → ParcerIA</p>
+            <div class="meta-info">
+                <div class="meta-item">
+                    <div class="meta-label">Projeto</div>
+                    <div class="meta-value">ParcerIA</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Versão</div>
+                    <div class="meta-value">1.0</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Data</div>
+                    <div class="meta-value"><script>document.write(new Date().toLocaleDateString('pt-BR'))</script></div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Status</div>
+                    <div class="meta-value">Para Aprovação</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- SEÇÃO 1: CONTEXTO -->
+        <section>
+            <h2>1. Contexto do Projeto</h2>
+
+            <h3>1.1 Situação Atual</h3>
+            <p>Atualmente, os dados de produtividade médica são coletados via <strong>web scraping</strong> do relatório MV:</p>
+            <ul style="color: var(--text-secondary); margin-left: 1.5rem; margin-bottom: 1rem;">
+                <li>URL: <code>http://mvpepprd.saude.go.gov.br/report-executor/report-viewer?id=7076</code></li>
+                <li>Script: <code>coletar-produtividade-mv.py</code></li>
+                <li>Execução: Cron diário às 2h da manhã</li>
+                <li>Destino: Tabela <code>produtividade</code> no Supabase (ParcerIA)</li>
+            </ul>
+
+            <h3>1.2 Nova Arquitetura</h3>
+            <p>Com a disponibilização da <strong>API REST do MV Saúde</strong>, a arquitetura será:</p>
+            <pre><code><span class="comment">┌─────────────┐      ┌─────────────────┐      ┌─────────────────┐</span>
+<span class="comment">│  MV Saúde   │      │   AWS RDS       │      │    Supabase     │</span>
+<span class="comment">│    API      │ ───► │  (Staging)      │ ───► │  produtividade  │</span>
+<span class="comment">└─────────────┘      └─────────────────┘      └─────────────────┘</span>
+<span class="comment">                            │</span>
+<span class="comment">                     Lambda/EventBridge</span>
+<span class="comment">                      (ETL Scheduler)</span></code></pre>
+
+            <div class="alert alert-info">
+                <strong>Objetivo:</strong> O time de TI cria a tabela de staging no RDS. O time ParcerIA desenvolve o ETL para sincronizar com o Supabase.
+            </div>
+        </section>
+
+        <!-- SEÇÃO 2: SCHEMA DDL -->
+        <section>
+            <h2>2. Schema SQL (DDL)</h2>
+
+            <h3>2.1 Tabela de Staging (AWS RDS)</h3>
+            <p>Esta tabela recebe os dados brutos da API MV e serve como buffer antes da sincronização com o Supabase.</p>
+
+            <button class="copy-btn" onclick="copyToClipboard('ddl-staging')">Copiar DDL</button>
+            <pre id="ddl-staging"><code><span class="comment">-- ==============================================================================</span>
+<span class="comment">-- TABELA DE STAGING: mv_produtividade_staging</span>
+<span class="comment">-- Descrição: Recebe dados brutos da API MV Saúde para posterior sincronização</span>
+<span class="comment">-- Engine: PostgreSQL 15+ (RDS)</span>
+<span class="comment">-- ==============================================================================</span>
+
+<span class="keyword">CREATE TABLE</span> mv_produtividade_staging (
+    <span class="comment">-- === IDENTIFICAÇÃO ===</span>
+    id                      <span class="type">UUID</span>            <span class="keyword">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+
+    <span class="comment">-- === DADOS DO PROFISSIONAL (da API MV) ===</span>
+    codigo_mv               <span class="type">VARCHAR(20)</span>     <span class="keyword">NOT NULL</span>,      <span class="comment">-- Código do prestador no MV</span>
+    nome                    <span class="type">VARCHAR(255)</span>    <span class="keyword">NOT NULL</span>,      <span class="comment">-- Nome do profissional</span>
+    especialidade           <span class="type">VARCHAR(100)</span>,                   <span class="comment">-- Especialidade médica</span>
+    vinculo                 <span class="type">VARCHAR(100)</span>,                   <span class="comment">-- Tipo de vínculo</span>
+
+    <span class="comment">-- === DATA DE REFERÊNCIA ===</span>
+    data_referencia         <span class="type">DATE</span>            <span class="keyword">NOT NULL</span>,      <span class="comment">-- Data dos atendimentos</span>
+
+    <span class="comment">-- === MÉTRICAS DE PRODUTIVIDADE ===</span>
+    procedimento            <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd procedimentos realizados</span>
+    parecer_solicitado      <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd pareceres solicitados</span>
+    parecer_realizado       <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd pareceres realizados</span>
+    cirurgia_realizada      <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd cirurgias realizadas</span>
+    prescricao              <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd prescrições</span>
+    evolucao                <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd evoluções</span>
+    urgencia                <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd atendimentos urgência</span>
+    ambulatorio             <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd atendimentos ambulatório</span>
+    auxiliar                <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd como médico auxiliar</span>
+    encaminhamento          <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd encaminhamentos</span>
+    folha_objetivo_diario   <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd folhas objetivo diário</span>
+    evolucao_diurna_cti     <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd evoluções diurnas CTI</span>
+    evolucao_noturna_cti    <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,     <span class="comment">-- Qtd evoluções noturnas CTI</span>
+
+    <span class="comment">-- === DADOS OPCIONAIS DA API ===</span>
+    unidade_codigo          <span class="type">VARCHAR(20)</span>,                   <span class="comment">-- Código da unidade no MV</span>
+    raw_payload             <span class="type">JSONB</span>,                         <span class="comment">-- Payload original (debug)</span>
+
+    <span class="comment">-- === CONTROLE DE SINCRONIZAÇÃO ===</span>
+    sync_status             <span class="type">VARCHAR(20)</span>     <span class="keyword">DEFAULT</span> <span class="string">'pending'</span>
+                            <span class="keyword">CHECK</span> (sync_status <span class="keyword">IN</span> (<span class="string">'pending'</span>, <span class="string">'synced'</span>, <span class="string">'error'</span>, <span class="string">'skipped'</span>)),
+    sync_attempts           <span class="type">INTEGER</span>         <span class="keyword">DEFAULT</span> <span class="number">0</span>,
+    sync_error_message      <span class="type">TEXT</span>,
+    synced_at               <span class="type">TIMESTAMP WITH TIME ZONE</span>,
+
+    <span class="comment">-- === AUDITORIA ===</span>
+    source_api_version      <span class="type">VARCHAR(20)</span>,                   <span class="comment">-- Versão da API MV</span>
+    extracted_at            <span class="type">TIMESTAMP WITH TIME ZONE</span> <span class="keyword">DEFAULT</span> NOW(),
+    created_at              <span class="type">TIMESTAMP WITH TIME ZONE</span> <span class="keyword">DEFAULT</span> NOW(),
+    updated_at              <span class="type">TIMESTAMP WITH TIME ZONE</span> <span class="keyword">DEFAULT</span> NOW(),
+
+    <span class="comment">-- === CONSTRAINTS ===</span>
+    <span class="keyword">CONSTRAINT</span> uk_staging_codigo_data <span class="keyword">UNIQUE</span> (codigo_mv, data_referencia)
+);
+
+<span class="comment">-- Comentários da tabela</span>
+<span class="keyword">COMMENT ON TABLE</span> mv_produtividade_staging <span class="keyword">IS</span> <span class="string">'Staging table for MV Saúde productivity data before sync to Supabase'</span>;
+<span class="keyword">COMMENT ON COLUMN</span> mv_produtividade_staging.codigo_mv <span class="keyword">IS</span> <span class="string">'Unique provider code in MV system'</span>;
+<span class="keyword">COMMENT ON COLUMN</span> mv_produtividade_staging.sync_status <span class="keyword">IS</span> <span class="string">'pending=awaiting sync, synced=sent to Supabase, error=failed, skipped=ignored'</span>;
+</code></pre>
+
+            <h3>2.2 Descrição das Colunas</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Coluna</th>
+                        <th>Tipo</th>
+                        <th>Descrição</th>
+                        <th>Tags</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>id</code></td>
+                        <td>UUID</td>
+                        <td>Identificador único do registro</td>
+                        <td><span class="tag tag-pk">PK</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>codigo_mv</code></td>
+                        <td>VARCHAR(20)</td>
+                        <td>Código do prestador no sistema MV</td>
+                        <td><span class="tag tag-unique">UNIQUE*</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>data_referencia</code></td>
+                        <td>DATE</td>
+                        <td>Data dos atendimentos</td>
+                        <td><span class="tag tag-unique">UNIQUE*</span> <span class="tag tag-idx">IDX</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>nome</code></td>
+                        <td>VARCHAR(255)</td>
+                        <td>Nome completo do profissional</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><code>especialidade</code></td>
+                        <td>VARCHAR(100)</td>
+                        <td>Especialidade médica</td>
+                        <td><span class="tag tag-nullable">NULL</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>procedimento</code></td>
+                        <td>INTEGER</td>
+                        <td>Quantidade de procedimentos</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-secondary);">
+                            <em>... demais colunas de métricas seguem o mesmo padrão INTEGER DEFAULT 0</em>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>sync_status</code></td>
+                        <td>VARCHAR(20)</td>
+                        <td>Status da sincronização com Supabase</td>
+                        <td><span class="tag tag-idx">IDX</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>raw_payload</code></td>
+                        <td>JSONB</td>
+                        <td>Payload original da API (para debug)</td>
+                        <td><span class="tag tag-nullable">NULL</span></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="font-size: 0.85rem;"><strong>*</strong> UNIQUE composto: <code>(codigo_mv, data_referencia)</code></p>
+        </section>
+
+        <!-- SEÇÃO 3: ÍNDICES -->
+        <section>
+            <h2>3. Requisitos de Índices</h2>
+
+            <h3>3.1 Índices Recomendados</h3>
+            <button class="copy-btn" onclick="copyToClipboard('ddl-indices')">Copiar DDL</button>
+            <pre id="ddl-indices"><code><span class="comment">-- ==============================================================================</span>
+<span class="comment">-- ÍNDICES PARA PERFORMANCE</span>
+<span class="comment">-- ==============================================================================</span>
+
+<span class="comment">-- 1. Índice para busca de registros pendentes (ETL)</span>
+<span class="comment">--    Query: SELECT * FROM mv_produtividade_staging WHERE sync_status = 'pending'</span>
+<span class="comment">--    Uso: Alta frequência (a cada execução do sync job)</span>
+<span class="keyword">CREATE INDEX</span> idx_staging_sync_pending
+<span class="keyword">ON</span> mv_produtividade_staging(sync_status)
+<span class="keyword">WHERE</span> sync_status = <span class="string">'pending'</span>;
+
+<span class="comment">-- 2. Índice para busca por data (relatórios e filtros)</span>
+<span class="comment">--    Query: SELECT * FROM mv_produtividade_staging WHERE data_referencia BETWEEN x AND y</span>
+<span class="comment">--    Uso: Moderada (consultas de relatório)</span>
+<span class="keyword">CREATE INDEX</span> idx_staging_data_referencia
+<span class="keyword">ON</span> mv_produtividade_staging(data_referencia <span class="keyword">DESC</span>);
+
+<span class="comment">-- 3. Índice para busca por profissional</span>
+<span class="comment">--    Query: SELECT * FROM mv_produtividade_staging WHERE codigo_mv = ?</span>
+<span class="comment">--    Uso: Moderada (debug, verificação individual)</span>
+<span class="keyword">CREATE INDEX</span> idx_staging_codigo_mv
+<span class="keyword">ON</span> mv_produtividade_staging(codigo_mv);
+
+<span class="comment">-- 4. Índice para registros com erro (monitoramento)</span>
+<span class="comment">--    Query: SELECT * FROM mv_produtividade_staging WHERE sync_status = 'error'</span>
+<span class="comment">--    Uso: Baixa (alertas e troubleshooting)</span>
+<span class="keyword">CREATE INDEX</span> idx_staging_sync_errors
+<span class="keyword">ON</span> mv_produtividade_staging(sync_status, sync_attempts)
+<span class="keyword">WHERE</span> sync_status = <span class="string">'error'</span>;
+
+<span class="comment">-- 5. Índice para cleanup de registros antigos sincronizados</span>
+<span class="comment">--    Query: DELETE FROM mv_produtividade_staging WHERE synced_at < ? AND sync_status = 'synced'</span>
+<span class="comment">--    Uso: Baixa (job de limpeza semanal/mensal)</span>
+<span class="keyword">CREATE INDEX</span> idx_staging_synced_cleanup
+<span class="keyword">ON</span> mv_produtividade_staging(synced_at)
+<span class="keyword">WHERE</span> sync_status = <span class="string">'synced'</span>;
+</code></pre>
+
+            <h3>3.2 Justificativa dos Índices</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Índice</th>
+                        <th>Tipo</th>
+                        <th>Frequência de Uso</th>
+                        <th>Justificativa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>idx_staging_sync_pending</code></td>
+                        <td>Parcial (WHERE)</td>
+                        <td>Alta (hourly)</td>
+                        <td>ETL busca registros pendentes a cada execução. Índice parcial é mais eficiente.</td>
+                    </tr>
+                    <tr>
+                        <td><code>idx_staging_data_referencia</code></td>
+                        <td>B-tree DESC</td>
+                        <td>Moderada</td>
+                        <td>Consultas de relatório geralmente buscam dados recentes primeiro.</td>
+                    </tr>
+                    <tr>
+                        <td><code>idx_staging_codigo_mv</code></td>
+                        <td>B-tree</td>
+                        <td>Moderada</td>
+                        <td>Verificação de dados específicos de um profissional.</td>
+                    </tr>
+                    <tr>
+                        <td><code>idx_staging_sync_errors</code></td>
+                        <td>Composto + Parcial</td>
+                        <td>Baixa</td>
+                        <td>Monitoramento de falhas e retry automático.</td>
+                    </tr>
+                    <tr>
+                        <td><code>idx_staging_synced_cleanup</code></td>
+                        <td>Parcial (WHERE)</td>
+                        <td>Baixa</td>
+                        <td>Job de limpeza de registros já sincronizados.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-warning">
+                <strong>Nota sobre o UNIQUE constraint:</strong> A constraint <code>uk_staging_codigo_data</code> já cria um índice implícito para <code>(codigo_mv, data_referencia)</code>, usado para deduplicação (UPSERT).
+            </div>
+        </section>
+
+        <!-- SEÇÃO 4: VOLUME DE DADOS -->
+        <section>
+            <h2>4. Estimativa de Volume de Dados</h2>
+
+            <h3>4.1 Métricas Atuais</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">~150</div>
+                    <div class="stat-label">Profissionais Ativos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">~150</div>
+                    <div class="stat-label">Registros/Dia</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">~4.500</div>
+                    <div class="stat-label">Registros/Mês</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">~54.000</div>
+                    <div class="stat-label">Registros/Ano</div>
+                </div>
+            </div>
+
+            <h3>4.2 Cálculo Detalhado</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Período</th>
+                        <th>Cálculo</th>
+                        <th>Volume</th>
+                        <th>Tamanho Estimado*</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Diário</td>
+                        <td>150 profissionais × 1 registro</td>
+                        <td>~150 registros</td>
+                        <td>~75 KB</td>
+                    </tr>
+                    <tr>
+                        <td>Semanal</td>
+                        <td>150 × 7 dias</td>
+                        <td>~1.050 registros</td>
+                        <td>~525 KB</td>
+                    </tr>
+                    <tr>
+                        <td>Mensal</td>
+                        <td>150 × 30 dias</td>
+                        <td>~4.500 registros</td>
+                        <td>~2,2 MB</td>
+                    </tr>
+                    <tr>
+                        <td>Anual</td>
+                        <td>150 × 365 dias</td>
+                        <td>~54.750 registros</td>
+                        <td>~27 MB</td>
+                    </tr>
+                    <tr>
+                        <td>5 Anos (projeção)</td>
+                        <td>54.750 × 5 (+ 20% crescimento)</td>
+                        <td>~330.000 registros</td>
+                        <td>~165 MB</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="font-size: 0.85rem;"><strong>*</strong> Estimativa baseada em ~500 bytes por registro (incluindo índices).</p>
+
+            <h3>4.3 Cenários de Carga</h3>
+            <div class="highlight-box">
+                <h4>Carga Diária (Operação Normal)</h4>
+                <ul style="color: var(--text-secondary); margin-left: 1.5rem;">
+                    <li><strong>Inserções:</strong> ~150 registros/dia (1 batch)</li>
+                    <li><strong>Updates:</strong> Raros (apenas correções)</li>
+                    <li><strong>Deletes:</strong> Nenhum (apenas soft delete via status)</li>
+                    <li><strong>Horário de pico:</strong> 2h-4h AM (execução do ETL)</li>
+                </ul>
+            </div>
+
+            <div class="highlight-box">
+                <h4>Carga Inicial (Migração Histórica)</h4>
+                <ul style="color: var(--text-secondary); margin-left: 1.5rem;">
+                    <li><strong>Volume:</strong> ~150 profissionais × 365 dias = ~54.000 registros</li>
+                    <li><strong>Recomendação:</strong> Importar em batches de 1.000 registros</li>
+                    <li><strong>Tempo estimado:</strong> 5-10 minutos (bulk insert)</li>
+                </ul>
+            </div>
+
+            <h3>4.4 Projeção de Crescimento</h3>
+            <p>Considerando expansão do sistema para novas unidades hospitalares:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ano</th>
+                        <th>Profissionais Est.</th>
+                        <th>Registros/Ano</th>
+                        <th>Acumulado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2026</td>
+                        <td>150</td>
+                        <td>54.750</td>
+                        <td>54.750</td>
+                    </tr>
+                    <tr>
+                        <td>2027</td>
+                        <td>200 (+33%)</td>
+                        <td>73.000</td>
+                        <td>127.750</td>
+                    </tr>
+                    <tr>
+                        <td>2028</td>
+                        <td>250 (+25%)</td>
+                        <td>91.250</td>
+                        <td>219.000</td>
+                    </tr>
+                    <tr>
+                        <td>2029</td>
+                        <td>300 (+20%)</td>
+                        <td>109.500</td>
+                        <td>328.500</td>
+                    </tr>
+                    <tr>
+                        <td>2030</td>
+                        <td>350 (+17%)</td>
+                        <td>127.750</td>
+                        <td>456.250</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-success">
+                <strong>Conclusão:</strong> Mesmo em 5 anos com crescimento agressivo, o volume total (~500K registros, ~250MB) é muito pequeno para RDS. Uma instância <code>db.t3.micro</code> (1 GB RAM) seria suficiente.
+            </div>
+        </section>
+
+        <!-- SEÇÃO 5: RETENÇÃO -->
+        <section>
+            <h2>5. Requisitos de Retenção</h2>
+
+            <h3>5.1 Política de Retenção Recomendada</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tipo de Dado</th>
+                        <th>Localização</th>
+                        <th>Retenção</th>
+                        <th>Justificativa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Staging Pendentes</strong></td>
+                        <td>AWS RDS</td>
+                        <td>Até sincronização</td>
+                        <td>Devem ser processados em até 24h</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Staging Sincronizados</strong></td>
+                        <td>AWS RDS</td>
+                        <td>30 dias</td>
+                        <td>Buffer para reprocessamento se necessário</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Staging com Erro</strong></td>
+                        <td>AWS RDS</td>
+                        <td>90 dias</td>
+                        <td>Análise de falhas e troubleshooting</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Dados Finais</strong></td>
+                        <td>Supabase</td>
+                        <td>Permanente</td>
+                        <td>Histórico operacional e compliance</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Backup RDS</strong></td>
+                        <td>AWS S3</td>
+                        <td>7 dias</td>
+                        <td>Point-in-time recovery</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>5.2 Job de Limpeza Automática</h3>
+            <button class="copy-btn" onclick="copyToClipboard('ddl-cleanup')">Copiar SQL</button>
+            <pre id="ddl-cleanup"><code><span class="comment">-- ==============================================================================</span>
+<span class="comment">-- PROCEDURE DE LIMPEZA AUTOMÁTICA</span>
+<span class="comment">-- Executar: Semanalmente (domingo 3h AM)</span>
+<span class="comment">-- ==============================================================================</span>
+
+<span class="keyword">CREATE OR REPLACE PROCEDURE</span> cleanup_staging_old_records()
+<span class="keyword">LANGUAGE</span> plpgsql
+<span class="keyword">AS</span> $$
+<span class="keyword">DECLARE</span>
+    deleted_synced <span class="type">INTEGER</span>;
+    deleted_errors <span class="type">INTEGER</span>;
+<span class="keyword">BEGIN</span>
+    <span class="comment">-- 1. Remover registros sincronizados há mais de 30 dias</span>
+    <span class="keyword">DELETE FROM</span> mv_produtividade_staging
+    <span class="keyword">WHERE</span> sync_status = <span class="string">'synced'</span>
+      <span class="keyword">AND</span> synced_at < NOW() - <span class="keyword">INTERVAL</span> <span class="string">'30 days'</span>;
+
+    <span class="keyword">GET DIAGNOSTICS</span> deleted_synced = <span class="keyword">ROW_COUNT</span>;
+
+    <span class="comment">-- 2. Remover registros com erro há mais de 90 dias</span>
+    <span class="keyword">DELETE FROM</span> mv_produtividade_staging
+    <span class="keyword">WHERE</span> sync_status = <span class="string">'error'</span>
+      <span class="keyword">AND</span> created_at < NOW() - <span class="keyword">INTERVAL</span> <span class="string">'90 days'</span>;
+
+    <span class="keyword">GET DIAGNOSTICS</span> deleted_errors = <span class="keyword">ROW_COUNT</span>;
+
+    <span class="comment">-- 3. Log da operação</span>
+    <span class="keyword">RAISE NOTICE</span> <span class="string">'Cleanup completed: % synced, % errors deleted'</span>,
+        deleted_synced, deleted_errors;
+<span class="keyword">END</span>;
+$$;
+
+<span class="comment">-- Agendar via pg_cron (se disponível) ou EventBridge</span>
+<span class="comment">-- SELECT cron.schedule('cleanup-staging', '0 3 * * 0', 'CALL cleanup_staging_old_records()');</span>
+</code></pre>
+
+            <h3>5.3 Requisitos de Compliance</h3>
+            <div class="alert alert-warning">
+                <strong>Dados de Saúde (LGPD/HIPAA):</strong>
+                <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                    <li>Dados de produtividade são <strong>agregados</strong> (não contêm dados de pacientes)</li>
+                    <li>Contêm dados pessoais de profissionais (nome, código)</li>
+                    <li>Recomendação: Manter histórico completo no Supabase (dados finais)</li>
+                    <li>AWS: Habilitar <strong>encryption at rest</strong> e <strong>encryption in transit</strong></li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 6: TRIGGER UPDATED_AT -->
+        <section>
+            <h2>6. Triggers e Funções Auxiliares</h2>
+
+            <button class="copy-btn" onclick="copyToClipboard('ddl-trigger')">Copiar DDL</button>
+            <pre id="ddl-trigger"><code><span class="comment">-- ==============================================================================</span>
+<span class="comment">-- TRIGGER PARA ATUALIZAÇÃO AUTOMÁTICA DE updated_at</span>
+<span class="comment">-- ==============================================================================</span>
+
+<span class="keyword">CREATE OR REPLACE FUNCTION</span> update_updated_at_column()
+<span class="keyword">RETURNS TRIGGER AS</span> $$
+<span class="keyword">BEGIN</span>
+    NEW.updated_at = NOW();
+    <span class="keyword">RETURN</span> NEW;
+<span class="keyword">END</span>;
+$$ <span class="keyword">LANGUAGE</span> plpgsql;
+
+<span class="keyword">CREATE TRIGGER</span> trigger_staging_updated_at
+    <span class="keyword">BEFORE UPDATE ON</span> mv_produtividade_staging
+    <span class="keyword">FOR EACH ROW</span>
+    <span class="keyword">EXECUTE FUNCTION</span> update_updated_at_column();
+
+<span class="comment">-- ==============================================================================</span>
+<span class="comment">-- FUNÇÃO PARA MARCAR COMO SINCRONIZADO</span>
+<span class="comment">-- ==============================================================================</span>
+
+<span class="keyword">CREATE OR REPLACE FUNCTION</span> mark_as_synced(record_ids <span class="type">UUID</span>[])
+<span class="keyword">RETURNS INTEGER AS</span> $$
+<span class="keyword">DECLARE</span>
+    affected <span class="type">INTEGER</span>;
+<span class="keyword">BEGIN</span>
+    <span class="keyword">UPDATE</span> mv_produtividade_staging
+    <span class="keyword">SET</span>
+        sync_status = <span class="string">'synced'</span>,
+        synced_at = NOW()
+    <span class="keyword">WHERE</span> id = <span class="keyword">ANY</span>(record_ids)
+      <span class="keyword">AND</span> sync_status = <span class="string">'pending'</span>;
+
+    <span class="keyword">GET DIAGNOSTICS</span> affected = <span class="keyword">ROW_COUNT</span>;
+    <span class="keyword">RETURN</span> affected;
+<span class="keyword">END</span>;
+$$ <span class="keyword">LANGUAGE</span> plpgsql;
+</code></pre>
+        </section>
+
+        <!-- SEÇÃO 7: CONFIGURAÇÕES RDS -->
+        <section>
+            <h2>7. Configurações Recomendadas do RDS</h2>
+
+            <h3>7.1 Especificações da Instância</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Parâmetro</th>
+                        <th>Valor Recomendado</th>
+                        <th>Justificativa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Engine</td>
+                        <td>PostgreSQL 15+</td>
+                        <td>Compatibilidade com Supabase, suporte a JSONB</td>
+                    </tr>
+                    <tr>
+                        <td>Instance Class</td>
+                        <td>db.t3.micro ou db.t3.small</td>
+                        <td>Volume muito baixo, pode iniciar pequeno</td>
+                    </tr>
+                    <tr>
+                        <td>Storage</td>
+                        <td>20 GB gp3</td>
+                        <td>Suficiente para 5+ anos de dados</td>
+                    </tr>
+                    <tr>
+                        <td>Multi-AZ</td>
+                        <td>Não (inicialmente)</td>
+                        <td>Dados são staging, podem ser reprocessados</td>
+                    </tr>
+                    <tr>
+                        <td>Backup Retention</td>
+                        <td>7 dias</td>
+                        <td>Point-in-time recovery básico</td>
+                    </tr>
+                    <tr>
+                        <td>Encryption</td>
+                        <td>Sim (KMS)</td>
+                        <td>Dados de profissionais de saúde</td>
+                    </tr>
+                    <tr>
+                        <td>Public Access</td>
+                        <td>Não</td>
+                        <td>Acessível apenas via VPC/Lambda</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>7.2 Custo Estimado</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">~$15</div>
+                    <div class="stat-label">db.t3.micro/mês</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">~$2</div>
+                    <div class="stat-label">Storage 20GB/mês</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">~$0</div>
+                    <div class="stat-label">Backup (incluso)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">~$17</div>
+                    <div class="stat-label">Total/mês</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 8: CREDENCIAIS SUPABASE -->
+        <section>
+            <h2>8. Credenciais Supabase (ParcerIA fornece)</h2>
+
+            <p>Para que o ETL na AWS consiga enviar dados para o Supabase, o time ParcerIA fornecerá as credenciais abaixo. Esta seção explica cada uma e como utilizá-las.</p>
+
+            <h3>8.1 Entendendo a Arquitetura do Supabase</h3>
+            <div class="diagram" style="background: var(--bg-dark); border-radius: 12px; padding: 2rem; margin: 1.5rem 0; text-align: center; border: 1px solid var(--border);">
+                <pre style="border: none; background: transparent; margin: 0;"><code style="color: var(--text-secondary);">
+┌─────────────────────────────────────────────────────────────────────┐
+│                         SUPABASE                                    │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   ┌─────────────┐         ┌─────────────┐         ┌─────────────┐  │
+│   │  REST API   │         │  Realtime   │         │  Auth       │  │
+│   │  (PostgREST)│         │  (WebSocket)│         │  (GoTrue)   │  │
+│   └──────┬──────┘         └─────────────┘         └─────────────┘  │
+│          │                                                          │
+│          ▼                                                          │
+│   ┌─────────────────────────────────────────────────────────────┐  │
+│   │                    PostgreSQL Database                       │  │
+│   │                                                              │  │
+│   │   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │  │
+│   │   │ produtividade│   │  usuarios   │    │  contratos  │     │  │
+│   │   └─────────────┘    └─────────────┘    └─────────────┘     │  │
+│   └─────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+              ┌─────▼─────┐       ┌─────▼─────┐
+              │  REST API │       │  Conexão  │
+              │  (HTTPS)  │       │  Direta   │
+              │           │       │  (TCP)    │
+              └───────────┘       └───────────┘
+                    ▲                   ▲
+                    │                   │
+              Recomendado          Alternativa
+                </code></pre>
+            </div>
+
+            <h3>8.2 Opção A: API REST (Recomendada)</h3>
+            <p>A forma mais simples e segura de integração. Não requer configuração de rede (IP allowlist).</p>
+
+            <div class="highlight-box" style="background: rgba(62, 207, 142, 0.1); border-color: #3ecf8e;">
+                <h4 style="color: #3ecf8e;">Credenciais para API REST</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Credencial</th>
+                            <th>Onde Encontrar</th>
+                            <th>Formato</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Project URL</strong></td>
+                            <td>Supabase Dashboard → Settings → API</td>
+                            <td><code>https://xxxxxxxx.supabase.co</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Service Role Key</strong></td>
+                            <td>Supabase Dashboard → Settings → API → service_role</td>
+                            <td><code>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>Como usar a API REST:</h4>
+            <pre><code><span class="comment"># Exemplo de requisição para inserir dados</span>
+
+<span class="keyword">POST</span> <span class="string">https://xxxxxxxx.supabase.co/rest/v1/produtividade</span>
+
+<span class="comment"># Headers obrigatórios:</span>
+<span class="type">apikey</span>: <span class="string">&lt;SERVICE_ROLE_KEY&gt;</span>
+<span class="type">Authorization</span>: <span class="string">Bearer &lt;SERVICE_ROLE_KEY&gt;</span>
+<span class="type">Content-Type</span>: <span class="string">application/json</span>
+<span class="type">Prefer</span>: <span class="string">resolution=merge-duplicates</span>  <span class="comment"># Para UPSERT</span>
+
+<span class="comment"># Body (JSON):</span>
+[
+    {
+        <span class="string">"codigo_mv"</span>: <span class="string">"12345"</span>,
+        <span class="string">"nome"</span>: <span class="string">"Dr. João Silva"</span>,
+        <span class="string">"data"</span>: <span class="string">"2024-01-15"</span>,
+        <span class="string">"procedimento"</span>: <span class="number">10</span>,
+        <span class="string">"parecer_realizado"</span>: <span class="number">5</span>
+        <span class="comment">// ... demais campos</span>
+    }
+]
+</code></pre>
+
+            <h4>Exemplo em Python (para Lambda):</h4>
+            <button class="copy-btn" onclick="copyToClipboard('code-python-rest')">Copiar Código</button>
+            <pre id="code-python-rest"><code><span class="keyword">import</span> requests
+<span class="keyword">import</span> os
+
+<span class="keyword">def</span> <span class="function">sync_to_supabase</span>(records: list[dict]) -> int:
+    <span class="string">"""
+    Envia registros para a tabela produtividade no Supabase.
+
+    Args:
+        records: Lista de dicionários com os dados de produtividade
+
+    Returns:
+        Quantidade de registros processados
+    """</span>
+
+    <span class="comment"># Credenciais do Secrets Manager</span>
+    SUPABASE_URL = os.environ[<span class="string">"SUPABASE_URL"</span>]
+    SUPABASE_KEY = os.environ[<span class="string">"SUPABASE_SERVICE_KEY"</span>]
+
+    url = <span class="string">f"{SUPABASE_URL}/rest/v1/produtividade"</span>
+
+    headers = {
+        <span class="string">"apikey"</span>: SUPABASE_KEY,
+        <span class="string">"Authorization"</span>: <span class="string">f"Bearer {SUPABASE_KEY}"</span>,
+        <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span>,
+        <span class="string">"Prefer"</span>: <span class="string">"resolution=merge-duplicates"</span>,  <span class="comment"># UPSERT</span>
+    }
+
+    <span class="comment"># Supabase aceita até 1000 registros por requisição</span>
+    batch_size = <span class="number">1000</span>
+    total_synced = <span class="number">0</span>
+
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(<span class="number">0</span>, <span class="function">len</span>(records), batch_size):
+        batch = records[i:i + batch_size]
+
+        response = requests.<span class="function">post</span>(
+            url,
+            headers=headers,
+            json=batch,
+            timeout=<span class="number">30</span>
+        )
+
+        <span class="keyword">if</span> response.status_code <span class="keyword">not in</span> [<span class="number">200</span>, <span class="number">201</span>]:
+            <span class="keyword">raise</span> <span class="function">Exception</span>(
+                <span class="string">f"Erro Supabase ({response.status_code}): {response.text}"</span>
+            )
+
+        total_synced += <span class="function">len</span>(batch)
+
+    <span class="keyword">return</span> total_synced
+</code></pre>
+
+            <h3>8.3 Opção B: Conexão Direta PostgreSQL (Alternativa)</h3>
+            <p>Conexão direta ao banco de dados. Mais rápida para grandes volumes, mas requer configuração de rede.</p>
+
+            <div class="highlight-box">
+                <h4>Credenciais para Conexão Direta</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Parâmetro</th>
+                            <th>Onde Encontrar</th>
+                            <th>Exemplo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Host (Pooler)</strong></td>
+                            <td>Settings → Database → Connection string</td>
+                            <td><code>aws-0-us-east-1.pooler.supabase.com</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Port (Pooler)</strong></td>
+                            <td>-</td>
+                            <td><code>6543</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Database</strong></td>
+                            <td>-</td>
+                            <td><code>postgres</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>User</strong></td>
+                            <td>Settings → Database</td>
+                            <td><code>postgres.xxxxxxxx</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Password</strong></td>
+                            <td>Definida na criação do projeto</td>
+                            <td><code>********</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>Importante para Conexão Direta:</strong>
+                <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                    <li>Use o <strong>Connection Pooler</strong> (porta 6543), não a conexão direta (5432)</li>
+                    <li>Lambda tem IPs dinâmicos - o pooler resolve isso automaticamente</li>
+                    <li>Se usar conexão direta, precisará de NAT Gateway para IP fixo</li>
+                    <li>SSL é obrigatório: <code>sslmode=require</code></li>
+                </ul>
+            </div>
+
+            <h3>8.4 Tipos de Chaves do Supabase (Importante!)</h3>
+            <p>O Supabase possui diferentes chaves com diferentes níveis de acesso:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Chave</th>
+                        <th>Uso</th>
+                        <th>RLS</th>
+                        <th>Segurança</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background: rgba(239, 68, 68, 0.1);">
+                        <td><code>anon</code> (pública)</td>
+                        <td>Frontend, apps cliente</td>
+                        <td>✅ Ativo</td>
+                        <td>⚠️ Pode ser exposta no browser</td>
+                    </tr>
+                    <tr style="background: rgba(34, 197, 94, 0.1);">
+                        <td><code>service_role</code> (privada)</td>
+                        <td>Backend, Lambda, ETL</td>
+                        <td>❌ Bypass</td>
+                        <td>🔒 NUNCA expor no frontend</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-error" style="background: rgba(239, 68, 68, 0.1); border-color: var(--error);">
+                <strong>🚨 NUNCA faça isso:</strong>
+                <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                    <li>Usar a <code>service_role</code> key em código frontend/cliente</li>
+                    <li>Commitar credentials em repositórios Git</li>
+                    <li>Enviar credentials por email ou chat sem criptografia</li>
+                    <li>Hardcode de credentials no código Lambda</li>
+                </ul>
+            </div>
+
+            <div class="alert alert-success">
+                <strong>✅ SEMPRE faça isso:</strong>
+                <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                    <li>Armazenar credentials no <strong>AWS Secrets Manager</strong></li>
+                    <li>Usar variáveis de ambiente no Lambda</li>
+                    <li>Rotacionar a <code>service_role</code> key periodicamente</li>
+                    <li>Monitorar uso via logs do Supabase</li>
+                </ul>
+            </div>
+
+            <h3>8.5 Configuração no AWS Secrets Manager</h3>
+            <p>O time de TI deve criar um secret no AWS Secrets Manager com as credenciais:</p>
+
+            <button class="copy-btn" onclick="copyToClipboard('code-secrets')">Copiar JSON</button>
+            <pre id="code-secrets"><code>{
+    <span class="string">"supabase_url"</span>: <span class="string">"https://xxxxxxxx.supabase.co"</span>,
+    <span class="string">"supabase_service_key"</span>: <span class="string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+    <span class="string">"supabase_db_host"</span>: <span class="string">"aws-0-us-east-1.pooler.supabase.com"</span>,
+    <span class="string">"supabase_db_port"</span>: <span class="string">"6543"</span>,
+    <span class="string">"supabase_db_name"</span>: <span class="string">"postgres"</span>,
+    <span class="string">"supabase_db_user"</span>: <span class="string">"postgres.xxxxxxxx"</span>,
+    <span class="string">"supabase_db_password"</span>: <span class="string">"********"</span>
+}</code></pre>
+
+            <h4>Acessando no Lambda:</h4>
+            <pre><code><span class="keyword">import</span> boto3
+<span class="keyword">import</span> json
+
+<span class="keyword">def</span> <span class="function">get_supabase_credentials</span>():
+    <span class="string">"""Busca credenciais do Supabase no Secrets Manager."""</span>
+
+    client = boto3.<span class="function">client</span>(<span class="string">'secretsmanager'</span>)
+
+    response = client.<span class="function">get_secret_value</span>(
+        SecretId=<span class="string">'parceria/supabase-credentials'</span>
+    )
+
+    <span class="keyword">return</span> json.<span class="function">loads</span>(response[<span class="string">'SecretString'</span>])
+
+<span class="comment"># Uso:</span>
+creds = <span class="function">get_supabase_credentials</span>()
+supabase_url = creds[<span class="string">'supabase_url'</span>]
+supabase_key = creds[<span class="string">'supabase_service_key'</span>]
+</code></pre>
+
+            <h3>8.6 Schema da Tabela Destino (produtividade)</h3>
+            <p>Esta é a estrutura da tabela que receberá os dados no Supabase:</p>
+
+            <button class="copy-btn" onclick="copyToClipboard('schema-supabase')">Copiar Schema</button>
+            <pre id="schema-supabase"><code><span class="comment">-- Tabela produtividade no Supabase (já existente)</span>
+<span class="comment">-- O ETL deve inserir dados nesta estrutura</span>
+
+<span class="keyword">TABLE</span> produtividade (
+    id                      <span class="type">UUID</span>         <span class="keyword">PRIMARY KEY</span>,
+    codigo_mv               <span class="type">VARCHAR</span>      <span class="keyword">NOT NULL</span>,    <span class="comment">-- Chave para UPSERT</span>
+    nome                    <span class="type">VARCHAR</span>      <span class="keyword">NOT NULL</span>,
+    especialidade           <span class="type">VARCHAR</span>,
+    vinculo                 <span class="type">VARCHAR</span>,
+    data                    <span class="type">DATE</span>,                       <span class="comment">-- Chave para UPSERT</span>
+
+    <span class="comment">-- Métricas (todas INTEGER, default 0)</span>
+    procedimento            <span class="type">INTEGER</span>,
+    parecer_solicitado      <span class="type">INTEGER</span>,
+    parecer_realizado       <span class="type">INTEGER</span>,
+    cirurgia_realizada      <span class="type">INTEGER</span>,
+    prescricao              <span class="type">INTEGER</span>,
+    evolucao                <span class="type">INTEGER</span>,
+    urgencia                <span class="type">INTEGER</span>,
+    ambulatorio             <span class="type">INTEGER</span>,
+    auxiliar                <span class="type">INTEGER</span>,
+    encaminhamento          <span class="type">INTEGER</span>,
+    folha_objetivo_diario   <span class="type">INTEGER</span>,
+    evolucao_diurna_cti     <span class="type">INTEGER</span>,
+    evolucao_noturna_cti    <span class="type">INTEGER</span>,
+
+    unidade_hospitalar_id   <span class="type">UUID</span>,                      <span class="comment">-- FK opcional</span>
+    created_at              <span class="type">TIMESTAMPTZ</span>,
+    updated_at              <span class="type">TIMESTAMPTZ</span>
+);
+
+<span class="comment">-- Para UPSERT, usar os campos: codigo_mv + data</span>
+</code></pre>
+
+            <h3>8.7 Checklist de Credenciais</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Fornecido por</th>
+                        <th>Armazenado em</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Supabase Project URL</td>
+                        <td>ParcerIA</td>
+                        <td>Secrets Manager</td>
+                        <td><input type="checkbox"></td>
+                    </tr>
+                    <tr>
+                        <td>Supabase Service Role Key</td>
+                        <td>ParcerIA</td>
+                        <td>Secrets Manager</td>
+                        <td><input type="checkbox"></td>
+                    </tr>
+                    <tr>
+                        <td>Connection String (se usar direto)</td>
+                        <td>ParcerIA</td>
+                        <td>Secrets Manager</td>
+                        <td><input type="checkbox"></td>
+                    </tr>
+                    <tr>
+                        <td>Schema da tabela destino</td>
+                        <td>ParcerIA</td>
+                        <td>Documentação</td>
+                        <td><input type="checkbox"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- SEÇÃO 9: RESUMO EXECUTIVO -->
+        <section>
+            <h2>9. Resumo Executivo para TI</h2>
+
+            <div class="highlight-box">
+                <h4>O que precisamos:</h4>
+                <ol style="color: var(--text-secondary); margin-left: 1.5rem;">
+                    <li>Criar tabela <code>mv_produtividade_staging</code> no RDS PostgreSQL</li>
+                    <li>Criar índices conforme especificado</li>
+                    <li>Configurar usuário com permissões de INSERT, UPDATE, SELECT, DELETE</li>
+                    <li>Liberar acesso para Lambda (Security Group / VPC)</li>
+                    <li>Fornecer connection string para o time ParcerIA</li>
+                </ol>
+            </div>
+
+            <div class="highlight-box">
+                <h4>Características do workload:</h4>
+                <ul style="color: var(--text-secondary); margin-left: 1.5rem;">
+                    <li><strong>Volume:</strong> Muito baixo (~150 registros/dia)</li>
+                    <li><strong>Crescimento:</strong> Linear e previsível</li>
+                    <li><strong>Padrão:</strong> Write-once, read-few (ETL staging)</li>
+                    <li><strong>Criticidade:</strong> Média (dados podem ser reprocessados)</li>
+                    <li><strong>Compliance:</strong> Dados de profissionais, não de pacientes</li>
+                </ul>
+            </div>
+
+            <h3>Entregáveis Esperados do Time de TI:</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Item</th>
+                        <th>Responsável</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>Instância RDS PostgreSQL provisionada</td>
+                        <td>TI/Infra</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>Tabela e índices criados</td>
+                        <td>TI/DBA</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>Usuário de aplicação criado</td>
+                        <td>TI/DBA</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>Security Group configurado</td>
+                        <td>TI/Infra</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>Connection string entregue (via Secrets Manager)</td>
+                        <td>TI/Infra</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td>Desenvolvimento do ETL Lambda</td>
+                        <td>ParcerIA</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <footer>
+            <p><strong>ParcerIA</strong> - Gestão Inteligente de Acessos e Parcerias</p>
+            <p>Documento gerado em <script>document.write(new Date().toLocaleString('pt-BR'))</script></p>
+        </footer>
+    </div>
+
+    <script>
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.innerText;
+
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const originalText = btn.innerText;
+                btn.innerText = 'Copiado!';
+                setTimeout(() => btn.innerText = originalText, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

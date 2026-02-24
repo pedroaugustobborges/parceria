@@ -30,7 +30,7 @@ DW_CONFIG = {
     'password': 'asdgRTFG98'
 }
 
-# Configurações do Supabase
+# Configurações do Supabase pip install psycopg2-binary python-dotenv supabase pytz
 SUPABASE_URL = os.getenv('VITE_SUPABASE_URL')
 SUPABASE_SERVICE_KEY = os.getenv('VITE_SUPABASE_SERVICE_ROLE_KEY')
 
@@ -64,15 +64,15 @@ def conectar_supabase():
         raise
 
 def buscar_cpfs_usuarios(supabase: Client):
-    """Busca todos os CPFs da tabela usuarios."""
+    """Busca todos os CPFs da tabela usuarios do tipo 'terceiro'."""
     try:
-        print("\n📋 Buscando CPFs da tabela usuarios...")
-        response = supabase.table('usuarios').select('cpf').execute()
+        print("\n📋 Buscando CPFs da tabela usuarios (tipo 'terceiro')...")
+        response = supabase.table('usuarios').select('cpf').eq('tipo', 'terceiro').execute()
         cpfs = [usuario['cpf'] for usuario in response.data if usuario.get('cpf')]
         print(f"  ✅ {len(cpfs)} CPFs encontrados na tabela usuarios")
         return cpfs
     except Exception as e:
-        print(f"❌ Erro ao buscar CPFs dos usuárithe os: {e}")
+        print(f"❌ Erro ao buscar CPFs dos usuários: {e}")
         raise
 
 def extrair_acessos(conn, cpfs_usuarios, limite_por_cpf=125):
