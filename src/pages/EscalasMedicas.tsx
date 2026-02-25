@@ -280,8 +280,11 @@ const EscalasMedicas: React.FC = () => {
     filtroNome,
     filtroCpf,
     filtroStatus,
-    filtroDataInicio,
-    filtroDataFim,
+    contratos, // Necessário para filtro por unidade
+    unidades,  // Necessário para filtro por unidade
+    // NOTA: Removemos filtroDataInicio e filtroDataFim pois o filtro de datas
+    // é aplicado na query do Supabase, não aqui. Isso evita que aplicarFiltros
+    // rode com dados antigos quando o usuário muda as datas antes de clicar Buscar.
   ]);
 
   // Clear invalid item selections when contract filter changes
@@ -605,7 +608,8 @@ const EscalasMedicas: React.FC = () => {
         .select("*")
         .gte("data_inicio", dataInicioFormatada)
         .lte("data_inicio", dataFimFormatada)
-        .order("data_inicio", { ascending: false });
+        .order("data_inicio", { ascending: true })
+        .limit(5000); // Aumentar limite para garantir que todas as escalas sejam carregadas
 
       if (escalasError) throw escalasError;
 
@@ -790,29 +794,10 @@ const EscalasMedicas: React.FC = () => {
       );
     }
 
-    // Filtro por data início
-    if (filtroDataInicio) {
-      const dataInicio = new Date(filtroDataInicio);
-      dataInicio.setHours(0, 0, 0, 0);
-      filtered = filtered.filter((escala) => {
-        // Usa parseISO para evitar problemas de timezone
-        const dataEscala = parseISO(escala.data_inicio);
-        dataEscala.setHours(0, 0, 0, 0);
-        return dataEscala >= dataInicio;
-      });
-    }
-
-    // Filtro por data fim
-    if (filtroDataFim) {
-      const dataFim = new Date(filtroDataFim);
-      dataFim.setHours(0, 0, 0, 0);
-      filtered = filtered.filter((escala) => {
-        // Usa parseISO para evitar problemas de timezone
-        const dataEscala = parseISO(escala.data_inicio);
-        dataEscala.setHours(0, 0, 0, 0);
-        return dataEscala <= dataFim;
-      });
-    }
+    // NOTA: Não filtramos por data aqui pois o filtro de datas já é aplicado
+    // na query do Supabase em handleBuscarEscalas(). Filtrar novamente aqui
+    // causava problemas quando o usuário mudava as datas antes de clicar "Buscar",
+    // pois aplicarFiltros rodava com os dados antigos e filtros novos.
 
     setEscalasFiltradas(filtered);
   };

@@ -458,14 +458,54 @@ const SCHEMA_DESCRICAO = `
 - observacoes (text), justificativa (text), ativo (boolean)
 
 **IMPORTANTE para consultar medicos em escalas_medicas:**
-- Para expandir o array de medicos: jsonb_array_elements(medicos) AS m
+- O campo "medicos" e um JSONB array. Para acessar os medicos, SEMPRE use CROSS JOIN LATERAL
+- NUNCA referencie "m" ou "m->>'nome'" sem ter CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m no FROM
+- Para expandir: CROSS JOIN LATERAL jsonb_array_elements(medicos) AS m
 - Para extrair nome do medico: m->>'nome'
 - Para extrair cpf do medico: m->>'cpf'
-- Para contar medicos: jsonb_array_length(medicos)
-Exemplo correto:
-  SELECT m->>'nome' AS nome_medico, COUNT(*)
-  FROM escalas_medicas e, jsonb_array_elements(e.medicos) AS m
+- Para contar medicos em uma escala: jsonb_array_length(medicos)
+
+ERRO COMUM - "column m does not exist":
+  -- ERRADO (m nao existe sem CROSS JOIN LATERAL):
+  SELECT COUNT(DISTINCT m->>'nome') FROM escalas_medicas e WHERE ...
+  -- CORRETO:
+  SELECT COUNT(DISTINCT m->>'nome') FROM escalas_medicas e CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m WHERE ...
+
+Exemplo para CONTAR MEDICOS UNICOS de uma empresa:
+  SELECT COUNT(DISTINCT m->>'nome') AS total_medicos
+  FROM escalas_medicas e
+  JOIN contratos c ON c.id = e.contrato_id
+  CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m
+  WHERE c.empresa ILIKE '%nome_empresa%'
+    AND e.data_inicio >= '2026-02-01' AND e.data_inicio < '2026-03-01'
+    AND e.ativo = true
+
+Exemplo para LISTAR medicos com quantidade de escalas:
+  SELECT m->>'nome' AS nome_medico, COUNT(*) AS total_escalas
+  FROM escalas_medicas e
+  JOIN contratos c ON c.id = e.contrato_id
+  CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m
+  WHERE c.empresa ILIKE '%nome_empresa%'
+    AND e.data_inicio >= '2026-02-01' AND e.data_inicio < '2026-03-01'
+    AND e.ativo = true
   GROUP BY m->>'nome'
+  ORDER BY total_escalas DESC
+
+Exemplo para medicos com MENOS de X escalas:
+  SELECT m->>'nome' AS nome_medico, COUNT(*) AS total_escalas
+  FROM escalas_medicas e
+  JOIN contratos c ON c.id = e.contrato_id
+  CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m
+  WHERE c.empresa ILIKE '%nome_empresa%'
+    AND e.data_inicio >= '2026-02-01' AND e.data_inicio < '2026-03-01'
+    AND e.ativo = true
+  GROUP BY m->>'nome'
+  HAVING COUNT(*) < 5
+
+EVITE estes erros:
+  -- ERRADO (causa "column m does not exist"): SELECT COUNT(m->>'nome') FROM escalas_medicas e JOIN contratos...
+  -- ERRADO (causa "invalid reference"): FROM escalas_medicas e, jsonb_array_elements(e.medicos) AS m JOIN contratos...
+  -- CORRETO: FROM escalas_medicas e JOIN contratos c ON ... CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m
 
 ### produtividade
 - id (uuid), codigo_mv (text), nome (text), especialidade (text)
@@ -530,7 +570,7 @@ Para buscar unidades, use o codigo OU nome com ILIKE:
 - WHERE u.nome ILIKE '%HUGOL%' (busca parcial pelo nome)
 Isso encontrara "Hospital Estadual de Urgências Governador Otávio Lage de Siqueira"
 
-### ABSENTEISMO (faltas)
+### ABSENTEISMO (faltas) - Relacionando escalas_medicas com acessos
 Absenteismo = medico que estava ESCALADO (em escalas_medicas) mas NAO registrou ACESSO (em acessos) naquele dia.
 Para calcular absenteismo, faca LEFT JOIN entre escalas_medicas e acessos pelo CPF do medico e data:
 - Escala: data_inicio em escalas_medicas
@@ -539,16 +579,19 @@ Para calcular absenteismo, faca LEFT JOIN entre escalas_medicas e acessos pelo C
 - Medico com acesso: cpf em acessos
 - AUSENCIA = quando NAO existe registro em acessos para aquele CPF naquela data
 
-Exemplo de query para absenteismo:
+Exemplo 1 - Taxa de absenteismo por medico:
 WITH escalas_expandidas AS (
-  SELECT e.data_inicio, m->>'nome' AS nome_medico, m->>'cpf' AS cpf_medico
-  FROM escalas_medicas e, jsonb_array_elements(e.medicos) AS m
-  WHERE e.data_inicio >= '2026-01-01' AND e.data_inicio < '2026-02-01'
+  SELECT e.data_inicio, m->>'nome' AS nome_medico, m->>'cpf' AS cpf_medico, c.empresa
+  FROM escalas_medicas e
+  JOIN contratos c ON c.id = e.contrato_id
+  CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m
+  WHERE e.data_inicio >= '2026-02-01' AND e.data_inicio < '2026-03-01'
+    AND e.ativo = true
 ),
 acessos_dia AS (
   SELECT DISTINCT cpf, DATE(data_acesso) AS data_acesso
   FROM acessos
-  WHERE data_acesso >= '2026-01-01' AND data_acesso < '2026-02-01'
+  WHERE data_acesso >= '2026-02-01' AND data_acesso < '2026-03-01'
 )
 SELECT ee.nome_medico, ee.cpf_medico,
        COUNT(*) AS total_escalas,
@@ -559,11 +602,83 @@ LEFT JOIN acessos_dia ad ON ee.cpf_medico = ad.cpf AND ee.data_inicio = ad.data_
 GROUP BY ee.nome_medico, ee.cpf_medico
 ORDER BY total_ausencias DESC
 
+Exemplo 2 - Medicos escalados que NAO registraram acesso (faltaram):
+WITH escalas_expandidas AS (
+  SELECT DISTINCT e.data_inicio, m->>'nome' AS nome_medico, m->>'cpf' AS cpf_medico, c.empresa
+  FROM escalas_medicas e
+  JOIN contratos c ON c.id = e.contrato_id
+  CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m
+  WHERE e.data_inicio >= '2026-02-01' AND e.data_inicio < '2026-03-01'
+    AND c.empresa ILIKE '%nome_empresa%'
+    AND e.ativo = true
+),
+acessos_dia AS (
+  SELECT DISTINCT cpf, DATE(data_acesso) AS data_acesso
+  FROM acessos
+  WHERE data_acesso >= '2026-02-01' AND data_acesso < '2026-03-01'
+)
+SELECT ee.nome_medico, ee.data_inicio AS data_escala
+FROM escalas_expandidas ee
+LEFT JOIN acessos_dia ad ON ee.cpf_medico = ad.cpf AND ee.data_inicio = ad.data_acesso
+WHERE ad.cpf IS NULL
+ORDER BY ee.data_inicio, ee.nome_medico
+
+Exemplo 3 - Contar medicos que faltaram em um periodo:
+WITH escalas_expandidas AS (
+  SELECT DISTINCT e.data_inicio, m->>'nome' AS nome_medico, m->>'cpf' AS cpf_medico
+  FROM escalas_medicas e
+  JOIN contratos c ON c.id = e.contrato_id
+  CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m
+  WHERE e.data_inicio >= '2026-02-01' AND e.data_inicio < '2026-03-01'
+    AND c.empresa ILIKE '%nome_empresa%'
+    AND e.ativo = true
+),
+acessos_dia AS (
+  SELECT DISTINCT cpf, DATE(data_acesso) AS data_acesso
+  FROM acessos
+  WHERE data_acesso >= '2026-02-01' AND data_acesso < '2026-03-01'
+)
+SELECT COUNT(DISTINCT ee.cpf_medico) AS total_medicos_faltaram
+FROM escalas_expandidas ee
+LEFT JOIN acessos_dia ad ON ee.cpf_medico = ad.cpf AND ee.data_inicio = ad.data_acesso
+WHERE ad.cpf IS NULL
+
+Exemplo 4 - Medicos que registraram acesso mas NAO estavam escalados:
+WITH escalas_expandidas AS (
+  SELECT DISTINCT e.data_inicio, m->>'cpf' AS cpf_medico
+  FROM escalas_medicas e
+  CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m
+  WHERE e.data_inicio >= '2026-02-01' AND e.data_inicio < '2026-03-01'
+    AND e.ativo = true
+),
+acessos_medicos AS (
+  SELECT DISTINCT a.nome, a.cpf, DATE(a.data_acesso) AS data_acesso
+  FROM acessos a
+  WHERE a.data_acesso >= '2026-02-01' AND a.data_acesso < '2026-03-01'
+    AND a.tipo = 'Medico'
+)
+SELECT am.nome, am.data_acesso
+FROM acessos_medicos am
+LEFT JOIN escalas_expandidas ee ON am.cpf = ee.cpf_medico AND am.data_acesso = ee.data_inicio
+WHERE ee.cpf_medico IS NULL
+ORDER BY am.data_acesso, am.nome
+
 ### STATUS de escalas_medicas NAO indica presenca/ausencia
 - O status (Aprovado, Reprovado, etc) refere-se a APROVACAO ADMINISTRATIVA da escala, nao a presenca do medico
 - Reprovado = escala foi rejeitada administrativamente (ex: documentacao incorreta)
 - Aprovado = escala foi aprovada administrativamente
 - LEMBRETE: Sempre use os valores de status COM acentos: 'Atenção' (nao 'Atencao'), 'Pré-Agendado' (nao 'Pre-Agendado'), 'Aprovação Parcial' (nao 'Aprovacao Parcial')
+
+Exemplo para buscar medicos por status e empresa:
+  SELECT m->>'nome' AS nome_medico, e.status, e.data_inicio
+  FROM escalas_medicas e
+  JOIN contratos c ON c.id = e.contrato_id
+  CROSS JOIN LATERAL jsonb_array_elements(e.medicos) AS m
+  WHERE c.empresa ILIKE '%nome_empresa%'
+    AND e.status = 'Atenção'
+    AND e.data_inicio >= '2026-02-01' AND e.data_inicio < '2026-03-01'
+    AND e.ativo = true
+  ORDER BY e.data_inicio
 `;
 
 // ============================================================
@@ -657,6 +772,9 @@ Responda APENAS com a consulta SQL, sem explicacao, sem markdown, sem \`\`\`.`;
     throw new Error("Consulta SQL invalida: operacoes de modificacao nao sao permitidas");
   }
 
+  // Log do SQL gerado para debugging
+  console.log("[prepararSQL] SQL gerado:", sql);
+
   // Executar SQL
   const { data: resultado, error: erroExecucao } = await supabase.rpc(
     "executar_consulta_analytics",
@@ -667,24 +785,31 @@ Responda APENAS com a consulta SQL, sem explicacao, sem markdown, sem \`\`\`.`;
   );
 
   if (erroExecucao) {
-    console.error("Erro ao executar SQL:", erroExecucao, "SQL:", sql);
-    throw new Error(`Erro ao executar consulta: ${erroExecucao.message}`);
+    const sqlTruncado = sql.length > 200 ? sql.substring(0, 200) + "..." : sql;
+    console.error("Erro ao executar SQL:", erroExecucao, "SQL completo:", sql);
+    throw new Error(`Erro ao executar consulta: ${erroExecucao.message}. SQL gerado: ${sqlTruncado}`);
   }
 
   // Montar mensagens para a chamada de formatacao (sera streaming)
-  const promptFormatacao = `Voce e o assistente ParcerIA. Formate os dados abaixo em uma resposta clara e objetiva em portugues.
+  const dadosVazios = !resultado || (Array.isArray(resultado) && resultado.length === 0);
 
-Pergunta original: "${pergunta}"
-SQL executado: ${sql}
-Dados retornados: ${JSON.stringify(resultado, null, 2)}
+  const promptFormatacao = `Voce e o assistente ParcerIA. Responda a pergunta de forma DIRETA e CONCISA.
 
-Regras:
-- Use linguagem profissional e acessivel
-- Formate numeros com separadores de milhar
-- Formate datas no padrao brasileiro (dd/mm/yyyy)
-- Se nao houver dados, informe que nao foram encontrados registros
-- Ofereca insights adicionais quando relevante
-- Use markdown para formatacao`;
+Pergunta: "${pergunta}"
+Dados: ${JSON.stringify(resultado, null, 2)}
+
+REGRAS OBRIGATORIAS:
+${dadosVazios ? `- Os dados estao VAZIOS. Responda APENAS: "Nao foram encontrados registros para essa consulta."
+- NAO invente dados, observacoes, consideracoes ou recomendacoes
+- NAO adicione secoes como "Detalhes", "Analise", "Consideracoes", "Insights"` : `- Responda DIRETAMENTE a pergunta com os dados fornecidos
+- Seja CONCISO: va direto ao ponto, sem introducoes longas
+- NAO adicione secoes extras como "Consideracoes", "Insights", "Recomendacoes", "Observacoes"
+- NAO faca suposicoes ou interpretacoes alem dos dados
+- Formate numeros com separadores de milhar (1.234)
+- Formate datas como dd/mm/yyyy
+- Use tabelas markdown APENAS se houver lista de itens (mais de 3 registros)
+- Para perguntas simples de contagem, responda em 1-2 frases
+- Exemplo de resposta concisa: "A empresa X possui 27 medicos com escalas em fevereiro de 2026."`}`;
 
   return {
     sql,
@@ -856,22 +981,46 @@ async function prepararHibrido(
     prepararRAG(pergunta, contexto, historicoMensagens, supabase, apiKey),
   ]);
 
+  // Log detalhado de falhas para debugging
+  let erroSQL: string | null = null;
+  let erroRAG: string | null = null;
+
+  if (resultadoSQL.status === "rejected") {
+    erroSQL = resultadoSQL.reason?.message || "Erro desconhecido na consulta SQL";
+    console.error("SQL falhou no modo hibrido:", erroSQL);
+  }
+  if (resultadoRAG.status === "rejected") {
+    erroRAG = resultadoRAG.reason?.message || "Erro desconhecido na busca de documentos";
+    console.error("RAG falhou no modo hibrido:", erroRAG);
+  }
+
   const dadosSQL = resultadoSQL.status === "fulfilled" ? resultadoSQL.value : null;
   const dadosRAG = resultadoRAG.status === "fulfilled" ? resultadoRAG.value : null;
 
   if (!dadosSQL && !dadosRAG) {
+    // Fornecer mensagem especifica sobre o que falhou
+    const detalhesErro = [
+      erroSQL ? `Erro SQL: ${erroSQL}` : null,
+      erroRAG ? `Erro RAG: ${erroRAG}` : null,
+    ].filter(Boolean).join(". ");
+
     return {
       mensagens: null,
       citacoes: [],
       sqlExecutado: null,
       respostaEstatica:
-        "Nao foi possivel obter dados do banco nem dos documentos. Tente reformular sua pergunta.",
+        `Nao foi possivel processar sua pergunta. ${detalhesErro || "Tente reformular sua pergunta."}`,
     };
   }
 
   // Para o hibrido, precisamos das respostas intermediarias (nao-streaming)
-  let respostaSQL = "Nao foi possivel obter dados do banco de dados.";
-  let respostaRAG = "Nao foram encontrados documentos relevantes.";
+  // Incluir informacao sobre erros se ocorreram
+  let respostaSQL = erroSQL
+    ? `Erro ao consultar banco de dados: ${erroSQL}`
+    : "Nao foi possivel obter dados do banco de dados.";
+  let respostaRAG = erroRAG
+    ? `Erro ao buscar documentos: ${erroRAG}`
+    : "Nao foram encontrados documentos relevantes.";
 
   // Executar formatacoes intermediarias em paralelo
   const [formatadoSQL, formatadoRAG] = await Promise.allSettled([
