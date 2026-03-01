@@ -123,8 +123,8 @@ USER_AGENTS = [
 ]
 
 # --- Range de Datas para Processar ---
-DATA_INICIO = datetime(2026, 2, 1)  # 01/02/2026
-DATA_FIM = datetime(2026, 2, 27)    # 27/02/2026
+DATA_INICIO = datetime(2026, 2, 9)  # 09/02/2026
+DATA_FIM = datetime(2026, 2, 28)    # 28/02/2026
 
 # ============================================================================
 # CAMPOS QUE REQUEREM PERÍODO D-1 até D

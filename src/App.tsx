@@ -12,7 +12,7 @@ import Itens from './pages/Itens';
 import Parceiros from './pages/Parceiros';
 import InsightsIA from './pages/InsightsIA';
 import UnidadesHospitalares from './pages/UnidadesHospitalares';
-import EscalasMedicas from './pages/EscalasMedicas';
+import { EscalasMedicasPage as EscalasMedicas } from './features/escalas-medicas';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
