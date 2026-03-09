@@ -181,6 +181,22 @@ export function useEscalas(): UseEscalasReturn {
       unidades,
     });
     setEscalasFiltradas(filtered);
+
+    // Sync selection with filtered results - remove any selected items no longer visible
+    const filteredIds = new Set(filtered.map((e) => e.id));
+    setSelectedEscalas((prevSelected) => {
+      const newSelected = new Set<string>();
+      for (const id of prevSelected) {
+        if (filteredIds.has(id)) {
+          newSelected.add(id);
+        }
+      }
+      // Only update if there's a change to avoid unnecessary re-renders
+      if (newSelected.size !== prevSelected.size) {
+        return newSelected;
+      }
+      return prevSelected;
+    });
   }, [
     escalas,
     filters.filtroContrato,
