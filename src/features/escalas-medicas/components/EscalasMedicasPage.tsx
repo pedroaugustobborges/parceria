@@ -36,6 +36,8 @@ import { BulkActionsBar } from './bulk-actions/BulkActionsBar';
 import { WizardDialog } from './dialogs/WizardDialog';
 import { StatusDialog } from './dialogs/StatusDialog';
 import { BulkStatusDialog } from './dialogs/BulkStatusDialog';
+import { DeleteDialog } from './dialogs/DeleteDialog';
+import { BulkDeleteDialog } from './dialogs/BulkDeleteDialog';
 import { DetailsDialog } from './dialogs/DetailsDialog';
 import { CsvImportDialog } from './dialogs/CsvImportDialog';
 import { CsvPreviewDialog } from './dialogs/CsvPreviewDialog';
@@ -48,7 +50,7 @@ import type { EscalaMedica, StatusEscala, CsvPreviewRow, Usuario } from '../type
 // ============================================
 
 export const EscalasMedicasPage: React.FC = () => {
-  const { isAdminAgir, isAdminTerceiro, isTerceiro } = useAuth();
+  const { isAdminAgir, isAdminTerceiro, isTerceiro, isAdminAgirCorporativo, isAdminAgirPlanta } = useAuth();
 
   // ============================================
   // Main Data Hook
@@ -85,6 +87,21 @@ export const EscalasMedicasPage: React.FC = () => {
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<StatusEscala>('Aprovado');
   const [bulkJustificativa, setBulkJustificativa] = useState('');
+
+  // ============================================
+  // Delete Dialog State (for terceiro/admin-terceiro)
+  // ============================================
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [escalaParaExcluir, setEscalaParaExcluir] = useState<EscalaMedica | null>(null);
+  const [deleteJustificativa, setDeleteJustificativa] = useState('');
+
+  // ============================================
+  // Bulk Delete Dialog State (for terceiro/admin-terceiro)
+  // ============================================
+
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkDeleteJustificativa, setBulkDeleteJustificativa] = useState('');
 
   // ============================================
   // Details Dialog State
@@ -190,12 +207,76 @@ export const EscalasMedicasPage: React.FC = () => {
     setStatusDialogOpen(true);
   }, []);
 
+  const handleDeleteEscala = useCallback((escala: EscalaMedica) => {
+    // Admin-agir users use the status dialog (can change to any status)
+    // Terceiro/admin-terceiro users use the dedicated delete dialog (can ONLY delete)
+    if (isAdminAgir) {
+      setEscalaParaStatus(escala);
+      setNovoStatus('Excluída');
+      setNovaJustificativa('');
+      setStatusDialogOpen(true);
+    } else {
+      setEscalaParaExcluir(escala);
+      setDeleteJustificativa('');
+      setDeleteDialogOpen(true);
+    }
+  }, [isAdminAgir]);
+
   const handleCloseStatusDialog = useCallback(() => {
     setStatusDialogOpen(false);
     setEscalaParaStatus(null);
     setNovoStatus('Programado');
     setNovaJustificativa('');
   }, []);
+
+  // ============================================
+  // Delete Dialog Handlers (for terceiro/admin-terceiro)
+  // ============================================
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    setDeleteDialogOpen(false);
+    setEscalaParaExcluir(null);
+    setDeleteJustificativa('');
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!escalaParaExcluir) return;
+
+    try {
+      await escalas.updateEscalaStatus(escalaParaExcluir.id, 'Excluída', deleteJustificativa);
+      handleCloseDeleteDialog();
+      escalas.setSuccess('Escala excluída com sucesso!');
+      await escalas.buscarEscalas();
+    } catch (err: any) {
+      escalas.setError('Erro ao excluir escala: ' + err.message);
+    }
+  }, [escalaParaExcluir, deleteJustificativa, escalas, handleCloseDeleteDialog]);
+
+  // ============================================
+  // Bulk Delete Dialog Handlers (for terceiro/admin-terceiro)
+  // ============================================
+
+  const handleOpenBulkDeleteDialog = useCallback(() => {
+    setBulkDeleteJustificativa('');
+    setBulkDeleteDialogOpen(true);
+  }, []);
+
+  const handleCloseBulkDeleteDialog = useCallback(() => {
+    setBulkDeleteDialogOpen(false);
+    setBulkDeleteJustificativa('');
+  }, []);
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    try {
+      await escalas.bulkUpdateStatus('Excluída', bulkDeleteJustificativa);
+      handleCloseBulkDeleteDialog();
+      escalas.setSuccess(`${escalas.selectedEscalas.size} escala(s) excluída(s) com sucesso!`);
+      escalas.deselectAll();
+      await escalas.buscarEscalas();
+    } catch (err: any) {
+      escalas.setError('Erro ao excluir escalas em massa: ' + err.message);
+    }
+  }, [bulkDeleteJustificativa, escalas, handleCloseBulkDeleteDialog]);
 
   const handleSaveStatus = useCallback(async () => {
     if (!escalaParaStatus) return;
@@ -391,6 +472,8 @@ export const EscalasMedicasPage: React.FC = () => {
           onBuscar={escalas.buscarEscalas}
           onClearFilters={handleClearFilters}
           loading={escalas.loading}
+          isAdminAgirCorporativo={isAdminAgirCorporativo}
+          isAdminAgirPlanta={isAdminAgirPlanta}
         />
 
         {/* Content */}
@@ -399,23 +482,37 @@ export const EscalasMedicasPage: React.FC = () => {
         ) : (
           <Box>
             {/* Scorecards */}
-            <EscalasScorecards metrics={escalas.metrics} />
+            <EscalasScorecards
+              metrics={escalas.metrics}
+              isAdminAgirCorporativo={isAdminAgirCorporativo}
+              isAdminAgirPlanta={isAdminAgirPlanta}
+            />
 
             {/* Bulk Actions */}
-            {(isAdminAgir || isAdminTerceiro) && escalas.escalasFiltradas.length > 0 && (
+            {escalas.escalasFiltradas.length > 0 && (
               <BulkActionsBar
                 selectedCount={escalas.selectedEscalas.size}
                 totalSelectableCount={
                   escalas.escalasFiltradas.filter(
-                    (e) => e.status !== 'Aprovado' && e.status !== 'Reprovado'
+                    (e) => e.status !== 'Aprovado' && e.status !== 'Reprovado' && e.status !== 'Excluída'
                   ).length
                 }
                 onSelectAll={escalas.selectAll}
                 onDeselectAll={escalas.deselectAll}
                 onApproveSelected={() => handleOpenBulkStatusDialog('Aprovado')}
                 onRejectSelected={() => handleOpenBulkStatusDialog('Reprovado')}
+                onDeleteSelected={() => {
+                  // Admin-agir uses BulkStatusDialog, others use BulkDeleteDialog
+                  if (isAdminAgir) {
+                    handleOpenBulkStatusDialog('Excluída');
+                  } else {
+                    handleOpenBulkDeleteDialog();
+                  }
+                }}
                 onChangeStatus={() => handleOpenBulkStatusDialog()}
                 isAdminAgir={isAdminAgir}
+                isAdminTerceiro={isAdminTerceiro}
+                isTerceiro={isTerceiro}
               />
             )}
 
@@ -586,6 +683,29 @@ export const EscalasMedicasPage: React.FC = () => {
           loading={escalas.loading}
         />
 
+        {/* Delete Dialog (for terceiro/admin-terceiro - single escala) */}
+        <DeleteDialog
+          open={deleteDialogOpen}
+          onClose={handleCloseDeleteDialog}
+          escala={escalaParaExcluir}
+          contratos={escalas.auxiliaryData.contratos}
+          justificativa={deleteJustificativa}
+          setJustificativa={setDeleteJustificativa}
+          onConfirm={handleConfirmDelete}
+          loading={escalas.loading}
+        />
+
+        {/* Bulk Delete Dialog (for terceiro/admin-terceiro - multiple escalas) */}
+        <BulkDeleteDialog
+          open={bulkDeleteDialogOpen}
+          onClose={handleCloseBulkDeleteDialog}
+          selectedCount={escalas.selectedEscalas.size}
+          justificativa={bulkDeleteJustificativa}
+          setJustificativa={setBulkDeleteJustificativa}
+          onConfirm={handleConfirmBulkDelete}
+          loading={escalas.loading}
+        />
+
         {/* Details Dialog */}
         <DetailsDialog
           open={detailsDialogOpen}
@@ -599,6 +719,7 @@ export const EscalasMedicasPage: React.FC = () => {
           loadingDetalhes={loadingDetalhes}
           isAdminAgir={isAdminAgir}
           isAdminTerceiro={isAdminTerceiro}
+          isTerceiro={isTerceiro}
           onEdit={(escala) => {
             handleCloseDetailsDialog();
             form.openDialog(escala);
@@ -606,6 +727,10 @@ export const EscalasMedicasPage: React.FC = () => {
           onChangeStatus={(escala) => {
             handleCloseDetailsDialog();
             handleOpenStatusDialog(escala);
+          }}
+          onDelete={(escala) => {
+            handleCloseDetailsDialog();
+            handleDeleteEscala(escala);
           }}
         />
 

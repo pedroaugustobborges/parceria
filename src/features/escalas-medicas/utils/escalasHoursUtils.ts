@@ -103,6 +103,7 @@ export function createEmptyScorecardMetrics(): ScorecardMetrics {
     atencao: createEmptyMetric(),
     aprovado: createEmptyMetric(),
     reprovado: createEmptyMetric(),
+    excluida: createEmptyMetric(),
   };
 }
 
@@ -118,6 +119,7 @@ function getMetricsKey(status: StatusEscala): keyof ScorecardMetrics | null {
     'Atenção': 'atencao',
     'Aprovado': 'aprovado',
     'Reprovado': 'reprovado',
+    'Excluída': 'excluida',
   };
   return statusKeyMap[status] || null;
 }

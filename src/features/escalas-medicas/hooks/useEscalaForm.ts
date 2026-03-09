@@ -180,6 +180,12 @@ export function useEscalaForm(props: UseEscalaFormProps): UseEscalaFormReturn {
   const openDialog = useCallback(
     async (escala?: EscalaMedica) => {
       if (escala) {
+        // "Excluída" schedules cannot be edited by anyone
+        if (escala.status === 'Excluída') {
+          setError('Escalas excluídas não podem ser editadas.');
+          return;
+        }
+
         // Check if user can edit this escala
         const canEdit = canEditStatus(escala.status, isAdminAgir, isAdminTerceiro);
 

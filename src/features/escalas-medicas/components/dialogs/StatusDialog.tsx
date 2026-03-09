@@ -28,6 +28,7 @@ import {
   Warning,
   HowToReg,
   Schedule,
+  DeleteForever,
 } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import type { EscalaMedica, StatusEscala, Contrato } from '../../types/escalas.types';
@@ -42,6 +43,7 @@ const statusIconMap: Record<StatusEscala, React.ReactElement> = {
   'Atenção': <Warning fontSize="small" />,
   'Aprovado': <CheckCircle fontSize="small" />,
   'Reprovado': <Cancel fontSize="small" />,
+  'Excluída': <DeleteForever fontSize="small" />,
 };
 
 // ============================================
@@ -71,6 +73,7 @@ const STATUS_OPTIONS: StatusEscala[] = [
   'Atenção',
   'Aprovado',
   'Reprovado',
+  'Excluída',
 ];
 
 // ============================================
@@ -193,12 +196,14 @@ export const StatusDialog: React.FC<StatusDialogProps> = ({
             multiline
             rows={4}
             fullWidth
-            required={novoStatus === 'Reprovado'}
-            error={novoStatus === 'Reprovado' && !justificativa.trim()}
+            required={novoStatus === 'Reprovado' || novoStatus === 'Excluída'}
+            error={(novoStatus === 'Reprovado' || novoStatus === 'Excluída') && !justificativa.trim()}
             helperText={
               novoStatus === 'Reprovado'
                 ? 'Justificativa obrigatória para status Reprovado'
-                : 'Opcional para outros status'
+                : novoStatus === 'Excluída'
+                  ? 'Justificativa obrigatória para excluir escala'
+                  : 'Opcional para outros status'
             }
             placeholder="Digite a justificativa para a alteração de status..."
           />
@@ -249,7 +254,7 @@ export const StatusDialog: React.FC<StatusDialogProps> = ({
           variant="contained"
           color="primary"
           startIcon={<Check />}
-          disabled={novoStatus === 'Reprovado' && !justificativa.trim()}
+          disabled={(novoStatus === 'Reprovado' || novoStatus === 'Excluída') && !justificativa.trim()}
         >
           Salvar Status
         </Button>

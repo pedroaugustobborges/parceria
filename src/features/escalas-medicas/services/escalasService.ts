@@ -30,6 +30,8 @@ export interface FetchEscalasParams {
   userCpf?: string;
   isAdminTerceiro?: boolean;
   isTerceiro?: boolean;
+  isAdminAgirCorporativo?: boolean;
+  isAdminAgirPlanta?: boolean;
 }
 
 /**
@@ -37,7 +39,16 @@ export interface FetchEscalasParams {
  * Applies role-based filtering automatically.
  */
 export async function fetchEscalas(params: FetchEscalasParams): Promise<EscalaMedica[]> {
-  const { dataInicio, dataFim, userContratoIds, userCpf, isAdminTerceiro, isTerceiro } = params;
+  const {
+    dataInicio,
+    dataFim,
+    userContratoIds,
+    userCpf,
+    isAdminTerceiro,
+    isTerceiro,
+    isAdminAgirCorporativo,
+    isAdminAgirPlanta,
+  } = params;
 
   const dataInicioFormatada = format(dataInicio, 'yyyy-MM-dd');
   const dataFimFormatada = format(dataFim, 'yyyy-MM-dd');
@@ -65,6 +76,12 @@ export async function fetchEscalas(params: FetchEscalasParams): Promise<EscalaMe
     filteredEscalas = filteredEscalas.filter((escala) =>
       escala.medicos.some((medico: MedicoEscala) => medico.cpf === userCpf)
     );
+  }
+
+  // Filter out "Excluída" status for non-admin-agir users
+  const canSeeExcluida = isAdminAgirCorporativo || isAdminAgirPlanta;
+  if (!canSeeExcluida) {
+    filteredEscalas = filteredEscalas.filter((escala) => escala.status !== 'Excluída');
   }
 
   return filteredEscalas;

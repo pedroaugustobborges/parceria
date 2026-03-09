@@ -17,7 +17,10 @@
       "Bash(cat:*)",
       "Bash(npm install:*)",
       "Bash(echo \"Please run this SQL command in your Supabase SQL Editor to allow NULL emails:\n\nALTER TABLE usuarios ALTER COLUMN email DROP NOT NULL;\n\nThis will allow creating terceiros without email addresses.\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(powershell -Command \"[System.IO.File]::ReadAllText\\(''src/types/database.types.ts'', [System.Text.Encoding]::Unicode\\)\")",
+      "Bash(powershell -Command \"[System.IO.File]::ReadAllLines\\(''src/types/database.types.ts'', [System.Text.Encoding]::Unicode\\) | Where-Object { $_-match ''StatusEscala|EscalaMedica|MedicoEscala'' }\")",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

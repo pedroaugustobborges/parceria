@@ -25,6 +25,7 @@ export const statusColorMap: Record<StatusEscala, StatusColorConfig> = {
   'Atenção': { hex: '#f59e0b', bg: '#fffbeb', border: '#f59e0b' },
   'Aprovado': { hex: '#10b981', bg: '#ecfdf5', border: '#10b981' },
   'Reprovado': { hex: '#ef4444', bg: '#fef2f2', border: '#ef4444' },
+  'Excluída': { hex: '#64748b', bg: '#f1f5f9', border: '#64748b' },
 };
 
 // ============================================
@@ -42,12 +43,13 @@ export const ALL_STATUS_OPTIONS: StatusEscala[] = [
   'Atenção',
   'Aprovado',
   'Reprovado',
+  'Excluída',
 ];
 
 /**
  * Statuses that are considered "finalized" (cannot be changed).
  */
-export const FINALIZED_STATUSES: StatusEscala[] = ['Aprovado', 'Reprovado'];
+export const FINALIZED_STATUSES: StatusEscala[] = ['Aprovado', 'Reprovado', 'Excluída'];
 
 /**
  * Statuses that Admin-Agir can edit.
@@ -78,6 +80,7 @@ const statusChipColorMap: Record<StatusEscala, ChipColor> = {
   'Atenção': 'warning',
   'Aprovado': 'success',
   'Reprovado': 'error',
+  'Excluída': 'default',
 };
 
 // ============================================
@@ -221,4 +224,40 @@ export function getCannotChangeStatusMessage(status: StatusEscala): string {
  */
 export function getInitialStatus(isAdminAgir: boolean): StatusEscala {
   return isAdminAgir ? 'Programado' : 'Pré-Agendado';
+}
+
+// ============================================
+// Excluída Status Visibility
+// ============================================
+
+/**
+ * Check if a user can see "Excluída" status.
+ * Only admin-agir-corporativo and admin-agir-planta can see excluded escalas.
+ */
+export function canSeeExcluidaStatus(
+  isAdminAgirCorporativo: boolean,
+  isAdminAgirPlanta: boolean
+): boolean {
+  return isAdminAgirCorporativo || isAdminAgirPlanta;
+}
+
+/**
+ * Check if a status is "Excluída".
+ */
+export function isStatusExcluida(status: StatusEscala): boolean {
+  return status === 'Excluída';
+}
+
+/**
+ * Get status options filtered by user visibility.
+ * "Excluída" is only visible to admin-agir users.
+ */
+export function getVisibleStatusOptions(
+  isAdminAgirCorporativo: boolean,
+  isAdminAgirPlanta: boolean
+): StatusEscala[] {
+  if (canSeeExcluidaStatus(isAdminAgirCorporativo, isAdminAgirPlanta)) {
+    return ALL_STATUS_OPTIONS;
+  }
+  return ALL_STATUS_OPTIONS.filter((status) => status !== 'Excluída');
 }

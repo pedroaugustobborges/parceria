@@ -20,7 +20,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { FilterList, Search, Refresh, Close } from '@mui/icons-material';
 import type { StatusEscala, FilterOption } from '../../types/escalas.types';
-import { ALL_STATUS_OPTIONS } from '../../utils/escalasStatusUtils';
+import { getVisibleStatusOptions } from '../../utils/escalasStatusUtils';
 import StatusChip from '../StatusChip';
 
 // ============================================
@@ -60,6 +60,10 @@ export interface EscalasFilterBarProps {
   onBuscar: () => void;
   onClearFilters: () => void;
   loading: boolean;
+
+  // Admin visibility flags
+  isAdminAgirCorporativo?: boolean;
+  isAdminAgirPlanta?: boolean;
 }
 
 // ============================================
@@ -92,7 +96,11 @@ export const EscalasFilterBar: React.FC<EscalasFilterBarProps> = ({
   onBuscar,
   onClearFilters,
   loading,
+  isAdminAgirCorporativo = false,
+  isAdminAgirPlanta = false,
 }) => {
+  // Get visible status options based on user role
+  const statusOptions = getVisibleStatusOptions(isAdminAgirCorporativo, isAdminAgirPlanta);
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
@@ -192,7 +200,7 @@ export const EscalasFilterBar: React.FC<EscalasFilterBarProps> = ({
               multiple
               value={filtroStatus}
               onChange={(_, newValue) => setFiltroStatus(newValue as StatusEscala[])}
-              options={ALL_STATUS_OPTIONS}
+              options={statusOptions}
               renderInput={(params) => (
                 <TextField {...params} label="Status" placeholder="Selecione um ou mais" />
               )}

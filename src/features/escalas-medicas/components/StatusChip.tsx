@@ -14,6 +14,7 @@ import {
   Warning,
   CheckCircle,
   Cancel,
+  DeleteForever,
 } from '@mui/icons-material';
 import type { StatusEscala } from '../types/escalas.types';
 import { getStatusConfig, getStatusColors } from '../utils/escalasStatusUtils';
@@ -30,6 +31,7 @@ const statusIconMap: Record<StatusEscala, React.ReactElement> = {
   'Atenção': <Warning />,
   'Aprovado': <CheckCircle />,
   'Reprovado': <Cancel />,
+  'Excluída': <DeleteForever />,
 };
 
 // ============================================

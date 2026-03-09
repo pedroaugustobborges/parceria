@@ -68,6 +68,7 @@ export interface ScorecardMetrics {
   atencao: StatusMetric;
   aprovado: StatusMetric;
   reprovado: StatusMetric;
+  excluida: StatusMetric;
 }
 
 export interface ScorecardConfig {

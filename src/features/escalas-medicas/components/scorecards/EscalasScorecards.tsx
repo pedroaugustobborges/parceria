@@ -15,6 +15,7 @@ import {
   CheckCircle,
   Cancel,
   AccessTime,
+  DeleteForever,
 } from '@mui/icons-material';
 import type { ScorecardMetrics, ScorecardConfig } from '../../types/escalas.types';
 import { formatCurrency } from '../../utils/escalasHoursUtils';
@@ -31,6 +32,7 @@ const statusIconMap = {
   atencao: Warning,
   aprovado: CheckCircle,
   reprovado: Cancel,
+  excluida: DeleteForever,
 };
 
 // ============================================
@@ -39,15 +41,23 @@ const statusIconMap = {
 
 export interface EscalasScorecardsProps {
   metrics: ScorecardMetrics;
+  isAdminAgirCorporativo?: boolean;
+  isAdminAgirPlanta?: boolean;
 }
 
 // ============================================
 // Component
 // ============================================
 
-export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({ metrics }) => {
-  const scorecardConfig = useMemo<ScorecardConfig[]>(
-    () => [
+export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
+  metrics,
+  isAdminAgirCorporativo = false,
+  isAdminAgirPlanta = false,
+}) => {
+  const canSeeExcluida = isAdminAgirCorporativo || isAdminAgirPlanta;
+
+  const scorecardConfig = useMemo<ScorecardConfig[]>(() => {
+    const baseConfig: ScorecardConfig[] = [
       {
         key: 'preAgendado',
         label: 'Pré-Agendado',
@@ -104,9 +114,22 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({ metrics })
         icon: statusIconMap.reprovado,
         metrics: metrics.reprovado,
       },
-    ],
-    [metrics]
-  );
+    ];
+
+    // Add "Excluída" scorecard only for admin-agir users
+    if (canSeeExcluida) {
+      baseConfig.push({
+        key: 'excluida',
+        label: 'Excluída',
+        color: '#64748b',
+        bgColor: '#f1f5f9',
+        icon: statusIconMap.excluida,
+        metrics: metrics.excluida,
+      });
+    }
+
+    return baseConfig;
+  }, [metrics, canSeeExcluida]);
 
   return (
     <Box

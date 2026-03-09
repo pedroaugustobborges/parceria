@@ -40,6 +40,7 @@ import {
   ThumbUpAlt,
   Warning,
   HowToReg,
+  DeleteForever,
 } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -61,6 +62,7 @@ const statusIconMap: Record<StatusEscala, React.ReactElement> = {
   'Atenção': <Warning fontSize="small" />,
   'Aprovado': <CheckCircle fontSize="small" />,
   'Reprovado': <Cancel fontSize="small" />,
+  'Excluída': <DeleteForever fontSize="small" />,
 };
 
 // ============================================
@@ -101,8 +103,10 @@ export interface DetailsDialogProps {
   loadingDetalhes: boolean;
   isAdminAgir: boolean;
   isAdminTerceiro: boolean;
+  isTerceiro?: boolean;
   onEdit: (escala: EscalaMedica) => void;
   onChangeStatus: (escala: EscalaMedica) => void;
+  onDelete?: (escala: EscalaMedica) => void;
 }
 
 // ============================================
@@ -121,19 +125,28 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   loadingDetalhes,
   isAdminAgir,
   isAdminTerceiro,
+  isTerceiro: _isTerceiro = false,
   onEdit,
   onChangeStatus,
+  onDelete,
 }) => {
   const theme = useTheme();
 
   if (!escala) return null;
 
-  const canEdit = canEditStatus(escala.status, isAdminAgir, isAdminTerceiro);
+  // "Excluída" schedules cannot be edited by anyone
+  const canEdit = escala.status !== 'Excluída' && canEditStatus(escala.status, isAdminAgir, isAdminTerceiro);
   const canChangeStatus =
-    isAdminAgir && escala.status !== 'Aprovado' && escala.status !== 'Reprovado';
+    isAdminAgir && escala.status !== 'Aprovado' && escala.status !== 'Reprovado' && escala.status !== 'Excluída';
+  // All users can delete schedules that are not finalized
+  const canDelete =
+    escala.status !== 'Aprovado' && escala.status !== 'Reprovado' && escala.status !== 'Excluída';
 
   const getEditTooltip = () => {
     if (canEdit) return '';
+    if (escala.status === 'Excluída') {
+      return 'Escalas excluídas não podem ser editadas.';
+    }
     const allowedStatuses = isAdminTerceiro
       ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
       : '"Programado" ou "Pré-Agendado"';
@@ -142,7 +155,18 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
 
   const getStatusChangeTooltip = () => {
     if (canChangeStatus) return '';
+    if (escala.status === 'Excluída') {
+      return 'Escalas excluídas não podem ter o status alterado.';
+    }
     return `Status bloqueado. Escalas ${escala.status.toLowerCase()}s não podem ter o status alterado.`;
+  };
+
+  const getDeleteTooltip = () => {
+    if (canDelete) return '';
+    if (escala.status === 'Excluída') {
+      return 'Esta escala já foi excluída.';
+    }
+    return `Não é possível excluir. Escalas ${escala.status.toLowerCase()}s não podem ser excluídas.`;
   };
 
   return (
@@ -572,40 +596,65 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
           Fechar
         </Button>
         {(isAdminAgir || isAdminTerceiro) && (
-          <>
-            <Tooltip title={getEditTooltip()}>
-              <span>
-                <Button
-                  onClick={() => {
-                    onClose();
-                    onEdit(escala);
-                  }}
-                  variant="outlined"
-                  startIcon={<Edit />}
-                  disabled={!canEdit}
-                >
-                  Editar
-                </Button>
-              </span>
-            </Tooltip>
-            {isAdminAgir && (
-              <Tooltip title={getStatusChangeTooltip()}>
-                <span>
-                  <Button
-                    onClick={() => {
-                      onClose();
-                      onChangeStatus(escala);
-                    }}
-                    variant="contained"
-                    color="primary"
-                    disabled={!canChangeStatus}
-                  >
-                    Alterar Status
-                  </Button>
-                </span>
-              </Tooltip>
-            )}
-          </>
+          <Tooltip title={getEditTooltip()}>
+            <span>
+              <Button
+                onClick={() => {
+                  onClose();
+                  onEdit(escala);
+                }}
+                variant="outlined"
+                startIcon={<Edit />}
+                disabled={!canEdit}
+              >
+                Editar
+              </Button>
+            </span>
+          </Tooltip>
+        )}
+        {/* Delete button - available for all users */}
+        {onDelete && (
+          <Tooltip title={getDeleteTooltip()}>
+            <span>
+              <Button
+                onClick={() => {
+                  onClose();
+                  onDelete(escala);
+                }}
+                variant="contained"
+                startIcon={<DeleteForever />}
+                disabled={!canDelete}
+                sx={{
+                  bgcolor: '#64748b',
+                  '&:hover': {
+                    bgcolor: '#475569',
+                  },
+                  '&.Mui-disabled': {
+                    bgcolor: '#94a3b8',
+                  },
+                }}
+              >
+                Excluir
+              </Button>
+            </span>
+          </Tooltip>
+        )}
+        {isAdminAgir && (
+          <Tooltip title={getStatusChangeTooltip()}>
+            <span>
+              <Button
+                onClick={() => {
+                  onClose();
+                  onChangeStatus(escala);
+                }}
+                variant="contained"
+                color="primary"
+                disabled={!canChangeStatus}
+              >
+                Alterar Status
+              </Button>
+            </span>
+          </Tooltip>
         )}
       </DialogActions>
     </Dialog>

@@ -121,8 +121,17 @@ export async function checkConflictingSchedules(
       return { hasConflict: false };
     }
 
+    // Filter out "Excluída" schedules - they should not cause conflicts
+    const escalasAtivas = escalasExistentes.filter(
+      (escala) => escala.status !== 'Excluída'
+    );
+
+    if (escalasAtivas.length === 0) {
+      return { hasConflict: false };
+    }
+
     // Check if any existing escala has the same CPF with overlapping times
-    for (const escala of escalasExistentes) {
+    for (const escala of escalasAtivas) {
       const medicosComCpf = escala.medicos.filter(
         (medico: MedicoEscala) => medico.cpf === cpf
       );

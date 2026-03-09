@@ -28,6 +28,7 @@ import {
   Warning,
   HowToReg,
   Schedule,
+  DeleteForever,
 } from '@mui/icons-material';
 import type { StatusEscala } from '../../types/escalas.types';
 import { getStatusConfig, statusColorMap } from '../../utils/escalasStatusUtils';
@@ -41,6 +42,7 @@ const statusIconMap: Record<StatusEscala, React.ReactElement> = {
   'Atenção': <Warning fontSize="small" />,
   'Aprovado': <CheckCircle fontSize="small" />,
   'Reprovado': <Cancel fontSize="small" />,
+  'Excluída': <DeleteForever fontSize="small" />,
 };
 
 // ============================================
@@ -70,6 +72,7 @@ const STATUS_OPTIONS: StatusEscala[] = [
   'Atenção',
   'Aprovado',
   'Reprovado',
+  'Excluída',
 ];
 
 // ============================================
@@ -148,12 +151,14 @@ export const BulkStatusDialog: React.FC<BulkStatusDialogProps> = ({
             multiline
             rows={4}
             fullWidth
-            required={bulkStatus === 'Reprovado'}
-            error={bulkStatus === 'Reprovado' && !justificativa.trim()}
+            required={bulkStatus === 'Reprovado' || bulkStatus === 'Excluída'}
+            error={(bulkStatus === 'Reprovado' || bulkStatus === 'Excluída') && !justificativa.trim()}
             helperText={
               bulkStatus === 'Reprovado'
                 ? 'Justificativa obrigatória para status Reprovado'
-                : 'Opcional para outros status'
+                : bulkStatus === 'Excluída'
+                  ? 'Justificativa obrigatória para excluir escalas'
+                  : 'Opcional para outros status'
             }
             placeholder="Digite a justificativa para a alteração de status em massa..."
           />
@@ -167,7 +172,7 @@ export const BulkStatusDialog: React.FC<BulkStatusDialogProps> = ({
           variant="contained"
           color="primary"
           startIcon={<DoneAll />}
-          disabled={(bulkStatus === 'Reprovado' && !justificativa.trim()) || loading}
+          disabled={((bulkStatus === 'Reprovado' || bulkStatus === 'Excluída') && !justificativa.trim()) || loading}
         >
           {loading ? (
             <CircularProgress size={20} sx={{ color: 'white' }} />

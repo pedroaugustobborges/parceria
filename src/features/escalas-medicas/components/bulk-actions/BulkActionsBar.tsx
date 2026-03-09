@@ -13,6 +13,7 @@ import {
   DoneAll,
   ThumbDown,
   Edit,
+  DeleteForever,
 } from '@mui/icons-material';
 
 // ============================================
@@ -26,8 +27,11 @@ export interface BulkActionsBarProps {
   onDeselectAll: () => void;
   onApproveSelected: () => void;
   onRejectSelected: () => void;
+  onDeleteSelected: () => void;
   onChangeStatus: () => void;
   isAdminAgir: boolean;
+  isAdminTerceiro?: boolean;
+  isTerceiro?: boolean;
 }
 
 // ============================================
@@ -41,8 +45,11 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   onDeselectAll,
   onApproveSelected,
   onRejectSelected,
+  onDeleteSelected,
   onChangeStatus,
   isAdminAgir,
+  isAdminTerceiro = false,
+  isTerceiro = false,
 }) => {
   const isAllSelected = selectedCount === totalSelectableCount && totalSelectableCount > 0;
 
@@ -91,6 +98,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             onDelete={onDeselectAll}
           />
 
+          {/* Admin-Agir only actions */}
           {isAdminAgir && (
             <>
               <Button
@@ -112,16 +120,37 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
               >
                 Reprovar Selecionadas
               </Button>
-
-              <Button
-                variant="outlined"
-                startIcon={<Edit />}
-                onClick={onChangeStatus}
-                size="small"
-              >
-                Alterar Status
-              </Button>
             </>
+          )}
+
+          {/* Delete action - available for Admin-Agir, Admin-Terceiro, and Terceiro */}
+          {(isAdminAgir || isAdminTerceiro || isTerceiro) && (
+            <Button
+              variant="contained"
+              startIcon={<DeleteForever />}
+              onClick={onDeleteSelected}
+              size="small"
+              sx={{
+                bgcolor: '#64748b',
+                '&:hover': {
+                  bgcolor: '#475569',
+                },
+              }}
+            >
+              Excluir Selecionadas
+            </Button>
+          )}
+
+          {/* Change status action - Admin-Agir only */}
+          {isAdminAgir && (
+            <Button
+              variant="outlined"
+              startIcon={<Edit />}
+              onClick={onChangeStatus}
+              size="small"
+            >
+              Alterar Status
+            </Button>
           )}
         </>
       )}

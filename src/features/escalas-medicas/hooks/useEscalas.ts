@@ -102,7 +102,7 @@ export interface UseEscalasReturn {
 // ============================================
 
 export function useEscalas(): UseEscalasReturn {
-  const { isAdminTerceiro, isTerceiro, userProfile, userContratoIds } = useAuth();
+  const { isAdminTerceiro, isTerceiro, userProfile, userContratoIds, isAdminAgirCorporativo, isAdminAgirPlanta } = useAuth();
 
   // ============================================
   // Data State
@@ -271,6 +271,8 @@ export function useEscalas(): UseEscalasReturn {
         userCpf: userProfile?.cpf,
         isAdminTerceiro,
         isTerceiro,
+        isAdminAgirCorporativo,
+        isAdminAgirPlanta,
       });
 
       setEscalas(data);
@@ -292,6 +294,8 @@ export function useEscalas(): UseEscalasReturn {
     userProfile?.cpf,
     isAdminTerceiro,
     isTerceiro,
+    isAdminAgirCorporativo,
+    isAdminAgirPlanta,
     filters.setBuscaRealizada,
   ]);
 
@@ -426,9 +430,9 @@ export function useEscalas(): UseEscalasReturn {
   // ============================================
 
   const selectAll = useCallback(() => {
-    // Only select escalas that can have status changed (not Aprovado or Reprovado)
+    // Only select escalas that can have status changed (not Aprovado, Reprovado, or Excluída)
     const selectableEscalas = escalasFiltradas.filter(
-      (e) => e.status !== 'Aprovado' && e.status !== 'Reprovado'
+      (e) => e.status !== 'Aprovado' && e.status !== 'Reprovado' && e.status !== 'Excluída'
     );
     setSelectedEscalas(new Set(selectableEscalas.map((e) => e.id)));
   }, [escalasFiltradas]);
