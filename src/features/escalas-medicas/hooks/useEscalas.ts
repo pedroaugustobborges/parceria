@@ -292,12 +292,14 @@ export function useEscalas(): UseEscalasReturn {
       });
 
       setEscalas(data);
-      filters.setBuscaRealizada(true);
 
-      // Sync calendar view to start of the search period
-      if (filters.filtroDataInicio) {
+      // Only sync calendar view to start of search period on INITIAL search
+      // (not on refreshes after delete/update operations)
+      if (!filters.buscaRealizada && filters.filtroDataInicio) {
         setCurrentWeekStart(startOfWeek(filters.filtroDataInicio, { weekStartsOn: 0 }));
       }
+
+      filters.setBuscaRealizada(true);
     } catch (err: any) {
       setError(err.message);
     } finally {
