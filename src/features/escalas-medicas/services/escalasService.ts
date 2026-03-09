@@ -156,7 +156,14 @@ export interface UpdateStatusParams {
 export async function updateEscalaStatus(params: UpdateStatusParams): Promise<void> {
   const { id, status, justificativa, userId } = params;
 
-  const { error } = await supabase
+  console.log('[escalasService.updateEscalaStatus] Single update:', {
+    id,
+    status,
+    justificativa,
+    userId,
+  });
+
+  const { error, count } = await supabase
     .from('escalas_medicas')
     .update({
       status,
@@ -165,6 +172,8 @@ export async function updateEscalaStatus(params: UpdateStatusParams): Promise<vo
       status_alterado_em: new Date().toISOString(),
     })
     .eq('id', id);
+
+  console.log('[escalasService.updateEscalaStatus] Result:', { error, count });
 
   if (error) throw error;
 }
@@ -178,7 +187,15 @@ export async function bulkUpdateStatus(
   justificativa: string | null,
   userId: string | null
 ): Promise<number> {
-  const { error } = await supabase
+  console.log('[escalasService.bulkUpdateStatus] Bulk update:', {
+    idsCount: ids.length,
+    ids,
+    status,
+    justificativa,
+    userId,
+  });
+
+  const { error, count } = await supabase
     .from('escalas_medicas')
     .update({
       status,
@@ -187,6 +204,8 @@ export async function bulkUpdateStatus(
       status_alterado_em: new Date().toISOString(),
     })
     .in('id', ids);
+
+  console.log('[escalasService.bulkUpdateStatus] Result:', { error, count });
 
   if (error) throw error;
 

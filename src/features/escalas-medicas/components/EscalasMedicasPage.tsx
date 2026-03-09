@@ -240,7 +240,16 @@ export const EscalasMedicasPage: React.FC = () => {
   }, []);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!escalaParaExcluir) return;
+    if (!escalaParaExcluir) {
+      console.error('[handleConfirmDelete] escalaParaExcluir is null!');
+      return;
+    }
+
+    console.log('[handleConfirmDelete] Deleting single escala:', {
+      id: escalaParaExcluir.id,
+      data: escalaParaExcluir.data_inicio,
+      justificativa: deleteJustificativa,
+    });
 
     try {
       await escalas.updateEscalaStatus(escalaParaExcluir.id, 'Excluída', deleteJustificativa);
@@ -267,6 +276,12 @@ export const EscalasMedicasPage: React.FC = () => {
   }, []);
 
   const handleConfirmBulkDelete = useCallback(async () => {
+    console.log('[handleConfirmBulkDelete] Bulk deleting escalas:', {
+      selectedCount: escalas.selectedEscalas.size,
+      selectedIds: Array.from(escalas.selectedEscalas),
+      justificativa: bulkDeleteJustificativa,
+    });
+
     try {
       await escalas.bulkUpdateStatus('Excluída', bulkDeleteJustificativa);
       handleCloseBulkDeleteDialog();
@@ -279,7 +294,17 @@ export const EscalasMedicasPage: React.FC = () => {
   }, [bulkDeleteJustificativa, escalas, handleCloseBulkDeleteDialog]);
 
   const handleSaveStatus = useCallback(async () => {
-    if (!escalaParaStatus) return;
+    if (!escalaParaStatus) {
+      console.error('[handleSaveStatus] escalaParaStatus is null!');
+      return;
+    }
+
+    console.log('[handleSaveStatus] Updating single escala status:', {
+      id: escalaParaStatus.id,
+      data: escalaParaStatus.data_inicio,
+      novoStatus,
+      justificativa: novaJustificativa,
+    });
 
     try {
       await escalas.updateEscalaStatus(escalaParaStatus.id, novoStatus, novaJustificativa);
@@ -310,6 +335,13 @@ export const EscalasMedicasPage: React.FC = () => {
   }, []);
 
   const handleBulkStatusUpdate = useCallback(async () => {
+    console.log('[handleBulkStatusUpdate] Bulk updating escalas status:', {
+      selectedCount: escalas.selectedEscalas.size,
+      selectedIds: Array.from(escalas.selectedEscalas),
+      bulkStatus,
+      justificativa: bulkJustificativa,
+    });
+
     try {
       await escalas.bulkUpdateStatus(bulkStatus, bulkJustificativa);
       handleCloseBulkStatusDialog();
