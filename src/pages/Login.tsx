@@ -62,7 +62,7 @@ const Login: React.FC = () => {
       // Navigation will happen automatically via useEffect when userProfile loads
     } catch (err: any) {
       setError(
-        err.message || "Erro ao fazer login. Verifique suas credenciais."
+        err.message || "Erro ao fazer login. Verifique suas credenciais.",
       );
       isSubmitting.current = false;
       setSubmitting(false);
@@ -479,7 +479,7 @@ const Login: React.FC = () => {
 
                 <Box sx={{ textAlign: "center" }}>
                   <Typography variant="caption" color="text.secondary">
-                    © 2025 Todos os direitos reservados
+                    © 2026 Todos os direitos reservados
                   </Typography>
                 </Box>
               </CardContent>

@@ -1,7 +1,8 @@
 """
-Script para importar os últimos N registros de acesso POR CPF do Data Warehouse para o Supabase.
+Script para importar registros de acesso de FEVEREIRO 2026 do Data Warehouse para o Supabase.
 - Busca CPFs da tabela usuarios (apenas tipo 'terceiro')
 - Extrai acessos do Suricato sem filtro de tipo (busca qualquer tipo de acesso)
+- Filtra por data_acesso entre 2026-02-01 e 2026-02-28
 - Inclui os campos planta e codin
 - Evita duplicações verificando se o registro já existe antes de inserir
 - Normaliza CPFs para 11 dígitos (adiciona zeros à esquerda quando necessário)
@@ -39,6 +40,10 @@ SUPABASE_SERVICE_KEY = os.getenv('VITE_SUPABASE_SERVICE_ROLE_KEY')
 
 if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
     raise ValueError("❌ Variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_SERVICE_ROLE_KEY são obrigatórias!")
+
+# Período de busca - Fevereiro 2026
+DATA_INICIO = '2026-02-01'
+DATA_FIM = '2026-02-28 23:59:59'
 
 
 def normalizar_cpf(cpf):
@@ -124,14 +129,13 @@ def buscar_cpfs_usuarios(supabase: Client):
         raise
 
 
-def extrair_acessos(conn, cpf_map, limite_por_cpf=125):
+def extrair_acessos(conn, cpf_map):
     """
-    Extrai os últimos N acessos para cada CPF da tabela usuarios.
+    Extrai os acessos de Fevereiro 2026 para cada CPF da tabela usuarios.
 
     Args:
         conn: Conexão com o Data Warehouse
         cpf_map: Dicionário mapeando CPFs (com/sem zeros) -> CPF normalizado
-        limite_por_cpf: Número máximo de registros por CPF (padrão: 125)
     """
     try:
         if not cpf_map:
@@ -145,7 +149,8 @@ def extrair_acessos(conn, cpf_map, limite_por_cpf=125):
         cpfs_unicos = list(set(cpf_map.values()))
         total_cpfs = len(cpfs_unicos)
 
-        print(f"\n📊 Executando query para buscar os últimos {limite_por_cpf} registros para cada um dos {total_cpfs} CPFs...")
+        print(f"\n📊 Executando query para buscar acessos de {DATA_INICIO} a {DATA_FIM}")
+        print(f"   para cada um dos {total_cpfs} CPFs...")
 
         for i, cpf_normalizado in enumerate(cpfs_unicos, 1):
             try:
@@ -153,6 +158,7 @@ def extrair_acessos(conn, cpf_map, limite_por_cpf=125):
                 cpf_sem_zeros = cpf_normalizado.lstrip('0') or '0'
 
                 # Query sem filtro de tipo - busca qualquer tipo de acesso
+                # Filtra por período (Fevereiro 2026)
                 # Usa BOTH versões do CPF (com e sem zeros à esquerda)
                 query = """
                 SELECT
@@ -160,17 +166,16 @@ def extrair_acessos(conn, cpf_map, limite_por_cpf=125):
                     cracha, planta, codin, grupo_de_acess, desc_perm,
                     tipo_acesso, descr_acesso, modelo, cod_planta, cod_codin
                 FROM suricato.acesso_colaborador
-                WHERE cpf = %s OR cpf = %s
-                ORDER BY data_acesso DESC
-                LIMIT %s
+                WHERE (cpf = %s OR cpf = %s)
+                  AND data_acesso >= %s
+                  AND data_acesso <= %s
+                ORDER BY data_acesso ASC
                 """
 
-                cursor.execute(query, (cpf_normalizado, cpf_sem_zeros, limite_por_cpf))
+                cursor.execute(query, (cpf_normalizado, cpf_sem_zeros, DATA_INICIO, DATA_FIM))
                 resultados = cursor.fetchall()
 
                 if resultados:
-                    # Inverte para ordem cronológica (mais antigo para mais recente)
-                    resultados.reverse()
                     todos_resultados.extend(resultados)
 
                 # Mostra progresso a cada 10 CPFs ou no último
@@ -309,6 +314,7 @@ def main():
     """Função principal do script."""
     print("=" * 70)
     print("IMPORTAÇÃO DE ACESSOS DO DATA WAREHOUSE PARA SUPABASE")
+    print(f"Período: FEVEREIRO 2026 ({DATA_INICIO} a {DATA_FIM})")
     print("(CPFs de usuarios 'terceiro' - Todos os tipos de acesso do Suricato)")
     print("(Normalização de CPF para 11 dígitos)")
     print(f"Horário: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -329,22 +335,13 @@ def main():
         # Conecta ao Data Warehouse
         conn = conectar_data_warehouse()
 
-        # Define o limite de registros por CPF
-        limite_por_cpf = 125
-        if len(sys.argv) > 1:
-            try:
-                limite_por_cpf = int(sys.argv[1])
-                print(f"\n⚙️ Limite por CPF definido via argumento: {limite_por_cpf}")
-            except ValueError:
-                print(f"⚠️ Argumento '{sys.argv[1]}' inválido. Usando o padrão de 125 registros por CPF.")
-
-        print(f"\n📥 Extraindo os últimos {limite_por_cpf} registros para cada CPF do Data Warehouse...")
-        dados_extraidos = extrair_acessos(conn, cpf_map, limite_por_cpf)
+        print(f"\n📥 Extraindo acessos de Fevereiro 2026 do Data Warehouse...")
+        dados_extraidos = extrair_acessos(conn, cpf_map)
 
         if dados_extraidos:
             inserir_em_supabase(supabase, dados_extraidos, cpf_map)
         else:
-            print(f"\nℹ️ Nenhum acesso encontrado para os CPFs cadastrados.")
+            print(f"\nℹ️ Nenhum acesso encontrado para os CPFs cadastrados no período.")
 
     except Exception as e:
         print(f"\n❌ O SCRIPT FOI INTERROMPIDO DEVIDO A UM ERRO: {e}")

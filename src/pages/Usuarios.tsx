@@ -113,6 +113,16 @@ const getBlockedDomainMessage = (email: string): string => {
   return `O domínio @${domain} é um domínio de teste e está bloqueado. Use um email com domínio válido (ex: @gmail.com, @outlook.com, @hugol.org.br, etc).`;
 };
 
+// Função para validar CPF (deve ter exatamente 11 dígitos numéricos)
+const isValidCpf = (cpf: string): boolean => {
+  const cleanCpf = cpf.replace(/\D/g, ""); // Remove non-digits
+  return cleanCpf.length === 11 && /^\d+$/.test(cleanCpf);
+};
+
+// Mensagem de erro para CPF inválido
+const CPF_ERROR_MESSAGE =
+  "O CPF deve possuir 11 dígitos. Em caso de CPFs mais antigos que possuem menos que isso, por favor adicione zeros no início até que também possuam 11 dígitos.";
+
 interface UsuarioContrato {
   id: string;
   usuario_id: string;
@@ -127,7 +137,7 @@ const Usuarios: React.FC = () => {
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
   const [usuarioContratos, setUsuarioContratos] = useState<UsuarioContrato[]>(
-    []
+    [],
   );
   const [loading, setLoading] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
@@ -241,14 +251,14 @@ const Usuarios: React.FC = () => {
         filteredUsers = filteredUsers.filter(
           (u) =>
             u.contrato_id === filtroContrato.id ||
-            userIdsFromContratos.includes(u.id)
+            userIdsFromContratos.includes(u.id),
         );
       }
 
       // Filter by parceiro (empresa from contract)
       if (filtroParceiro.length > 0) {
         const contractsOfParceiro = contratos.filter((c) =>
-          filtroParceiro.includes(c.empresa)
+          filtroParceiro.includes(c.empresa),
         );
         const contratoIds = contractsOfParceiro.map((c) => c.id);
 
@@ -264,7 +274,7 @@ const Usuarios: React.FC = () => {
         filteredUsers = filteredUsers.filter(
           (u) =>
             (u.contrato_id && contratoIds.includes(u.contrato_id)) ||
-            userIdsFromContratos.includes(u.id)
+            userIdsFromContratos.includes(u.id),
         );
       }
 
@@ -293,7 +303,7 @@ const Usuarios: React.FC = () => {
       if (usuario.contrato_id) {
         // Check if this contract is already in the list
         const alreadyExists = allContracts.some(
-          (uc) => uc.contrato_id === usuario.contrato_id
+          (uc) => uc.contrato_id === usuario.contrato_id,
         );
 
         if (!alreadyExists) {
@@ -388,6 +398,13 @@ const Usuarios: React.FC = () => {
         return;
       }
 
+      // Validar CPF (deve ter exatamente 11 dígitos)
+      if (!isValidCpf(formData.cpf)) {
+        setError(CPF_ERROR_MESSAGE);
+        setSaving(false);
+        return;
+      }
+
       const isAdmin =
         formData.tipo === "administrador-agir-corporativo" ||
         formData.tipo === "administrador-agir-planta";
@@ -478,7 +495,7 @@ const Usuarios: React.FC = () => {
           if (contractError) {
             console.error("Error inserting contracts:", contractError);
             throw new Error(
-              `Erro ao vincular contratos: ${contractError.message}`
+              `Erro ao vincular contratos: ${contractError.message}`,
             );
           }
         }
@@ -567,7 +584,7 @@ const Usuarios: React.FC = () => {
           if (contractError) {
             console.error("Error inserting contracts:", contractError);
             throw new Error(
-              `Erro ao vincular contratos: ${contractError.message}`
+              `Erro ao vincular contratos: ${contractError.message}`,
             );
           }
         }
@@ -594,17 +611,17 @@ const Usuarios: React.FC = () => {
             try {
               await handleSendInvitation(newUser as Usuario);
               setSuccess(
-                `Usuário criado com sucesso! Convite de acesso enviado para ${formData.email}.`
+                `Usuário criado com sucesso! Convite de acesso enviado para ${formData.email}.`,
               );
             } catch (inviteError: any) {
               console.error("Erro ao enviar convite:", inviteError);
               setSuccess(
-                `Usuário criado com sucesso, mas houve erro ao enviar convite: ${inviteError.message}. Use o botão 'Enviar Convite' manualmente.`
+                `Usuário criado com sucesso, mas houve erro ao enviar convite: ${inviteError.message}. Use o botão 'Enviar Convite' manualmente.`,
               );
             }
           } else {
             setSuccess(
-              "Usuário criado com sucesso! Envio de convite cancelado. Use o botão 'Enviar Convite' quando estiver pronto."
+              "Usuário criado com sucesso! Envio de convite cancelado. Use o botão 'Enviar Convite' quando estiver pronto.",
             );
           }
         } else {
@@ -613,7 +630,7 @@ const Usuarios: React.FC = () => {
               formData.email
                 ? "Use o botão 'Enviar Convite' para criar acesso ao sistema."
                 : "Adicione um email e use o botão 'Enviar Convite' para criar acesso."
-            }`
+            }`,
           );
         }
 
@@ -630,6 +647,11 @@ const Usuarios: React.FC = () => {
 
       if (err.code === "23505") {
         errorMessage = "Já existe um usuário com este CPF ou email";
+      } else if (
+        err.code === "23514" ||
+        err.message?.includes("usuarios_cpf_length_check")
+      ) {
+        errorMessage = CPF_ERROR_MESSAGE;
       } else if (err.code === "23503") {
         errorMessage =
           "Erro de referência: verifique se o contrato ou unidade existe";
@@ -656,7 +678,7 @@ const Usuarios: React.FC = () => {
 
       if (!usuario.email) {
         setError(
-          "Email é obrigatório para enviar convite. Edite o usuário e adicione um email."
+          "Email é obrigatório para enviar convite. Edite o usuário e adicione um email.",
         );
         return;
       }
@@ -749,7 +771,7 @@ const Usuarios: React.FC = () => {
         if (insertError) {
           console.error("Error creating user record:", insertError);
           setError(
-            "Conta criada, mas erro ao criar registro. Contate o suporte."
+            "Conta criada, mas erro ao criar registro. Contate o suporte.",
           );
           return;
         }
@@ -765,7 +787,7 @@ const Usuarios: React.FC = () => {
         }
 
         setSuccess(
-          `Convite enviado para ${usuario.email}. Senha temporária: ${tempPassword}`
+          `Convite enviado para ${usuario.email}. Senha temporária: ${tempPassword}`,
         );
         handleCloseUserDetails();
         handleSearch(); // Refresh
@@ -853,7 +875,7 @@ const Usuarios: React.FC = () => {
       } catch (authErr) {
         console.error(
           "Error deleting auth user (might not exist in auth):",
-          authErr
+          authErr,
         );
       }
 
@@ -867,17 +889,17 @@ const Usuarios: React.FC = () => {
 
   // Get unique names for autocomplete
   const nombresDisponiveis = Array.from(
-    new Set(usuarios.map((u) => u.nome))
+    new Set(usuarios.map((u) => u.nome)),
   ).sort();
 
   // Get unique CPFs for autocomplete
   const cpfsDisponiveis = Array.from(
-    new Set(usuarios.map((u) => u.cpf))
+    new Set(usuarios.map((u) => u.cpf)),
   ).sort();
 
   // Get unique parceiros (empresas from contratos)
   const parceirosDisponiveis = Array.from(
-    new Set(contratos.map((c) => c.empresa))
+    new Set(contratos.map((c) => c.empresa)),
   ).sort();
 
   // Role labels
@@ -1304,7 +1326,7 @@ const Usuarios: React.FC = () => {
                   <Autocomplete
                     options={contratos.filter(
                       (c) =>
-                        !userContracts.some((uc) => uc.contrato_id === c.id)
+                        !userContracts.some((uc) => uc.contrato_id === c.id),
                     )}
                     getOptionLabel={(option) =>
                       `${option.nome} - ${option.empresa}`
@@ -1444,10 +1466,20 @@ const Usuarios: React.FC = () => {
               label="CPF"
               value={formData.cpf}
               onChange={(e) =>
-                setFormData({ ...formData, cpf: e.target.value })
+                setFormData({
+                  ...formData,
+                  cpf: e.target.value.replace(/\D/g, ""),
+                })
               }
               fullWidth
               required
+              error={formData.cpf.length > 0 && !isValidCpf(formData.cpf)}
+              helperText={
+                formData.cpf.length > 0 && !isValidCpf(formData.cpf)
+                  ? CPF_ERROR_MESSAGE
+                  : "O CPF deve conter exatamente 11 dígitos numéricos"
+              }
+              inputProps={{ maxLength: 11 }}
             />
 
             <FormControl fullWidth required>
@@ -1476,7 +1508,7 @@ const Usuarios: React.FC = () => {
               <Autocomplete
                 value={
                   unidades.find(
-                    (u) => u.id === formData.unidade_hospitalar_id
+                    (u) => u.id === formData.unidade_hospitalar_id,
                   ) || null
                 }
                 onChange={(_, newValue) =>
@@ -1541,7 +1573,7 @@ const Usuarios: React.FC = () => {
                   multiple
                   options={contratos}
                   value={contratos.filter((c) =>
-                    formData.contrato_ids.includes(c.id)
+                    formData.contrato_ids.includes(c.id),
                   )}
                   onChange={(_, newValue) =>
                     setFormData({
@@ -1654,14 +1686,14 @@ const Usuarios: React.FC = () => {
             {saving
               ? "Salvando..."
               : editMode
-              ? "Salvar Alterações"
-              : formData.tipo === "administrador-agir-corporativo"
-              ? "Criar Administrador Corporativo"
-              : formData.tipo === "administrador-agir-planta"
-              ? "Criar Administrador de Unidade"
-              : formData.tipo === "administrador-terceiro"
-              ? "Criar Administrador Terceiro"
-              : "Criar Terceiro"}
+                ? "Salvar Alterações"
+                : formData.tipo === "administrador-agir-corporativo"
+                  ? "Criar Administrador Corporativo"
+                  : formData.tipo === "administrador-agir-planta"
+                    ? "Criar Administrador de Unidade"
+                    : formData.tipo === "administrador-terceiro"
+                      ? "Criar Administrador Terceiro"
+                      : "Criar Terceiro"}
           </Button>
         </DialogActions>
       </Dialog>
