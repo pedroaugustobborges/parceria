@@ -353,24 +353,15 @@ export function useEscalaForm(props: UseEscalaFormProps): UseEscalaFormReturn {
 
       if (editingEscala) {
         // Editing existing escala
-        const escalaMedica: CreateEscalaInput = {
-          contrato_id: formData.contrato_id,
-          item_contrato_id: formData.item_contrato_id,
-          data_inicio: format(formData.data_inicio[0], 'yyyy-MM-dd'),
-          horario_entrada: horarioEntrada,
-          horario_saida: horarioSaida,
-          medicos: previewData.medicos,
-          observacoes: formData.observacoes || null,
-          status: statusInicial,
-        };
+        const dataInicioFormatada = format(formData.data_inicio[0], 'yyyy-MM-dd');
 
         // Check conflicts for each doctor
         for (const medico of previewData.medicos) {
           const conflictCheck = await checkConflictingSchedules(
             medico.cpf,
-            escalaMedica.data_inicio,
-            escalaMedica.horario_entrada,
-            escalaMedica.horario_saida,
+            dataInicioFormatada,
+            horarioEntrada,
+            horarioSaida,
             editingEscala.id
           );
 
@@ -380,12 +371,43 @@ export function useEscalaForm(props: UseEscalaFormProps): UseEscalaFormReturn {
           }
         }
 
-        await escalasService.updateEscala({
-          id: editingEscala.id,
-          ...escalaMedica,
-        });
+        // If only ONE doctor, update the existing escala
+        if (previewData.medicos.length === 1) {
+          await escalasService.updateEscala({
+            id: editingEscala.id,
+            contrato_id: formData.contrato_id,
+            item_contrato_id: formData.item_contrato_id,
+            data_inicio: dataInicioFormatada,
+            horario_entrada: horarioEntrada,
+            horario_saida: horarioSaida,
+            medicos: previewData.medicos,
+            observacoes: formData.observacoes || null,
+            status: statusInicial,
+          });
+          setSuccess('Escala atualizada com sucesso!');
+        } else {
+          // If MULTIPLE doctors, delete the original and create individual escalas
+          // This handles the case where user is editing an old multi-doctor escala
+          // or adding more doctors to an existing escala
 
-        setSuccess('Escala atualizada com sucesso!');
+          // First, delete the original escala
+          await escalasService.deleteEscala(editingEscala.id);
+
+          // Create individual escalas (one per doctor)
+          const escalasToCreate: CreateEscalaInput[] = previewData.medicos.map((medico) => ({
+            contrato_id: formData.contrato_id,
+            item_contrato_id: formData.item_contrato_id,
+            data_inicio: dataInicioFormatada,
+            horario_entrada: horarioEntrada,
+            horario_saida: horarioSaida,
+            medicos: [medico], // ONE doctor per escala
+            observacoes: formData.observacoes || null,
+            status: statusInicial,
+          }));
+
+          await escalasService.createEscalas(escalasToCreate);
+          setSuccess(`Escala dividida em ${escalasToCreate.length} registros individuais (um por médico).`);
+        }
       } else {
         // Creating new escalas
         const escalasToCreate: CreateEscalaInput[] = [];

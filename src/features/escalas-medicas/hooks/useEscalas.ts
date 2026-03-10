@@ -637,7 +637,8 @@ export function useEscalas(): UseEscalasReturn {
       try {
         setLoading(true);
 
-        // Group by date+time to create escalas
+        // Create one escala per doctor per date/time combination
+        // Each escala should have exactly ONE doctor
         const escalasToCreate: Array<{
           contrato_id: string;
           item_contrato_id: string;
@@ -649,26 +650,15 @@ export function useEscalas(): UseEscalasReturn {
           status: StatusEscala;
         }> = [];
 
-        // Group rows by date + time
-        const grouped = new Map<string, CsvPreviewRow[]>();
+        // Create one escala per row (one doctor per escala)
         for (const row of previewData) {
-          const key = `${row.data_inicio}_${row.horario_entrada}_${row.horario_saida}`;
-          if (!grouped.has(key)) {
-            grouped.set(key, []);
-          }
-          grouped.get(key)!.push(row);
-        }
-
-        // Create escala for each group
-        for (const [key, rows] of grouped) {
-          const [data_inicio, horario_entrada, horario_saida] = key.split('_');
           escalasToCreate.push({
             contrato_id: contratoId,
             item_contrato_id: itemContratoId,
-            data_inicio,
-            horario_entrada: horario_entrada + ':00',
-            horario_saida: horario_saida + ':00',
-            medicos: rows.map((r) => ({ nome: r.nome, cpf: r.cpf })),
+            data_inicio: row.data_inicio,
+            horario_entrada: row.horario_entrada + ':00',
+            horario_saida: row.horario_saida + ':00',
+            medicos: [{ nome: row.nome, cpf: row.cpf }], // ONE doctor per escala
             observacoes: null,
             status: 'Programado',
           });
