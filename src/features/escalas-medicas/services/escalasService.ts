@@ -34,11 +34,20 @@ export interface FetchEscalasParams {
   isAdminAgirPlanta?: boolean;
 }
 
+export interface FetchEscalasResult {
+  escalas: EscalaMedica[];
+  limitReached: boolean;
+}
+
+// Maximum number of escalas to fetch per query
+const ESCALAS_QUERY_LIMIT = 10000;
+
 /**
  * Fetch escalas within a date range.
  * Applies role-based filtering automatically.
+ * Returns an object with escalas array and a flag indicating if the limit was reached.
  */
-export async function fetchEscalas(params: FetchEscalasParams): Promise<EscalaMedica[]> {
+export async function fetchEscalas(params: FetchEscalasParams): Promise<FetchEscalasResult> {
   const {
     dataInicio,
     dataFim,
@@ -59,9 +68,12 @@ export async function fetchEscalas(params: FetchEscalasParams): Promise<EscalaMe
     .gte('data_inicio', dataInicioFormatada)
     .lte('data_inicio', dataFimFormatada)
     .order('data_inicio', { ascending: true })
-    .limit(5000);
+    .limit(ESCALAS_QUERY_LIMIT);
 
   if (error) throw error;
+
+  // Check if limit was reached (might have more records)
+  const limitReached = (escalas?.length || 0) >= ESCALAS_QUERY_LIMIT;
 
   let filteredEscalas = escalas || [];
 
@@ -84,7 +96,10 @@ export async function fetchEscalas(params: FetchEscalasParams): Promise<EscalaMe
     filteredEscalas = filteredEscalas.filter((escala) => escala.status !== 'Excluída');
   }
 
-  return filteredEscalas;
+  return {
+    escalas: filteredEscalas,
+    limitReached,
+  };
 }
 
 // ============================================

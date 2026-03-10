@@ -476,6 +476,11 @@ export const EscalasMedicasPage: React.FC = () => {
             {escalas.success}
           </Alert>
         )}
+        {escalas.warning && (
+          <Alert severity="warning" sx={{ mb: 3 }} onClose={() => escalas.setWarning('')}>
+            {escalas.warning}
+          </Alert>
+        )}
 
         {/* Filters */}
         <EscalasFilterBar

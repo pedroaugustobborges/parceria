@@ -53,8 +53,10 @@ export interface UseEscalasReturn {
   // Messages
   error: string;
   success: string;
+  warning: string;
   setError: (error: string) => void;
   setSuccess: (success: string) => void;
+  setWarning: (warning: string) => void;
 
   // Filter hook return
   filters: ReturnType<typeof useEscalaFilters>;
@@ -134,6 +136,7 @@ export function useEscalas(): UseEscalasReturn {
   const [recalculando, setRecalculando] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [warning, setWarning] = useState('');
 
   // ============================================
   // View State
@@ -279,8 +282,9 @@ export function useEscalas(): UseEscalasReturn {
     try {
       setLoading(true);
       setError('');
+      setWarning('');
 
-      const data = await escalasService.fetchEscalas({
+      const result = await escalasService.fetchEscalas({
         dataInicio: filters.filtroDataInicio,
         dataFim: filters.filtroDataFim,
         userContratoIds,
@@ -291,7 +295,14 @@ export function useEscalas(): UseEscalasReturn {
         isAdminAgirPlanta,
       });
 
-      setEscalas(data);
+      setEscalas(result.escalas);
+
+      // Show warning if limit was reached
+      if (result.limitReached) {
+        setWarning(
+          'O período selecionado possui mais de 10.000 escalas. Por favor, utilize um intervalo de datas menor para visualizar todas as escalas.'
+        );
+      }
 
       // Only sync calendar view to start of search period on INITIAL search
       // (not on refreshes after delete/update operations)
@@ -714,8 +725,10 @@ export function useEscalas(): UseEscalasReturn {
     // Messages
     error,
     success,
+    warning,
     setError,
     setSuccess,
+    setWarning,
 
     // Filter hook
     filters,

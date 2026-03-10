@@ -2,8 +2,14 @@ import { supabase } from "../lib/supabase";
 import { EscalaMedica } from "../types/database.types";
 import { parseISO, format, isSameDay } from "date-fns";
 
+// Tolerância de 1 hora para considerar escala como cumprida
+// Se o médico trabalhou pelo menos (horasEsperadas - 1h), considera como Pré-Aprovado
+const TOLERANCIA_HORAS = 1;
+
 /**
- * Calcula as horas trabalhadas por um médico baseado nos acessos mais próximos aos horários escalados
+ * Calcula as horas trabalhadas por um médico baseado nos acessos mais próximos aos horários escalados.
+ * IMPORTANTE: Ignora a distinção entre Entrada (E) e Saída (S) pois algumas catracas estão mal configuradas.
+ * Usa o primeiro acesso próximo ao horário de entrada e o último acesso próximo ao horário de saída.
  */
 async function calcularHorasTrabalhadas(
   cpf: string,
@@ -86,30 +92,27 @@ async function calcularHorasTrabalhadas(
     }
 
     console.log(`[Status Analysis] ✅ ${acessos.length} acessos encontrados`);
-    console.log(`[Status Analysis] Acessos:`, acessos.map(a => ({
+    console.log(`[Status Analysis] Acessos (ignorando sentido E/S):`, acessos.map(a => ({
       horario: format(parseISO(a.data_acesso), 'dd/MM/yyyy HH:mm:ss'),
-      sentido: a.sentido === "E" ? "Entrada" : "Saída"
+      sentido: a.sentido === "E" ? "Entrada" : "Saída",
+      nota: "(sentido ignorado - usando apenas timestamp)"
     })));
 
-    // Nova lógica: encontrar entrada e saída mais próximas aos horários escalados
-    console.log(`[Status Analysis] ===== Buscando entrada/saída mais próximas aos horários escalados =====`);
+    // Nova lógica: usar TODOS os acessos como timestamps, ignorando E/S
+    // Encontrar o primeiro acesso próximo ao horário de entrada e o último próximo ao de saída
+    console.log(`[Status Analysis] ===== Buscando primeiro/último acesso (ignorando sentido E/S) =====`);
 
-    // Separar entradas e saídas
-    const entradas = acessos.filter(a => a.sentido === "E").map(a => ({
+    // Converter todos os acessos para objetos com dataHora
+    const todosAcessos = acessos.map(a => ({
       ...a,
       dataHora: parseISO(a.data_acesso)
     }));
-    const saidas = acessos.filter(a => a.sentido === "S").map(a => ({
-      ...a,
-      dataHora: parseISO(a.data_acesso)
-    }));
 
-    console.log(`[Status Analysis] Total de entradas encontradas: ${entradas.length}`);
-    console.log(`[Status Analysis] Total de saídas encontradas: ${saidas.length}`);
+    console.log(`[Status Analysis] Total de acessos (todos os tipos): ${todosAcessos.length}`);
 
-    if (entradas.length === 0 || saidas.length === 0) {
-      console.log(`[Status Analysis] ❌ Não há pares completos de entrada/saída`);
-      console.log(`[Status Analysis] ========== FIM DO CÁLCULO (sem pares) ==========\n`);
+    if (todosAcessos.length === 0) {
+      console.log(`[Status Analysis] ❌ Nenhum acesso disponível`);
+      console.log(`[Status Analysis] ========== FIM DO CÁLCULO (sem acessos) ==========\n`);
       return 0;
     }
 
@@ -127,82 +130,81 @@ async function calcularHorasTrabalhadas(
     console.log(`[Status Analysis] Horário de entrada esperado: ${format(horarioEntradaEsperado, 'dd/MM/yyyy HH:mm:ss')}`);
     console.log(`[Status Analysis] Horário de saída esperado: ${format(horarioSaidaEsperado, 'dd/MM/yyyy HH:mm:ss')}`);
 
-    // Encontrar entrada mais próxima ao horário escalado (janela de ±3 horas)
+    // Encontrar o acesso mais próximo ao horário escalado de ENTRADA (janela de ±3 horas)
     const JANELA_TOLERANCIA = 3 * 60 * 60 * 1000; // 3 horas em ms
 
-    let entradaMaisProxima = null;
+    let primeiroAcesso = null;
     let menorDiferencaEntrada = Infinity;
 
-    for (const entrada of entradas) {
-      const diferenca = Math.abs(entrada.dataHora.getTime() - horarioEntradaEsperado.getTime());
-      console.log(`[Status Analysis]   Entrada em ${format(entrada.dataHora, 'HH:mm:ss')} - Diferença: ${(diferenca / 60000).toFixed(0)} minutos`);
+    for (const acesso of todosAcessos) {
+      const diferenca = Math.abs(acesso.dataHora.getTime() - horarioEntradaEsperado.getTime());
+      console.log(`[Status Analysis]   Acesso em ${format(acesso.dataHora, 'HH:mm:ss')} (${acesso.sentido}) - Diferença da entrada: ${(diferenca / 60000).toFixed(0)} minutos`);
 
       if (diferenca <= JANELA_TOLERANCIA && diferenca < menorDiferencaEntrada) {
         menorDiferencaEntrada = diferenca;
-        entradaMaisProxima = entrada;
+        primeiroAcesso = acesso;
       }
     }
 
-    // FALLBACK: Se não encontrou dentro da janela, usar primeira entrada do dia
-    if (!entradaMaisProxima) {
-      console.log(`[Status Analysis] ⚠️ Nenhuma entrada encontrada dentro da janela de ±3h do horário escalado`);
-      console.log(`[Status Analysis] 🔄 FALLBACK: Usando primeira entrada do dia`);
-      entradaMaisProxima = entradas[0]; // Já está ordenado por data_acesso
+    // FALLBACK: Se não encontrou dentro da janela, usar primeiro acesso do dia
+    if (!primeiroAcesso) {
+      console.log(`[Status Analysis] ⚠️ Nenhum acesso encontrado dentro da janela de ±3h do horário de entrada`);
+      console.log(`[Status Analysis] 🔄 FALLBACK: Usando primeiro acesso do dia`);
+      primeiroAcesso = todosAcessos[0]; // Já está ordenado por data_acesso
     }
 
-    console.log(`[Status Analysis] ✓ Entrada selecionada: ${format(entradaMaisProxima.dataHora, 'dd/MM/yyyy HH:mm:ss')}`);
+    console.log(`[Status Analysis] ✓ Primeiro acesso selecionado: ${format(primeiroAcesso.dataHora, 'dd/MM/yyyy HH:mm:ss')} (${primeiroAcesso.sentido})`);
     if (menorDiferencaEntrada !== Infinity) {
       console.log(`[Status Analysis]   (${(menorDiferencaEntrada / 60000).toFixed(0)} minutos de diferença do horário escalado)`);
     }
 
-    // Encontrar saída mais próxima ao horário escalado (após a entrada selecionada)
-    let saidaMaisProxima = null;
+    // Encontrar o acesso mais próximo ao horário escalado de SAÍDA (após o primeiro acesso)
+    let ultimoAcesso = null;
     let menorDiferencaSaida = Infinity;
 
-    for (const saida of saidas) {
-      // A saída deve ser APÓS a entrada
-      if (saida.dataHora.getTime() <= entradaMaisProxima.dataHora.getTime()) {
-        console.log(`[Status Analysis]   Saída em ${format(saida.dataHora, 'HH:mm:ss')} - IGNORADA (antes da entrada)`);
+    for (const acesso of todosAcessos) {
+      // O último acesso deve ser APÓS o primeiro
+      if (acesso.dataHora.getTime() <= primeiroAcesso.dataHora.getTime()) {
         continue;
       }
 
-      const diferenca = Math.abs(saida.dataHora.getTime() - horarioSaidaEsperado.getTime());
-      console.log(`[Status Analysis]   Saída em ${format(saida.dataHora, 'HH:mm:ss')} - Diferença: ${(diferenca / 60000).toFixed(0)} minutos`);
+      const diferenca = Math.abs(acesso.dataHora.getTime() - horarioSaidaEsperado.getTime());
+      console.log(`[Status Analysis]   Acesso em ${format(acesso.dataHora, 'HH:mm:ss')} (${acesso.sentido}) - Diferença da saída: ${(diferenca / 60000).toFixed(0)} minutos`);
 
       if (diferenca <= JANELA_TOLERANCIA && diferenca < menorDiferencaSaida) {
         menorDiferencaSaida = diferenca;
-        saidaMaisProxima = saida;
+        ultimoAcesso = acesso;
       }
     }
 
-    // FALLBACK: Se não encontrou saída dentro da janela, usar última saída do dia (após entrada)
-    if (!saidaMaisProxima) {
-      console.log(`[Status Analysis] ⚠️ Nenhuma saída encontrada dentro da janela de ±3h do horário escalado`);
-      console.log(`[Status Analysis] 🔄 FALLBACK: Usando última saída do dia (após entrada)`);
+    // FALLBACK: Se não encontrou dentro da janela, usar último acesso do dia (após primeiro)
+    if (!ultimoAcesso) {
+      console.log(`[Status Analysis] ⚠️ Nenhum acesso encontrado dentro da janela de ±3h do horário de saída`);
+      console.log(`[Status Analysis] 🔄 FALLBACK: Usando último acesso do dia (após primeiro)`);
 
-      // Procurar última saída após a entrada
-      const saidasAposEntrada = saidas.filter(s => s.dataHora.getTime() > entradaMaisProxima.dataHora.getTime());
-      if (saidasAposEntrada.length > 0) {
-        saidaMaisProxima = saidasAposEntrada[saidasAposEntrada.length - 1];
+      // Procurar último acesso após o primeiro
+      const acessosAposPrimeiro = todosAcessos.filter(a => a.dataHora.getTime() > primeiroAcesso.dataHora.getTime());
+      if (acessosAposPrimeiro.length > 0) {
+        ultimoAcesso = acessosAposPrimeiro[acessosAposPrimeiro.length - 1];
       } else {
-        console.log(`[Status Analysis] ❌ Nenhuma saída encontrada após a entrada`);
-        console.log(`[Status Analysis] ========== FIM DO CÁLCULO (sem saída válida) ==========\n`);
+        console.log(`[Status Analysis] ❌ Nenhum acesso encontrado após o primeiro`);
+        console.log(`[Status Analysis] ========== FIM DO CÁLCULO (sem segundo acesso) ==========\n`);
         return 0;
       }
     }
 
-    console.log(`[Status Analysis] ✓ Saída selecionada: ${format(saidaMaisProxima.dataHora, 'dd/MM/yyyy HH:mm:ss')}`);
+    console.log(`[Status Analysis] ✓ Último acesso selecionado: ${format(ultimoAcesso.dataHora, 'dd/MM/yyyy HH:mm:ss')} (${ultimoAcesso.sentido})`);
     if (menorDiferencaSaida !== Infinity) {
       console.log(`[Status Analysis]   (${(menorDiferencaSaida / 60000).toFixed(0)} minutos de diferença do horário escalado)`);
     }
 
     // Calcular horas trabalhadas
-    const diffMs = saidaMaisProxima.dataHora.getTime() - entradaMaisProxima.dataHora.getTime();
+    const diffMs = ultimoAcesso.dataHora.getTime() - primeiroAcesso.dataHora.getTime();
     const horasTrabalhadas = diffMs / (1000 * 60 * 60);
 
     console.log(`[Status Analysis] ===== Fim da busca =====`);
     console.log(`[Status Analysis] 🎯 HORAS TRABALHADAS NO PLANTÃO: ${horasTrabalhadas.toFixed(4)}h (${(horasTrabalhadas * 60).toFixed(2)} minutos)`);
-    console.log(`[Status Analysis] Período: ${format(entradaMaisProxima.dataHora, 'dd/MM/yyyy HH:mm:ss')} até ${format(saidaMaisProxima.dataHora, 'dd/MM/yyyy HH:mm:ss')}`);
+    console.log(`[Status Analysis] Período: ${format(primeiroAcesso.dataHora, 'dd/MM/yyyy HH:mm:ss')} até ${format(ultimoAcesso.dataHora, 'dd/MM/yyyy HH:mm:ss')}`);
     console.log(`[Status Analysis] ========== FIM DO CÁLCULO ==========\n`);
 
     return horasTrabalhadas;
@@ -274,6 +276,9 @@ async function analisarEscala(escala: EscalaMedica): Promise<string> {
     console.log(`[Status Analysis] Horas esperadas calculadas: ${horasEsperadas.toFixed(4)}h (${horasEsperadas} raw)`);
 
     // Para cada médico escalado, verificar se cumpriu a carga horária
+    // Tolerância de 1 hora: se trabalhou (horasEsperadas - 1h), considera como cumprido
+    const horasMinimasParaAprovacao = Math.max(0, horasEsperadas - TOLERANCIA_HORAS);
+
     let todosCumpriram = true;
     let algumNaoCompareceu = false;
     let algumTrabalhouParcial = false;
@@ -291,21 +296,23 @@ async function analisarEscala(escala: EscalaMedica): Promise<string> {
       console.log(`[Status Analysis] ===== COMPARAÇÃO FINAL =====`);
       console.log(`[Status Analysis] Horas trabalhadas: ${horasTrabalhadas.toFixed(4)}h (${horasTrabalhadas} raw)`);
       console.log(`[Status Analysis] Horas esperadas: ${horasEsperadas.toFixed(4)}h (${horasEsperadas} raw)`);
+      console.log(`[Status Analysis] Tolerância: ${TOLERANCIA_HORAS}h`);
+      console.log(`[Status Analysis] Horas mínimas para aprovação: ${horasMinimasParaAprovacao.toFixed(4)}h`);
       console.log(`[Status Analysis] Diferença: ${(horasTrabalhadas - horasEsperadas).toFixed(4)}h`);
       console.log(`[Status Analysis] horasTrabalhadas === 0? ${horasTrabalhadas === 0}`);
-      console.log(`[Status Analysis] horasTrabalhadas < horasEsperadas? ${horasTrabalhadas < horasEsperadas}`);
-      console.log(`[Status Analysis] horasTrabalhadas >= horasEsperadas? ${horasTrabalhadas >= horasEsperadas}`);
+      console.log(`[Status Analysis] horasTrabalhadas < horasMinimasParaAprovacao? ${horasTrabalhadas < horasMinimasParaAprovacao}`);
+      console.log(`[Status Analysis] horasTrabalhadas >= horasMinimasParaAprovacao? ${horasTrabalhadas >= horasMinimasParaAprovacao}`);
 
       if (horasTrabalhadas === 0) {
         console.log(`[Status Analysis] ❌ RESULTADO: Médico não compareceu (0 horas)`);
         algumNaoCompareceu = true;
         todosCumpriram = false;
-      } else if (horasTrabalhadas < horasEsperadas) {
-        console.log(`[Status Analysis] ⚠️  RESULTADO: Médico trabalhou parcialmente (${horasTrabalhadas.toFixed(4)}h < ${horasEsperadas.toFixed(4)}h)`);
+      } else if (horasTrabalhadas < horasMinimasParaAprovacao) {
+        console.log(`[Status Analysis] ⚠️  RESULTADO: Médico trabalhou parcialmente (${horasTrabalhadas.toFixed(4)}h < ${horasMinimasParaAprovacao.toFixed(4)}h mínimo)`);
         algumTrabalhouParcial = true;
         todosCumpriram = false;
       } else {
-        console.log(`[Status Analysis] ✅ RESULTADO: Médico CUMPRIU carga horária (${horasTrabalhadas.toFixed(4)}h >= ${horasEsperadas.toFixed(4)}h)`);
+        console.log(`[Status Analysis] ✅ RESULTADO: Médico CUMPRIU carga horária (${horasTrabalhadas.toFixed(4)}h >= ${horasMinimasParaAprovacao.toFixed(4)}h mínimo, tolerância de ${TOLERANCIA_HORAS}h aplicada)`);
       }
       console.log(`[Status Analysis] =============================`);
     }
@@ -438,6 +445,7 @@ export async function analisarEscalaDetalhada(
     if (error) throw error;
 
     const horasEsperadas = calcularHorasEscaladas(escala as EscalaMedica);
+    const horasMinimasParaAprovacao = Math.max(0, horasEsperadas - TOLERANCIA_HORAS);
     const dataEscala = parseISO(escala.data_inicio);
     const detalhes = [];
 
@@ -448,7 +456,8 @@ export async function analisarEscalaDetalhada(
         escala.horario_entrada,
         escala.horario_saida
       );
-      const cumpriu = horasTrabalhadas >= horasEsperadas;
+      // Considera cumprido se trabalhou pelo menos (horasEsperadas - tolerância)
+      const cumpriu = horasTrabalhadas >= horasMinimasParaAprovacao;
 
       detalhes.push({
         medico: medico.nome,
