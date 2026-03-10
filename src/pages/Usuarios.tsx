@@ -1418,48 +1418,84 @@ const Usuarios: React.FC = () => {
               required
             />
 
-            <TextField
-              label="Email"
-              type="email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              fullWidth
-              required={formData.sendInvitationAutomatically}
-              error={
-                formData.email ? isEmailDomainBlocked(formData.email) : false
-              }
-              helperText={
-                formData.email && isEmailDomainBlocked(formData.email)
-                  ? getBlockedDomainMessage(formData.email)
-                  : "Email necessário para enviar convite de acesso ao sistema. Verifique cuidadosamente se o email está correto."
-              }
-            />
+            <FormControl fullWidth required>
+              <InputLabel>Tipo de Usuário</InputLabel>
+              <Select
+                value={formData.tipo}
+                label="Tipo de Usuário"
+                onChange={(e) => {
+                  const newTipo = e.target.value as UserRole;
+                  setFormData({
+                    ...formData,
+                    tipo: newTipo,
+                    // Limpar email e convite automático quando mudar para terceiro
+                    ...(newTipo === "terceiro" && {
+                      email: "",
+                      sendInvitationAutomatically: false,
+                    }),
+                  });
+                }}
+              >
+                <MenuItem value="administrador-agir-corporativo">
+                  Administrador Agir Corporativo
+                </MenuItem>
+                <MenuItem value="administrador-agir-planta">
+                  Administrador Agir de Unidade
+                </MenuItem>
+                <MenuItem value="administrador-terceiro">
+                  Administrador Terceiro
+                </MenuItem>
+                <MenuItem value="terceiro">Terceiro</MenuItem>
+              </Select>
+            </FormControl>
 
-            {/* Aviso especial para domínios corporativos */}
-            {formData.email && isCorporateDomain(formData.email) && (
-              <Alert severity="warning" sx={{ mt: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  ⚠️ Email corporativo detectado: {formData.email.split("@")[1]}
-                </Typography>
-                <Typography variant="caption">
-                  <strong>IMPORTANTE:</strong> Verifique se este endereço de
-                  email JÁ FOI CRIADO no servidor de email da empresa. Emails
-                  que não existem causam rejeição e podem bloquear
-                  temporariamente o sistema de envio.
-                  <br />
-                  <br />
-                  <strong>Antes de enviar o convite:</strong>
-                  <br />
-                  1. Confirme que o email {formData.email} existe e está ativo
-                  <br />
-                  2. Teste enviando um email de teste manualmente para verificar
-                  <br />
-                  3. Só marque "enviar automaticamente" se tiver certeza que o
-                  email existe
-                </Typography>
-              </Alert>
+            {/* Email - apenas para tipos que não são terceiro */}
+            {formData.tipo !== "terceiro" && (
+              <>
+                <TextField
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  fullWidth
+                  required={formData.sendInvitationAutomatically}
+                  error={
+                    formData.email ? isEmailDomainBlocked(formData.email) : false
+                  }
+                  helperText={
+                    formData.email && isEmailDomainBlocked(formData.email)
+                      ? getBlockedDomainMessage(formData.email)
+                      : "Email necessário para enviar convite de acesso ao sistema. Verifique cuidadosamente se o email está correto."
+                  }
+                />
+
+                {/* Aviso especial para domínios corporativos */}
+                {formData.email && isCorporateDomain(formData.email) && (
+                  <Alert severity="warning" sx={{ mt: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      ⚠️ Email corporativo detectado: {formData.email.split("@")[1]}
+                    </Typography>
+                    <Typography variant="caption">
+                      <strong>IMPORTANTE:</strong> Verifique se este endereço de
+                      email JÁ FOI CRIADO no servidor de email da empresa. Emails
+                      que não existem causam rejeição e podem bloquear
+                      temporariamente o sistema de envio.
+                      <br />
+                      <br />
+                      <strong>Antes de enviar o convite:</strong>
+                      <br />
+                      1. Confirme que o email {formData.email} existe e está ativo
+                      <br />
+                      2. Teste enviando um email de teste manualmente para verificar
+                      <br />
+                      3. Só marque "enviar automaticamente" se tiver certeza que o
+                      email existe
+                    </Typography>
+                  </Alert>
+                )}
+              </>
             )}
 
             <TextField
@@ -1481,28 +1517,6 @@ const Usuarios: React.FC = () => {
               }
               inputProps={{ maxLength: 11 }}
             />
-
-            <FormControl fullWidth required>
-              <InputLabel>Tipo de Usuário</InputLabel>
-              <Select
-                value={formData.tipo}
-                label="Tipo de Usuário"
-                onChange={(e) =>
-                  setFormData({ ...formData, tipo: e.target.value as UserRole })
-                }
-              >
-                <MenuItem value="administrador-agir-corporativo">
-                  Administrador Agir Corporativo
-                </MenuItem>
-                <MenuItem value="administrador-agir-planta">
-                  Administrador Agir de Unidade
-                </MenuItem>
-                <MenuItem value="administrador-terceiro">
-                  Administrador Terceiro
-                </MenuItem>
-                <MenuItem value="terceiro">Terceiro</MenuItem>
-              </Select>
-            </FormControl>
 
             {formData.tipo === "administrador-agir-planta" && (
               <Autocomplete
@@ -1604,8 +1618,8 @@ const Usuarios: React.FC = () => {
                 />
               )}
 
-            {/* Envio automático de convite - apenas em modo de criação */}
-            {!editMode && formData.email && (
+            {/* Envio automático de convite - apenas em modo de criação e para não-terceiros */}
+            {!editMode && formData.tipo !== "terceiro" && formData.email && (
               <Box sx={{ mt: 1 }}>
                 <FormControlLabel
                   control={
@@ -1648,7 +1662,14 @@ const Usuarios: React.FC = () => {
                   convite automaticamente.
                 </Typography>
               </Alert>
-            ) : !editMode ? (
+            ) : formData.tipo === "terceiro" && !editMode ? (
+              <Alert severity="info">
+                <Typography variant="body2">
+                  Terceiros são criados apenas para registro e controle de
+                  escalas. Eles não possuem acesso ao sistema.
+                </Typography>
+              </Alert>
+            ) : formData.tipo === "administrador-terceiro" && !editMode ? (
               <Alert severity="info">
                 <Typography variant="body2">
                   O usuário será criado sem acesso ao sistema. Use o botão
@@ -1659,7 +1680,7 @@ const Usuarios: React.FC = () => {
             ) : null}
 
             {/* Aviso importante sobre emails inválidos */}
-            {!editMode && formData.sendInvitationAutomatically && (
+            {!editMode && formData.tipo !== "terceiro" && formData.sendInvitationAutomatically && (
               <Alert severity="warning">
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   ⚠️ Atenção: Verifique o email cuidadosamente
