@@ -1,6 +1,6 @@
 """
 Script aprimorado para coletar dados de produtividade do sistema MV por range de datas.
-Versão OTIMIZADA PARA LINUX/DROPLET
+Versão ADAPTADA PARA WINDOWS
 Versão com melhor tratamento de erros, timeouts e recuperação de falhas.
 
 MELHORIAS:
@@ -10,15 +10,12 @@ MELHORIAS:
 - Health checks do driver
 - Retry mais inteligente
 - Gerenciamento de memória
-- ESPERA INTELIGENTE: Aguarda código aparecer ao invés de delays fixos
-- EXTRAÇÃO VIA XPATH: Usa XPaths específicos ao invés de buscar em tabelas
 """
 import os
 import sys
 import time
 import random
 import glob
-import signal
 import psutil
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
@@ -41,15 +38,22 @@ from dotenv import load_dotenv
 import logging
 from functools import wraps
 
-# Configurar logging com mais detalhes (UTF-8)
+# Configurar logging com mais detalhes (Windows compatible - UTF-8)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - [%(funcName)s] - %(message)s',
     handlers=[
-        logging.FileHandler('/var/log/produtividade-mv-range-dual.log', encoding='utf-8'),
+        logging.FileHandler('produtividade-mv-range-dual.log', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
+
+# Configurar stdout para UTF-8 no Windows
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 logger = logging.getLogger(__name__)
 
 # Carregar variáveis de ambiente
@@ -59,7 +63,7 @@ load_dotenv()
 MV_REPORT_URL = "http://mvpepprd.saude.go.gov.br/report-executor/report-viewer?id=7076"
 SUPABASE_URL = os.getenv('VITE_SUPABASE_URL')
 SUPABASE_SERVICE_KEY = os.getenv('VITE_SUPABASE_SERVICE_ROLE_KEY')
-GECKODRIVER_PATH = '/usr/local/bin/geckodriver'
+GECKODRIVER_PATH = r"C:\Users\16144-pedro\Documents\bot_solicitacao\geckodriver.exe"
 
 # ============================================================================
 # CONFIGURAÇÕES APRIMORADAS DE RESILIÊNCIA
@@ -80,7 +84,6 @@ ELEMENT_WAIT_TIMEOUT = 45
 TIMEOUT_FORMULARIO = 60
 TIMEOUT_TABELA = 90
 TIMEOUT_SUBMIT = 45
-TIMEOUT_CODIGO_APARECER = 45  # Tempo máximo para aguardar código aparecer
 
 # Health check do driver
 DRIVER_HEALTH_CHECK_INTERVAL = 5
@@ -88,43 +91,22 @@ MAX_DRIVER_AGE_MINUTES = 30
 
 # User Agents para rotação
 USER_AGENTS = [
-    'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
-    'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/116.0',
-    'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
 ]
 
 # --- Range de Datas para Processar ---
-DATA_INICIO = datetime(2026, 2, 11)  # 11/02/2026
-DATA_FIM = datetime(2026, 3, 10)    # 10/03/2026
+DATA_INICIO = datetime(2026, 2, 1)  # 01/02/2026
+DATA_FIM = datetime(2026, 2, 28)    # 28/02/2026
 
 # --- XPaths do Formulário ---
 BASE_CONTAINER = "//div[contains(@id, '_ParametersPanelContainer')]"
 XPATH_CODIGO_PRESTADOR = f"{BASE_CONTAINER}//tr[2]/td[2]//input"
 XPATH_DATA_INICIAL = f"{BASE_CONTAINER}//tr[1]/td[4]//input"
 XPATH_DATA_FINAL = f"{BASE_CONTAINER}//tr[2]/td[4]//input"
-XPATH_SUBMIT_BUTTON = f"{BASE_CONTAINER}//tr[4]/td[4]//td[contains(., 'Submit')]"
-
-# --- XPaths para Extração de Dados (OTIMIZADO) ---
-XPATH_CAMPOS = {
-    'codigo_mv': '/html/body/div/div/div[11]/div/div/div[35]/div',
-    'nome': '/html/body/div/div/div[11]/div/div/div[36]/div',
-    'especialidade': '/html/body/div/div/div[11]/div/div/div[37]/div',
-    'procedimento': '/html/body/div/div/div[11]/div/div/div[44]/div',
-    'parecer_solicitado': '/html/body/div/div/div[11]/div/div/div[40]/div',
-    'parecer_realizado': '/html/body/div/div/div[11]/div/div/div[41]/div',
-    'cirurgia_realizada': '/html/body/div/div/div[11]/div/div/div[38]/div',
-    'prescricao': '/html/body/div/div/div[11]/div/div/div[42]/div',
-    'evolucao': '/html/body/div/div/div[11]/div/div/div[43]/div',
-    'urgencia': '/html/body/div/div/div[11]/div/div/div[45]/div',
-    'ambulatorio': '/html/body/div/div/div[11]/div/div/div[46]/div',
-    'auxiliar': '/html/body/div/div/div[11]/div/div/div[48]/div',
-    'encaminhamento': '/html/body/div/div/div[11]/div/div/div[47]/div',
-    'folha_objetivo_diario': '/html/body/div/div/div[11]/div/div/div[49]/div',
-    'evolucao_diurna_cti': '/html/body/div/div/div[11]/div/div/div[50]/div',
-    'evolucao_noturna_cti': '/html/body/div/div/div[11]/div/div/div[51]/div',
-}
+XPATH_SUBMIT_BUTTON = f"{BASE_CONTAINER}//tr[4]/td[4]//td[contains(., 'Enviar')]"
 
 # ============================================================================
 # CAMPOS QUE REQUEREM PERÍODO D-1 até D
@@ -152,7 +134,7 @@ CAMPOS_MESMO_DIA = [
 ]
 
 # ============================================================================
-# UTILITÁRIOS DE RESILIÊNCIA APRIMORADOS
+# UTILITÁRIOS DE RESILIÊNCIA APRIMORADOS (WINDOWS)
 # ============================================================================
 
 class TimeoutError(Exception):
@@ -163,15 +145,11 @@ class DriverHealthError(Exception):
     """Exceção para problemas de saúde do driver."""
     pass
 
-def timeout_handler(signum, frame):
-    """Handler para timeout de operações."""
-    raise TimeoutError("Operação excedeu o tempo limite")
-
 def cleanup_old_screenshots(retention_days: int = SCREENSHOT_RETENTION_DAYS):
     """Remove screenshots antigos para evitar acúmulo de arquivos."""
     try:
         cutoff_time = time.time() - (retention_days * 24 * 60 * 60)
-        screenshot_pattern = "/tmp/screenshot_*.png"
+        screenshot_pattern = os.path.join(os.getcwd(), "screenshot_*.png")
         for filepath in glob.glob(screenshot_pattern):
             if os.path.getmtime(filepath) < cutoff_time:
                 os.remove(filepath)
@@ -180,57 +158,65 @@ def cleanup_old_screenshots(retention_days: int = SCREENSHOT_RETENTION_DAYS):
         logger.warning(f"Erro ao limpar screenshots antigos: {e}")
 
 def cleanup_temp_files():
-    """Limpa arquivos temporários do Firefox."""
+    """Limpa arquivos temporários do Firefox (Windows)."""
     try:
         import subprocess
-        subprocess.run("rm -rf /tmp/rust_mozprofile* 2>/dev/null || true", shell=True, timeout=10)
-        subprocess.run("rm -rf /tmp/tmp* 2>/dev/null || true", shell=True, timeout=10)
+        # Limpar perfis temporários do Firefox
+        temp_path = os.path.join(os.environ.get('TEMP', ''), 'rust_mozprofile*')
+        for temp_dir in glob.glob(temp_path):
+            try:
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            except:
+                pass
         logger.debug("Arquivos temporários limpos")
     except Exception as e:
         logger.warning(f"Erro ao limpar arquivos temporários: {e}")
 
 def kill_zombie_processes():
-    """Mata processos Firefox e Geckodriver órfãos."""
+    """Mata processos Firefox e Geckodriver órfãos (Windows)."""
     try:
         import subprocess
         
-        # Listar processos antes
-        try:
-            result = subprocess.run(
-                "ps aux | grep -E 'firefox|geckodriver' | grep -v grep | wc -l",
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            before_count = int(result.stdout.strip() or 0)
-            if before_count > 0:
-                logger.info(f"Encontrados {before_count} processos Firefox/Geckodriver rodando")
-        except:
-            before_count = 0
+        # Contar processos antes
+        before_count = 0
+        for proc in psutil.process_iter(['name']):
+            try:
+                if proc.info['name'] in ['firefox.exe', 'geckodriver.exe']:
+                    before_count += 1
+            except:
+                pass
         
-        # Matar processos
-        for attempt in range(3):
-            subprocess.run("pkill -9 firefox 2>/dev/null || true", shell=True, timeout=5)
-            subprocess.run("pkill -9 geckodriver 2>/dev/null || true", shell=True, timeout=5)
-            time.sleep(1)
+        if before_count > 0:
+            logger.info(f"Encontrados {before_count} processos Firefox/Geckodriver rodando")
         
-        # Verificar após
-        try:
-            result = subprocess.run(
-                "ps aux | grep -E 'firefox|geckodriver' | grep -v grep | wc -l",
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            after_count = int(result.stdout.strip() or 0)
-            if after_count == 0 and before_count > 0:
-                logger.info(f"✅ Todos os {before_count} processos foram terminados")
-            elif after_count > 0:
-                logger.warning(f"⚠️ Ainda restam {after_count} processos rodando")
-        except:
-            pass
+        # Matar processos Firefox
+        subprocess.run('taskkill /F /IM firefox.exe /T', 
+                      shell=True, 
+                      stdout=subprocess.DEVNULL, 
+                      stderr=subprocess.DEVNULL)
+        
+        # Matar processos Geckodriver
+        subprocess.run('taskkill /F /IM geckodriver.exe /T', 
+                      shell=True, 
+                      stdout=subprocess.DEVNULL, 
+                      stderr=subprocess.DEVNULL)
+        
+        time.sleep(2)
+        
+        # Contar processos depois
+        after_count = 0
+        for proc in psutil.process_iter(['name']):
+            try:
+                if proc.info['name'] in ['firefox.exe', 'geckodriver.exe']:
+                    after_count += 1
+            except:
+                pass
+        
+        if after_count == 0 and before_count > 0:
+            logger.info(f"✅ Todos os {before_count} processos foram terminados")
+        elif after_count > 0:
+            logger.warning(f"⚠️ Ainda restam {after_count} processos rodando")
             
     except Exception as e:
         logger.warning(f"Erro ao matar processos zumbis: {e}")
@@ -246,7 +232,7 @@ def check_system_resources():
     """Verifica recursos do sistema e retorna status."""
     try:
         memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
+        disk = psutil.disk_usage('C:\\')
         
         memory_percent = memory.percent
         disk_percent = disk.percent
@@ -472,23 +458,17 @@ class ProdutividadeCollector:
         logger.info(f"🚀 Configurando Firefox driver...")
         logger.info(f"User-Agent: {self.current_user_agent[:60]}...")
         
-        import shutil
-        global GECKODRIVER_PATH
+        # Verificar se geckodriver existe
         if not os.path.exists(GECKODRIVER_PATH):
             logger.error(f"Geckodriver não encontrado em: {GECKODRIVER_PATH}")
-            geckodriver_path = shutil.which('geckodriver')
-            if geckodriver_path:
-                logger.info(f"Geckodriver encontrado em: {geckodriver_path}")
-                GECKODRIVER_PATH = geckodriver_path
-            else:
-                raise FileNotFoundError("Geckodriver não encontrado.")
+            raise FileNotFoundError(f"Geckodriver não encontrado em {GECKODRIVER_PATH}")
 
         options = Options()
-        options.add_argument('--headless')
+        # Remover headless para você ver o navegador funcionando no PC
+        # options.add_argument('--headless')  # Comentado para debug visual
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
-        options.add_argument('--disable-software-rasterizer')
         options.add_argument('--window-size=1920,1080')
         options.add_argument('--disable-extensions')
         options.add_argument('--disable-infobars')
@@ -497,7 +477,6 @@ class ProdutividadeCollector:
         
         # Preferências otimizadas
         options.set_preference('general.useragent.override', self.current_user_agent)
-        options.set_preference('marionette.port', 2828)
         options.set_preference('browser.cache.disk.enable', False)
         options.set_preference('browser.cache.memory.enable', True)
         options.set_preference('network.http.connection-timeout', 120)
@@ -505,26 +484,13 @@ class ProdutividadeCollector:
         options.set_preference('dom.max_script_run_time', 120)
         options.set_preference('dom.max_chrome_script_run_time', 120)
 
-        firefox_paths = ['/usr/bin/firefox', '/usr/bin/firefox-esr', '/snap/bin/firefox']
-        firefox_binary = None
-        for path in firefox_paths:
-            if os.path.exists(path):
-                firefox_binary = path
-                break
-        
-        if firefox_binary:
-            options.binary_location = firefox_binary
-
         logger.info("🧹 Limpando processos Firefox/Geckodriver travados...")
         kill_zombie_processes()
 
-        service = Service(
-            executable_path=GECKODRIVER_PATH,
-            log_output='/tmp/geckodriver.log'
-        )
+        service = Service(executable_path=GECKODRIVER_PATH)
         
         try:
-            logger.info("🌐 Iniciando Firefox em modo headless...")
+            logger.info("🌐 Iniciando Firefox...")
             self.driver = webdriver.Firefox(service=service, options=options)
             self.driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
             self.driver.implicitly_wait(IMPLICIT_WAIT)
@@ -622,8 +588,8 @@ class ProdutividadeCollector:
             raise
 
     def formatar_data_mv(self, data: datetime) -> str:
-        """Retorna a data no formato mm.dd.yyyy."""
-        return data.strftime('%m.%d.%Y')
+        """Retorna a data no formato dd.mm.yyyy."""
+        return data.strftime('%d.%m.%Y')
 
     def obter_data_iso(self, data: datetime) -> str:
         """Retorna a data no formato ISO (YYYY-MM-DD)."""
@@ -661,7 +627,7 @@ class ProdutividadeCollector:
         restart_driver_on_failure=True
     )
     def preencher_formulario(self, codigo_mv: str, data_inicial: str, data_final: str):
-        """Preenche o formulário do relatório MV com retry automático e espera inteligente."""
+        """Preenche o formulário do relatório MV com retry automático."""
         wait = WebDriverWait(self.driver, ELEMENT_WAIT_TIMEOUT)
         
         try:
@@ -740,7 +706,7 @@ class ProdutividadeCollector:
             except TimeoutException:
                 try:
                     botao_submit = wait.until(
-                        EC.element_to_be_clickable((By.XPATH, "//td[contains(text(), 'Submit')]"))
+                        EC.element_to_be_clickable((By.XPATH, "//td[contains(text(), 'Enviar')]"))
                     )
                     logger.debug("✅ Botão Submit encontrado (fallback)")
                 except TimeoutException:
@@ -751,18 +717,16 @@ class ProdutividadeCollector:
             logger.info("🔘 Clicando no botão Submit...")
             botao_submit.click()
             
-            # ========================================================================
-            # OTIMIZAÇÃO: Aguardar até o código aparecer no relatório
-            # ========================================================================
+            # Aguardar até o código aparecer no relatório (mais eficiente que delay fixo)
             logger.info(f"⏳ Aguardando código {codigo_mv} aparecer no relatório...")
             codigo_apareceu = False
             tempo_inicio = time.time()
-            max_wait = TIMEOUT_CODIGO_APARECER
+            max_wait = 45  # máximo 45 segundos
             
             while (time.time() - tempo_inicio) < max_wait:
                 try:
-                    # Tentar pegar o código do relatório usando o XPath específico
-                    xpath_codigo = XPATH_CAMPOS['codigo_mv']
+                    # Tentar pegar o código do relatório
+                    xpath_codigo = '/html/body/div/div/div[11]/div/div/div[35]/div'
                     
                     # Primeiro tentar na página principal
                     try:
@@ -817,7 +781,7 @@ class ProdutividadeCollector:
             
             # Salvar screenshot
             try:
-                screenshot_path = f"/tmp/screenshot_erro_{codigo_mv}_{int(time.time())}.png"
+                screenshot_path = f"screenshot_erro_{codigo_mv}_{int(time.time())}.png"
                 self.driver.save_screenshot(screenshot_path)
                 logger.error(f"📸 Screenshot salvo em: {screenshot_path}")
             except Exception as se:
@@ -825,7 +789,7 @@ class ProdutividadeCollector:
             
             # Salvar HTML da página para debug
             try:
-                html_path = f"/tmp/page_source_{codigo_mv}_{int(time.time())}.html"
+                html_path = f"page_source_{codigo_mv}_{int(time.time())}.html"
                 with open(html_path, 'w', encoding='utf-8') as f:
                     f.write(self.driver.page_source)
                 logger.error(f"📄 HTML da página salvo em: {html_path}")
@@ -848,7 +812,27 @@ class ProdutividadeCollector:
             raise e
 
     def extrair_dados_tabela(self, codigo_mv: str, campos_extrair: List[str]) -> Optional[Dict]:
-        """Extrai os dados usando XPaths específicos dos divs (OTIMIZADO)."""
+        """Extrai os dados usando XPaths específicos dos divs."""
+        
+        # Mapeamento de campos para XPaths específicos
+        XPATH_CAMPOS = {
+            'codigo_mv': '/html/body/div/div/div[11]/div/div/div[35]/div',
+            'nome': '/html/body/div/div/div[11]/div/div/div[36]/div',
+            'especialidade': '/html/body/div/div/div[11]/div/div/div[37]/div',
+            'procedimento': '/html/body/div/div/div[11]/div/div/div[44]/div',
+            'parecer_solicitado': '/html/body/div/div/div[11]/div/div/div[40]/div',
+            'parecer_realizado': '/html/body/div/div/div[11]/div/div/div[41]/div',
+            'cirurgia_realizada': '/html/body/div/div/div[11]/div/div/div[38]/div',
+            'prescricao': '/html/body/div/div/div[11]/div/div/div[42]/div',
+            'evolucao': '/html/body/div/div/div[11]/div/div/div[43]/div',  # Usando 43 pois 42 é PRESC
+            'urgencia': '/html/body/div/div/div[11]/div/div/div[45]/div',
+            'ambulatorio': '/html/body/div/div/div[11]/div/div/div[46]/div',
+            'auxiliar': '/html/body/div/div/div[11]/div/div/div[48]/div',
+            'encaminhamento': '/html/body/div/div/div[11]/div/div/div[47]/div',
+            'folha_objetivo_diario': '/html/body/div/div/div[11]/div/div/div[49]/div',
+            'evolucao_diurna_cti': '/html/body/div/div/div[11]/div/div/div[50]/div',
+            'evolucao_noturna_cti': '/html/body/div/div/div[11]/div/div/div[51]/div',
+        }
         
         try:
             logger.debug(f"🔍 Extraindo dados via XPaths específicos para código {codigo_mv}")
@@ -919,11 +903,11 @@ class ProdutividadeCollector:
                 
                 # Salvar debug
                 try:
-                    screenshot_path = f"/tmp/screenshot_extracao_falhou_{codigo_mv}_{int(time.time())}.png"
+                    screenshot_path = f"screenshot_extracao_falhou_{codigo_mv}_{int(time.time())}.png"
                     self.driver.save_screenshot(screenshot_path)
                     logger.error(f"📸 Screenshot salvo: {screenshot_path}")
                     
-                    html_path = f"/tmp/page_source_extracao_{codigo_mv}_{int(time.time())}.html"
+                    html_path = f"page_source_extracao_{codigo_mv}_{int(time.time())}.html"
                     with open(html_path, 'w', encoding='utf-8') as f:
                         f.write(self.driver.page_source)
                     logger.error(f"📄 HTML salvo: {html_path}")
@@ -945,7 +929,7 @@ class ProdutividadeCollector:
             
             # Salvar debug em caso de erro
             try:
-                screenshot_path = f"/tmp/screenshot_erro_xpath_{codigo_mv}_{int(time.time())}.png"
+                screenshot_path = f"screenshot_erro_xpath_{codigo_mv}_{int(time.time())}.png"
                 self.driver.save_screenshot(screenshot_path)
                 logger.error(f"📸 Screenshot de erro salvo: {screenshot_path}")
             except:
@@ -1198,13 +1182,10 @@ class ProdutividadeCollector:
         inicio = datetime.now()
         
         logger.info(f"\n{'#'*70}")
-        logger.info(f"🚀 INÍCIO DA COLETA - MODO DUAL OTIMIZADO")
+        logger.info(f"🚀 INÍCIO DA COLETA - MODO DUAL (WINDOWS)")
         logger.info(f"{'#'*70}")
         logger.info(f"📅 Período: {DATA_INICIO.strftime('%d/%m/%Y')} até {DATA_FIM.strftime('%d/%m/%Y')}")
         logger.info(f"🕐 Início: {inicio.strftime('%Y-%m-%d %H:%M:%S')}")
-        logger.info(f"⚡ OTIMIZAÇÕES ATIVAS:")
-        logger.info(f"   • Espera inteligente por código (ao invés de delays fixos)")
-        logger.info(f"   • Extração via XPaths específicos")
         logger.info(f"{'#'*70}\n")
         
         try:

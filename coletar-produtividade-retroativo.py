@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # ==================== CONFIGURAÇÕES ====================
-DATA_INICIO = datetime(2025, 9, 1)  # 01 de setembro de 2025
+DATA_INICIO = datetime(2026, 2, 1)  # 01 de fevereiro de 2026
 DATA_FIM = datetime.now() - timedelta(days=1)  # Ontem
 INTERVALO_ENTRE_DIAS = 15  # segundos
 # ======================================================
