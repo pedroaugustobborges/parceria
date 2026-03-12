@@ -431,25 +431,26 @@ export const EscalasMedicasPage: React.FC = () => {
   const handleConfirmCsvImport = useCallback(async () => {
     setImportingCsv(true);
     try {
-      // csvPreviewData contains only valid rows
-      const validRowCount = csvPreviewData.length;
-      const totalRows = csvValidatedRows.length || validRowCount;
-      const skippedCount = totalRows - validRowCount;
-
-      await escalas.importCsvData(
+      // Import with final validation - importCsvData will re-check conflicts
+      const result = await escalas.importCsvData(
         csvPreviewData,
         form.formData.contrato_id,
         form.formData.item_contrato_id
       );
+
       setCsvPreviewOpen(false);
       setCsvPreviewData([]);
       setCsvValidatedRows([]);
       form.closeDialog();
 
+      // Use the actual import result for accurate counts
+      const imported = result?.imported ?? csvPreviewData.length;
+      const skipped = result?.skipped ?? 0;
+
       // Show success message with info about skipped rows if any
-      const successMsg = skippedCount > 0
-        ? `${validRowCount} escala(s) importada(s) com sucesso! (${skippedCount} linha(s) com erro ignorada(s))`
-        : `${validRowCount} escala(s) importada(s) com sucesso!`;
+      const successMsg = skipped > 0
+        ? `${imported} escala(s) importada(s) com sucesso! (${skipped} linha(s) com conflito ignorada(s))`
+        : `${imported} escala(s) importada(s) com sucesso!`;
       escalas.setSuccess(successMsg);
       await escalas.buscarEscalas();
     } catch (err: any) {
@@ -457,7 +458,7 @@ export const EscalasMedicasPage: React.FC = () => {
     } finally {
       setImportingCsv(false);
     }
-  }, [csvPreviewData, csvValidatedRows, form, escalas]);
+  }, [csvPreviewData, form, escalas]);
 
   const handleCancelCsvImport = useCallback(() => {
     setCsvPreviewOpen(false);

@@ -699,6 +699,62 @@ export function useEscalas(): UseEscalasReturn {
       try {
         setLoading(true);
 
+        // CRITICAL: Final validation before import - NEVER allow conflicts
+        const conflictErrors: string[] = [];
+        const validatedRows: CsvPreviewRow[] = [];
+        const alreadyValidated: CsvPreviewRow[] = []; // Track for internal conflict check
+
+        for (const row of previewData) {
+          const horarioEntrada = row.horario_entrada + ':00';
+          const horarioSaida = row.horario_saida + ':00';
+
+          // Check internal conflict (within this batch)
+          const internalConflict = alreadyValidated.find((prev) => {
+            if (prev.cpf !== row.cpf || prev.data_inicio !== row.data_inicio) {
+              return false;
+            }
+            return checkTimeOverlap(
+              horarioEntrada,
+              horarioSaida,
+              prev.horario_entrada + ':00',
+              prev.horario_saida + ':00'
+            );
+          });
+
+          if (internalConflict) {
+            conflictErrors.push(
+              `${row.nome} (${row.cpf}) - ${row.data_inicio}: conflito interno com ${internalConflict.horario_entrada}-${internalConflict.horario_saida}`
+            );
+            continue;
+          }
+
+          // Check database conflict
+          const dbConflict = await checkConflictingSchedules(
+            row.cpf,
+            row.data_inicio,
+            horarioEntrada,
+            horarioSaida
+          );
+
+          if (dbConflict.hasConflict) {
+            conflictErrors.push(
+              `${row.nome} (${row.cpf}) - ${row.data_inicio}: ${dbConflict.conflictDetails || 'conflito com escala existente'}`
+            );
+            continue;
+          }
+
+          // No conflicts - safe to import
+          validatedRows.push(row);
+          alreadyValidated.push(row);
+        }
+
+        // If ALL rows have conflicts, throw error
+        if (validatedRows.length === 0) {
+          throw new Error(
+            `Nenhuma escala pode ser importada. Todos os registros apresentam conflitos:\n${conflictErrors.join('\n')}`
+          );
+        }
+
         // Create one escala per doctor per date/time combination
         // Each escala should have exactly ONE doctor
         const escalasToCreate: Array<{
@@ -712,8 +768,8 @@ export function useEscalas(): UseEscalasReturn {
           status: StatusEscala;
         }> = [];
 
-        // Create one escala per row (one doctor per escala)
-        for (const row of previewData) {
+        // Create one escala per row (one doctor per escala) - ONLY validated rows
+        for (const row of validatedRows) {
           escalasToCreate.push({
             contrato_id: contratoId,
             item_contrato_id: itemContratoId,
@@ -727,6 +783,13 @@ export function useEscalas(): UseEscalasReturn {
         }
 
         await escalasService.createEscalas(escalasToCreate);
+
+        // Return info about what was imported
+        return {
+          imported: validatedRows.length,
+          skipped: conflictErrors.length,
+          errors: conflictErrors,
+        };
       } catch (err: any) {
         throw err;
       } finally {

@@ -132,8 +132,11 @@ export async function checkConflictingSchedules(
 
     // Check if any existing escala has the same CPF with overlapping times
     for (const escala of escalasAtivas) {
-      const medicosComCpf = escala.medicos.filter(
-        (medico: MedicoEscala) => medico.cpf === cpf
+      // Defensive: ensure medicos is an array
+      const medicos = Array.isArray(escala.medicos) ? escala.medicos : [];
+
+      const medicosComCpf = medicos.filter(
+        (medico: MedicoEscala) => medico && medico.cpf === cpf
       );
 
       if (medicosComCpf.length > 0) {
@@ -149,7 +152,7 @@ export async function checkConflictingSchedules(
           return {
             hasConflict: true,
             conflictDetails: formatConflictMessage(
-              medico.nome,
+              medico.nome || 'Médico',
               cpf,
               dataInicio,
               escala.horario_entrada,
