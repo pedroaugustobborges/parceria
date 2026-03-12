@@ -43,7 +43,7 @@ import { CsvImportDialog } from './dialogs/CsvImportDialog';
 import { CsvPreviewDialog } from './dialogs/CsvPreviewDialog';
 
 // Types
-import type { EscalaMedica, StatusEscala, CsvPreviewRow, Usuario } from '../types/escalas.types';
+import type { EscalaMedica, StatusEscala, CsvPreviewRow, CsvValidatedRow, Usuario } from '../types/escalas.types';
 
 // ============================================
 // Component
@@ -122,6 +122,7 @@ export const EscalasMedicasPage: React.FC = () => {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [csvPreviewData, setCsvPreviewData] = useState<CsvPreviewRow[]>([]);
+  const [csvValidatedRows, setCsvValidatedRows] = useState<CsvValidatedRow[]>([]);
   const [csvPreviewOpen, setCsvPreviewOpen] = useState(false);
   const [importingCsv, setImportingCsv] = useState(false);
 
@@ -405,12 +406,19 @@ export const EscalasMedicasPage: React.FC = () => {
     setImportingCsv(true);
     try {
       const result = await escalas.validateCsvFile(csvFile, form.formData.contrato_id);
-      if (result.isValid) {
+
+      // Check if we have any valid rows to import
+      const validCount = result.validCount ?? result.previewData.length;
+
+      if (validCount > 0) {
+        // Has valid rows - show preview dialog (even if some rows have errors)
         setCsvPreviewData(result.previewData);
+        setCsvValidatedRows(result.validatedRows || []);
         setCsvDialogOpen(false);
         setCsvPreviewOpen(true);
         setCsvErrors([]);
       } else {
+        // No valid rows at all - show errors in current dialog
         setCsvErrors(result.errors);
       }
     } catch (err: any) {
@@ -423,6 +431,11 @@ export const EscalasMedicasPage: React.FC = () => {
   const handleConfirmCsvImport = useCallback(async () => {
     setImportingCsv(true);
     try {
+      // csvPreviewData contains only valid rows
+      const validRowCount = csvPreviewData.length;
+      const totalRows = csvValidatedRows.length || validRowCount;
+      const skippedCount = totalRows - validRowCount;
+
       await escalas.importCsvData(
         csvPreviewData,
         form.formData.contrato_id,
@@ -430,19 +443,26 @@ export const EscalasMedicasPage: React.FC = () => {
       );
       setCsvPreviewOpen(false);
       setCsvPreviewData([]);
+      setCsvValidatedRows([]);
       form.closeDialog();
-      escalas.setSuccess(`${csvPreviewData.length} escala(s) importada(s) com sucesso!`);
+
+      // Show success message with info about skipped rows if any
+      const successMsg = skippedCount > 0
+        ? `${validRowCount} escala(s) importada(s) com sucesso! (${skippedCount} linha(s) com erro ignorada(s))`
+        : `${validRowCount} escala(s) importada(s) com sucesso!`;
+      escalas.setSuccess(successMsg);
       await escalas.buscarEscalas();
     } catch (err: any) {
       escalas.setError('Erro ao importar CSV: ' + err.message);
     } finally {
       setImportingCsv(false);
     }
-  }, [csvPreviewData, form, escalas]);
+  }, [csvPreviewData, csvValidatedRows, form, escalas]);
 
   const handleCancelCsvImport = useCallback(() => {
     setCsvPreviewOpen(false);
     setCsvPreviewData([]);
+    setCsvValidatedRows([]);
     setCsvDialogOpen(true);
   }, []);
 
@@ -787,6 +807,7 @@ export const EscalasMedicasPage: React.FC = () => {
           open={csvPreviewOpen}
           onClose={handleCancelCsvImport}
           previewData={csvPreviewData}
+          validatedRows={csvValidatedRows}
           contratos={escalas.auxiliaryData.contratos}
           itensContrato={escalas.auxiliaryData.itensContrato}
           contratoId={form.formData.contrato_id}

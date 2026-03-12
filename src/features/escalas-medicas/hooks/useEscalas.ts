@@ -6,13 +6,14 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { startOfWeek } from 'date-fns';
+import { startOfWeek, format, parseISO } from 'date-fns';
 import { useAuth } from '../../../contexts/AuthContext';
 import { usePersistentState, usePersistentArray } from '../../../hooks/usePersistentState';
 import { recalcularStatusEscalas } from '../../../services/statusAnalysisService';
 import * as escalasService from '../services/escalasService';
 import { applyFilters, useEscalaFilters, UseEscalaFiltersProps } from './useEscalaFilters';
 import { calculateScorecardMetrics } from '../utils/escalasHoursUtils';
+import { checkConflictingSchedules, checkTimeOverlap } from '../services/conflictDetectionService';
 import type {
   EscalaMedica,
   Contrato,
@@ -26,6 +27,7 @@ import type {
   AuxiliaryData,
   CsvPreviewRow,
   CsvValidationResult,
+  CsvValidatedRow,
 } from '../types/escalas.types';
 
 // ============================================
@@ -547,6 +549,9 @@ export function useEscalas(): UseEscalasReturn {
                 isValid: false,
                 errors: result.errors.map((err) => `Linha ${err.row}: ${err.message}`),
                 previewData: [],
+                validatedRows: [],
+                validCount: 0,
+                invalidCount: 0,
               });
               return;
             }
@@ -554,72 +559,129 @@ export function useEscalas(): UseEscalasReturn {
             const rows = result.data as any[];
             const errors: string[] = [];
             const previewData: CsvPreviewRow[] = [];
+            const validatedRows: CsvValidatedRow[] = [];
 
             // Load users for this contract to validate CPFs
             const usuariosContrato = await escalasService.loadUsuariosByContrato(contratoId);
             const cpfMap = new Map(usuariosContrato.map((u) => [u.cpf.replace(/\D/g, ''), u]));
 
+            // Track validated rows for internal conflict detection
+            const validRowsForConflictCheck: CsvValidatedRow[] = [];
+
             for (let i = 0; i < rows.length; i++) {
               const row = rows[i];
               const rowNum = i + 2; // Account for header row
 
+              let rowError: string | undefined;
+              let cpfLimpo = '';
+              let usuario: Usuario | undefined;
+
               // Validate required fields
               if (!row.cpf) {
-                errors.push(`Linha ${rowNum}: CPF é obrigatório`);
-                continue;
-              }
-              if (!row.data_inicio) {
-                errors.push(`Linha ${rowNum}: data_inicio é obrigatório`);
-                continue;
-              }
-              if (!row.horario_entrada) {
-                errors.push(`Linha ${rowNum}: horario_entrada é obrigatório`);
-                continue;
-              }
-              if (!row.horario_saida) {
-                errors.push(`Linha ${rowNum}: horario_saida é obrigatório`);
-                continue;
-              }
-
-              // Validate CPF exists in contract
-              const cpfLimpo = String(row.cpf).replace(/\D/g, '');
-              const usuario = cpfMap.get(cpfLimpo);
-              if (!usuario) {
-                errors.push(`Linha ${rowNum}: CPF ${row.cpf} não encontrado no contrato`);
-                continue;
-              }
-
-              // Validate date format
-              const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-              if (!dateRegex.test(row.data_inicio)) {
-                errors.push(`Linha ${rowNum}: data_inicio deve estar no formato YYYY-MM-DD`);
-                continue;
-              }
-
-              // Validate time format
-              const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
-              if (!timeRegex.test(row.horario_entrada)) {
-                errors.push(`Linha ${rowNum}: horario_entrada deve estar no formato HH:MM`);
-                continue;
-              }
-              if (!timeRegex.test(row.horario_saida)) {
-                errors.push(`Linha ${rowNum}: horario_saida deve estar no formato HH:MM`);
-                continue;
+                rowError = `CPF é obrigatório`;
+              } else if (!row.data_inicio) {
+                rowError = `data_inicio é obrigatório`;
+              } else if (!row.horario_entrada) {
+                rowError = `horario_entrada é obrigatório`;
+              } else if (!row.horario_saida) {
+                rowError = `horario_saida é obrigatório`;
+              } else {
+                // Validate CPF exists in contract
+                cpfLimpo = String(row.cpf).replace(/\D/g, '');
+                usuario = cpfMap.get(cpfLimpo);
+                if (!usuario) {
+                  rowError = `CPF ${row.cpf} não encontrado no contrato`;
+                } else {
+                  // Validate date format
+                  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                  if (!dateRegex.test(row.data_inicio)) {
+                    rowError = `data_inicio deve estar no formato YYYY-MM-DD`;
+                  } else {
+                    // Validate time format
+                    const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+                    if (!timeRegex.test(row.horario_entrada)) {
+                      rowError = `horario_entrada deve estar no formato HH:MM`;
+                    } else if (!timeRegex.test(row.horario_saida)) {
+                      rowError = `horario_saida deve estar no formato HH:MM`;
+                    }
+                  }
+                }
               }
 
-              previewData.push({
-                cpf: cpfLimpo,
-                nome: usuario.nome,
-                data_inicio: row.data_inicio,
-                horario_entrada: row.horario_entrada.substring(0, 5),
-                horario_saida: row.horario_saida.substring(0, 5),
-              });
+              // If basic validation passed, check for conflicts
+              if (!rowError && usuario) {
+                const horarioEntrada = row.horario_entrada.substring(0, 5);
+                const horarioSaida = row.horario_saida.substring(0, 5);
+
+                // Check for internal conflict (within CSV)
+                const internalConflict = validRowsForConflictCheck.find((prev) => {
+                  if (prev.cpf !== cpfLimpo || prev.data_inicio !== row.data_inicio) {
+                    return false;
+                  }
+                  return checkTimeOverlap(
+                    horarioEntrada + ':00',
+                    horarioSaida + ':00',
+                    prev.horario_entrada + ':00',
+                    prev.horario_saida + ':00'
+                  );
+                });
+
+                if (internalConflict) {
+                  const dataFormatada = format(parseISO(row.data_inicio), 'dd/MM/yyyy');
+                  rowError = `Conflito no CSV: ${usuario.nome} já tem agendamento para ${dataFormatada} das ${internalConflict.horario_entrada} às ${internalConflict.horario_saida}`;
+                } else {
+                  // Check for database conflict
+                  const dbConflict = await checkConflictingSchedules(
+                    cpfLimpo,
+                    row.data_inicio,
+                    horarioEntrada + ':00',
+                    horarioSaida + ':00'
+                  );
+
+                  if (dbConflict.hasConflict) {
+                    rowError = dbConflict.conflictDetails || 'Conflito de horário com escala existente';
+                  }
+                }
+              }
+
+              // Create validated row
+              const validatedRow: CsvValidatedRow = {
+                lineNumber: rowNum,
+                cpf: cpfLimpo || String(row.cpf || '').replace(/\D/g, ''),
+                nome: usuario?.nome || '-',
+                data_inicio: row.data_inicio || '',
+                horario_entrada: row.horario_entrada?.substring(0, 5) || '',
+                horario_saida: row.horario_saida?.substring(0, 5) || '',
+                isValid: !rowError,
+                error: rowError,
+              };
+
+              validatedRows.push(validatedRow);
+
+              if (rowError) {
+                errors.push(`Linha ${rowNum}: ${rowError}`);
+              } else {
+                previewData.push({
+                  cpf: cpfLimpo,
+                  nome: usuario!.nome,
+                  data_inicio: row.data_inicio,
+                  horario_entrada: row.horario_entrada.substring(0, 5),
+                  horario_saida: row.horario_saida.substring(0, 5),
+                });
+                validRowsForConflictCheck.push(validatedRow);
+              }
             }
+
+            const validCount = validatedRows.filter((r) => r.isValid).length;
+            const invalidCount = validatedRows.filter((r) => !r.isValid).length;
 
             resolve({
               isValid: errors.length === 0,
               errors,
               previewData,
+              validatedRows,
+              validCount,
+              invalidCount,
             });
           } catch (err: any) {
             reject(err);

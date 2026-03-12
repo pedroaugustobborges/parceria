@@ -139,10 +139,25 @@ export interface CsvPreviewRow {
   horario_saida: string;
 }
 
+/**
+ * Extended row with validation status for partial import support
+ */
+export interface CsvValidatedRow extends CsvPreviewRow {
+  lineNumber: number;
+  isValid: boolean;
+  error?: string;
+}
+
 export interface CsvValidationResult {
   isValid: boolean;
   errors: string[];
   previewData: CsvPreviewRow[];
+  /** All rows with validation status for partial import */
+  validatedRows?: CsvValidatedRow[];
+  /** Count of valid rows that can be imported */
+  validCount?: number;
+  /** Count of invalid rows that will be skipped */
+  invalidCount?: number;
 }
 
 export interface CsvRawRow {
