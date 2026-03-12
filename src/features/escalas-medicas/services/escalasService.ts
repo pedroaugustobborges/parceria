@@ -397,20 +397,37 @@ export async function loadUsuarioById(userId: string): Promise<Usuario | null> {
 }
 
 /**
- * Load doctor's access logs for a specific date.
+ * Load doctor's access logs for schedule day, day before, and day after.
+ * Always fetches 3 days to give full context of the doctor's access patterns.
  */
 export async function loadAcessosMedico(
   cpf: string,
   dataEscala: string,
-  atravessaMeiaNoite: boolean
+  _atravessaMeiaNoite?: boolean // Kept for backwards compatibility, no longer used
 ): Promise<Acesso[]> {
-  if (atravessaMeiaNoite) {
-    // Fetch accesses for two days
-    const diaSeguinte = new Date(dataEscala);
-    diaSeguinte.setDate(diaSeguinte.getDate() + 1);
-    const diaSeguinteFormatado = format(diaSeguinte, 'yyyy-MM-dd');
+  // Calculate day before and day after
+  const dataEscalaDate = new Date(dataEscala + 'T12:00:00'); // Use noon to avoid timezone issues
 
-    const [{ data: acessosDia1 }, { data: acessosDia2 }] = await Promise.all([
+  const diaAnterior = new Date(dataEscalaDate);
+  diaAnterior.setDate(diaAnterior.getDate() - 1);
+  const diaAnteriorFormatado = format(diaAnterior, 'yyyy-MM-dd');
+
+  const diaSeguinte = new Date(dataEscalaDate);
+  diaSeguinte.setDate(diaSeguinte.getDate() + 1);
+  const diaSeguinteFormatado = format(diaSeguinte, 'yyyy-MM-dd');
+
+  // Fetch accesses for all three days in parallel
+  const [{ data: acessosDiaAnterior }, { data: acessosDiaEscala }, { data: acessosDiaSeguinte }] =
+    await Promise.all([
+      // Day before
+      supabase
+        .from('acessos')
+        .select('*')
+        .eq('cpf', cpf)
+        .gte('data_acesso', `${diaAnteriorFormatado}T00:00:00`)
+        .lte('data_acesso', `${diaAnteriorFormatado}T23:59:59`)
+        .order('data_acesso', { ascending: true }),
+      // Schedule day
       supabase
         .from('acessos')
         .select('*')
@@ -418,6 +435,7 @@ export async function loadAcessosMedico(
         .gte('data_acesso', `${dataEscala}T00:00:00`)
         .lte('data_acesso', `${dataEscala}T23:59:59`)
         .order('data_acesso', { ascending: true }),
+      // Day after
       supabase
         .from('acessos')
         .select('*')
@@ -427,19 +445,12 @@ export async function loadAcessosMedico(
         .order('data_acesso', { ascending: true }),
     ]);
 
-    return [...(acessosDia1 || []), ...(acessosDia2 || [])];
-  } else {
-    // Fetch accesses for a single day
-    const { data: acessos } = await supabase
-      .from('acessos')
-      .select('*')
-      .eq('cpf', cpf)
-      .gte('data_acesso', `${dataEscala}T00:00:00`)
-      .lte('data_acesso', `${dataEscala}T23:59:59`)
-      .order('data_acesso', { ascending: true });
-
-    return acessos || [];
-  }
+  // Combine all accesses, sorted by date
+  return [
+    ...(acessosDiaAnterior || []),
+    ...(acessosDiaEscala || []),
+    ...(acessosDiaSeguinte || []),
+  ];
 }
 
 /**

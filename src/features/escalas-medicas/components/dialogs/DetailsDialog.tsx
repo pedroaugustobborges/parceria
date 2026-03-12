@@ -42,7 +42,7 @@ import {
   HowToReg,
   DeleteForever,
 } from '@mui/icons-material';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, subDays, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type {
   EscalaMedica,
@@ -442,6 +442,9 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                   <Typography variant="h6" fontWeight={700} gutterBottom>
                     Registros de Acesso do Médico
                   </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.9, mb: 2 }}>
+                    Exibindo acessos do dia anterior, dia da escala e dia seguinte
+                  </Typography>
                   {acessosMedico.length > 0 ? (
                     <TableContainer component={Paper} sx={{ mt: 2, borderRadius: '8px' }}>
                       <Table size="small">
@@ -454,6 +457,9 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                                   : 'grey.100',
                             }}
                           >
+                            <TableCell>
+                              <strong>Dia</strong>
+                            </TableCell>
                             <TableCell>
                               <strong>Data</strong>
                             </TableCell>
@@ -469,24 +475,60 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {acessosMedico.map((acesso, idx) => (
-                            <TableRow key={idx}>
-                              <TableCell>
-                                {format(parseISO(acesso.data_acesso), 'dd/MM/yyyy')}
-                              </TableCell>
-                              <TableCell>
-                                {format(parseISO(acesso.data_acesso), 'HH:mm:ss')}
-                              </TableCell>
-                              <TableCell>
-                                <Chip
-                                  label={acesso.sentido === 'E' ? 'Entrada' : 'Saída'}
-                                  size="small"
-                                  color={acesso.sentido === 'E' ? 'success' : 'error'}
-                                />
-                              </TableCell>
-                              <TableCell>{acesso.planta || 'N/A'}</TableCell>
-                            </TableRow>
-                          ))}
+                          {acessosMedico.map((acesso, idx) => {
+                            const dataAcesso = parseISO(acesso.data_acesso);
+                            const dataEscala = parseISO(escala.data_inicio);
+                            const diaAnterior = subDays(dataEscala, 1);
+                            const diaSeguinte = addDays(dataEscala, 1);
+
+                            let dayLabel = '';
+                            let dayColor = 'default';
+                            if (isSameDay(dataAcesso, diaAnterior)) {
+                              dayLabel = 'Anterior';
+                              dayColor = 'warning';
+                            } else if (isSameDay(dataAcesso, dataEscala)) {
+                              dayLabel = 'Escala';
+                              dayColor = 'primary';
+                            } else if (isSameDay(dataAcesso, diaSeguinte)) {
+                              dayLabel = 'Seguinte';
+                              dayColor = 'info';
+                            }
+
+                            return (
+                              <TableRow
+                                key={idx}
+                                sx={{
+                                  bgcolor: isSameDay(dataAcesso, dataEscala)
+                                    ? 'rgba(99, 102, 241, 0.08)'
+                                    : 'transparent',
+                                }}
+                              >
+                                <TableCell>
+                                  <Chip
+                                    label={dayLabel}
+                                    size="small"
+                                    color={dayColor as any}
+                                    variant={isSameDay(dataAcesso, dataEscala) ? 'filled' : 'outlined'}
+                                    sx={{ minWidth: 70 }}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  {format(dataAcesso, 'dd/MM/yyyy')}
+                                </TableCell>
+                                <TableCell>
+                                  {format(dataAcesso, 'HH:mm:ss')}
+                                </TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={acesso.sentido === 'E' ? 'Entrada' : 'Saída'}
+                                    size="small"
+                                    color={acesso.sentido === 'E' ? 'success' : 'error'}
+                                  />
+                                </TableCell>
+                                <TableCell>{acesso.planta || 'N/A'}</TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </TableContainer>
@@ -501,7 +543,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                       }}
                     >
                       <Typography>
-                        Nenhum registro de acesso encontrado para este médico nesta data
+                        Nenhum registro de acesso encontrado para este médico nos 3 dias analisados
                       </Typography>
                     </Paper>
                   )}
