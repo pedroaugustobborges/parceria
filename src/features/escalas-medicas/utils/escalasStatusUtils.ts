@@ -52,9 +52,13 @@ export const ALL_STATUS_OPTIONS: StatusEscala[] = [
 export const FINALIZED_STATUSES: StatusEscala[] = ['Aprovado', 'Reprovado', 'Excluída'];
 
 /**
- * Statuses that Admin-Agir can edit.
+ * Statuses that Admin-Agir (corporativo and planta) can edit.
  */
-export const ADMIN_AGIR_EDITABLE_STATUSES: StatusEscala[] = ['Programado', 'Pré-Agendado'];
+export const ADMIN_AGIR_EDITABLE_STATUSES: StatusEscala[] = [
+  'Programado',
+  'Pré-Agendado',
+  'Aprovação Parcial',
+];
 
 /**
  * Statuses that Admin-Terceiro can edit.
@@ -189,7 +193,7 @@ export function getAllowedStatusesMessage(isAdminTerceiro: boolean): string {
   if (isAdminTerceiro) {
     return '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"';
   }
-  return '"Programado" ou "Pré-Agendado"';
+  return '"Programado", "Pré-Agendado" ou "Aprovação Parcial"';
 }
 
 /**
