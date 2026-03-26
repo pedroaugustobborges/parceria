@@ -85,49 +85,106 @@ async function getCodigoMvByCpf(cpf: string): Promise<string | null> {
 }
 
 /**
+ * Helper function to check if productivity records have actual values.
+ */
+function hasActualProductivityValues(records: any[]): boolean {
+  return records.some((record: any) => {
+    const totalProductivity =
+      (record.procedimento || 0) +
+      (record.parecer_solicitado || 0) +
+      (record.parecer_realizado || 0) +
+      (record.cirurgia_realizada || 0) +
+      (record.prescricao || 0) +
+      (record.evolucao || 0) +
+      (record.urgencia || 0) +
+      (record.ambulatorio || 0) +
+      (record.auxiliar || 0) +
+      (record.encaminhamento || 0) +
+      (record.folha_objetivo_diario || 0) +
+      (record.evolucao_diurna_cti || 0) +
+      (record.evolucao_noturna_cti || 0) +
+      (record.qtd_documentos_pep || 0);
+
+    return totalProductivity > 0;
+  });
+}
+
+/**
  * Checks if a doctor has productivity records for a specific date and hospital.
- * Returns true if there is at least one productivity record.
+ * Returns true if there is at least one productivity record WITH actual productivity values.
+ * A record is considered to have productivity if any of the numeric fields is > 0.
+ *
+ * The function tries two strategies:
+ * 1. First, look up codigomv from usuarios table by CPF and search produtividade by codigo_mv
+ * 2. If that fails, search produtividade directly by doctor name
  */
 async function verificarProdutividade(
   cpf: string,
   data: Date,
-  unidadeHospitalarId?: string
+  unidadeHospitalarId?: string,
+  nomeMedico?: string
 ): Promise<boolean> {
   try {
-    // First, get the codigomv for this doctor
+    const dataFormatada = format(data, "yyyy-MM-dd");
+
+    // Strategy 1: Try to find by codigomv from usuarios table
     const codigoMv = await getCodigoMvByCpf(cpf);
 
-    if (!codigoMv) {
-      console.log(`[Status Analysis] No codigomv found for CPF ${cpf}, cannot verify productivity`);
-      return false;
+    if (codigoMv) {
+      // Convert codigoMv to number - the produtividade table stores codigo_mv as BIGINT
+      // while usuarios table stores codigomv as TEXT
+      const codigoMvNumero = parseInt(codigoMv, 10);
+
+      if (!isNaN(codigoMvNumero)) {
+        console.log(`[Status Analysis] Checking productivity by codigo_mv=${codigoMvNumero} on ${dataFormatada}`);
+
+        const { data: produtividade, error } = await supabase
+          .from("produtividade")
+          .select(`
+            id, codigo_mv, data,
+            procedimento, parecer_solicitado, parecer_realizado,
+            cirurgia_realizada, prescricao, evolucao, urgencia,
+            ambulatorio, auxiliar, encaminhamento,
+            folha_objetivo_diario, evolucao_diurna_cti, evolucao_noturna_cti,
+            qtd_documentos_pep
+          `)
+          .eq("codigo_mv", codigoMvNumero)
+          .eq("data", dataFormatada);
+
+        if (!error && produtividade && produtividade.length > 0) {
+          const hasActual = hasActualProductivityValues(produtividade);
+          console.log(`[Status Analysis] Found ${produtividade.length} records by codigo_mv, has actual values: ${hasActual}`);
+          return hasActual;
+        }
+      }
     }
 
-    const dataFormatada = format(data, "yyyy-MM-dd");
-    console.log(`[Status Analysis] Checking productivity for codigo_mv=${codigoMv} on ${dataFormatada}`);
+    // Strategy 2: If codigomv not found or no records, try by doctor name
+    if (nomeMedico) {
+      console.log(`[Status Analysis] Checking productivity by name="${nomeMedico}" on ${dataFormatada}`);
 
-    // Query productivity table
-    let query = supabase
-      .from("produtividade")
-      .select("id, codigo_mv, data")
-      .eq("codigo_mv", codigoMv)
-      .eq("data", dataFormatada);
+      const { data: produtividade, error } = await supabase
+        .from("produtividade")
+        .select(`
+          id, codigo_mv, nome, data,
+          procedimento, parecer_solicitado, parecer_realizado,
+          cirurgia_realizada, prescricao, evolucao, urgencia,
+          ambulatorio, auxiliar, encaminhamento,
+          folha_objetivo_diario, evolucao_diurna_cti, evolucao_noturna_cti,
+          qtd_documentos_pep
+        `)
+        .ilike("nome", nomeMedico)
+        .eq("data", dataFormatada);
 
-    // If we have a hospital ID, filter by it
-    if (unidadeHospitalarId) {
-      query = query.eq("unidade_hospitalar_id", unidadeHospitalarId);
+      if (!error && produtividade && produtividade.length > 0) {
+        const hasActual = hasActualProductivityValues(produtividade);
+        console.log(`[Status Analysis] Found ${produtividade.length} records by name, has actual values: ${hasActual}`);
+        return hasActual;
+      }
     }
 
-    const { data: produtividade, error } = await query;
-
-    if (error) {
-      console.error("[Status Analysis] Error checking productivity:", error);
-      return false;
-    }
-
-    const hasProductivity = produtividade && produtividade.length > 0;
-    console.log(`[Status Analysis] Productivity found: ${hasProductivity} (${produtividade?.length || 0} records)`);
-
-    return hasProductivity;
+    console.log(`[Status Analysis] No productivity records found for CPF ${cpf} / name "${nomeMedico || 'N/A'}" on ${dataFormatada}`);
+    return false;
   } catch (error) {
     console.error("[Status Analysis] Error in verificarProdutividade:", error);
     return false;
@@ -466,7 +523,8 @@ async function analisarEscalaSemAcesso(escala: EscalaMedica, unidadeHospitalarId
     const temProdutividade = await verificarProdutividade(
       medico.cpf,
       dataEscala,
-      unidadeHospitalarId
+      unidadeHospitalarId,
+      medico.nome
     );
 
     if (!temProdutividade) {
