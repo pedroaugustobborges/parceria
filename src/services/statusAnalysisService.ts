@@ -1,10 +1,138 @@
 import { supabase } from "../lib/supabase";
 import { EscalaMedica } from "../types/database.types";
-import { parseISO, format, isSameDay } from "date-fns";
+import { parseISO, format } from "date-fns";
+
+// Type for medico in escala
+interface MedicoEscala {
+  nome: string;
+  cpf: string;
+}
 
 // Tolerância de 1 hora para considerar escala como cumprida
 // Se o médico trabalhou pelo menos (horasEsperadas - 1h), considera como Pré-Aprovado
 const TOLERANCIA_HORAS = 1;
+
+// Cache for hospital access management settings to avoid repeated queries
+const hospitalAccessCache = new Map<string, boolean>();
+
+/**
+ * Gets the hospital's access management setting for a given contract ID.
+ * Returns true if the hospital has turnstile access management, false otherwise.
+ */
+async function getHospitalAccessManagement(contratoId: string): Promise<boolean> {
+  try {
+    // Check cache first
+    if (hospitalAccessCache.has(contratoId)) {
+      return hospitalAccessCache.get(contratoId)!;
+    }
+
+    // Fetch contract with hospital data
+    const { data: contrato, error } = await supabase
+      .from("contratos")
+      .select("unidade_hospitalar_id, unidades_hospitalares(possui_gestao_acesso)")
+      .eq("id", contratoId)
+      .single();
+
+    if (error) {
+      console.error("[Status Analysis] Error fetching contract hospital:", error);
+      // Default to true (with access management) to maintain backward compatibility
+      return true;
+    }
+
+    if (!contrato || !contrato.unidade_hospitalar_id) {
+      console.log("[Status Analysis] Contract has no hospital assigned, defaulting to access management = true");
+      return true;
+    }
+
+    // Handle the nested relationship response
+    const unidadeData = contrato.unidades_hospitalares as any;
+    const possuiGestaoAcesso = unidadeData?.possui_gestao_acesso ?? true;
+
+    // Cache the result
+    hospitalAccessCache.set(contratoId, possuiGestaoAcesso);
+
+    console.log(`[Status Analysis] Hospital access management for contract ${contratoId}: ${possuiGestaoAcesso ? 'YES (catracas)' : 'NO (productivity only)'}`);
+
+    return possuiGestaoAcesso;
+  } catch (error) {
+    console.error("[Status Analysis] Error in getHospitalAccessManagement:", error);
+    return true; // Default to true for backward compatibility
+  }
+}
+
+/**
+ * Gets the codigomv (MV code) for a doctor based on their CPF.
+ * This is needed to match productivity records.
+ */
+async function getCodigoMvByCpf(cpf: string): Promise<string | null> {
+  try {
+    const { data: usuario, error } = await supabase
+      .from("usuarios")
+      .select("codigomv")
+      .eq("cpf", cpf)
+      .single();
+
+    if (error || !usuario) {
+      console.log(`[Status Analysis] Could not find codigomv for CPF ${cpf}`);
+      return null;
+    }
+
+    return usuario.codigomv;
+  } catch (error) {
+    console.error("[Status Analysis] Error fetching codigomv:", error);
+    return null;
+  }
+}
+
+/**
+ * Checks if a doctor has productivity records for a specific date and hospital.
+ * Returns true if there is at least one productivity record.
+ */
+async function verificarProdutividade(
+  cpf: string,
+  data: Date,
+  unidadeHospitalarId?: string
+): Promise<boolean> {
+  try {
+    // First, get the codigomv for this doctor
+    const codigoMv = await getCodigoMvByCpf(cpf);
+
+    if (!codigoMv) {
+      console.log(`[Status Analysis] No codigomv found for CPF ${cpf}, cannot verify productivity`);
+      return false;
+    }
+
+    const dataFormatada = format(data, "yyyy-MM-dd");
+    console.log(`[Status Analysis] Checking productivity for codigo_mv=${codigoMv} on ${dataFormatada}`);
+
+    // Query productivity table
+    let query = supabase
+      .from("produtividade")
+      .select("id, codigo_mv, data")
+      .eq("codigo_mv", codigoMv)
+      .eq("data", dataFormatada);
+
+    // If we have a hospital ID, filter by it
+    if (unidadeHospitalarId) {
+      query = query.eq("unidade_hospitalar_id", unidadeHospitalarId);
+    }
+
+    const { data: produtividade, error } = await query;
+
+    if (error) {
+      console.error("[Status Analysis] Error checking productivity:", error);
+      return false;
+    }
+
+    const hasProductivity = produtividade && produtividade.length > 0;
+    console.log(`[Status Analysis] Productivity found: ${hasProductivity} (${produtividade?.length || 0} records)`);
+
+    return hasProductivity;
+  } catch (error) {
+    console.error("[Status Analysis] Error in verificarProdutividade:", error);
+    return false;
+  }
+}
 
 /**
  * Calcula as horas trabalhadas por um médico baseado nos acessos mais próximos aos horários escalados.
@@ -239,9 +367,139 @@ function calcularHorasEscaladas(escala: EscalaMedica): number {
 }
 
 /**
- * Analisa uma escala e determina seu status automático
+ * Analisa uma escala para hospitais COM gestão de acesso (catracas).
+ * Usa registros de acesso para calcular horas trabalhadas.
  */
-async function analisarEscala(escala: EscalaMedica): Promise<string> {
+async function analisarEscalaComAcesso(escala: EscalaMedica): Promise<string> {
+  const dataEscala = parseISO(escala.data_inicio);
+
+  // Calcular horas esperadas
+  const horasEsperadas = calcularHorasEscaladas(escala);
+  console.log(`[Status Analysis] Horários raw: entrada="${escala.horario_entrada}", saída="${escala.horario_saida}"`);
+  console.log(`[Status Analysis] Horas esperadas calculadas: ${horasEsperadas.toFixed(4)}h (${horasEsperadas} raw)`);
+
+  // Para cada médico escalado, verificar se cumpriu a carga horária
+  // Tolerância de 1 hora: se trabalhou (horasEsperadas - 1h), considera como cumprido
+  const horasMinimasParaAprovacao = Math.max(0, horasEsperadas - TOLERANCIA_HORAS);
+
+  let todosCumpriram = true;
+  let algumNaoCompareceu = false;
+  let algumTrabalhouParcial = false;
+
+  const medicos = (escala.medicos as unknown as MedicoEscala[]) || [];
+  for (const medico of medicos) {
+    console.log(`[Status Analysis] Analisando médico: ${medico.nome} (CPF: ${medico.cpf})`);
+
+    const horasTrabalhadas = await calcularHorasTrabalhadas(
+      medico.cpf,
+      dataEscala,
+      escala.horario_entrada,
+      escala.horario_saida
+    );
+
+    console.log(`[Status Analysis] ===== COMPARAÇÃO FINAL =====`);
+    console.log(`[Status Analysis] Horas trabalhadas: ${horasTrabalhadas.toFixed(4)}h (${horasTrabalhadas} raw)`);
+    console.log(`[Status Analysis] Horas esperadas: ${horasEsperadas.toFixed(4)}h (${horasEsperadas} raw)`);
+    console.log(`[Status Analysis] Tolerância: ${TOLERANCIA_HORAS}h`);
+    console.log(`[Status Analysis] Horas mínimas para aprovação: ${horasMinimasParaAprovacao.toFixed(4)}h`);
+    console.log(`[Status Analysis] Diferença: ${(horasTrabalhadas - horasEsperadas).toFixed(4)}h`);
+    console.log(`[Status Analysis] horasTrabalhadas === 0? ${horasTrabalhadas === 0}`);
+    console.log(`[Status Analysis] horasTrabalhadas < horasMinimasParaAprovacao? ${horasTrabalhadas < horasMinimasParaAprovacao}`);
+    console.log(`[Status Analysis] horasTrabalhadas >= horasMinimasParaAprovacao? ${horasTrabalhadas >= horasMinimasParaAprovacao}`);
+
+    if (horasTrabalhadas === 0) {
+      console.log(`[Status Analysis] ❌ RESULTADO: Médico não compareceu (0 horas)`);
+      algumNaoCompareceu = true;
+      todosCumpriram = false;
+    } else if (horasTrabalhadas < horasMinimasParaAprovacao) {
+      console.log(`[Status Analysis] ⚠️  RESULTADO: Médico trabalhou parcialmente (${horasTrabalhadas.toFixed(4)}h < ${horasMinimasParaAprovacao.toFixed(4)}h mínimo)`);
+      algumTrabalhouParcial = true;
+      todosCumpriram = false;
+    } else {
+      console.log(`[Status Analysis] ✅ RESULTADO: Médico CUMPRIU carga horária (${horasTrabalhadas.toFixed(4)}h >= ${horasMinimasParaAprovacao.toFixed(4)}h mínimo, tolerância de ${TOLERANCIA_HORAS}h aplicada)`);
+    }
+    console.log(`[Status Analysis] =============================`);
+  }
+
+  // Determinar status
+  let statusFinal;
+  console.log(`\n[Status Analysis] ========== DETERMINAÇÃO DO STATUS FINAL ==========`);
+  console.log(`[Status Analysis] algumNaoCompareceu: ${algumNaoCompareceu}`);
+  console.log(`[Status Analysis] algumTrabalhouParcial: ${algumTrabalhouParcial}`);
+  console.log(`[Status Analysis] todosCumpriram: ${todosCumpriram}`);
+
+  if (algumNaoCompareceu) {
+    statusFinal = "Atenção";
+    console.log(`[Status Analysis] 🔴 Status final: ATENÇÃO`);
+    console.log(`[Status Analysis] Motivo: Médico não compareceu (0 horas trabalhadas)`);
+  } else if (algumTrabalhouParcial) {
+    statusFinal = "Aprovação Parcial";
+    console.log(`[Status Analysis] 🟡 Status final: APROVAÇÃO PARCIAL`);
+    console.log(`[Status Analysis] Motivo: Médico trabalhou parcialmente (menos que as horas escaladas)`);
+  } else {
+    statusFinal = "Pré-Aprovado";
+    console.log(`[Status Analysis] ✅ Status final: PRÉ-APROVADO`);
+    console.log(`[Status Analysis] Motivo: Todos os médicos cumpriram a carga horária`);
+  }
+
+  return statusFinal;
+}
+
+/**
+ * Analisa uma escala para hospitais SEM gestão de acesso (sem catracas).
+ * Usa apenas registros de produtividade para determinar o status.
+ * - "Atenção" quando médico tem escala mas não tem produtividade
+ * - "Pré-Aprovado" quando médico tem registro de produtividade na data
+ */
+async function analisarEscalaSemAcesso(escala: EscalaMedica, unidadeHospitalarId?: string): Promise<string> {
+  const dataEscala = parseISO(escala.data_inicio);
+
+  const medicos = (escala.medicos as unknown as MedicoEscala[]) || [];
+  console.log(`[Status Analysis] Modo: Validação por PRODUTIVIDADE (hospital sem gestão de acesso)`);
+  console.log(`[Status Analysis] Verificando produtividade para ${medicos.length} médico(s)`);
+
+  let algumSemProdutividade = false;
+
+  for (const medico of medicos) {
+    console.log(`[Status Analysis] Verificando produtividade do médico: ${medico.nome} (CPF: ${medico.cpf})`);
+
+    const temProdutividade = await verificarProdutividade(
+      medico.cpf,
+      dataEscala,
+      unidadeHospitalarId
+    );
+
+    if (!temProdutividade) {
+      console.log(`[Status Analysis] ❌ Médico ${medico.nome} NÃO possui produtividade registrada na data`);
+      algumSemProdutividade = true;
+    } else {
+      console.log(`[Status Analysis] ✅ Médico ${medico.nome} possui produtividade registrada na data`);
+    }
+  }
+
+  // Determinar status baseado apenas na produtividade
+  let statusFinal;
+  console.log(`\n[Status Analysis] ========== DETERMINAÇÃO DO STATUS FINAL (SEM ACESSO) ==========`);
+  console.log(`[Status Analysis] algumSemProdutividade: ${algumSemProdutividade}`);
+
+  if (algumSemProdutividade) {
+    statusFinal = "Atenção";
+    console.log(`[Status Analysis] 🔴 Status final: ATENÇÃO`);
+    console.log(`[Status Analysis] Motivo: Médico tem escala mas não tem produtividade registrada`);
+  } else {
+    statusFinal = "Pré-Aprovado";
+    console.log(`[Status Analysis] ✅ Status final: PRÉ-APROVADO`);
+    console.log(`[Status Analysis] Motivo: Todos os médicos possuem produtividade registrada na data`);
+  }
+
+  return statusFinal;
+}
+
+/**
+ * Analisa uma escala e determina seu status automático.
+ * A lógica de validação depende de se o hospital possui gestão de acesso via catracas ou não.
+ */
+async function analisarEscala(escala: EscalaMedica, unidadeHospitalarId?: string): Promise<string> {
   try {
     const dataEscala = parseISO(escala.data_inicio);
     const hoje = new Date();
@@ -256,7 +514,8 @@ async function analisarEscala(escala: EscalaMedica): Promise<string> {
     console.log(`[Status Analysis] Data formatada (dd/MM/yyyy): ${format(dataEscala, 'dd/MM/yyyy')}`);
     console.log(`[Status Analysis] Data formatada (yyyy-MM-dd): ${format(dataEscala, 'yyyy-MM-dd')}`);
     console.log(`[Status Analysis] Horário: ${escala.horario_entrada} - ${escala.horario_saida}`);
-    console.log(`[Status Analysis] Médicos na escala:`, escala.medicos.map(m => `${m.nome} (${m.cpf})`).join(', '));
+    const medicosLog = (escala.medicos as unknown as MedicoEscala[]) || [];
+    console.log(`[Status Analysis] Médicos na escala:`, medicosLog.map(m => `${m.nome} (${m.cpf})`).join(', '));
 
     // Se a escala é futura, status deve ser "Programado"
     if (dataEscala > hoje) {
@@ -270,77 +529,25 @@ async function analisarEscala(escala: EscalaMedica): Promise<string> {
       return escala.status;
     }
 
-    // Calcular horas esperadas
-    const horasEsperadas = calcularHorasEscaladas(escala);
-    console.log(`[Status Analysis] Horários raw: entrada="${escala.horario_entrada}", saída="${escala.horario_saida}"`);
-    console.log(`[Status Analysis] Horas esperadas calculadas: ${horasEsperadas.toFixed(4)}h (${horasEsperadas} raw)`);
+    // Check if the hospital has access management
+    const possuiGestaoAcesso = await getHospitalAccessManagement(escala.contrato_id);
 
-    // Para cada médico escalado, verificar se cumpriu a carga horária
-    // Tolerância de 1 hora: se trabalhou (horasEsperadas - 1h), considera como cumprido
-    const horasMinimasParaAprovacao = Math.max(0, horasEsperadas - TOLERANCIA_HORAS);
+    let statusFinal: string;
 
-    let todosCumpriram = true;
-    let algumNaoCompareceu = false;
-    let algumTrabalhouParcial = false;
-
-    for (const medico of escala.medicos) {
-      console.log(`[Status Analysis] Analisando médico: ${medico.nome} (CPF: ${medico.cpf})`);
-
-      const horasTrabalhadas = await calcularHorasTrabalhadas(
-        medico.cpf,
-        dataEscala,
-        escala.horario_entrada,
-        escala.horario_saida
-      );
-
-      console.log(`[Status Analysis] ===== COMPARAÇÃO FINAL =====`);
-      console.log(`[Status Analysis] Horas trabalhadas: ${horasTrabalhadas.toFixed(4)}h (${horasTrabalhadas} raw)`);
-      console.log(`[Status Analysis] Horas esperadas: ${horasEsperadas.toFixed(4)}h (${horasEsperadas} raw)`);
-      console.log(`[Status Analysis] Tolerância: ${TOLERANCIA_HORAS}h`);
-      console.log(`[Status Analysis] Horas mínimas para aprovação: ${horasMinimasParaAprovacao.toFixed(4)}h`);
-      console.log(`[Status Analysis] Diferença: ${(horasTrabalhadas - horasEsperadas).toFixed(4)}h`);
-      console.log(`[Status Analysis] horasTrabalhadas === 0? ${horasTrabalhadas === 0}`);
-      console.log(`[Status Analysis] horasTrabalhadas < horasMinimasParaAprovacao? ${horasTrabalhadas < horasMinimasParaAprovacao}`);
-      console.log(`[Status Analysis] horasTrabalhadas >= horasMinimasParaAprovacao? ${horasTrabalhadas >= horasMinimasParaAprovacao}`);
-
-      if (horasTrabalhadas === 0) {
-        console.log(`[Status Analysis] ❌ RESULTADO: Médico não compareceu (0 horas)`);
-        algumNaoCompareceu = true;
-        todosCumpriram = false;
-      } else if (horasTrabalhadas < horasMinimasParaAprovacao) {
-        console.log(`[Status Analysis] ⚠️  RESULTADO: Médico trabalhou parcialmente (${horasTrabalhadas.toFixed(4)}h < ${horasMinimasParaAprovacao.toFixed(4)}h mínimo)`);
-        algumTrabalhouParcial = true;
-        todosCumpriram = false;
-      } else {
-        console.log(`[Status Analysis] ✅ RESULTADO: Médico CUMPRIU carga horária (${horasTrabalhadas.toFixed(4)}h >= ${horasMinimasParaAprovacao.toFixed(4)}h mínimo, tolerância de ${TOLERANCIA_HORAS}h aplicada)`);
-      }
-      console.log(`[Status Analysis] =============================`);
-    }
-
-    // Determinar status
-    let statusFinal;
-    console.log(`\n[Status Analysis] ========== DETERMINAÇÃO DO STATUS FINAL ==========`);
-    console.log(`[Status Analysis] algumNaoCompareceu: ${algumNaoCompareceu}`);
-    console.log(`[Status Analysis] algumTrabalhouParcial: ${algumTrabalhouParcial}`);
-    console.log(`[Status Analysis] todosCumpriram: ${todosCumpriram}`);
-
-    if (algumNaoCompareceu) {
-      statusFinal = "Atenção";
-      console.log(`[Status Analysis] 🔴 Status final: ATENÇÃO`);
-      console.log(`[Status Analysis] Motivo: Médico não compareceu (0 horas trabalhadas)`);
-    } else if (algumTrabalhouParcial) {
-      statusFinal = "Aprovação Parcial";
-      console.log(`[Status Analysis] 🟡 Status final: APROVAÇÃO PARCIAL`);
-      console.log(`[Status Analysis] Motivo: Médico trabalhou parcialmente (menos que as horas escaladas)`);
+    if (possuiGestaoAcesso) {
+      // Hospital WITH access management - use turnstile/access records
+      console.log(`[Status Analysis] Hospital possui gestão de acesso via catracas`);
+      statusFinal = await analisarEscalaComAcesso(escala);
     } else {
-      statusFinal = "Pré-Aprovado";
-      console.log(`[Status Analysis] ✅ Status final: PRÉ-APROVADO`);
-      console.log(`[Status Analysis] Motivo: Todos os médicos cumpriram a carga horária`);
+      // Hospital WITHOUT access management - use only productivity records
+      console.log(`[Status Analysis] Hospital NÃO possui gestão de acesso - usando apenas produtividade`);
+      statusFinal = await analisarEscalaSemAcesso(escala, unidadeHospitalarId);
     }
 
     console.log(`[Status Analysis] ===============================================`);
     console.log(`[Status Analysis] ==== Fim da Análise da Escala ${escala.id} ====`);
     console.log(`[Status Analysis] ===============================================\n`);
+
     return statusFinal;
   } catch (error) {
     console.error("Erro ao analisar escala:", error);
@@ -358,10 +565,19 @@ export async function recalcularStatusEscalas(): Promise<{
   mensagem: string;
 }> {
   try {
+    // Clear the cache before recalculating
+    hospitalAccessCache.clear();
+
     // Buscar apenas escalas com status "Programado" (escalas pré-agendadas não devem ser recalculadas)
+    // Also fetch the contract's hospital ID for productivity validation
     const { data: escalas, error } = await supabase
       .from("escalas_medicas")
-      .select("*")
+      .select(`
+        *,
+        contratos (
+          unidade_hospitalar_id
+        )
+      `)
       .eq("status", "Programado");
 
     if (error) throw error;
@@ -381,7 +597,8 @@ export async function recalcularStatusEscalas(): Promise<{
     // Analisar cada escala
     for (const escala of escalas) {
       try {
-        const novoStatus = await analisarEscala(escala as EscalaMedica);
+        const unidadeHospitalarId = (escala.contratos as any)?.unidade_hospitalar_id;
+        const novoStatus = await analisarEscala(escala as EscalaMedica, unidadeHospitalarId);
 
         // Atualizar apenas se o status mudou
         if (novoStatus !== escala.status) {
@@ -433,12 +650,19 @@ export async function analisarEscalaDetalhada(
     horasEsperadas: number;
     horasTrabalhadas: number;
     cumpriu: boolean;
+    temProdutividade?: boolean;
   }>;
+  modoValidacao: 'acesso' | 'produtividade';
 }> {
   try {
     const { data: escala, error } = await supabase
       .from("escalas_medicas")
-      .select("*")
+      .select(`
+        *,
+        contratos (
+          unidade_hospitalar_id
+        )
+      `)
       .eq("id", escalaId)
       .single();
 
@@ -447,32 +671,59 @@ export async function analisarEscalaDetalhada(
     const horasEsperadas = calcularHorasEscaladas(escala as EscalaMedica);
     const horasMinimasParaAprovacao = Math.max(0, horasEsperadas - TOLERANCIA_HORAS);
     const dataEscala = parseISO(escala.data_inicio);
+    const unidadeHospitalarId = (escala.contratos as any)?.unidade_hospitalar_id;
+
+    // Check if hospital has access management
+    const possuiGestaoAcesso = await getHospitalAccessManagement(escala.contrato_id);
+    const modoValidacao = possuiGestaoAcesso ? 'acesso' : 'produtividade';
+
     const detalhes = [];
+    const medicos = (escala.medicos as unknown as MedicoEscala[]) || [];
 
-    for (const medico of escala.medicos) {
-      const horasTrabalhadas = await calcularHorasTrabalhadas(
-        medico.cpf,
-        dataEscala,
-        escala.horario_entrada,
-        escala.horario_saida
-      );
-      // Considera cumprido se trabalhou pelo menos (horasEsperadas - tolerância)
-      const cumpriu = horasTrabalhadas >= horasMinimasParaAprovacao;
+    for (const medico of medicos) {
+      if (possuiGestaoAcesso) {
+        // Validation by access records
+        const horasTrabalhadas = await calcularHorasTrabalhadas(
+          medico.cpf,
+          dataEscala,
+          escala.horario_entrada,
+          escala.horario_saida
+        );
+        // Considera cumprido se trabalhou pelo menos (horasEsperadas - tolerância)
+        const cumpriu = horasTrabalhadas >= horasMinimasParaAprovacao;
 
-      detalhes.push({
-        medico: medico.nome,
-        cpf: medico.cpf,
-        horasEsperadas,
-        horasTrabalhadas,
-        cumpriu,
-      });
+        detalhes.push({
+          medico: medico.nome,
+          cpf: medico.cpf,
+          horasEsperadas,
+          horasTrabalhadas,
+          cumpriu,
+        });
+      } else {
+        // Validation by productivity
+        const temProdutividade = await verificarProdutividade(
+          medico.cpf,
+          dataEscala,
+          unidadeHospitalarId
+        );
+
+        detalhes.push({
+          medico: medico.nome,
+          cpf: medico.cpf,
+          horasEsperadas,
+          horasTrabalhadas: 0, // Not applicable for productivity-only validation
+          cumpriu: temProdutividade,
+          temProdutividade,
+        });
+      }
     }
 
-    const novoStatus = await analisarEscala(escala as EscalaMedica);
+    const novoStatus = await analisarEscala(escala as EscalaMedica, unidadeHospitalarId);
 
     return {
       status: novoStatus,
       detalhes,
+      modoValidacao,
     };
   } catch (error: any) {
     throw new Error(`Erro ao analisar escala: ${error.message}`);

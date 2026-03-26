@@ -11,8 +11,13 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
   IconButton,
   Paper,
+  Radio,
+  RadioGroup,
   Table,
   TableBody,
   TableCell,
@@ -39,6 +44,7 @@ import {
   Download,
   PictureAsPdf,
   Description,
+  Security,
 } from "@mui/icons-material";
 import { format, parseISO } from "date-fns";
 import { supabase } from "../lib/supabase";
@@ -71,6 +77,7 @@ const UnidadesHospitalares: React.FC = () => {
     nome: "",
     endereco: "",
     ativo: true,
+    possui_gestao_acesso: true,
   });
 
   // Contrato de Gestao state
@@ -267,7 +274,8 @@ const UnidadesHospitalares: React.FC = () => {
         codigo: unidade.codigo,
         nome: unidade.nome,
         endereco: unidade.endereco || "",
-        ativo: unidade.ativo,
+        ativo: unidade.ativo ?? true,
+        possui_gestao_acesso: unidade.possui_gestao_acesso ?? true,
       });
     } else {
       setEditingUnidade(null);
@@ -276,6 +284,7 @@ const UnidadesHospitalares: React.FC = () => {
         nome: "",
         endereco: "",
         ativo: true,
+        possui_gestao_acesso: true,
       });
     }
     setDialogOpen(true);
@@ -290,6 +299,7 @@ const UnidadesHospitalares: React.FC = () => {
       nome: "",
       endereco: "",
       ativo: true,
+      possui_gestao_acesso: true,
     });
   };
 
@@ -310,6 +320,7 @@ const UnidadesHospitalares: React.FC = () => {
             nome: formData.nome,
             endereco: formData.endereco || null,
             ativo: formData.ativo,
+            possui_gestao_acesso: formData.possui_gestao_acesso,
           })
           .eq("id", editingUnidade.id);
 
@@ -322,6 +333,7 @@ const UnidadesHospitalares: React.FC = () => {
           nome: formData.nome,
           endereco: formData.endereco || null,
           ativo: formData.ativo,
+          possui_gestao_acesso: formData.possui_gestao_acesso,
         });
 
         if (error) throw error;
@@ -566,6 +578,7 @@ const UnidadesHospitalares: React.FC = () => {
                   <TableCell sx={{ fontWeight: 600 }}>Codigo</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Nome</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Endereco</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Gestao de Acesso</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                   <TableCell sx={{ fontWeight: 600 }} align="right">
                     Acoes
@@ -575,7 +588,7 @@ const UnidadesHospitalares: React.FC = () => {
               <TableBody>
                 {unidades.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                       <Typography variant="body2" color="text.secondary">
                         Nenhuma unidade cadastrada
                       </Typography>
@@ -627,6 +640,15 @@ const UnidadesHospitalares: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <Chip
+                            label={unidade.possui_gestao_acesso !== false ? "Sim" : "Nao"}
+                            size="small"
+                            color={unidade.possui_gestao_acesso !== false ? "info" : "default"}
+                            icon={<Security />}
+                            sx={{ fontWeight: 600 }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
                             label={unidade.ativo ? "Ativo" : "Inativo"}
                             size="small"
                             color={unidade.ativo ? "success" : "default"}
@@ -663,7 +685,7 @@ const UnidadesHospitalares: React.FC = () => {
                       {/* Expandable row for Contrato de Gestao */}
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={7}
                           sx={{ py: 0, borderBottom: expandedUnidade === unidade.id ? undefined : 'none' }}
                         >
                           <Collapse
@@ -918,6 +940,33 @@ const UnidadesHospitalares: React.FC = () => {
               rows={3}
               helperText="Endereco completo (opcional)"
             />
+            <FormControl component="fieldset" sx={{ mt: 2 }}>
+              <FormLabel component="legend" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Security fontSize="small" color="primary" />
+                Possui gestao de acesso via catracas com reconhecimento facial?
+              </FormLabel>
+              <RadioGroup
+                row
+                value={formData.possui_gestao_acesso ? "sim" : "nao"}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    possui_gestao_acesso: e.target.value === "sim",
+                  })
+                }
+              >
+                <FormControlLabel
+                  value="sim"
+                  control={<Radio />}
+                  label="Sim"
+                />
+                <FormControlLabel
+                  value="nao"
+                  control={<Radio />}
+                  label="Nao"
+                />
+              </RadioGroup>
+            </FormControl>
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
