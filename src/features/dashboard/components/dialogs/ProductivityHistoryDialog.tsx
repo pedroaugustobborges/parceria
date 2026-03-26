@@ -58,19 +58,20 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
   const totalRegistros = personProdutividade.reduce(
     (sum, p) =>
       sum +
-      p.procedimento +
-      p.parecer_solicitado +
-      p.parecer_realizado +
-      p.cirurgia_realizada +
-      p.prescricao +
-      p.evolucao +
-      p.urgencia +
-      p.ambulatorio +
-      p.auxiliar +
-      p.encaminhamento +
-      p.folha_objetivo_diario +
-      p.evolucao_diurna_cti +
-      p.evolucao_noturna_cti,
+      (p.procedimento || 0) +
+      (p.parecer_solicitado || 0) +
+      (p.parecer_realizado || 0) +
+      (p.cirurgia_realizada || 0) +
+      (p.prescricao || 0) +
+      (p.evolucao || 0) +
+      (p.urgencia || 0) +
+      (p.ambulatorio || 0) +
+      (p.auxiliar || 0) +
+      (p.encaminhamento || 0) +
+      (p.folha_objetivo_diario || 0) +
+      (p.evolucao_diurna_cti || 0) +
+      (p.evolucao_noturna_cti || 0) +
+      (p.qtd_documentos_pep || 0),
     0
   );
 
@@ -243,6 +244,9 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                         Data
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
+                        Origem
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
                         Procedimentos
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
@@ -266,6 +270,9 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                       <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
                         Ambulatórios
                       </TableCell>
+                      <TableCell sx={{ fontWeight: 600, bgcolor: 'grey.50' }}>
+                        Docs PEP
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -285,59 +292,71 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                           </Typography>
                         </TableCell>
                         <TableCell>
+                          <Typography variant="body2">
+                            {prod.origem || '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
                           <Chip
-                            label={prod.procedimento}
+                            label={prod.procedimento || 0}
                             size="small"
-                            color={prod.procedimento > 0 ? 'success' : 'default'}
+                            color={(prod.procedimento || 0) > 0 ? 'success' : 'default'}
                           />
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={prod.parecer_solicitado}
+                            label={prod.parecer_solicitado || 0}
                             size="small"
-                            color={prod.parecer_solicitado > 0 ? 'success' : 'default'}
+                            color={(prod.parecer_solicitado || 0) > 0 ? 'success' : 'default'}
                           />
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={prod.parecer_realizado}
+                            label={prod.parecer_realizado || 0}
                             size="small"
-                            color={prod.parecer_realizado > 0 ? 'success' : 'default'}
+                            color={(prod.parecer_realizado || 0) > 0 ? 'success' : 'default'}
                           />
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={prod.cirurgia_realizada}
+                            label={prod.cirurgia_realizada || 0}
                             size="small"
-                            color={prod.cirurgia_realizada > 0 ? 'success' : 'default'}
+                            color={(prod.cirurgia_realizada || 0) > 0 ? 'success' : 'default'}
                           />
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={prod.prescricao}
+                            label={prod.prescricao || 0}
                             size="small"
-                            color={prod.prescricao > 0 ? 'success' : 'default'}
+                            color={(prod.prescricao || 0) > 0 ? 'success' : 'default'}
                           />
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={prod.evolucao}
+                            label={prod.evolucao || 0}
                             size="small"
-                            color={prod.evolucao > 0 ? 'success' : 'default'}
+                            color={(prod.evolucao || 0) > 0 ? 'success' : 'default'}
                           />
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={prod.urgencia}
+                            label={prod.urgencia || 0}
                             size="small"
-                            color={prod.urgencia > 0 ? 'success' : 'default'}
+                            color={(prod.urgencia || 0) > 0 ? 'success' : 'default'}
                           />
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={prod.ambulatorio}
+                            label={prod.ambulatorio || 0}
                             size="small"
-                            color={prod.ambulatorio > 0 ? 'success' : 'default'}
+                            color={(prod.ambulatorio || 0) > 0 ? 'success' : 'default'}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={prod.qtd_documentos_pep || 0}
+                            size="small"
+                            color={(prod.qtd_documentos_pep || 0) > 0 ? 'success' : 'default'}
                           />
                         </TableCell>
                       </TableRow>

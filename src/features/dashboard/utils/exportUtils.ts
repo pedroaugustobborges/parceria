@@ -95,6 +95,7 @@ export function exportProductivityCSV(
     'Nome',
     'Especialidade',
     'Vínculo',
+    'Origem',
     'Procedimentos',
     'Pareceres Solicitados',
     'Pareceres Realizados',
@@ -103,6 +104,7 @@ export function exportProductivityCSV(
     'Evoluções',
     'Urgências',
     'Ambulatórios',
+    'Documentos Assinados no PEP',
   ];
 
   const rows = produtividade.map((prod) => [
@@ -111,14 +113,16 @@ export function exportProductivityCSV(
     prod.nome,
     prod.especialidade || '',
     prod.vinculo || '',
-    prod.procedimento,
-    prod.parecer_solicitado,
-    prod.parecer_realizado,
-    prod.cirurgia_realizada,
-    prod.prescricao,
-    prod.evolucao,
-    prod.urgencia,
-    prod.ambulatorio,
+    prod.origem || '',
+    prod.procedimento || 0,
+    prod.parecer_solicitado || 0,
+    prod.parecer_realizado || 0,
+    prod.cirurgia_realizada || 0,
+    prod.prescricao || 0,
+    prod.evolucao || 0,
+    prod.urgencia || 0,
+    prod.ambulatorio || 0,
+    prod.qtd_documentos_pep || 0,
   ]);
 
   const csvContent = [
@@ -161,6 +165,7 @@ export function exportInconsistencyCSV(
       'Evoluções',
       'Urgências',
       'Ambulatórios',
+      'Documentos Assinados no PEP',
       'Total Atividades',
     ];
 
@@ -169,14 +174,15 @@ export function exportInconsistencyCSV(
 
       const totais = registros.reduce(
         (acc, reg) => ({
-          procedimento: acc.procedimento + reg.procedimento,
-          parecer_solicitado: acc.parecer_solicitado + reg.parecer_solicitado,
-          parecer_realizado: acc.parecer_realizado + reg.parecer_realizado,
-          cirurgia: acc.cirurgia + reg.cirurgia_realizada,
-          prescricao: acc.prescricao + reg.prescricao,
-          evolucao: acc.evolucao + reg.evolucao,
-          urgencia: acc.urgencia + reg.urgencia,
-          ambulatorio: acc.ambulatorio + reg.ambulatorio,
+          procedimento: acc.procedimento + (reg.procedimento || 0),
+          parecer_solicitado: acc.parecer_solicitado + (reg.parecer_solicitado || 0),
+          parecer_realizado: acc.parecer_realizado + (reg.parecer_realizado || 0),
+          cirurgia: acc.cirurgia + (reg.cirurgia_realizada || 0),
+          prescricao: acc.prescricao + (reg.prescricao || 0),
+          evolucao: acc.evolucao + (reg.evolucao || 0),
+          urgencia: acc.urgencia + (reg.urgencia || 0),
+          ambulatorio: acc.ambulatorio + (reg.ambulatorio || 0),
+          qtd_documentos_pep: acc.qtd_documentos_pep + (reg.qtd_documentos_pep || 0),
         }),
         {
           procedimento: 0,
@@ -187,6 +193,7 @@ export function exportInconsistencyCSV(
           evolucao: 0,
           urgencia: 0,
           ambulatorio: 0,
+          qtd_documentos_pep: 0,
         }
       );
 
@@ -198,7 +205,8 @@ export function exportInconsistencyCSV(
         totais.prescricao +
         totais.evolucao +
         totais.urgencia +
-        totais.ambulatorio;
+        totais.ambulatorio +
+        totais.qtd_documentos_pep;
 
       return [
         format(parseISO(data), 'dd/MM/yyyy', { locale: ptBR }),
@@ -212,6 +220,7 @@ export function exportInconsistencyCSV(
         totais.evolucao,
         totais.urgencia,
         totais.ambulatorio,
+        totais.qtd_documentos_pep,
         totalAtividades,
       ];
     });
@@ -267,6 +276,7 @@ export function exportDashboardCSV(horasCalculadas: HorasCalculadas[]): void {
     'Folha Objetivo Diário',
     'Evolução Diurna CTI',
     'Evolução Noturna CTI',
+    'Documentos Assinados no PEP',
   ];
 
   const rows = horasCalculadas.map((h) => [
@@ -296,6 +306,7 @@ export function exportDashboardCSV(horasCalculadas: HorasCalculadas[]): void {
     h.produtividade_folha_objetivo_diario,
     h.produtividade_evolucao_diurna_cti,
     h.produtividade_evolucao_noturna_cti,
+    h.produtividade_qtd_documentos_pep,
   ]);
 
   const csvContent = [

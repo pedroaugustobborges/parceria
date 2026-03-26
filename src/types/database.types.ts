@@ -699,10 +699,12 @@ export type Database = {
           folha_objetivo_diario: number | null
           id: string
           nome: string
+          origem: string | null
           parecer_realizado: number | null
           parecer_solicitado: number | null
           prescricao: number | null
           procedimento: number | null
+          qtd_documentos_pep: number | null
           unidade_hospitalar_id: string | null
           updated_at: string
           urgencia: number | null
@@ -723,10 +725,12 @@ export type Database = {
           folha_objetivo_diario?: number | null
           id?: string
           nome: string
+          origem?: string | null
           parecer_realizado?: number | null
           parecer_solicitado?: number | null
           prescricao?: number | null
           procedimento?: number | null
+          qtd_documentos_pep?: number | null
           unidade_hospitalar_id?: string | null
           updated_at?: string
           urgencia?: number | null
@@ -747,10 +751,12 @@ export type Database = {
           folha_objetivo_diario?: number | null
           id?: string
           nome?: string
+          origem?: string | null
           parecer_realizado?: number | null
           parecer_solicitado?: number | null
           prescricao?: number | null
           procedimento?: number | null
+          qtd_documentos_pep?: number | null
           unidade_hospitalar_id?: string | null
           updated_at?: string
           urgencia?: number | null
@@ -1013,6 +1019,7 @@ export type Database = {
         Returns: Json
       }
       is_admin_agir: { Args: never; Returns: boolean }
+      is_user_admin: { Args: never; Returns: boolean }
       recalcular_valor_total_contrato: {
         Args: { p_contrato_id: string }
         Returns: number
@@ -1149,30 +1156,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-// Type aliases for easier imports
-export type UnidadeHospitalar = Tables<'unidades_hospitalares'>
-export type Contrato = Tables<'contratos'>
-export type EscalaMedica = Tables<'escalas_medicas'>
-export type Usuario = Tables<'usuarios'>
-export type Acesso = Tables<'acessos'>
-export type Produtividade = Tables<'produtividade'>
-export type ContratoItem = Tables<'contrato_itens'>
-export type ItemContrato = Tables<'itens_contrato'>
-export type DocumentoGestao = Tables<'documentos_gestao'>
-export type DocumentoContrato = Tables<'documentos_contrato'>
-export type RotaChat = Tables<'conversas_chat'>
-export type Citacao = Tables<'documento_chunks'>
-export type HorasCalculadas = {
-  cpf: string;
-  matricula: string;
-  nome: string;
-  tipo: string;
-  totalHoras: number;
-  diasUnicos: number;
-  entradas: number;
-  saidas: number;
-  horasPorDia: Map<string, number>;
-  escalas?: any[];
-  codigomv?: string | null;
-}

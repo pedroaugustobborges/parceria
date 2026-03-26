@@ -50,14 +50,15 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
   const calculateTotals = (registros: Produtividade[]) => {
     return registros.reduce(
       (acc, reg) => ({
-        procedimento: acc.procedimento + reg.procedimento,
-        parecer_solicitado: acc.parecer_solicitado + reg.parecer_solicitado,
-        parecer_realizado: acc.parecer_realizado + reg.parecer_realizado,
-        cirurgia: acc.cirurgia + reg.cirurgia_realizada,
-        prescricao: acc.prescricao + reg.prescricao,
-        evolucao: acc.evolucao + reg.evolucao,
-        urgencia: acc.urgencia + reg.urgencia,
-        ambulatorio: acc.ambulatorio + reg.ambulatorio,
+        procedimento: acc.procedimento + (reg.procedimento || 0),
+        parecer_solicitado: acc.parecer_solicitado + (reg.parecer_solicitado || 0),
+        parecer_realizado: acc.parecer_realizado + (reg.parecer_realizado || 0),
+        cirurgia: acc.cirurgia + (reg.cirurgia_realizada || 0),
+        prescricao: acc.prescricao + (reg.prescricao || 0),
+        evolucao: acc.evolucao + (reg.evolucao || 0),
+        urgencia: acc.urgencia + (reg.urgencia || 0),
+        ambulatorio: acc.ambulatorio + (reg.ambulatorio || 0),
+        qtd_documentos_pep: acc.qtd_documentos_pep + (reg.qtd_documentos_pep || 0),
       }),
       {
         procedimento: 0,
@@ -68,6 +69,7 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
         evolucao: 0,
         urgencia: 0,
         ambulatorio: 0,
+        qtd_documentos_pep: 0,
       }
     );
   };
@@ -203,6 +205,11 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                         <TableCell
                           sx={{ fontWeight: 600, bgcolor: 'grey.50', textAlign: 'center' }}
                         >
+                          Docs PEP
+                        </TableCell>
+                        <TableCell
+                          sx={{ fontWeight: 600, bgcolor: 'grey.50', textAlign: 'center' }}
+                        >
                           Total
                         </TableCell>
                       </>
@@ -221,7 +228,8 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                       totais.prescricao +
                       totais.evolucao +
                       totais.urgencia +
-                      totais.ambulatorio;
+                      totais.ambulatorio +
+                      totais.qtd_documentos_pep;
 
                     return (
                       <TableRow
@@ -308,6 +316,11 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                             <TableCell sx={{ textAlign: 'center' }}>
                               <Typography variant="body2" fontWeight={600}>
                                 {totais.ambulatorio}
+                              </Typography>
+                            </TableCell>
+                            <TableCell sx={{ textAlign: 'center' }}>
+                              <Typography variant="body2" fontWeight={600}>
+                                {totais.qtd_documentos_pep}
                               </Typography>
                             </TableCell>
                             <TableCell sx={{ textAlign: 'center' }}>
