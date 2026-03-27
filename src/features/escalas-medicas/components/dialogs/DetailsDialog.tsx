@@ -76,15 +76,18 @@ interface AcessoMedico {
 }
 
 interface ProdutividadeMedico {
-  procedimento: number;
-  cirurgia_realizada: number;
-  evolucao: number;
-  parecer_realizado: number;
-  urgencia: number;
-  ambulatorio: number;
   prescricao: number;
-  encaminhamento: number;
-  auxiliar: number;
+  evolucao: number;
+  procedimento: number;
+  urgencia: number;
+  parecer_solicitado: number;
+  parecer_realizado: number;
+  ambulatorio: number;
+  evolucao_noturna_cti: number;
+  evolucao_diurna_cti: number;
+  cirurgia_realizada: number;
+  folha_objetivo_diario: number;
+  qtd_documentos_pep: number;
 }
 
 // ============================================
@@ -564,20 +567,23 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                   {produtividadeMedico ? (
                     <Grid container spacing={2} sx={{ mt: 1 }}>
                       {[
-                        { label: 'Procedimentos', value: produtividadeMedico.procedimento },
-                        { label: 'Cirurgias', value: produtividadeMedico.cirurgia_realizada },
-                        { label: 'Evoluções', value: produtividadeMedico.evolucao },
-                        { label: 'Pareceres', value: produtividadeMedico.parecer_realizado },
-                        { label: 'Urgências', value: produtividadeMedico.urgencia },
-                        { label: 'Ambulatórios', value: produtividadeMedico.ambulatorio },
                         { label: 'Prescrição', value: produtividadeMedico.prescricao },
-                        { label: 'Encaminhamento', value: produtividadeMedico.encaminhamento },
-                        { label: 'Auxiliar', value: produtividadeMedico.auxiliar },
+                        { label: 'Evoluções', value: produtividadeMedico.evolucao },
+                        { label: 'Procedimentos', value: produtividadeMedico.procedimento },
+                        { label: 'Urgências', value: produtividadeMedico.urgencia },
+                        { label: 'Parecer Solicitado', value: produtividadeMedico.parecer_solicitado },
+                        { label: 'Parecer Realizado', value: produtividadeMedico.parecer_realizado },
+                        { label: 'Ambulatórios', value: produtividadeMedico.ambulatorio },
+                        { label: 'Evol. Noturna CTI', value: produtividadeMedico.evolucao_noturna_cti },
+                        { label: 'Evol. Diurna CTI', value: produtividadeMedico.evolucao_diurna_cti },
+                        { label: 'Cirurgias', value: produtividadeMedico.cirurgia_realizada },
+                        { label: 'Folha Obj. Diário', value: produtividadeMedico.folha_objetivo_diario },
+                        { label: 'Docs no PEP', value: produtividadeMedico.qtd_documentos_pep },
                       ].map((item, idx) => (
-                        <Grid item xs={6} sm={4} key={idx}>
+                        <Grid item xs={6} sm={4} md={3} key={idx}>
                           <Paper sx={{ p: 2, textAlign: 'center' }}>
                             <Typography variant="h4" color="primary" fontWeight={700}>
-                              {item.value}
+                              {item.value || 0}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {item.label}

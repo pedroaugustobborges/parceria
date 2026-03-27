@@ -455,19 +455,45 @@ export async function loadAcessosMedico(
 
 /**
  * Load doctor's productivity for a specific date.
+ * Aggregates all productivity records for the doctor on that date.
  */
 export async function loadProdutividadeMedico(
   dataEscala: string,
   nomeMedico: string
 ): Promise<Produtividade | null> {
-  const { data: produtividade } = await supabase
+  const { data: produtividadeRecords } = await supabase
     .from('produtividade')
     .select('*')
     .eq('data', dataEscala)
-    .ilike('nome', `%${nomeMedico}%`)
-    .maybeSingle();
+    .ilike('nome', nomeMedico);
 
-  return produtividade;
+  if (!produtividadeRecords || produtividadeRecords.length === 0) {
+    return null;
+  }
+
+  // Aggregate all records into a single object
+  const aggregated: Produtividade = produtividadeRecords.reduce(
+    (acc, record) => ({
+      ...acc,
+      prescricao: (acc.prescricao || 0) + (record.prescricao || 0),
+      evolucao: (acc.evolucao || 0) + (record.evolucao || 0),
+      procedimento: (acc.procedimento || 0) + (record.procedimento || 0),
+      urgencia: (acc.urgencia || 0) + (record.urgencia || 0),
+      parecer_solicitado: (acc.parecer_solicitado || 0) + (record.parecer_solicitado || 0),
+      parecer_realizado: (acc.parecer_realizado || 0) + (record.parecer_realizado || 0),
+      ambulatorio: (acc.ambulatorio || 0) + (record.ambulatorio || 0),
+      evolucao_noturna_cti: (acc.evolucao_noturna_cti || 0) + (record.evolucao_noturna_cti || 0),
+      evolucao_diurna_cti: (acc.evolucao_diurna_cti || 0) + (record.evolucao_diurna_cti || 0),
+      cirurgia_realizada: (acc.cirurgia_realizada || 0) + (record.cirurgia_realizada || 0),
+      folha_objetivo_diario: (acc.folha_objetivo_diario || 0) + (record.folha_objetivo_diario || 0),
+      qtd_documentos_pep: (acc.qtd_documentos_pep || 0) + (record.qtd_documentos_pep || 0),
+      auxiliar: (acc.auxiliar || 0) + (record.auxiliar || 0),
+      encaminhamento: (acc.encaminhamento || 0) + (record.encaminhamento || 0),
+    }),
+    produtividadeRecords[0] as Produtividade
+  );
+
+  return aggregated;
 }
 
 // ============================================
