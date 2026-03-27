@@ -6,8 +6,18 @@
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+/**
+ * Checks if a schedule is overnight (ends the next day).
+ * Returns true if horario_saida < horario_entrada (e.g., 07:00 < 19:00)
+ */
+function isOvernightShift(horarioEntrada: string, horarioSaida: string): boolean {
+  const entrada = horarioEntrada.substring(0, 5);
+  const saida = horarioSaida.substring(0, 5);
+  return saida < entrada;
+}
 import type {
   EscalaMedica,
   Contrato,
@@ -325,28 +335,53 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
 /**
  * Get the sum of qtd_documentos_pep for doctors in a schedule on a specific date.
  * Searches by doctor names in the produtividade table.
+ * For overnight shifts (e.g., 19:00 - 07:00), also includes productivity from the next day.
  */
 async function getDocumentosPepSum(escala: EscalaMedica): Promise<number> {
   try {
-    const dataFormatada = format(parseISO(escala.data_inicio), "yyyy-MM-dd");
+    const dataEscala = parseISO(escala.data_inicio);
+    const dataFormatada = format(dataEscala, "yyyy-MM-dd");
     const medicoNames = escala.medicos.map((m) => m.nome);
 
     if (medicoNames.length === 0) return 0;
 
+    // Check if it's an overnight shift
+    const overnight = isOvernightShift(escala.horario_entrada, escala.horario_saida);
+    const dataSeguinteFormatada = overnight
+      ? format(addDays(dataEscala, 1), "yyyy-MM-dd")
+      : null;
+
     // Query productivity for all doctors by name on the schedule date
-    const { data: produtividade, error } = await supabase
+    const { data: produtividadeDia, error: errorDia } = await supabase
       .from("produtividade")
       .select("nome, qtd_documentos_pep")
       .in("nome", medicoNames)
       .eq("data", dataFormatada);
 
-    if (error || !produtividade) {
-      console.error("Error fetching documentos PEP:", error);
-      return 0;
+    if (errorDia) {
+      console.error("Error fetching documentos PEP:", errorDia);
     }
 
+    // For overnight shifts, also query the next day
+    let produtividadeSeguinte: typeof produtividadeDia = [];
+    if (overnight && dataSeguinteFormatada) {
+      const { data: prodSeguinte, error: errorSeguinte } = await supabase
+        .from("produtividade")
+        .select("nome, qtd_documentos_pep")
+        .in("nome", medicoNames)
+        .eq("data", dataSeguinteFormatada);
+
+      if (errorSeguinte) {
+        console.error("Error fetching documentos PEP (next day):", errorSeguinte);
+      }
+      produtividadeSeguinte = prodSeguinte || [];
+    }
+
+    // Combine productivity from both days
+    const allProdutividade = [...(produtividadeDia || []), ...produtividadeSeguinte];
+
     // Sum all qtd_documentos_pep values
-    const total = produtividade.reduce((sum, record) => {
+    const total = allProdutividade.reduce((sum, record) => {
       return sum + (record.qtd_documentos_pep || 0);
     }, 0);
 

@@ -1,6 +1,16 @@
 import { supabase } from "../lib/supabase";
 import { EscalaMedica } from "../types/database.types";
-import { parseISO, format } from "date-fns";
+import { parseISO, format, addDays } from "date-fns";
+
+/**
+ * Checks if a schedule is overnight (ends the next day).
+ * Returns true if horario_saida < horario_entrada (e.g., 07:00 < 19:00)
+ */
+function isOvernightShift(horarioEntrada: string, horarioSaida: string): boolean {
+  const entrada = horarioEntrada.substring(0, 5);
+  const saida = horarioSaida.substring(0, 5);
+  return saida < entrada;
+}
 
 // Type for medico in escala
 interface MedicoEscala {
@@ -507,12 +517,18 @@ async function analisarEscalaComAcesso(escala: EscalaMedica): Promise<string> {
  * Usa apenas registros de produtividade para determinar o status.
  * - "Atenção" quando médico tem escala mas não tem produtividade
  * - "Pré-Aprovado" quando médico tem registro de produtividade na data
+ *
+ * For overnight shifts (e.g., 19:00 - 07:00), checks productivity on both
+ * the start date AND the next day.
  */
 async function analisarEscalaSemAcesso(escala: EscalaMedica, unidadeHospitalarId?: string): Promise<string> {
   const dataEscala = parseISO(escala.data_inicio);
+  const overnight = isOvernightShift(escala.horario_entrada, escala.horario_saida);
+  const dataSeguinte = overnight ? addDays(dataEscala, 1) : null;
 
   const medicos = (escala.medicos as unknown as MedicoEscala[]) || [];
   console.log(`[Status Analysis] Modo: Validação por PRODUTIVIDADE (hospital sem gestão de acesso)`);
+  console.log(`[Status Analysis] Escala noturna (atravessa meia-noite): ${overnight ? 'SIM' : 'NÃO'}`);
   console.log(`[Status Analysis] Verificando produtividade para ${medicos.length} médico(s)`);
 
   let algumSemProdutividade = false;
@@ -520,18 +536,37 @@ async function analisarEscalaSemAcesso(escala: EscalaMedica, unidadeHospitalarId
   for (const medico of medicos) {
     console.log(`[Status Analysis] Verificando produtividade do médico: ${medico.nome} (CPF: ${medico.cpf})`);
 
-    const temProdutividade = await verificarProdutividade(
+    // Check productivity on the schedule start date
+    const temProdutividadeDiaEscala = await verificarProdutividade(
       medico.cpf,
       dataEscala,
       unidadeHospitalarId,
       medico.nome
     );
 
+    // For overnight shifts, also check the next day
+    let temProdutividadeDiaSeguinte = false;
+    if (overnight && dataSeguinte) {
+      console.log(`[Status Analysis] Verificando também produtividade do dia seguinte: ${format(dataSeguinte, 'yyyy-MM-dd')}`);
+      temProdutividadeDiaSeguinte = await verificarProdutividade(
+        medico.cpf,
+        dataSeguinte,
+        unidadeHospitalarId,
+        medico.nome
+      );
+    }
+
+    // Doctor has productivity if they have it on either day (for overnight shifts) or on the schedule day
+    const temProdutividade = temProdutividadeDiaEscala || temProdutividadeDiaSeguinte;
+
     if (!temProdutividade) {
-      console.log(`[Status Analysis] ❌ Médico ${medico.nome} NÃO possui produtividade registrada na data`);
+      console.log(`[Status Analysis] ❌ Médico ${medico.nome} NÃO possui produtividade registrada`);
       algumSemProdutividade = true;
     } else {
-      console.log(`[Status Analysis] ✅ Médico ${medico.nome} possui produtividade registrada na data`);
+      const dias = [];
+      if (temProdutividadeDiaEscala) dias.push(format(dataEscala, 'dd/MM/yyyy'));
+      if (temProdutividadeDiaSeguinte && dataSeguinte) dias.push(format(dataSeguinte, 'dd/MM/yyyy'));
+      console.log(`[Status Analysis] ✅ Médico ${medico.nome} possui produtividade em: ${dias.join(' e ')}`);
     }
   }
 
@@ -547,7 +582,7 @@ async function analisarEscalaSemAcesso(escala: EscalaMedica, unidadeHospitalarId
   } else {
     statusFinal = "Pré-Aprovado";
     console.log(`[Status Analysis] ✅ Status final: PRÉ-APROVADO`);
-    console.log(`[Status Analysis] Motivo: Todos os médicos possuem produtividade registrada na data`);
+    console.log(`[Status Analysis] Motivo: Todos os médicos possuem produtividade registrada`);
   }
 
   return statusFinal;
