@@ -23,13 +23,18 @@ import {
   Paper,
   Typography,
   Divider,
-  alpha,
+  useTheme,
 } from '@mui/material';
 import { Close, Download, Warning, ErrorOutline, InfoOutlined } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { InconsistenciaModalState, Produtividade } from '../../types/dashboard.types';
 import { exportInconsistencyXLSX } from '../../utils/exportUtils';
+import {
+  getTableHeaderStyles,
+  getTableRowStyles,
+  getTableContainerStyles,
+} from '../../../../utils/dataGridStyles';
 
 export interface InconsistencyDetailsDialogProps {
   open: boolean;
@@ -42,6 +47,9 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
   onClose,
   data,
 }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   const handleExport = () => {
     if (data) {
       exportInconsistencyXLSX(data.nome, data.tipo, data.datas, data.detalhes);
@@ -76,8 +84,6 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
   };
 
   const isProdSemAcesso = data?.tipo === 'prodSemAcesso';
-  const iconColor = isProdSemAcesso ? 'warning' : 'info';
-  const gradientColor = isProdSemAcesso ? 'warning' : 'info';
 
   return (
     <Dialog
@@ -90,14 +96,16 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
           borderRadius: 3,
           boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
           overflow: 'hidden',
+          bgcolor: isDark ? '#0f172a' : 'background.paper',
         },
       }}
     >
       <DialogTitle
         sx={{
           pb: 1,
-          background: (theme) =>
-            `linear-gradient(135deg, ${alpha(theme.palette[gradientColor].main, 0.12)} 0%, ${alpha(theme.palette[gradientColor].light, 0.04)} 100%)`,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)'
+            : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.03) 100%)',
         }}
       >
         <Box
@@ -113,7 +121,7 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                 width: 48,
                 height: 48,
                 borderRadius: 2,
-                bgcolor: `${iconColor}.main`,
+                bgcolor: '#3b82f6',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -126,7 +134,11 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
               )}
             </Box>
             <Box>
-              <Typography variant="h5" fontWeight={700} color="text.primary">
+              <Typography
+                variant="h5"
+                fontWeight={700}
+                color={isDark ? '#93c5fd' : '#1e40af'}
+              >
                 Detalhes da Inconsistência
               </Typography>
               {data && (
@@ -137,8 +149,12 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                   <Chip
                     label={isProdSemAcesso ? 'Produtividade sem Acesso' : 'Acesso sem Produtividade'}
                     size="small"
-                    color={iconColor}
-                    sx={{ fontWeight: 600, borderRadius: 1.5 }}
+                    sx={{
+                      fontWeight: 600,
+                      borderRadius: 1.5,
+                      bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+                      color: isDark ? '#93c5fd' : '#3b82f6',
+                    }}
                   />
                 </Box>
               )}
@@ -148,8 +164,8 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
             onClick={onClose}
             size="small"
             sx={{
-              bgcolor: 'grey.100',
-              '&:hover': { bgcolor: 'grey.200' },
+              bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'grey.100',
+              '&:hover': { bgcolor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'grey.200' },
             }}
           >
             <Close />
@@ -157,9 +173,14 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
         </Box>
       </DialogTitle>
 
-      <Divider />
+      <Divider sx={{ borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'divider' }} />
 
-      <DialogContent sx={{ pt: 3, bgcolor: 'grey.50' }}>
+      <DialogContent
+        sx={{
+          pt: 3,
+          bgcolor: isDark ? 'rgba(15, 23, 42, 0.5)' : 'grey.50',
+        }}
+      >
         {data && (
           <>
             <Box
@@ -177,9 +198,16 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                 icon={<Warning sx={{ fontSize: 16 }} />}
                 label={`${data.datas.length} ${data.datas.length === 1 ? 'data' : 'datas'}`}
                 size="small"
-                color={iconColor}
-                variant="outlined"
-                sx={{ fontWeight: 600 }}
+                sx={{
+                  fontWeight: 600,
+                  bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+                  color: isDark ? '#93c5fd' : '#3b82f6',
+                  border: '1px solid',
+                  borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                  '& .MuiChip-icon': {
+                    color: isDark ? '#93c5fd' : '#3b82f6',
+                  },
+                }}
               />
             </Box>
 
@@ -188,47 +216,19 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
               elevation={0}
               sx={{
                 maxHeight: 400,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2,
-                overflow: 'hidden',
+                ...getTableContainerStyles(isDark),
               }}
             >
               <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell
-                      sx={{
-                        fontWeight: 700,
-                        bgcolor: 'grey.100',
-                        color: 'text.primary',
-                        borderBottom: '2px solid',
-                        borderColor: `${iconColor}.main`,
-                        width: 60,
-                      }}
-                    >
+                    <TableCell sx={{ ...getTableHeaderStyles(isDark), width: 60 }}>
                       #
                     </TableCell>
-                    <TableCell
-                      sx={{
-                        fontWeight: 700,
-                        bgcolor: 'grey.100',
-                        color: 'text.primary',
-                        borderBottom: '2px solid',
-                        borderColor: `${iconColor}.main`,
-                      }}
-                    >
+                    <TableCell sx={getTableHeaderStyles(isDark)}>
                       Data
                     </TableCell>
-                    <TableCell
-                      sx={{
-                        fontWeight: 700,
-                        bgcolor: 'grey.100',
-                        color: 'text.primary',
-                        borderBottom: '2px solid',
-                        borderColor: `${iconColor}.main`,
-                      }}
-                    >
+                    <TableCell sx={getTableHeaderStyles(isDark)}>
                       Tipo
                     </TableCell>
                     {isProdSemAcesso && (
@@ -238,13 +238,8 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                             <TableCell
                               key={header}
                               sx={{
-                                fontWeight: 700,
-                                bgcolor: 'grey.100',
-                                color: 'text.primary',
-                                borderBottom: '2px solid',
-                                borderColor: `${iconColor}.main`,
+                                ...getTableHeaderStyles(isDark),
                                 textAlign: 'center',
-                                whiteSpace: 'nowrap',
                               }}
                             >
                               {header}
@@ -271,26 +266,14 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                       totais.qtd_documentos_pep;
 
                     return (
-                      <TableRow
-                        key={index}
-                        sx={{
-                          transition: 'background-color 0.15s',
-                          '&:hover': {
-                            bgcolor: (theme) => alpha(theme.palette[iconColor].main, 0.04),
-                          },
-                          '&:last-child td': { border: 0 },
-                          '&:nth-of-type(even)': {
-                            bgcolor: 'grey.50',
-                          },
-                        }}
-                      >
+                      <TableRow key={index} sx={getTableRowStyles(isDark)}>
                         <TableCell>
                           <Box
                             sx={{
                               width: 32,
                               height: 32,
                               borderRadius: 1,
-                              bgcolor: `${iconColor}.main`,
+                              bgcolor: '#3b82f6',
                               color: 'white',
                               display: 'flex',
                               alignItems: 'center',
@@ -313,10 +296,11 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                           <Chip
                             label={isProdSemAcesso ? 'Produção sem Acesso' : 'Acesso sem Produção'}
                             size="small"
-                            color={iconColor}
                             sx={{
                               fontWeight: 600,
                               borderRadius: 1.5,
+                              bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+                              color: isDark ? '#93c5fd' : '#3b82f6',
                             }}
                           />
                         </TableCell>
@@ -347,11 +331,12 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                               <Chip
                                 label={totalAtividades}
                                 size="small"
-                                color="primary"
                                 sx={{
                                   fontWeight: 700,
                                   minWidth: 40,
                                   borderRadius: 1,
+                                  bgcolor: '#3b82f6',
+                                  color: 'white',
                                 }}
                               />
                             </TableCell>
@@ -367,13 +352,13 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
         )}
       </DialogContent>
 
-      <Divider />
+      <Divider sx={{ borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'divider' }} />
 
       <DialogActions
         sx={{
           px: 3,
           py: 2,
-          bgcolor: 'background.paper',
+          bgcolor: isDark ? '#0f172a' : 'background.paper',
           gap: 1,
         }}
       >

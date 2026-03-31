@@ -3,6 +3,7 @@
  *
  * A modern, styled toolbar for MUI DataGrid that replaces the default CSV export
  * with XLSX (Excel) export while maintaining all other toolbar features.
+ * Supports dark mode.
  */
 
 import React from 'react';
@@ -14,7 +15,7 @@ import {
   GridToolbarQuickFilter,
   useGridApiContext,
 } from '@mui/x-data-grid';
-import { Button, Box, Tooltip, Chip, alpha } from '@mui/material';
+import { Button, Box, Tooltip, Chip, alpha, useTheme } from '@mui/material';
 import { FileDownload, TableChart } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
@@ -35,6 +36,8 @@ export const CustomDataGridToolbar: React.FC<CustomDataGridToolbarProps> = ({
   sheetName = 'Dados',
 }) => {
   const apiRef = useGridApiContext();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
   const handleExportXLSX = () => {
     // Get all rows (respecting current filtering/sorting)
@@ -85,15 +88,20 @@ export const CustomDataGridToolbar: React.FC<CustomDataGridToolbarProps> = ({
   const filteredRows = apiRef.current.getSortedRowIds().length;
   const isFiltered = filteredRows !== totalRows;
 
+  // Blue color matching the Pontualidade/Absenteísmo sections
+  const blueColor = '#3b82f6';
+  const blueLightBg = isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.08)';
+
   return (
     <GridToolbarContainer
       sx={{
         p: 2,
         gap: 2,
         borderBottom: '1px solid',
-        borderColor: 'divider',
-        background: (theme) =>
-          `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.02)} 0%, ${alpha(theme.palette.background.paper, 1)} 100%)`,
+        borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'divider',
+        background: isDark
+          ? 'linear-gradient(180deg, rgba(59, 130, 246, 0.1) 0%, transparent 100%)'
+          : `linear-gradient(180deg, ${blueLightBg} 0%, transparent 100%)`,
         flexWrap: 'wrap',
         alignItems: 'center',
       }}
@@ -107,10 +115,10 @@ export const CustomDataGridToolbar: React.FC<CustomDataGridToolbarProps> = ({
                 borderRadius: 1.5,
                 textTransform: 'none',
                 fontWeight: 500,
-                color: 'text.secondary',
+                color: isDark ? '#93c5fd' : 'text.secondary',
                 '&:hover': {
-                  bgcolor: 'action.hover',
-                  color: 'primary.main',
+                  bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'action.hover',
+                  color: blueColor,
                 },
               },
             },
@@ -124,10 +132,10 @@ export const CustomDataGridToolbar: React.FC<CustomDataGridToolbarProps> = ({
                 borderRadius: 1.5,
                 textTransform: 'none',
                 fontWeight: 500,
-                color: 'text.secondary',
+                color: isDark ? '#93c5fd' : 'text.secondary',
                 '&:hover': {
-                  bgcolor: 'action.hover',
-                  color: 'primary.main',
+                  bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'action.hover',
+                  color: blueColor,
                 },
               },
             },
@@ -141,10 +149,10 @@ export const CustomDataGridToolbar: React.FC<CustomDataGridToolbarProps> = ({
                 borderRadius: 1.5,
                 textTransform: 'none',
                 fontWeight: 500,
-                color: 'text.secondary',
+                color: isDark ? '#93c5fd' : 'text.secondary',
                 '&:hover': {
-                  bgcolor: 'action.hover',
-                  color: 'primary.main',
+                  bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'action.hover',
+                  color: blueColor,
                 },
               },
             },
@@ -159,10 +167,10 @@ export const CustomDataGridToolbar: React.FC<CustomDataGridToolbarProps> = ({
               borderRadius: 1.5,
               textTransform: 'none',
               fontWeight: 500,
-              color: 'text.secondary',
+              color: isDark ? '#93c5fd' : 'text.secondary',
               '&:hover': {
-                bgcolor: 'success.50',
-                color: 'success.main',
+                bgcolor: isDark ? 'rgba(16, 185, 129, 0.2)' : 'success.50',
+                color: isDark ? '#6ee7b7' : 'success.main',
               },
             }}
           >
@@ -177,11 +185,16 @@ export const CustomDataGridToolbar: React.FC<CustomDataGridToolbarProps> = ({
             icon={<TableChart sx={{ fontSize: 16 }} />}
             label={`${filteredRows} de ${totalRows} registros`}
             size="small"
-            color="primary"
-            variant="outlined"
             sx={{
               fontWeight: 500,
               borderRadius: 1.5,
+              bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+              color: isDark ? '#93c5fd' : blueColor,
+              border: '1px solid',
+              borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+              '& .MuiChip-icon': {
+                color: isDark ? '#93c5fd' : blueColor,
+              },
             }}
           />
         )}
@@ -192,26 +205,27 @@ export const CustomDataGridToolbar: React.FC<CustomDataGridToolbarProps> = ({
             sx={{
               minWidth: 220,
               '& .MuiInputBase-root': {
-                bgcolor: 'background.paper',
+                bgcolor: isDark ? 'rgba(30, 41, 59, 0.8)' : 'background.paper',
                 borderRadius: 2,
                 border: '1px solid',
-                borderColor: 'divider',
+                borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'divider',
                 transition: 'all 0.2s ease-in-out',
                 '&:hover': {
-                  borderColor: 'primary.main',
+                  borderColor: blueColor,
                 },
                 '&.Mui-focused': {
-                  borderColor: 'primary.main',
-                  boxShadow: (theme) => `0 0 0 3px ${alpha(theme.palette.primary.main, 0.1)}`,
+                  borderColor: blueColor,
+                  boxShadow: `0 0 0 3px ${isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)'}`,
                 },
                 '& .MuiInputBase-input': {
                   py: 1,
                   px: 1.5,
                   fontSize: '0.875rem',
+                  color: isDark ? '#e2e8f0' : 'text.primary',
                 },
               },
               '& .MuiSvgIcon-root': {
-                color: 'text.secondary',
+                color: isDark ? '#93c5fd' : 'text.secondary',
               },
             }}
           />

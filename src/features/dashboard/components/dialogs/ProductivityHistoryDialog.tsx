@@ -28,6 +28,7 @@ import {
   Divider,
   Alert,
   alpha,
+  useTheme,
 } from '@mui/material';
 import {
   Close,
@@ -44,6 +45,11 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { HorasCalculadas, Produtividade } from '../../types/dashboard.types';
 import { exportProductivityXLSX } from '../../utils/exportUtils';
+import {
+  getTableHeaderStyles,
+  getTableRowStyles,
+  getTableContainerStyles,
+} from '../../../../utils/dataGridStyles';
 
 export interface ProductivityHistoryDialogProps {
   open: boolean;
@@ -60,6 +66,9 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
   personProdutividade,
   onOpenAccessHistory,
 }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   const handleExport = () => {
     if (selectedPerson && personProdutividade.length > 0) {
       exportProductivityXLSX(selectedPerson, personProdutividade);
@@ -97,14 +106,16 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
           borderRadius: 3,
           boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
           overflow: 'hidden',
+          bgcolor: isDark ? '#0f172a' : 'background.paper',
         },
       }}
     >
       <DialogTitle
         sx={{
           pb: 1,
-          background: (theme) =>
-            `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.08)} 0%, ${alpha(theme.palette.secondary.light, 0.04)} 100%)`,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)'
+            : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.03) 100%)',
         }}
       >
         <Box
@@ -120,7 +131,7 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                 width: 48,
                 height: 48,
                 borderRadius: 2,
-                bgcolor: 'secondary.main',
+                bgcolor: '#3b82f6',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -129,7 +140,11 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
               <TrendingUp sx={{ color: 'white', fontSize: 24 }} />
             </Box>
             <Box>
-              <Typography variant="h5" fontWeight={700} color="text.primary">
+              <Typography
+                variant="h5"
+                fontWeight={700}
+                color={isDark ? '#93c5fd' : '#1e40af'}
+              >
                 Histórico de Produtividade
               </Typography>
               {selectedPerson && (
@@ -143,8 +158,8 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
             onClick={onClose}
             size="small"
             sx={{
-              bgcolor: 'grey.100',
-              '&:hover': { bgcolor: 'grey.200' },
+              bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'grey.100',
+              '&:hover': { bgcolor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'grey.200' },
             }}
           >
             <Close />
@@ -152,129 +167,66 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
         </Box>
       </DialogTitle>
 
-      <Divider />
+      <Divider sx={{ borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'divider' }} />
 
-      <DialogContent sx={{ pt: 3, bgcolor: 'grey.50' }}>
+      <DialogContent
+        sx={{
+          pt: 3,
+          bgcolor: isDark ? 'rgba(15, 23, 42, 0.5)' : 'grey.50',
+        }}
+      >
         {selectedPerson && (
           <>
             {/* Person Info Cards */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    background: (theme) =>
-                      `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.light, 0.05)} 100%)`,
-                    border: '1px solid',
-                    borderColor: (theme) => alpha(theme.palette.primary.main, 0.2),
-                    borderRadius: 2,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}`,
-                    },
-                  }}
-                >
-                  <CardContent sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Person sx={{ fontSize: 18, color: 'primary.main' }} />
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        CPF
+              {[
+                { icon: Person, label: 'CPF', value: selectedPerson.cpf, color: 'primary' },
+                { icon: Badge, label: 'Matrícula', value: selectedPerson.matricula, color: 'success' },
+                { icon: Work, label: 'Tipo', value: selectedPerson.tipo, color: 'warning' },
+                { icon: Assignment, label: 'Total de Atividades', value: totalRegistros.toString(), color: 'info' },
+              ].map((item, index) => (
+                <Grid item xs={12} sm={6} md={3} key={index}>
+                  <Card
+                    elevation={0}
+                    sx={{
+                      background: isDark
+                        ? 'rgba(59, 130, 246, 0.1)'
+                        : `linear-gradient(135deg, ${alpha(theme.palette[item.color].main, 0.1)} 0%, ${alpha(theme.palette[item.color].light, 0.05)} 100%)`,
+                      border: '1px solid',
+                      borderColor: isDark
+                        ? 'rgba(59, 130, 246, 0.2)'
+                        : alpha(theme.palette[item.color].main, 0.2),
+                      borderRadius: 2,
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 8px 24px ${alpha(theme.palette[item.color].main, 0.15)}`,
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ py: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <item.icon
+                          sx={{
+                            fontSize: 18,
+                            color: isDark ? '#93c5fd' : theme.palette[item.color].main,
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                          {item.label}
+                        </Typography>
+                      </Box>
+                      <Typography
+                        variant="h6"
+                        fontWeight={700}
+                        color={isDark ? '#e2e8f0' : theme.palette[item.color].dark}
+                      >
+                        {item.value}
                       </Typography>
-                    </Box>
-                    <Typography variant="h6" fontWeight={700} color="primary.dark">
-                      {selectedPerson.cpf}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    background: (theme) =>
-                      `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.light, 0.05)} 100%)`,
-                    border: '1px solid',
-                    borderColor: (theme) => alpha(theme.palette.success.main, 0.2),
-                    borderRadius: 2,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.success.main, 0.15)}`,
-                    },
-                  }}
-                >
-                  <CardContent sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Badge sx={{ fontSize: 18, color: 'success.main' }} />
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        Matrícula
-                      </Typography>
-                    </Box>
-                    <Typography variant="h6" fontWeight={700} color="success.dark">
-                      {selectedPerson.matricula}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    background: (theme) =>
-                      `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.light, 0.05)} 100%)`,
-                    border: '1px solid',
-                    borderColor: (theme) => alpha(theme.palette.warning.main, 0.2),
-                    borderRadius: 2,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.warning.main, 0.15)}`,
-                    },
-                  }}
-                >
-                  <CardContent sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Work sx={{ fontSize: 18, color: 'warning.main' }} />
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        Tipo
-                      </Typography>
-                    </Box>
-                    <Typography variant="h6" fontWeight={700} color="warning.dark">
-                      {selectedPerson.tipo}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    background: (theme) =>
-                      `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.light, 0.05)} 100%)`,
-                    border: '1px solid',
-                    borderColor: (theme) => alpha(theme.palette.info.main, 0.2),
-                    borderRadius: 2,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.info.main, 0.15)}`,
-                    },
-                  }}
-                >
-                  <CardContent sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Assignment sx={{ fontSize: 18, color: 'info.main' }} />
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        Total de Atividades
-                      </Typography>
-                    </Box>
-                    <Typography variant="h6" fontWeight={700} color="info.dark">
-                      {totalRegistros}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
             </Grid>
 
             {/* Productivity Table */}
@@ -286,15 +238,19 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                 mb: 2,
               }}
             >
-              <Typography variant="h6" fontWeight={600}>
+              <Typography variant="h6" fontWeight={600} color={isDark ? '#e2e8f0' : 'text.primary'}>
                 Registros de Produtividade
               </Typography>
               <Chip
                 label={`${personProdutividade.length} registros`}
                 size="small"
-                color="secondary"
-                variant="outlined"
-                sx={{ fontWeight: 600 }}
+                sx={{
+                  fontWeight: 600,
+                  bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+                  color: isDark ? '#93c5fd' : '#3b82f6',
+                  border: '1px solid',
+                  borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                }}
               />
             </Box>
 
@@ -304,6 +260,7 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                 sx={{
                   mb: 2,
                   borderRadius: 2,
+                  bgcolor: isDark ? 'rgba(59, 130, 246, 0.1)' : undefined,
                   '& .MuiAlert-icon': {
                     alignItems: 'center',
                   },
@@ -332,10 +289,7 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                 elevation={0}
                 sx={{
                   maxHeight: 500,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 2,
-                  overflow: 'hidden',
+                  ...getTableContainerStyles(isDark),
                 }}
               >
                 <Table stickyHeader size="small">
@@ -354,17 +308,7 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                         'Ambulatórios',
                         'Docs PEP',
                       ].map((header) => (
-                        <TableCell
-                          key={header}
-                          sx={{
-                            fontWeight: 700,
-                            bgcolor: 'grey.100',
-                            color: 'text.primary',
-                            borderBottom: '2px solid',
-                            borderColor: 'secondary.main',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
+                        <TableCell key={header} sx={getTableHeaderStyles(isDark)}>
                           {header}
                         </TableCell>
                       ))}
@@ -372,19 +316,7 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                   </TableHead>
                   <TableBody>
                     {personProdutividade.map((prod, index) => (
-                      <TableRow
-                        key={index}
-                        sx={{
-                          transition: 'background-color 0.15s',
-                          '&:hover': {
-                            bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.04),
-                          },
-                          '&:last-child td': { border: 0 },
-                          '&:nth-of-type(even)': {
-                            bgcolor: 'grey.50',
-                          },
-                        }}
-                      >
+                      <TableRow key={index} sx={getTableRowStyles(isDark)}>
                         <TableCell>
                           <Typography variant="body2" fontWeight={600}>
                             {prod.data
@@ -431,13 +363,13 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
         )}
       </DialogContent>
 
-      <Divider />
+      <Divider sx={{ borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'divider' }} />
 
       <DialogActions
         sx={{
           px: 3,
           py: 2,
-          bgcolor: 'background.paper',
+          bgcolor: isDark ? '#0f172a' : 'background.paper',
           gap: 1,
         }}
       >

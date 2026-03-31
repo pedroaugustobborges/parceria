@@ -28,7 +28,9 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { useTheme } from "@mui/material";
 import CustomDataGridToolbar from "../components/CustomDataGridToolbar";
+import { getDataGridStyles } from "../utils/dataGridStyles";
 import {
   Add,
   Edit,
@@ -66,6 +68,8 @@ interface ItemSelecionado {
 }
 
 const Contratos: React.FC = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const {
     isAdminAgirCorporativo,
     isAdminAgirPlanta,
@@ -819,40 +823,7 @@ const Contratos: React.FC = () => {
                   },
                 }}
                 disableRowSelectionOnClick
-                sx={{
-                  border: "none",
-                  borderRadius: 2,
-                  "& .MuiDataGrid-columnHeaders": {
-                    bgcolor: "grey.100",
-                    borderRadius: "8px 8px 0 0",
-                  },
-                  "& .MuiDataGrid-columnHeaderTitle": {
-                    fontWeight: 600,
-                    color: "text.primary",
-                  },
-                  "& .MuiDataGrid-cell": {
-                    borderColor: "grey.100",
-                  },
-                  "& .MuiDataGrid-cell:focus": {
-                    outline: "none",
-                  },
-                  "& .MuiDataGrid-cell:focus-within": {
-                    outline: "none",
-                  },
-                  "& .MuiDataGrid-row:hover": {
-                    bgcolor: "primary.50",
-                  },
-                  "& .MuiDataGrid-row.Mui-selected": {
-                    bgcolor: "primary.100",
-                    "&:hover": {
-                      bgcolor: "primary.100",
-                    },
-                  },
-                  "& .MuiDataGrid-footerContainer": {
-                    borderTop: "1px solid",
-                    borderColor: "grey.200",
-                  },
-                }}
+                sx={getDataGridStyles(isDark)}
               />
             </Box>
           </CardContent>

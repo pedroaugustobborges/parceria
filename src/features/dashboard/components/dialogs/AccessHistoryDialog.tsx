@@ -27,6 +27,7 @@ import {
   Typography,
   Divider,
   alpha,
+  useTheme,
 } from '@mui/material';
 import {
   Close,
@@ -44,6 +45,11 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { HorasCalculadas, Acesso } from '../../types/dashboard.types';
 import { exportAccessHistoryXLSX } from '../../utils/exportUtils';
+import {
+  getTableHeaderStyles,
+  getTableRowStyles,
+  getTableContainerStyles,
+} from '../../../../utils/dataGridStyles';
 
 export interface AccessHistoryDialogProps {
   open: boolean;
@@ -62,6 +68,9 @@ export const AccessHistoryDialog: React.FC<AccessHistoryDialogProps> = ({
   onOpenProdutividade,
   produtividadeAvailable,
 }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   const handleExport = () => {
     if (selectedPerson && personAcessos.length > 0) {
       exportAccessHistoryXLSX(selectedPerson, personAcessos);
@@ -79,14 +88,16 @@ export const AccessHistoryDialog: React.FC<AccessHistoryDialogProps> = ({
           borderRadius: 3,
           boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
           overflow: 'hidden',
+          bgcolor: isDark ? '#0f172a' : 'background.paper',
         },
       }}
     >
       <DialogTitle
         sx={{
           pb: 1,
-          background: (theme) =>
-            `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.primary.light, 0.04)} 100%)`,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)'
+            : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.03) 100%)',
         }}
       >
         <Box
@@ -102,7 +113,7 @@ export const AccessHistoryDialog: React.FC<AccessHistoryDialogProps> = ({
                 width: 48,
                 height: 48,
                 borderRadius: 2,
-                bgcolor: 'primary.main',
+                bgcolor: '#3b82f6',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -111,7 +122,11 @@ export const AccessHistoryDialog: React.FC<AccessHistoryDialogProps> = ({
               <AccessTime sx={{ color: 'white', fontSize: 24 }} />
             </Box>
             <Box>
-              <Typography variant="h5" fontWeight={700} color="text.primary">
+              <Typography
+                variant="h5"
+                fontWeight={700}
+                color={isDark ? '#93c5fd' : '#1e40af'}
+              >
                 Histórico de Acessos
               </Typography>
               {selectedPerson && (
@@ -125,8 +140,8 @@ export const AccessHistoryDialog: React.FC<AccessHistoryDialogProps> = ({
             onClick={onClose}
             size="small"
             sx={{
-              bgcolor: 'grey.100',
-              '&:hover': { bgcolor: 'grey.200' },
+              bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'grey.100',
+              '&:hover': { bgcolor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'grey.200' },
             }}
           >
             <Close />
@@ -134,129 +149,66 @@ export const AccessHistoryDialog: React.FC<AccessHistoryDialogProps> = ({
         </Box>
       </DialogTitle>
 
-      <Divider />
+      <Divider sx={{ borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'divider' }} />
 
-      <DialogContent sx={{ pt: 3, bgcolor: 'grey.50' }}>
+      <DialogContent
+        sx={{
+          pt: 3,
+          bgcolor: isDark ? 'rgba(15, 23, 42, 0.5)' : 'grey.50',
+        }}
+      >
         {selectedPerson && (
           <>
             {/* Person Info Cards */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    background: (theme) =>
-                      `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.light, 0.05)} 100%)`,
-                    border: '1px solid',
-                    borderColor: (theme) => alpha(theme.palette.primary.main, 0.2),
-                    borderRadius: 2,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}`,
-                    },
-                  }}
-                >
-                  <CardContent sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Person sx={{ fontSize: 18, color: 'primary.main' }} />
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        CPF
+              {[
+                { icon: Person, label: 'CPF', value: selectedPerson.cpf, color: 'primary' },
+                { icon: Badge, label: 'Matrícula', value: selectedPerson.matricula, color: 'success' },
+                { icon: Work, label: 'Tipo', value: selectedPerson.tipo, color: 'warning' },
+                { icon: Schedule, label: 'Total de Horas', value: `${selectedPerson.totalHoras}h`, color: 'info' },
+              ].map((item, index) => (
+                <Grid item xs={12} sm={6} md={3} key={index}>
+                  <Card
+                    elevation={0}
+                    sx={{
+                      background: isDark
+                        ? 'rgba(59, 130, 246, 0.1)'
+                        : `linear-gradient(135deg, ${alpha(theme.palette[item.color].main, 0.1)} 0%, ${alpha(theme.palette[item.color].light, 0.05)} 100%)`,
+                      border: '1px solid',
+                      borderColor: isDark
+                        ? 'rgba(59, 130, 246, 0.2)'
+                        : alpha(theme.palette[item.color].main, 0.2),
+                      borderRadius: 2,
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 8px 24px ${alpha(theme.palette[item.color].main, 0.15)}`,
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ py: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <item.icon
+                          sx={{
+                            fontSize: 18,
+                            color: isDark ? '#93c5fd' : theme.palette[item.color].main,
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                          {item.label}
+                        </Typography>
+                      </Box>
+                      <Typography
+                        variant="h6"
+                        fontWeight={700}
+                        color={isDark ? '#e2e8f0' : theme.palette[item.color].dark}
+                      >
+                        {item.value}
                       </Typography>
-                    </Box>
-                    <Typography variant="h6" fontWeight={700} color="primary.dark">
-                      {selectedPerson.cpf}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    background: (theme) =>
-                      `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.light, 0.05)} 100%)`,
-                    border: '1px solid',
-                    borderColor: (theme) => alpha(theme.palette.success.main, 0.2),
-                    borderRadius: 2,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.success.main, 0.15)}`,
-                    },
-                  }}
-                >
-                  <CardContent sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Badge sx={{ fontSize: 18, color: 'success.main' }} />
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        Matrícula
-                      </Typography>
-                    </Box>
-                    <Typography variant="h6" fontWeight={700} color="success.dark">
-                      {selectedPerson.matricula}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    background: (theme) =>
-                      `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.light, 0.05)} 100%)`,
-                    border: '1px solid',
-                    borderColor: (theme) => alpha(theme.palette.warning.main, 0.2),
-                    borderRadius: 2,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.warning.main, 0.15)}`,
-                    },
-                  }}
-                >
-                  <CardContent sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Work sx={{ fontSize: 18, color: 'warning.main' }} />
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        Tipo
-                      </Typography>
-                    </Box>
-                    <Typography variant="h6" fontWeight={700} color="warning.dark">
-                      {selectedPerson.tipo}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    background: (theme) =>
-                      `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.light, 0.05)} 100%)`,
-                    border: '1px solid',
-                    borderColor: (theme) => alpha(theme.palette.info.main, 0.2),
-                    borderRadius: 2,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.info.main, 0.15)}`,
-                    },
-                  }}
-                >
-                  <CardContent sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Schedule sx={{ fontSize: 18, color: 'info.main' }} />
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        Total de Horas
-                      </Typography>
-                    </Box>
-                    <Typography variant="h6" fontWeight={700} color="info.dark">
-                      {selectedPerson.totalHoras}h
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
             </Grid>
 
             {/* Access Table */}
@@ -268,15 +220,19 @@ export const AccessHistoryDialog: React.FC<AccessHistoryDialogProps> = ({
                 mb: 2,
               }}
             >
-              <Typography variant="h6" fontWeight={600}>
+              <Typography variant="h6" fontWeight={600} color={isDark ? '#e2e8f0' : 'text.primary'}>
                 Registros de Acesso
               </Typography>
               <Chip
                 label={`${personAcessos.length} registros`}
                 size="small"
-                color="primary"
-                variant="outlined"
-                sx={{ fontWeight: 600 }}
+                sx={{
+                  fontWeight: 600,
+                  bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+                  color: isDark ? '#93c5fd' : '#3b82f6',
+                  border: '1px solid',
+                  borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                }}
               />
             </Box>
 
@@ -285,76 +241,22 @@ export const AccessHistoryDialog: React.FC<AccessHistoryDialogProps> = ({
               elevation={0}
               sx={{
                 maxHeight: 400,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2,
-                overflow: 'hidden',
+                ...getTableContainerStyles(isDark),
               }}
             >
               <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell
-                      sx={{
-                        fontWeight: 700,
-                        bgcolor: 'grey.100',
-                        color: 'text.primary',
-                        borderBottom: '2px solid',
-                        borderColor: 'primary.main',
-                      }}
-                    >
-                      Data/Hora
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        fontWeight: 700,
-                        bgcolor: 'grey.100',
-                        color: 'text.primary',
-                        borderBottom: '2px solid',
-                        borderColor: 'primary.main',
-                      }}
-                    >
-                      Sentido
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        fontWeight: 700,
-                        bgcolor: 'grey.100',
-                        color: 'text.primary',
-                        borderBottom: '2px solid',
-                        borderColor: 'primary.main',
-                      }}
-                    >
-                      Tipo
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        fontWeight: 700,
-                        bgcolor: 'grey.100',
-                        color: 'text.primary',
-                        borderBottom: '2px solid',
-                        borderColor: 'primary.main',
-                      }}
-                    >
-                      Matrícula
-                    </TableCell>
+                    {['Data/Hora', 'Sentido', 'Tipo', 'Matrícula'].map((header) => (
+                      <TableCell key={header} sx={getTableHeaderStyles(isDark)}>
+                        {header}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {personAcessos.map((acesso, index) => (
-                    <TableRow
-                      key={index}
-                      sx={{
-                        transition: 'background-color 0.15s',
-                        '&:hover': {
-                          bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
-                        },
-                        '&:last-child td': { border: 0 },
-                        '&:nth-of-type(even)': {
-                          bgcolor: 'grey.50',
-                        },
-                      }}
-                    >
+                    <TableRow key={index} sx={getTableRowStyles(isDark)}>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Box
@@ -362,13 +264,15 @@ export const AccessHistoryDialog: React.FC<AccessHistoryDialogProps> = ({
                               width: 32,
                               height: 32,
                               borderRadius: 1,
-                              bgcolor: 'grey.100',
+                              bgcolor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                             }}
                           >
-                            <AccessTime sx={{ fontSize: 18, color: 'text.secondary' }} />
+                            <AccessTime
+                              sx={{ fontSize: 18, color: isDark ? '#93c5fd' : '#3b82f6' }}
+                            />
                           </Box>
                           <Typography variant="body2" fontWeight={500}>
                             {format(parseISO(acesso.data_acesso), 'dd/MM/yyyy HH:mm:ss', {
@@ -417,13 +321,13 @@ export const AccessHistoryDialog: React.FC<AccessHistoryDialogProps> = ({
         )}
       </DialogContent>
 
-      <Divider />
+      <Divider sx={{ borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'divider' }} />
 
       <DialogActions
         sx={{
           px: 3,
           py: 2,
-          bgcolor: 'background.paper',
+          bgcolor: isDark ? '#0f172a' : 'background.paper',
           gap: 1,
         }}
       >
