@@ -27,7 +27,8 @@ import {
   Divider,
   useTheme,
 } from "@mui/material";
-import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import CustomDataGridToolbar from "../components/CustomDataGridToolbar";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -3675,18 +3676,26 @@ const Dashboard: React.FC = () => {
                       initialState={{
                         pagination: { paginationModel: { pageSize: 25 } },
                       }}
-                      slots={{ toolbar: GridToolbar }}
+                      slots={{ toolbar: CustomDataGridToolbar }}
                       slotProps={{
                         toolbar: {
                           showQuickFilter: true,
                           quickFilterProps: { debounceMs: 500 },
+                          fileName: "dashboard_acessos",
+                          sheetName: "Dashboard",
                         },
                       }}
                       disableRowSelectionOnClick
                       sx={{
                         border: "none",
-                        "& .MuiDataGrid-cell:focus": {
-                          outline: "none",
+                        borderRadius: 2,
+                        "& .MuiDataGrid-columnHeaders": {
+                          bgcolor: "grey.100",
+                          borderRadius: "8px 8px 0 0",
+                        },
+                        "& .MuiDataGrid-columnHeaderTitle": {
+                          fontWeight: 600,
+                          color: "text.primary",
                         },
                         "& .MuiDataGrid-columnHeader": {
                           paddingLeft: "8px",
@@ -3695,6 +3704,26 @@ const Dashboard: React.FC = () => {
                         "& .MuiDataGrid-cell": {
                           paddingLeft: "8px",
                           paddingRight: "8px",
+                          borderColor: "grey.100",
+                        },
+                        "& .MuiDataGrid-cell:focus": {
+                          outline: "none",
+                        },
+                        "& .MuiDataGrid-cell:focus-within": {
+                          outline: "none",
+                        },
+                        "& .MuiDataGrid-row:hover": {
+                          bgcolor: "primary.50",
+                        },
+                        "& .MuiDataGrid-row.Mui-selected": {
+                          bgcolor: "primary.100",
+                          "&:hover": {
+                            bgcolor: "primary.100",
+                          },
+                        },
+                        "& .MuiDataGrid-footerContainer": {
+                          borderTop: "1px solid",
+                          borderColor: "grey.200",
                         },
                       }}
                     />

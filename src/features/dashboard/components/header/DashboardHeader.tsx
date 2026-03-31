@@ -12,7 +12,7 @@ export interface DashboardHeaderProps {
   loading: boolean;
   buscaRealizada: boolean;
   totalRegistros: number;
-  onExportCSV: () => void;
+  onExportCSV: () => void; // Legacy name, now exports XLSX
   onRefresh: () => void;
 }
 
@@ -84,13 +84,13 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               disabled={loading || totalRegistros === 0}
               size="small"
               sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #5568d3 0%, #63397d 100%)',
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                 },
               }}
             >
-              Exportar CSV
+              Exportar Excel
             </Button>
           </Box>
         )}

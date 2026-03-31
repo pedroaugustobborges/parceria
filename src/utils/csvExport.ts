@@ -1,36 +1,34 @@
-import { format } from "date-fns";
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
 
 /**
- * Cria e baixa um arquivo CSV
+ * Cria e baixa um arquivo XLSX (Excel)
+ * @deprecated Use xlsxExport.ts functions instead
  */
 export const downloadCSV = (
   filename: string,
   headers: string[],
   rows: (string | number)[][]
 ): void => {
-  const csvContent = [
-    headers.join(","),
-    ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
-  ].join("\n");
+  // Create worksheet data
+  const data = [headers, ...rows];
+  const worksheet = XLSX.utils.aoa_to_sheet(data);
 
-  const blob = new Blob(["\uFEFF" + csvContent], {
-    type: "text/csv;charset=utf-8;",
+  // Auto-adjust column widths
+  const colWidths = headers.map((header, colIndex) => {
+    const maxLength = Math.max(
+      header.length,
+      ...rows.map((row) => String(row[colIndex] ?? '').length)
+    );
+    return { wch: Math.min(Math.max(maxLength + 2, 10), 50) };
   });
+  worksheet['!cols'] = colWidths;
 
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
+  // Create workbook
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Dados');
 
-  link.setAttribute("href", url);
-  link.setAttribute(
-    "download",
-    `${filename}_${format(new Date(), "yyyyMMdd_HHmmss")}.csv`
-  );
-  link.style.visibility = "hidden";
-
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  // Limpar o URL do blob
-  URL.revokeObjectURL(url);
+  // Generate file and download
+  const timestamp = format(new Date(), 'yyyyMMdd_HHmmss');
+  XLSX.writeFile(workbook, `${filename}_${timestamp}.xlsx`);
 };

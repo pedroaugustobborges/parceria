@@ -15,7 +15,8 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
-import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import CustomDataGridToolbar from "../components/CustomDataGridToolbar";
 import { Add, Edit, Delete, Business } from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
 import { Parceiro } from "../types/database.types";
@@ -410,18 +411,48 @@ const Parceiros: React.FC = () => {
                 initialState={{
                   pagination: { paginationModel: { pageSize: 25 } },
                 }}
-                slots={{ toolbar: GridToolbar }}
+                slots={{ toolbar: CustomDataGridToolbar }}
                 slotProps={{
                   toolbar: {
                     showQuickFilter: true,
                     quickFilterProps: { debounceMs: 500 },
+                    fileName: "parceiros",
+                    sheetName: "Parceiros",
                   },
                 }}
                 disableRowSelectionOnClick
                 sx={{
                   border: "none",
+                  borderRadius: 2,
+                  "& .MuiDataGrid-columnHeaders": {
+                    bgcolor: "grey.100",
+                    borderRadius: "8px 8px 0 0",
+                  },
+                  "& .MuiDataGrid-columnHeaderTitle": {
+                    fontWeight: 600,
+                    color: "text.primary",
+                  },
+                  "& .MuiDataGrid-cell": {
+                    borderColor: "grey.100",
+                  },
                   "& .MuiDataGrid-cell:focus": {
                     outline: "none",
+                  },
+                  "& .MuiDataGrid-cell:focus-within": {
+                    outline: "none",
+                  },
+                  "& .MuiDataGrid-row:hover": {
+                    bgcolor: "primary.50",
+                  },
+                  "& .MuiDataGrid-row.Mui-selected": {
+                    bgcolor: "primary.100",
+                    "&:hover": {
+                      bgcolor: "primary.100",
+                    },
+                  },
+                  "& .MuiDataGrid-footerContainer": {
+                    borderTop: "1px solid",
+                    borderColor: "grey.200",
                   },
                 }}
               />

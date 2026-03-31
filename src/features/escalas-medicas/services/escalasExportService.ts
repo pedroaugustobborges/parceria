@@ -1,11 +1,12 @@
 /**
  * Escalas Export Service
  *
- * Handles PDF and CSV export generation.
+ * Handles PDF and XLSX export generation.
  */
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import { format, parseISO, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -30,7 +31,7 @@ import { getContratoItemValue } from "./escalasService";
 import { supabase } from "../../../lib/supabase";
 
 // ============================================
-// CSV Export
+// XLSX Export
 // ============================================
 
 export interface CsvExportData {
@@ -41,12 +42,12 @@ export interface CsvExportData {
 }
 
 /**
- * Export escalas to CSV format.
+ * Export escalas to XLSX (Excel) format.
  */
 export function exportToCSV(data: CsvExportData): void {
   const { escalas, contratos, unidades, todosItensContrato } = data;
 
-  // CSV headers
+  // Headers
   const headers = [
     "Data",
     "Horário Entrada",
@@ -64,7 +65,7 @@ export function exportToCSV(data: CsvExportData): void {
     "Data Alteração",
   ];
 
-  // Build CSV rows
+  // Build rows
   const rows = escalas.map((escala) => {
     const contrato = contratos.find((c) => c.id === escala.contrato_id);
     const unidade = unidades.find(
@@ -96,17 +97,27 @@ export function exportToCSV(data: CsvExportData): void {
     ];
   });
 
-  // Build CSV content
-  const csvContent = [
-    headers.join(","),
-    ...rows.map((row) => row.map((field) => `"${field}"`).join(",")),
-  ].join("\n");
+  // Create worksheet data
+  const worksheetData = [headers, ...rows];
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
-  // Download file
-  downloadFile(
-    "\ufeff" + csvContent, // BOM for Excel compatibility
-    `escalas_medicas_${format(new Date(), "yyyy-MM-dd_HHmmss")}.csv`,
-    "text/csv;charset=utf-8;",
+  // Auto-adjust column widths
+  const colWidths = headers.map((header, colIndex) => {
+    const maxLength = Math.max(
+      header.length,
+      ...rows.map((row) => String(row[colIndex] ?? "").length)
+    );
+    return { wch: Math.min(Math.max(maxLength + 2, 10), 50) };
+  });
+  worksheet["!cols"] = colWidths;
+
+  // Create workbook and download
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Escalas Médicas");
+
+  XLSX.writeFile(
+    workbook,
+    `escalas_medicas_${format(new Date(), "yyyy-MM-dd_HHmmss")}.xlsx`
   );
 }
 

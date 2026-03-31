@@ -1,9 +1,10 @@
 /**
  * Export Utilities
  *
- * Functions for CSV export operations.
+ * Functions for XLSX (Excel) export operations.
  */
 
+import * as XLSX from 'xlsx';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Acesso, Produtividade, HorasCalculadas } from '../types/dashboard.types';
@@ -13,30 +14,38 @@ import type { Acesso, Produtividade, HorasCalculadas } from '../types/dashboard.
 // ============================================
 
 /**
- * Download a file with the given content.
+ * Download an XLSX file with the given data.
  */
-function downloadFile(content: string, filename: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
+function downloadXLSX(
+  data: (string | number | null | undefined)[][],
+  filename: string,
+  sheetName: string = 'Dados'
+): void {
+  const worksheet = XLSX.utils.aoa_to_sheet(data);
 
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename);
-  link.style.visibility = 'hidden';
+  // Auto-adjust column widths
+  if (data.length > 0) {
+    const colWidths = data[0].map((_, colIndex) => {
+      const maxLength = Math.max(
+        ...data.map((row) => String(row[colIndex] ?? '').length)
+      );
+      return { wch: Math.min(Math.max(maxLength + 2, 10), 50) };
+    });
+    worksheet['!cols'] = colWidths;
+  }
 
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-  URL.revokeObjectURL(url);
+  XLSX.writeFile(workbook, filename);
 }
 
 /**
- * Escape CSV field value
+ * Format value for Excel (handle null/undefined)
  */
-function escapeCSV(value: string | number | null | undefined): string {
+function formatValue(value: string | number | null | undefined): string | number {
   if (value === null || value === undefined) return '';
-  return `"${String(value).replace(/"/g, '""')}"`;
+  return value;
 }
 
 // ============================================
@@ -44,9 +53,9 @@ function escapeCSV(value: string | number | null | undefined): string {
 // ============================================
 
 /**
- * Export access history to CSV
+ * Export access history to XLSX
  */
-export function exportAccessHistoryCSV(
+export function exportAccessHistoryXLSX(
   person: HorasCalculadas,
   acessos: Acesso[]
 ): void {
@@ -70,22 +79,19 @@ export function exportAccessHistoryCSV(
     acesso.planta || '',
   ]);
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map((row) => row.map(escapeCSV).join(',')),
-  ].join('\n');
+  const data = [headers, ...rows];
 
-  downloadFile(
-    '\uFEFF' + csvContent,
-    `acessos_${person.nome.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`,
-    'text/csv;charset=utf-8;'
+  downloadXLSX(
+    data,
+    `acessos_${person.nome.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`,
+    'Acessos'
   );
 }
 
 /**
- * Export productivity history to CSV
+ * Export productivity history to XLSX
  */
-export function exportProductivityCSV(
+export function exportProductivityXLSX(
   person: HorasCalculadas,
   produtividade: Produtividade[]
 ): void {
@@ -111,9 +117,9 @@ export function exportProductivityCSV(
     prod.data ? format(parseISO(prod.data), 'dd/MM/yyyy', { locale: ptBR }) : '',
     prod.codigo_mv,
     prod.nome,
-    prod.especialidade || '',
-    prod.vinculo || '',
-    prod.origem || '',
+    formatValue(prod.especialidade),
+    formatValue(prod.vinculo),
+    formatValue(prod.origem),
     prod.procedimento || 0,
     prod.parecer_solicitado || 0,
     prod.parecer_realizado || 0,
@@ -125,22 +131,19 @@ export function exportProductivityCSV(
     prod.qtd_documentos_pep || 0,
   ]);
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map((row) => row.map(escapeCSV).join(',')),
-  ].join('\n');
+  const data = [headers, ...rows];
 
-  downloadFile(
-    '\uFEFF' + csvContent,
-    `produtividade_${person.matricula}_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`,
-    'text/csv;charset=utf-8;'
+  downloadXLSX(
+    data,
+    `produtividade_${person.matricula}_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`,
+    'Produtividade'
   );
 }
 
 /**
- * Export inconsistency data to CSV
+ * Export inconsistency data to XLSX
  */
-export function exportInconsistencyCSV(
+export function exportInconsistencyXLSX(
   nome: string,
   tipo: 'prodSemAcesso' | 'acessoSemProd',
   datas: string[],
@@ -233,22 +236,19 @@ export function exportInconsistencyCSV(
     ]);
   }
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map((row) => row.map(escapeCSV).join(',')),
-  ].join('\n');
+  const xlsxData = [headers, ...rows];
 
-  downloadFile(
-    '\uFEFF' + csvContent,
-    `inconsistencia_${nome.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`,
-    'text/csv;charset=utf-8;'
+  downloadXLSX(
+    xlsxData,
+    `inconsistencia_${nome.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`,
+    'Inconsistências'
   );
 }
 
 /**
- * Export dashboard hours data to CSV
+ * Export dashboard hours data to XLSX
  */
-export function exportDashboardCSV(horasCalculadas: HorasCalculadas[]): void {
+export function exportDashboardXLSX(horasCalculadas: HorasCalculadas[]): void {
   const headers = [
     'Nome',
     'CPF',
@@ -286,9 +286,9 @@ export function exportDashboardCSV(horasCalculadas: HorasCalculadas[]): void {
     h.tipo,
     h.codigomv,
     h.especialidade,
-    h.totalHoras.toFixed(2),
-    h.cargaHorariaEscalada.toFixed(2),
-    (h.totalHoras - h.cargaHorariaEscalada).toFixed(2),
+    Number(h.totalHoras.toFixed(2)),
+    Number(h.cargaHorariaEscalada.toFixed(2)),
+    Number((h.totalHoras - h.cargaHorariaEscalada).toFixed(2)),
     h.diasComRegistro,
     h.entradas,
     h.saidas,
@@ -309,14 +309,19 @@ export function exportDashboardCSV(horasCalculadas: HorasCalculadas[]): void {
     h.produtividade_qtd_documentos_pep,
   ]);
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map((row) => row.map(escapeCSV).join(',')),
-  ].join('\n');
+  const data = [headers, ...rows];
 
-  downloadFile(
-    '\uFEFF' + csvContent,
-    `dashboard_acessos_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`,
-    'text/csv;charset=utf-8;'
+  downloadXLSX(
+    data,
+    `dashboard_acessos_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`,
+    'Dashboard'
   );
 }
+
+// ============================================
+// Legacy exports (for backward compatibility)
+// ============================================
+export const exportAccessHistoryCSV = exportAccessHistoryXLSX;
+export const exportProductivityCSV = exportProductivityXLSX;
+export const exportInconsistencyCSV = exportInconsistencyXLSX;
+export const exportDashboardCSV = exportDashboardXLSX;
