@@ -461,9 +461,10 @@ export function useEscalas(): UseEscalasReturn {
   // ============================================
 
   const selectAll = useCallback(() => {
-    // Only select escalas that can have status changed (not Aprovado, Reprovado, or Excluída)
+    // Only select escalas that can have status changed (not Pago, Reprovado, or Excluída)
+    // Aprovado can now have status changed
     const selectableEscalas = escalasFiltradas.filter(
-      (e) => e.status !== 'Aprovado' && e.status !== 'Reprovado' && e.status !== 'Excluída'
+      (e) => e.status !== 'Pago' && e.status !== 'Reprovado' && e.status !== 'Excluída'
     );
     setSelectedEscalas(new Set(selectableEscalas.map((e) => e.id)));
   }, [escalasFiltradas]);

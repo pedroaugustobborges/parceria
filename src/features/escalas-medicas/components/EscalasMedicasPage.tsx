@@ -552,7 +552,7 @@ export const EscalasMedicasPage: React.FC = () => {
                 selectedCount={escalas.selectedEscalas.size}
                 totalSelectableCount={
                   escalas.escalasFiltradas.filter(
-                    (e) => e.status !== 'Aprovado' && e.status !== 'Reprovado' && e.status !== 'Excluída'
+                    (e) => e.status !== 'Pago' && e.status !== 'Reprovado' && e.status !== 'Excluída'
                   ).length
                 }
                 onSelectAll={escalas.selectAll}
