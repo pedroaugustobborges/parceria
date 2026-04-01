@@ -18,7 +18,7 @@ import type { StatusEscala, StatusColorConfig } from '../types/escalas.types';
  * Used for consistent styling across components.
  */
 export const statusColorMap: Record<StatusEscala, StatusColorConfig> = {
-  'Pago': { hex: '#ca8a04', bg: '#fefce8', border: '#ca8a04' },
+  'Pago': { hex: '#116666', bg: '#e6f2f2', border: '#116666' },
   'Programado': { hex: '#8b5cf6', bg: '#f5f3ff', border: '#8b5cf6' },
   'Pré-Aprovado': { hex: '#3b82f6', bg: '#eff6ff', border: '#3b82f6' },
   'Aprovação Parcial': { hex: '#06b6d4', bg: '#ecfeff', border: '#06b6d4' },
@@ -49,8 +49,9 @@ export const ALL_STATUS_OPTIONS: StatusEscala[] = [
 /**
  * Statuses that are considered "finalized" (cannot be changed).
  * "Pago" is completely unchangeable - no editing, no status changes.
+ * "Aprovado" allows status changes but limited editing.
  */
-export const FINALIZED_STATUSES: StatusEscala[] = ['Pago', 'Aprovado', 'Reprovado', 'Excluída'];
+export const FINALIZED_STATUSES: StatusEscala[] = ['Pago', 'Reprovado', 'Excluída'];
 
 /**
  * Statuses that Admin-Agir (corporativo and planta) can edit.
@@ -79,7 +80,7 @@ export const ADMIN_TERCEIRO_EDITABLE_STATUSES: StatusEscala[] = [
 type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
 
 const statusChipColorMap: Record<StatusEscala, ChipColor> = {
-  'Pago': 'warning',
+  'Pago': 'info',
   'Programado': 'info',
   'Pré-Aprovado': 'primary',
   'Aprovação Parcial': 'info',

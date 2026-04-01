@@ -61,8 +61,8 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
       {
         key: 'pago',
         label: 'Pago',
-        color: '#ca8a04',
-        bgColor: '#fefce8',
+        color: '#116666',
+        bgColor: '#e6f2f2',
         icon: statusIconMap.pago,
         metrics: metrics.pago,
       },
