@@ -145,7 +145,8 @@ export function useEscalas(): UseEscalasReturn {
   // ============================================
 
   const [viewMode, setViewMode] = usePersistentState<ViewMode>('escalas_viewMode', 'calendar');
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() =>
+  const [currentWeekStart, setCurrentWeekStart] = usePersistentState<Date>(
+    'escalas_currentWeekStartData',
     startOfWeek(new Date(), { weekStartsOn: 0 })
   );
 
