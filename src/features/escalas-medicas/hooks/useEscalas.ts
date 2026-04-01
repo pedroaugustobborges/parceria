@@ -321,6 +321,7 @@ export function useEscalas(): UseEscalasReturn {
   }, [
     filters.filtroDataInicio,
     filters.filtroDataFim,
+    filters.buscaRealizada,
     userContratoIds,
     userProfile?.cpf,
     isAdminTerceiro,

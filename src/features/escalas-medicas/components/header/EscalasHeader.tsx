@@ -20,7 +20,7 @@ import {
 
 export interface EscalasHeaderProps {
   // Export actions
-  onExportCSV: () => void;
+  onExportExcel: () => void;
   onExportPDF: () => void;
   canExport: boolean;
 
@@ -39,7 +39,7 @@ export interface EscalasHeaderProps {
 // ============================================
 
 export const EscalasHeader: React.FC<EscalasHeaderProps> = ({
-  onExportCSV,
+  onExportExcel,
   onExportPDF,
   canExport,
   onRecalcularStatus,
@@ -67,25 +67,25 @@ export const EscalasHeader: React.FC<EscalasHeaderProps> = ({
       </Box>
 
       <Box sx={{ display: 'flex', gap: 1 }}>
-        {/* CSV Export */}
-        <Tooltip title="Exportar dados filtrados em CSV">
+        {/* Excel Export */}
+        <Tooltip title="Exportar dados filtrados em Excel">
           <span>
             <Button
               variant="outlined"
               startIcon={<FileDownload />}
-              onClick={onExportCSV}
+              onClick={onExportExcel}
               disabled={!canExport}
               sx={{
                 height: 42,
-                borderColor: 'primary.main',
-                color: 'primary.main',
+                borderColor: '#10b981',
+                color: '#10b981',
                 '&:hover': {
-                  borderColor: 'primary.dark',
-                  bgcolor: 'primary.50',
+                  borderColor: '#059669',
+                  bgcolor: 'rgba(16, 185, 129, 0.08)',
                 },
               }}
             >
-              CSV
+              Excel
             </Button>
           </span>
         </Tooltip>

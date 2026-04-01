@@ -130,7 +130,7 @@ export const EscalasMedicasPage: React.FC = () => {
   // Export Handlers
   // ============================================
 
-  const handleExportCSV = useCallback(() => {
+  const handleExportExcel = useCallback(() => {
     try {
       if (escalas.escalasFiltradas.length === 0) {
         escalas.setError('Nenhuma escala filtrada para exportar');
@@ -146,7 +146,7 @@ export const EscalasMedicasPage: React.FC = () => {
 
       escalas.setSuccess(`${escalas.escalasFiltradas.length} escala(s) exportada(s) com sucesso!`);
     } catch (err: any) {
-      escalas.setError('Erro ao exportar CSV: ' + err.message);
+      escalas.setError('Erro ao exportar Excel: ' + err.message);
     }
   }, [escalas]);
 
@@ -476,7 +476,7 @@ export const EscalasMedicasPage: React.FC = () => {
       <Box>
         {/* Header */}
         <EscalasHeader
-          onExportCSV={handleExportCSV}
+          onExportExcel={handleExportExcel}
           onExportPDF={handleExportPDF}
           canExport={escalas.escalasFiltradas.length > 0}
           onRecalcularStatus={handleRecalcularStatus}
