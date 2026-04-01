@@ -18,7 +18,7 @@ import type { StatusEscala, StatusColorConfig } from '../types/escalas.types';
  * Used for consistent styling across components.
  */
 export const statusColorMap: Record<StatusEscala, StatusColorConfig> = {
-  'Pré-Agendado': { hex: '#6366f1', bg: '#eef2ff', border: '#6366f1' },
+  'Pago': { hex: '#ca8a04', bg: '#fefce8', border: '#ca8a04' },
   'Programado': { hex: '#8b5cf6', bg: '#f5f3ff', border: '#8b5cf6' },
   'Pré-Aprovado': { hex: '#3b82f6', bg: '#eff6ff', border: '#3b82f6' },
   'Aprovação Parcial': { hex: '#06b6d4', bg: '#ecfeff', border: '#06b6d4' },
@@ -36,36 +36,38 @@ export const statusColorMap: Record<StatusEscala, StatusColorConfig> = {
  * All available status values in workflow order.
  */
 export const ALL_STATUS_OPTIONS: StatusEscala[] = [
-  'Pré-Agendado',
-  'Programado',
+  'Pago',
+  'Aprovado',
   'Pré-Aprovado',
   'Aprovação Parcial',
   'Atenção',
-  'Aprovado',
+  'Programado',
   'Reprovado',
   'Excluída',
 ];
 
 /**
  * Statuses that are considered "finalized" (cannot be changed).
+ * "Pago" is completely unchangeable - no editing, no status changes.
  */
-export const FINALIZED_STATUSES: StatusEscala[] = ['Aprovado', 'Reprovado', 'Excluída'];
+export const FINALIZED_STATUSES: StatusEscala[] = ['Pago', 'Aprovado', 'Reprovado', 'Excluída'];
 
 /**
  * Statuses that Admin-Agir (corporativo and planta) can edit.
+ * "Aprovado" can only be edited by admin-planta and admin-corporativo.
  */
 export const ADMIN_AGIR_EDITABLE_STATUSES: StatusEscala[] = [
   'Programado',
-  'Pré-Agendado',
   'Aprovação Parcial',
+  'Aprovado',
 ];
 
 /**
  * Statuses that Admin-Terceiro can edit.
+ * Note: Admin-Terceiro cannot edit "Aprovado" status.
  */
 export const ADMIN_TERCEIRO_EDITABLE_STATUSES: StatusEscala[] = [
   'Programado',
-  'Pré-Agendado',
   'Atenção',
   'Aprovação Parcial',
 ];
@@ -77,7 +79,7 @@ export const ADMIN_TERCEIRO_EDITABLE_STATUSES: StatusEscala[] = [
 type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
 
 const statusChipColorMap: Record<StatusEscala, ChipColor> = {
-  'Pré-Agendado': 'default',
+  'Pago': 'warning',
   'Programado': 'info',
   'Pré-Aprovado': 'primary',
   'Aprovação Parcial': 'info',
@@ -126,27 +128,43 @@ export function getStatusColors(status: StatusEscala): StatusColorConfig {
 // ============================================
 
 /**
+ * Check if status is "Pago" (completely unchangeable).
+ */
+export function isStatusPago(status: StatusEscala): boolean {
+  return status === 'Pago';
+}
+
+/**
  * Check if a status can be edited by Admin-Agir.
+ * "Pago" status is never editable.
  */
 export function canAdminAgirEditStatus(status: StatusEscala): boolean {
+  if (isStatusPago(status)) return false;
   return ADMIN_AGIR_EDITABLE_STATUSES.includes(status);
 }
 
 /**
  * Check if a status can be edited by Admin-Terceiro.
+ * "Pago" and "Aprovado" statuses are never editable by terceiro.
  */
 export function canAdminTerceiroEditStatus(status: StatusEscala): boolean {
+  if (isStatusPago(status)) return false;
   return ADMIN_TERCEIRO_EDITABLE_STATUSES.includes(status);
 }
 
 /**
  * Check if a status can be edited based on user role.
+ * "Pago" status cannot be edited by anyone.
+ * "Aprovado" status can only be edited by admin-planta and admin-corporativo (isAdminAgir).
  */
 export function canEditStatus(
   status: StatusEscala,
   isAdminAgir: boolean,
   isAdminTerceiro: boolean
 ): boolean {
+  // Pago is never editable
+  if (isStatusPago(status)) return false;
+
   if (isAdminTerceiro) {
     return canAdminTerceiroEditStatus(status);
   }
@@ -158,25 +176,27 @@ export function canEditStatus(
 
 /**
  * Check if a status can be deleted based on user role.
- * Same rules as editing.
+ * Same rules as editing - Pago is never deletable.
  */
 export function canDeleteStatus(
   status: StatusEscala,
   isAdminAgir: boolean,
   isAdminTerceiro: boolean
 ): boolean {
+  if (isStatusPago(status)) return false;
   return canEditStatus(status, isAdminAgir, isAdminTerceiro);
 }
 
 /**
  * Check if a status change is allowed (not finalized).
+ * "Pago" status cannot have its status changed.
  */
 export function canChangeStatus(status: StatusEscala): boolean {
   return !FINALIZED_STATUSES.includes(status);
 }
 
 /**
- * Check if a status is finalized (Aprovado or Reprovado).
+ * Check if a status is finalized (Pago, Aprovado, Reprovado, or Excluída).
  */
 export function isStatusFinalized(status: StatusEscala): boolean {
   return FINALIZED_STATUSES.includes(status);
@@ -191,15 +211,18 @@ export function isStatusFinalized(status: StatusEscala): boolean {
  */
 export function getAllowedStatusesMessage(isAdminTerceiro: boolean): string {
   if (isAdminTerceiro) {
-    return '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"';
+    return '"Programado", "Atenção" ou "Aprovação Parcial"';
   }
-  return '"Programado", "Pré-Agendado" ou "Aprovação Parcial"';
+  return '"Programado", "Aprovação Parcial" ou "Aprovado"';
 }
 
 /**
  * Get error message for cannot edit status.
  */
 export function getCannotEditStatusMessage(status: StatusEscala, isAdminTerceiro: boolean): string {
+  if (isStatusPago(status)) {
+    return 'Escalas com status "Pago" não podem ser editadas. Este status é definitivo.';
+  }
   const allowedStatuses = getAllowedStatusesMessage(isAdminTerceiro);
   return `Não é possível editar uma escala com status "${status}". Apenas escalas com status ${allowedStatuses} podem ser editadas.`;
 }
@@ -208,6 +231,9 @@ export function getCannotEditStatusMessage(status: StatusEscala, isAdminTerceiro
  * Get error message for cannot delete status.
  */
 export function getCannotDeleteStatusMessage(status: StatusEscala, isAdminTerceiro: boolean): string {
+  if (isStatusPago(status)) {
+    return 'Escalas com status "Pago" não podem ser excluídas. Este status é definitivo.';
+  }
   const allowedStatuses = getAllowedStatusesMessage(isAdminTerceiro);
   return `Não é possível excluir uma escala com status "${status}". Apenas escalas com status ${allowedStatuses} podem ser excluídas.`;
 }
@@ -216,6 +242,9 @@ export function getCannotDeleteStatusMessage(status: StatusEscala, isAdminTercei
  * Get error message for cannot change finalized status.
  */
 export function getCannotChangeStatusMessage(status: StatusEscala): string {
+  if (isStatusPago(status)) {
+    return 'Escalas com status "Pago" não podem ter o status alterado. Este status é definitivo.';
+  }
   return `Não é possível alterar o status. A escala já está ${status.toLowerCase()}. Apenas escalas não finalizadas podem ter o status alterado.`;
 }
 
@@ -225,9 +254,10 @@ export function getCannotChangeStatusMessage(status: StatusEscala): string {
 
 /**
  * Get the initial status for a new escala based on user role.
+ * All new escalas start as "Programado".
  */
-export function getInitialStatus(isAdminAgir: boolean): StatusEscala {
-  return isAdminAgir ? 'Programado' : 'Pré-Agendado';
+export function getInitialStatus(_isAdminAgir: boolean): StatusEscala {
+  return 'Programado';
 }
 
 // ============================================

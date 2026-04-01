@@ -1156,3 +1156,21 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+// ============================================
+// Custom Types
+// ============================================
+
+/**
+ * Status types for medical schedules (escalas).
+ * "Pago" is completely unchangeable - no editing, no status changes.
+ */
+export type StatusEscala =
+  | 'Pago'
+  | 'Programado'
+  | 'Pré-Aprovado'
+  | 'Aprovação Parcial'
+  | 'Atenção'
+  | 'Aprovado'
+  | 'Reprovado'
+  | 'Excluída';

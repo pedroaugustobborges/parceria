@@ -41,6 +41,7 @@ import {
   Warning,
   HowToReg,
   DeleteForever,
+  AccountBalance,
 } from '@mui/icons-material';
 import { format, parseISO, subDays, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -51,11 +52,11 @@ import type {
   Usuario,
   StatusEscala,
 } from '../../types/escalas.types';
-import { getStatusConfig, statusColorMap, canEditStatus } from '../../utils/escalasStatusUtils';
+import { getStatusConfig, statusColorMap, canEditStatus, isStatusPago } from '../../utils/escalasStatusUtils';
 
 // Icon mapping for status
 const statusIconMap: Record<StatusEscala, React.ReactElement> = {
-  'Pré-Agendado': <Schedule fontSize="small" />,
+  'Pago': <AccountBalance fontSize="small" />,
   'Programado': <HourglassEmpty fontSize="small" />,
   'Pré-Aprovado': <ThumbUpAlt fontSize="small" />,
   'Aprovação Parcial': <HowToReg fontSize="small" />,
@@ -137,27 +138,34 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
 
   if (!escala) return null;
 
-  // "Excluída" schedules cannot be edited by anyone
-  const canEdit = escala.status !== 'Excluída' && canEditStatus(escala.status, isAdminAgir, isAdminTerceiro);
-  const canChangeStatus =
-    isAdminAgir && escala.status !== 'Aprovado' && escala.status !== 'Reprovado' && escala.status !== 'Excluída';
-  // All users can delete schedules that are not finalized
+  // "Pago" and "Excluída" schedules cannot be edited by anyone
+  // "Aprovado" can only be edited by admin-agir (planta and corporativo)
+  const canEdit = !isStatusPago(escala.status) && escala.status !== 'Excluída' && canEditStatus(escala.status, isAdminAgir, isAdminTerceiro);
+  const canChangeStatusFlag =
+    isAdminAgir && !isStatusPago(escala.status) && escala.status !== 'Aprovado' && escala.status !== 'Reprovado' && escala.status !== 'Excluída';
+  // All users can delete schedules that are not finalized (except Pago which is completely locked)
   const canDelete =
-    escala.status !== 'Aprovado' && escala.status !== 'Reprovado' && escala.status !== 'Excluída';
+    !isStatusPago(escala.status) && escala.status !== 'Aprovado' && escala.status !== 'Reprovado' && escala.status !== 'Excluída';
 
   const getEditTooltip = () => {
     if (canEdit) return '';
+    if (isStatusPago(escala.status)) {
+      return 'Escalas com status "Pago" não podem ser editadas. Este status é definitivo.';
+    }
     if (escala.status === 'Excluída') {
       return 'Escalas excluídas não podem ser editadas.';
     }
     const allowedStatuses = isAdminTerceiro
-      ? '"Programado", "Pré-Agendado", "Atenção" ou "Aprovação Parcial"'
-      : '"Programado" ou "Pré-Agendado"';
+      ? '"Programado", "Atenção" ou "Aprovação Parcial"'
+      : '"Programado", "Aprovação Parcial" ou "Aprovado"';
     return `Não é possível editar. Apenas escalas com status ${allowedStatuses} podem ser editadas.`;
   };
 
   const getStatusChangeTooltip = () => {
-    if (canChangeStatus) return '';
+    if (canChangeStatusFlag) return '';
+    if (isStatusPago(escala.status)) {
+      return 'Escalas com status "Pago" não podem ter o status alterado. Este status é definitivo.';
+    }
     if (escala.status === 'Excluída') {
       return 'Escalas excluídas não podem ter o status alterado.';
     }
@@ -166,6 +174,9 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
 
   const getDeleteTooltip = () => {
     if (canDelete) return '';
+    if (isStatusPago(escala.status)) {
+      return 'Escalas com status "Pago" não podem ser excluídas. Este status é definitivo.';
+    }
     if (escala.status === 'Excluída') {
       return 'Esta escala já foi excluída.';
     }
@@ -697,7 +708,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                 }}
                 variant="contained"
                 color="primary"
-                disabled={!canChangeStatus}
+                disabled={!canChangeStatusFlag}
               >
                 Alterar Status
               </Button>

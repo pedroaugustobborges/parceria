@@ -96,7 +96,7 @@ export function createEmptyMetric(): StatusMetric {
  */
 export function createEmptyScorecardMetrics(): ScorecardMetrics {
   return {
-    preAgendado: createEmptyMetric(),
+    pago: createEmptyMetric(),
     programado: createEmptyMetric(),
     preAprovado: createEmptyMetric(),
     aprovacaoParcial: createEmptyMetric(),
@@ -112,7 +112,7 @@ export function createEmptyScorecardMetrics(): ScorecardMetrics {
  */
 function getMetricsKey(status: StatusEscala): keyof ScorecardMetrics | null {
   const statusKeyMap: Record<StatusEscala, keyof ScorecardMetrics> = {
-    'Pré-Agendado': 'preAgendado',
+    'Pago': 'pago',
     'Programado': 'programado',
     'Pré-Aprovado': 'preAprovado',
     'Aprovação Parcial': 'aprovacaoParcial',

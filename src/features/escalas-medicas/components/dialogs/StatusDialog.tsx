@@ -27,7 +27,7 @@ import {
   ThumbUpAlt,
   Warning,
   HowToReg,
-  Schedule,
+  AccountBalance,
   DeleteForever,
 } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
@@ -36,7 +36,7 @@ import { getStatusConfig, statusColorMap } from '../../utils/escalasStatusUtils'
 
 // Icon mapping for status
 const statusIconMap: Record<StatusEscala, React.ReactElement> = {
-  'Pré-Agendado': <Schedule fontSize="small" />,
+  'Pago': <AccountBalance fontSize="small" />,
   'Programado': <HourglassEmpty fontSize="small" />,
   'Pré-Aprovado': <ThumbUpAlt fontSize="small" />,
   'Aprovação Parcial': <HowToReg fontSize="small" />,
@@ -67,11 +67,12 @@ export interface StatusDialogProps {
 // ============================================
 
 const STATUS_OPTIONS: StatusEscala[] = [
-  'Programado',
+  'Pago',
+  'Aprovado',
   'Pré-Aprovado',
   'Aprovação Parcial',
   'Atenção',
-  'Aprovado',
+  'Programado',
   'Reprovado',
   'Excluída',
 ];

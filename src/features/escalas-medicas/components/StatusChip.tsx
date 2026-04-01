@@ -7,7 +7,7 @@
 import React from 'react';
 import { Chip } from '@mui/material';
 import {
-  Schedule,
+  AccountBalance,
   HourglassEmpty,
   ThumbUpAlt,
   HowToReg,
@@ -24,7 +24,7 @@ import { getStatusConfig, getStatusColors } from '../utils/escalasStatusUtils';
 // ============================================
 
 const statusIconMap: Record<StatusEscala, React.ReactElement> = {
-  'Pré-Agendado': <Schedule />,
+  'Pago': <AccountBalance />,
   'Programado': <HourglassEmpty />,
   'Pré-Aprovado': <ThumbUpAlt />,
   'Aprovação Parcial': <HowToReg />,

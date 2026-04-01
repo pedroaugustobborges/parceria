@@ -61,7 +61,7 @@ export interface StatusMetric {
 }
 
 export interface ScorecardMetrics {
-  preAgendado: StatusMetric;
+  pago: StatusMetric;
   programado: StatusMetric;
   preAprovado: StatusMetric;
   aprovacaoParcial: StatusMetric;

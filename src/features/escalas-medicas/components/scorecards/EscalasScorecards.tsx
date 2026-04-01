@@ -7,7 +7,7 @@
 import React, { useMemo } from 'react';
 import { Box, Card, CardContent, Typography, Chip } from '@mui/material';
 import {
-  Schedule,
+  AccountBalance,
   HourglassEmpty,
   ThumbUpAlt,
   HowToReg,
@@ -25,7 +25,7 @@ import { formatCurrency } from '../../utils/escalasHoursUtils';
 // ============================================
 
 const statusIconMap = {
-  preAgendado: Schedule,
+  pago: AccountBalance,
   programado: HourglassEmpty,
   preAprovado: ThumbUpAlt,
   aprovacaoParcial: HowToReg,
@@ -59,20 +59,20 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
   const scorecardConfig = useMemo<ScorecardConfig[]>(() => {
     const baseConfig: ScorecardConfig[] = [
       {
-        key: 'preAgendado',
-        label: 'Pré-Agendado',
-        color: '#6366f1',
-        bgColor: '#eef2ff',
-        icon: statusIconMap.preAgendado,
-        metrics: metrics.preAgendado,
+        key: 'pago',
+        label: 'Pago',
+        color: '#ca8a04',
+        bgColor: '#fefce8',
+        icon: statusIconMap.pago,
+        metrics: metrics.pago,
       },
       {
-        key: 'programado',
-        label: 'Programado',
-        color: '#8b5cf6',
-        bgColor: '#f5f3ff',
-        icon: statusIconMap.programado,
-        metrics: metrics.programado,
+        key: 'aprovado',
+        label: 'Aprovado',
+        color: '#10b981',
+        bgColor: '#ecfdf5',
+        icon: statusIconMap.aprovado,
+        metrics: metrics.aprovado,
       },
       {
         key: 'preAprovado',
@@ -99,12 +99,12 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
         metrics: metrics.atencao,
       },
       {
-        key: 'aprovado',
-        label: 'Aprovado',
-        color: '#10b981',
-        bgColor: '#ecfdf5',
-        icon: statusIconMap.aprovado,
-        metrics: metrics.aprovado,
+        key: 'programado',
+        label: 'Programado',
+        color: '#8b5cf6',
+        bgColor: '#f5f3ff',
+        icon: statusIconMap.programado,
+        metrics: metrics.programado,
       },
       {
         key: 'reprovado',
