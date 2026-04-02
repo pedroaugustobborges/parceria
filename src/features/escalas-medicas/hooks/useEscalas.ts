@@ -463,13 +463,16 @@ export function useEscalas(): UseEscalasReturn {
   // ============================================
 
   const selectAll = useCallback(() => {
-    // Only select escalas that can have status changed (not Pago, Reprovado, or Excluída)
-    // Aprovado can now have status changed
-    const selectableEscalas = escalasFiltradas.filter(
-      (e) => e.status !== 'Pago' && e.status !== 'Reprovado' && e.status !== 'Excluída'
-    );
+    // Only select escalas that can have status changed (not Pago or Excluída)
+    // Reprovado can be selected only by admin-agir users
+    const isAdminAgir = isAdminAgirCorporativo || isAdminAgirPlanta;
+    const selectableEscalas = escalasFiltradas.filter((e) => {
+      if (e.status === 'Pago' || e.status === 'Excluída') return false;
+      if (e.status === 'Reprovado' && !isAdminAgir) return false;
+      return true;
+    });
     setSelectedEscalas(new Set(selectableEscalas.map((e) => e.id)));
-  }, [escalasFiltradas]);
+  }, [escalasFiltradas, isAdminAgirCorporativo, isAdminAgirPlanta]);
 
   const deselectAll = useCallback(() => {
     setSelectedEscalas(new Set());

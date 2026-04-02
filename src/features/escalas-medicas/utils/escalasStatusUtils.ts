@@ -47,20 +47,23 @@ export const ALL_STATUS_OPTIONS: StatusEscala[] = [
 ];
 
 /**
- * Statuses that are considered "finalized" (cannot be changed).
+ * Statuses that are considered "finalized" (cannot be changed by most users).
  * "Pago" is completely unchangeable - no editing, no status changes.
- * "Aprovado" allows status changes but limited editing.
+ * "Reprovado" can be edited/changed only by admin-agir (corporativo and planta).
  */
-export const FINALIZED_STATUSES: StatusEscala[] = ['Pago', 'Reprovado', 'Excluída'];
+export const FINALIZED_STATUSES: StatusEscala[] = ['Pago', 'Excluída'];
 
 /**
  * Statuses that Admin-Agir (corporativo and planta) can edit.
- * "Aprovado" can only be edited by admin-planta and admin-corporativo.
+ * "Aprovado" and "Reprovado" can only be edited by admin-planta and admin-corporativo.
+ * "Atenção" can be edited by all admin types.
  */
 export const ADMIN_AGIR_EDITABLE_STATUSES: StatusEscala[] = [
   'Programado',
   'Aprovação Parcial',
+  'Atenção',
   'Aprovado',
+  'Reprovado',
 ];
 
 /**

@@ -139,13 +139,15 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   if (!escala) return null;
 
   // "Pago" and "Excluída" schedules cannot be edited by anyone
-  // "Aprovado" can only be edited by admin-agir (planta and corporativo)
+  // "Aprovado" and "Reprovado" can only be edited by admin-agir (planta and corporativo)
   const canEdit = !isStatusPago(escala.status) && escala.status !== 'Excluída' && canEditStatus(escala.status, isAdminAgir, isAdminTerceiro);
   const canChangeStatusFlag =
-    isAdminAgir && !isStatusPago(escala.status) && escala.status !== 'Reprovado' && escala.status !== 'Excluída';
+    isAdminAgir && !isStatusPago(escala.status) && escala.status !== 'Excluída';
   // All users can delete schedules that are not finalized (except Pago which is completely locked)
+  // Aprovado and Reprovado can only be deleted by admin-agir
   const canDelete =
-    !isStatusPago(escala.status) && escala.status !== 'Aprovado' && escala.status !== 'Reprovado' && escala.status !== 'Excluída';
+    !isStatusPago(escala.status) && escala.status !== 'Excluída' &&
+    (escala.status !== 'Aprovado' && escala.status !== 'Reprovado' || isAdminAgir);
 
   const getEditTooltip = () => {
     if (canEdit) return '';
