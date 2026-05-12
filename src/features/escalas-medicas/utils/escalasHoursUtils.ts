@@ -223,3 +223,35 @@ export function formatCurrency(value: number): string {
 export function formatTimeRange(horarioEntrada: string, horarioSaida: string): string {
   return `${horarioEntrada.substring(0, 5)} - ${horarioSaida.substring(0, 5)}`;
 }
+
+/**
+ * Returns the effective display times for an escala.
+ * When status is "Aprovado com Glosa" and payment datetimes are set,
+ * returns those instead of the original schedule times.
+ */
+export function getEffectiveHorario(escala: {
+  status: string;
+  horario_entrada: string;
+  horario_saida: string;
+  horario_pagamento_inicio: string | null;
+  horario_pagamento_fim: string | null;
+}): { entrada: string; saida: string; isPaymentOverride: boolean } {
+  if (
+    escala.status === 'Aprovado com Glosa' &&
+    escala.horario_pagamento_inicio &&
+    escala.horario_pagamento_fim
+  ) {
+    const ini = new Date(escala.horario_pagamento_inicio);
+    const fim = new Date(escala.horario_pagamento_fim);
+    return {
+      entrada: `${ini.getHours().toString().padStart(2, '0')}:${ini.getMinutes().toString().padStart(2, '0')}`,
+      saida: `${fim.getHours().toString().padStart(2, '0')}:${fim.getMinutes().toString().padStart(2, '0')}`,
+      isPaymentOverride: true,
+    };
+  }
+  return {
+    entrada: escala.horario_entrada.substring(0, 5),
+    saida: escala.horario_saida.substring(0, 5),
+    isPaymentOverride: false,
+  };
+}

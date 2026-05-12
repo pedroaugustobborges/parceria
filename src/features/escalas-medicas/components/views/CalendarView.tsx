@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Paper, Tooltip, Typography } from '@mui/material';
 import {
   format,
   parseISO,
@@ -17,6 +17,7 @@ import {
 import { ptBR } from 'date-fns/locale';
 import type { EscalaMedica } from '../../types/escalas.types';
 import { statusColorMap } from '../../utils/escalasStatusUtils';
+import { getEffectiveHorario } from '../../utils/escalasHoursUtils';
 
 // ============================================
 // Props
@@ -218,17 +219,27 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       )}
 
                       {/* Time */}
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          display: 'block',
-                          fontSize: '0.65rem',
-                          color: 'text.secondary',
-                        }}
-                      >
-                        {escala.horario_entrada.substring(0, 5)} -{' '}
-                        {escala.horario_saida.substring(0, 5)}
-                      </Typography>
+                      {(() => {
+                        const { entrada, saida, isPaymentOverride } = getEffectiveHorario(escala);
+                        return (
+                          <Tooltip
+                            title={isPaymentOverride ? 'Horário de pagamento (glosa)' : ''}
+                            placement="top"
+                          >
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: 'block',
+                                fontSize: '0.65rem',
+                                color: isPaymentOverride ? '#d97706' : 'text.secondary',
+                                fontWeight: isPaymentOverride ? 600 : 400,
+                              }}
+                            >
+                              {entrada} - {saida}
+                            </Typography>
+                          </Tooltip>
+                        );
+                      })()}
                     </Paper>
                   );
                 })

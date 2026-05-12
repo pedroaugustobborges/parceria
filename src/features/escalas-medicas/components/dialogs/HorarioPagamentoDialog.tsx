@@ -3,12 +3,6 @@
  *
  * Focused dialog for admin-agir to define or edit the payment datetime
  * override for an "Aprovado com Glosa" escala.
- *
- * Flow:
- *  - Pre-fills with existing horario_pagamento_inicio/fim if set, otherwise
- *    defaults to the escala's original date + entry/exit times.
- *  - Shows a live duration calculation as the user adjusts the pickers.
- *  - "Usar horário original" clears both fields (back to null → original used).
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -24,6 +18,7 @@ import {
   CircularProgress,
   Chip,
   Divider,
+  useTheme,
 } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import {
@@ -45,7 +40,6 @@ import { shiftCrossesMidnight } from '../../utils/escalasHoursUtils';
 // ============================================
 
 function buildDatetime(dateStr: string, timeStr: string): Date {
-  // dateStr: "2026-04-15", timeStr: "07:00:00" or "07:00"
   return new Date(`${dateStr}T${timeStr.length === 5 ? timeStr + ':00' : timeStr}`);
 }
 
@@ -78,6 +72,9 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
   escala,
   onSaved,
 }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -88,10 +85,7 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
   );
 
   const originalFim = useMemo(() => {
-    const crossesMidnight = shiftCrossesMidnight(
-      escala.horario_entrada,
-      escala.horario_saida
-    );
+    const crossesMidnight = shiftCrossesMidnight(escala.horario_entrada, escala.horario_saida);
     const fimDate = crossesMidnight
       ? format(addDays(new Date(escala.data_inicio), 1), 'yyyy-MM-dd')
       : escala.data_inicio;
@@ -102,7 +96,6 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
   const [inicio, setInicio] = useState<Date | null>(null);
   const [fim, setFim] = useState<Date | null>(null);
 
-  // Populate when dialog opens
   useEffect(() => {
     if (!open) return;
     setError('');
@@ -115,13 +108,16 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
     }
   }, [open, escala.horario_pagamento_inicio, escala.horario_pagamento_fim, originalInicio, originalFim]);
 
-  // ── Live duration ────────────────────────────────────────────────────────
+  // ── Derived state ────────────────────────────────────────────────────────
+  const isClearing = inicio === null && fim === null;
+
   const durationMinutes = useMemo(() => {
     if (!inicio || !fim || !isValid(inicio) || !isValid(fim)) return null;
     return differenceInMinutes(fim, inicio);
   }, [inicio, fim]);
 
   const durationLabel = durationMinutes !== null ? formatDuration(durationMinutes) : '—';
+
   const isValidRange =
     inicio !== null &&
     fim !== null &&
@@ -137,7 +133,8 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
   };
 
   const handleSave = async () => {
-    if (!isValidRange) {
+    // Allow saving when clearing (both null) OR when range is valid
+    if (!isClearing && !isValidRange) {
       setError('O horário de fim deve ser posterior ao horário de início.');
       return;
     }
@@ -158,8 +155,6 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
     }
   };
 
-  const isClearing = inicio === null && fim === null;
-
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -170,7 +165,7 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
           gap: 1,
           fontWeight: 700,
           color: '#d97706',
-          borderBottom: '2px solid #fef3c7',
+          borderBottom: `2px solid ${isDark ? 'rgba(217,119,6,0.25)' : '#fef3c7'}`,
           pb: 2,
         }}
       >
@@ -182,11 +177,7 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
           {/* Context — original schedule as reference */}
-          <Alert
-            severity="info"
-            icon={<Info />}
-            sx={{ bgcolor: '#eff6ff', '& .MuiAlert-icon': { color: '#3b82f6' } }}
-          >
+          <Alert severity="info" icon={<Info />}>
             <Typography variant="body2" fontWeight={600} gutterBottom>
               Escala original de referência
             </Typography>
@@ -195,15 +186,19 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
                 icon={<Schedule sx={{ fontSize: '14px !important' }} />}
                 label={`${escala.horario_entrada.substring(0, 5)} – ${escala.horario_saida.substring(0, 5)}`}
                 size="small"
-                sx={{ bgcolor: '#dbeafe', color: '#1d4ed8', fontWeight: 600 }}
+                sx={{
+                  bgcolor: isDark ? 'rgba(59,130,246,0.2)' : '#dbeafe',
+                  color: isDark ? '#93c5fd' : '#1d4ed8',
+                  fontWeight: 600,
+                }}
               />
               <Typography variant="caption" color="text.secondary">
                 {format(new Date(escala.data_inicio), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </Typography>
             </Box>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Defina abaixo o intervalo efetivo para cálculo do pagamento desta glosa. Se deixado em
-              branco, o horário original será usado.
+              Defina abaixo o intervalo efetivo para cálculo do pagamento desta glosa.
+              Se deixado em branco, o horário original será usado.
             </Typography>
           </Alert>
 
@@ -227,7 +222,7 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
             />
 
             <Box display="flex" justifyContent="center">
-              <ArrowForward sx={{ color: '#9ca3af' }} />
+              <ArrowForward sx={{ color: 'text.disabled' }} />
             </Box>
 
             <DateTimePicker
@@ -257,25 +252,21 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
               gap: 1.5,
               p: 2,
               borderRadius: 2,
-              bgcolor: isValidRange ? '#fffbeb' : '#f8fafc',
+              bgcolor: isValidRange
+                ? isDark ? 'rgba(217,119,6,0.12)' : '#fffbeb'
+                : isDark ? 'rgba(255,255,255,0.04)' : '#f8fafc',
               border: '1px dashed',
-              borderColor: isValidRange ? '#d97706' : '#e2e8f0',
+              borderColor: isValidRange
+                ? '#d97706'
+                : isDark ? 'rgba(255,255,255,0.12)' : '#e2e8f0',
               transition: 'all 0.2s',
             }}
           >
-            <Schedule sx={{ color: isValidRange ? '#d97706' : '#9ca3af', fontSize: 20 }} />
-            <Typography
-              variant="body2"
-              fontWeight={600}
-              color={isValidRange ? '#d97706' : 'text.secondary'}
-            >
+            <Schedule sx={{ color: isValidRange ? '#d97706' : 'text.disabled', fontSize: 20 }} />
+            <Typography variant="body2" fontWeight={600} color={isValidRange ? '#d97706' : 'text.secondary'}>
               Duração calculada:
             </Typography>
-            <Typography
-              variant="h6"
-              fontWeight={700}
-              color={isValidRange ? '#d97706' : 'text.disabled'}
-            >
+            <Typography variant="h6" fontWeight={700} color={isValidRange ? '#d97706' : 'text.disabled'}>
               {durationLabel}
             </Typography>
           </Box>
@@ -283,7 +274,7 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
           {/* Error */}
           {error && <Alert severity="error">{error}</Alert>}
 
-          {/* Reset hint */}
+          {/* Contextual hint */}
           {!isClearing && (
             <Alert severity="warning" sx={{ py: 0.5 }}>
               <Typography variant="caption">
@@ -305,13 +296,13 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 3, gap: 1, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-        {/* Left: reset action */}
+        {/* Left: reset */}
         <Button
           startIcon={<RestartAlt />}
           onClick={handleResetToOriginal}
           disabled={loading || isClearing}
           color="inherit"
-          sx={{ color: '#6b7280' }}
+          sx={{ color: 'text.secondary' }}
         >
           Usar horário original
         </Button>
@@ -329,7 +320,7 @@ export const HorarioPagamentoDialog: React.FC<HorarioPagamentoDialogProps> = ({
             sx={{
               bgcolor: '#d97706',
               '&:hover': { bgcolor: '#b45309' },
-              '&.Mui-disabled': { bgcolor: '#fcd34d' },
+              '&.Mui-disabled': { bgcolor: isDark ? 'rgba(217,119,6,0.3)' : '#fcd34d' },
             }}
           >
             Salvar

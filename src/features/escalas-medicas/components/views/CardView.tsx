@@ -5,12 +5,13 @@
  */
 
 import React from 'react';
-import { Box, Card, CardContent, Chip, Grid, Typography } from '@mui/material';
-import { AccessTime, Person } from '@mui/icons-material';
+import { Box, Card, CardContent, Chip, Grid, Tooltip, Typography } from '@mui/material';
+import { AccessTime, Person, PieChart } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { EscalaMedica } from '../../types/escalas.types';
 import { statusColorMap } from '../../utils/escalasStatusUtils';
+import { getEffectiveHorario } from '../../utils/escalasHoursUtils';
 
 // ============================================
 // Props
@@ -95,12 +96,29 @@ export const CardView: React.FC<CardViewProps> = ({ escalas, onEscalaClick }) =>
                 </Typography>
 
                 {/* Time */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <AccessTime sx={{ fontSize: 16, color: 'text.secondary' }} />
-                  <Typography variant="body2" color="text.secondary">
-                    {escala.horario_entrada.substring(0, 5)} - {escala.horario_saida.substring(0, 5)}
-                  </Typography>
-                </Box>
+                {(() => {
+                  const { entrada, saida, isPaymentOverride } = getEffectiveHorario(escala);
+                  return (
+                    <Tooltip
+                      title={isPaymentOverride ? 'Horário de pagamento (glosa)' : ''}
+                      placement="top"
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                        {isPaymentOverride
+                          ? <PieChart sx={{ fontSize: 16, color: '#d97706' }} />
+                          : <AccessTime sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        }
+                        <Typography
+                          variant="body2"
+                          color={isPaymentOverride ? '#d97706' : 'text.secondary'}
+                          fontWeight={isPaymentOverride ? 600 : 400}
+                        >
+                          {entrada} - {saida}
+                        </Typography>
+                      </Box>
+                    </Tooltip>
+                  );
+                })()}
 
                 {/* Doctors */}
                 <Box>

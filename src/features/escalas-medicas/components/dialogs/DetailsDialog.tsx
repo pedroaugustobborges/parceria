@@ -477,7 +477,12 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
 
           {/* Aprovado com Glosa — Horário para fins de pagamento */}
           {isAprovadoComGlosa && (
-            <Card sx={{ borderLeft: "4px solid #d97706", bgcolor: "#fffbeb" }}>
+            <Card
+              sx={{
+                borderLeft: "4px solid #d97706",
+                bgcolor: theme.palette.mode === "dark" ? "rgba(217,119,6,0.08)" : "#fffbeb",
+              }}
+            >
               <CardContent>
                 {/* Header */}
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={2} flexWrap="wrap" gap={1}>
@@ -487,7 +492,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                       Horário de Pagamento
                     </Typography>
                   </Box>
-                  {isAdminAgir && (
+                  {isAdminAgir && !escalaPaga && (
                     <Button
                       size="small"
                       variant={escala.horario_pagamento_inicio ? "outlined" : "contained"}
@@ -495,7 +500,14 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                       onClick={() => setHorarioPagamentoOpen(true)}
                       sx={
                         escala.horario_pagamento_inicio
-                          ? { borderColor: "#d97706", color: "#d97706", "&:hover": { borderColor: "#b45309", bgcolor: "#fef3c7" } }
+                          ? {
+                              borderColor: "#d97706",
+                              color: "#d97706",
+                              "&:hover": {
+                                borderColor: "#b45309",
+                                bgcolor: theme.palette.mode === "dark" ? "rgba(217,119,6,0.12)" : "#fef3c7",
+                              },
+                            }
                           : { bgcolor: "#d97706", "&:hover": { bgcolor: "#b45309" } }
                       }
                     >
@@ -512,8 +524,8 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                       sx={{
                         p: 1.5,
                         borderRadius: 1.5,
-                        bgcolor: "rgba(255,255,255,0.6)",
-                        border: "1px solid #fde68a",
+                        bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.7)",
+                        border: `1px solid ${theme.palette.mode === "dark" ? "rgba(217,119,6,0.25)" : "#fde68a"}`,
                         height: "100%",
                       }}
                     >
@@ -541,7 +553,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                         sx={{
                           p: 1.5,
                           borderRadius: 1.5,
-                          bgcolor: "rgba(255,255,255,0.8)",
+                          bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.9)",
                           border: "2px solid #d97706",
                           height: "100%",
                         }}
@@ -563,8 +575,8 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                         sx={{
                           p: 1.5,
                           borderRadius: 1.5,
-                          bgcolor: "rgba(255,255,255,0.4)",
-                          border: "1px dashed #fcd34d",
+                          bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.5)",
+                          border: `1px dashed ${theme.palette.mode === "dark" ? "rgba(217,119,6,0.4)" : "#fcd34d"}`,
                           height: "100%",
                           display: "flex",
                           flexDirection: "column",
@@ -583,7 +595,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                         <Typography variant="caption" color="text.disabled">
                           usando horário original
                         </Typography>
-                        {isAdminAgir && (
+                        {isAdminAgir && !escalaPaga && (
                           <Button
                             size="small"
                             variant="text"
@@ -610,6 +622,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
               escala={escala}
               onSaved={() => {
                 setHorarioPagamentoOpen(false);
+                onClose();
                 onHorariosPagamentoUpdated?.();
               }}
             />
