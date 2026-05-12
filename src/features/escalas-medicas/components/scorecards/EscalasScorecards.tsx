@@ -136,13 +136,14 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
         transition: 'all 0.3s ease',
       }}
     >
-      {/* Escalas Pagas — special count-only card */}
+      {/* Escalas Pagas */}
       <Card
         sx={{
           position: 'relative',
           overflow: 'hidden',
           borderLeft: '4px solid #10b981',
           transition: 'all 0.3s',
+          height: '100%',
           '&:hover': {
             boxShadow: '0 8px 24px #10b98126',
             transform: 'translateY(-2px)',
@@ -150,6 +151,7 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
         }}
       >
         <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+          {/* Header Row */}
           <Box display="flex" justifyContent="space-between" alignItems="start" mb={1.5}>
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Typography
@@ -161,20 +163,33 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
                   letterSpacing: '0.5px',
                   fontSize: { xs: '0.65rem', sm: '0.7rem' },
                   display: 'block',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
                 Escalas Pagas
               </Typography>
-              <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5}>
+              <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5} flexWrap="wrap">
                 <Typography
                   sx={{
                     fontWeight: 700,
                     color: '#10b981',
-                    fontSize: { xs: '1.4rem', sm: '1.6rem', md: '1.9rem' },
+                    fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
                     lineHeight: 1.2,
                   }}
                 >
-                  {metrics.escalasPagas.count}
+                  R$
+                </Typography>
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                    color: '#10b981',
+                    fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {formatCurrency(metrics.escalasPagas.valor)}
                 </Typography>
               </Box>
             </Box>
@@ -190,21 +205,27 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
                 ml: 1,
               }}
             >
-              <Payments
-                sx={{
-                  color: '#10b981',
-                  fontSize: { xs: 22, sm: 26, md: 28 },
-                }}
-              />
+              <Payments sx={{ color: '#10b981', fontSize: { xs: 22, sm: 26, md: 28 } }} />
             </Box>
           </Box>
-          <Box display="flex" alignItems="center" justifyContent="flex-end">
+          {/* Footer Row */}
+          <Box display="flex" alignItems="center" justifyContent="space-between" gap={1} flexWrap="wrap">
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <AccessTime sx={{ fontSize: { xs: 14, sm: 16 }, color: '#9ca3af' }} />
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+              >
+                {metrics.escalasPagas.horas.toFixed(1)}h
+              </Typography>
+            </Box>
             <Chip
-              label="status_pagamento = Sim"
+              label={`${metrics.escalasPagas.count} escala${metrics.escalasPagas.count !== 1 ? 's' : ''}`}
               size="small"
               sx={{
                 height: { xs: 20, sm: 22 },
-                fontSize: { xs: '0.6rem', sm: '0.65rem' },
+                fontSize: { xs: '0.65rem', sm: '0.7rem' },
                 bgcolor: '#10b98115',
                 color: '#10b981',
                 fontWeight: 600,

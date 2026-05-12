@@ -104,7 +104,7 @@ export function createEmptyScorecardMetrics(): ScorecardMetrics {
     aprovadoComGlosa: createEmptyMetric(),
     reprovado: createEmptyMetric(),
     excluida: createEmptyMetric(),
-    escalasPagas: { count: 0 },
+    escalasPagas: createEmptyMetric(),
   };
 }
 
@@ -160,8 +160,10 @@ export function calculateScorecardMetrics(
       statusMetric.count++;
     }
 
-    // Count escalas pagas (status_pagamento = 'Sim')
+    // Accumulate escalas pagas metrics (status_pagamento = 'Sim')
     if (escala.status_pagamento === 'Sim') {
+      metrics.escalasPagas.valor += valor;
+      metrics.escalasPagas.horas += totalHoras;
       metrics.escalasPagas.count++;
     }
   }

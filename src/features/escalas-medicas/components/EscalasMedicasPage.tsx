@@ -851,6 +851,7 @@ export const EscalasMedicasPage: React.FC = () => {
             handleCloseDetailsDialog();
             handleDeleteEscala(escala);
           }}
+          onHorariosPagamentoUpdated={escalas.buscarEscalas}
         />
 
         {/* CSV Import Dialog */}

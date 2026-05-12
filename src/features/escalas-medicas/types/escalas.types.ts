@@ -71,7 +71,7 @@ export interface ScorecardMetrics {
   aprovadoComGlosa: StatusMetric;
   reprovado: StatusMetric;
   excluida: StatusMetric;
-  escalasPagas: { count: number };
+  escalasPagas: StatusMetric;
 }
 
 export interface ScorecardConfig {

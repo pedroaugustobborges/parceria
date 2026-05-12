@@ -24,3 +24,6 @@ export type { CsvImportDialogProps } from './CsvImportDialog';
 
 export { CsvPreviewDialog } from './CsvPreviewDialog';
 export type { CsvPreviewDialogProps } from './CsvPreviewDialog';
+
+export { HorarioPagamentoDialog } from './HorarioPagamentoDialog';
+export type { HorarioPagamentoDialogProps } from './HorarioPagamentoDialog';

@@ -5,7 +5,7 @@
  * including access logs and productivity metrics.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -43,6 +43,7 @@ import {
   DeleteForever,
   PieChart,
   Payments,
+  EditCalendar,
 } from "@mui/icons-material";
 import { format, parseISO, subDays, addDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -59,6 +60,7 @@ import {
   canEditStatus,
   isEscalaPaga,
 } from "../../utils/escalasStatusUtils";
+import { HorarioPagamentoDialog } from "./HorarioPagamentoDialog";
 
 // Icon mapping for status
 const statusIconMap: Record<StatusEscala, React.ReactElement> = {
@@ -118,6 +120,7 @@ export interface DetailsDialogProps {
   onEdit: (escala: EscalaMedica) => void;
   onChangeStatus: (escala: EscalaMedica) => void;
   onDelete?: (escala: EscalaMedica) => void;
+  onHorariosPagamentoUpdated?: () => void;
 }
 
 // ============================================
@@ -140,8 +143,10 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   onEdit,
   onChangeStatus,
   onDelete,
+  onHorariosPagamentoUpdated,
 }) => {
   const theme = useTheme();
+  const [horarioPagamentoOpen, setHorarioPagamentoOpen] = useState(false);
 
   if (!escala) return null;
 
@@ -472,82 +477,142 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
 
           {/* Aprovado com Glosa — Horário para fins de pagamento */}
           {isAprovadoComGlosa && (
-            <Card
-              sx={{
-                borderLeft: "4px solid #d97706",
-                bgcolor: "#fffbeb",
-              }}
-            >
+            <Card sx={{ borderLeft: "4px solid #d97706", bgcolor: "#fffbeb" }}>
               <CardContent>
-                <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-                  <PieChart sx={{ color: "#d97706" }} />
-                  <Typography variant="h6" fontWeight={600} color="#d97706">
-                    Horário para fins de pagamento
-                  </Typography>
+                {/* Header */}
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2} flexWrap="wrap" gap={1}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <PieChart sx={{ color: "#d97706" }} />
+                    <Typography variant="h6" fontWeight={600} color="#d97706">
+                      Horário de Pagamento
+                    </Typography>
+                  </Box>
+                  {isAdminAgir && (
+                    <Button
+                      size="small"
+                      variant={escala.horario_pagamento_inicio ? "outlined" : "contained"}
+                      startIcon={<EditCalendar />}
+                      onClick={() => setHorarioPagamentoOpen(true)}
+                      sx={
+                        escala.horario_pagamento_inicio
+                          ? { borderColor: "#d97706", color: "#d97706", "&:hover": { borderColor: "#b45309", bgcolor: "#fef3c7" } }
+                          : { bgcolor: "#d97706", "&:hover": { bgcolor: "#b45309" } }
+                      }
+                    >
+                      {escala.horario_pagamento_inicio ? "Editar horário" : "Definir horário"}
+                    </Button>
+                  )}
                 </Box>
-                <Typography variant="body2" color="text.secondary" mb={2}>
-                  Esta escala foi aprovada com glosa. Os horários abaixo são
-                  usados para cálculo do pagamento. Se não definidos, são
-                  usados os horários originais da escala.
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Horário original
-                    </Typography>
-                    <Typography variant="body1" fontWeight={600} mt={0.5}>
-                      {escala.horario_entrada.substring(0, 5)} –{" "}
-                      {escala.horario_saida.substring(0, 5)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {format(parseISO(escala.data_inicio), "dd/MM/yyyy")}
-                    </Typography>
+
+                {/* Content */}
+                <Grid container spacing={2} alignItems="stretch">
+                  {/* Original schedule */}
+                  <Grid item xs={12} sm={5}>
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 1.5,
+                        bgcolor: "rgba(255,255,255,0.6)",
+                        border: "1px solid #fde68a",
+                        height: "100%",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" mb={0.5}>
+                        HORÁRIO ORIGINAL
+                      </Typography>
+                      <Typography variant="body1" fontWeight={700}>
+                        {escala.horario_entrada.substring(0, 5)} – {escala.horario_saida.substring(0, 5)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {format(parseISO(escala.data_inicio), "dd/MM/yyyy")}
+                      </Typography>
+                    </Box>
                   </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Horário de pagamento
-                    </Typography>
-                    {escala.horario_pagamento_inicio &&
-                    escala.horario_pagamento_fim ? (
-                      <>
-                        <Typography
-                          variant="body1"
-                          fontWeight={600}
-                          color="#d97706"
-                          mt={0.5}
-                        >
-                          {format(
-                            new Date(escala.horario_pagamento_inicio),
-                            "HH:mm",
-                          )}{" "}
-                          –{" "}
-                          {format(
-                            new Date(escala.horario_pagamento_fim),
-                            "HH:mm",
-                          )}
+
+                  {/* Arrow */}
+                  <Grid item xs={12} sm={2} sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Typography color="text.disabled" fontSize={20}>→</Typography>
+                  </Grid>
+
+                  {/* Payment schedule */}
+                  <Grid item xs={12} sm={5}>
+                    {escala.horario_pagamento_inicio && escala.horario_pagamento_fim ? (
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 1.5,
+                          bgcolor: "rgba(255,255,255,0.8)",
+                          border: "2px solid #d97706",
+                          height: "100%",
+                        }}
+                      >
+                        <Typography variant="caption" color="#d97706" fontWeight={600} display="block" mb={0.5}>
+                          HORÁRIO DE PAGAMENTO
+                        </Typography>
+                        <Typography variant="body1" fontWeight={700} color="#d97706">
+                          {format(new Date(escala.horario_pagamento_inicio), "HH:mm")}
+                          {" – "}
+                          {format(new Date(escala.horario_pagamento_fim), "HH:mm")}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {format(
-                            new Date(escala.horario_pagamento_inicio),
-                            "dd/MM/yyyy",
-                            { locale: ptBR },
-                          )}
+                          {format(new Date(escala.horario_pagamento_inicio), "dd/MM/yyyy", { locale: ptBR })}
                         </Typography>
-                      </>
+                      </Box>
                     ) : (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        mt={0.5}
-                        fontStyle="italic"
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 1.5,
+                          bgcolor: "rgba(255,255,255,0.4)",
+                          border: "1px dashed #fcd34d",
+                          height: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          textAlign: "center",
+                          gap: 0.5,
+                        }}
                       >
-                        Não definido — usando horário original
-                      </Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
+                          HORÁRIO DE PAGAMENTO
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                          Não definido
+                        </Typography>
+                        <Typography variant="caption" color="text.disabled">
+                          usando horário original
+                        </Typography>
+                        {isAdminAgir && (
+                          <Button
+                            size="small"
+                            variant="text"
+                            startIcon={<EditCalendar sx={{ fontSize: 14 }} />}
+                            onClick={() => setHorarioPagamentoOpen(true)}
+                            sx={{ mt: 0.5, color: "#d97706", fontSize: "0.7rem", p: 0.5 }}
+                          >
+                            Clique para definir
+                          </Button>
+                        )}
+                      </Box>
                     )}
                   </Grid>
                 </Grid>
               </CardContent>
             </Card>
+          )}
+
+          {/* HorarioPagamentoDialog */}
+          {isAprovadoComGlosa && escala && (
+            <HorarioPagamentoDialog
+              open={horarioPagamentoOpen}
+              onClose={() => setHorarioPagamentoOpen(false)}
+              escala={escala}
+              onSaved={() => {
+                setHorarioPagamentoOpen(false);
+                onHorariosPagamentoUpdated?.();
+              }}
+            />
           )}
 
           {/* Observations */}
