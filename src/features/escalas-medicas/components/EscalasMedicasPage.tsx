@@ -138,18 +138,19 @@ export const EscalasMedicasPage: React.FC = () => {
   // Export Handlers
   // ============================================
 
-  const handleExportExcel = useCallback(() => {
+  const handleExportExcel = useCallback(async () => {
     try {
       if (escalas.escalasFiltradas.length === 0) {
         escalas.setError('Nenhuma escala filtrada para exportar');
         return;
       }
 
-      exportToCSV({
+      await exportToCSV({
         escalas: escalas.escalasFiltradas,
         contratos: escalas.auxiliaryData.contratos,
         unidades: escalas.auxiliaryData.unidades,
         todosItensContrato: escalas.auxiliaryData.todosItensContrato,
+        contratoItens: escalas.auxiliaryData.contratoItens,
       });
 
       escalas.setSuccess(`${escalas.escalasFiltradas.length} escala(s) exportada(s) com sucesso!`);

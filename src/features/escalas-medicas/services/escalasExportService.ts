@@ -31,6 +31,14 @@ function calculateEscalaHoursLocal(horarioEntrada: string, horarioSaida: string)
   const durMin = saiMin >= entMin ? saiMin - entMin : 1440 - entMin + saiMin;
   return durMin / 60;
 }
+
+/**
+ * Format a number as Brazilian currency string.
+ */
+function fmtCurrency(value: number): string {
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 import type {
   EscalaMedica,
   Contrato,
@@ -43,6 +51,47 @@ import { getContratoItemValue } from "./escalasService";
 import { supabase } from "../../../lib/supabase";
 
 // ============================================
+// Memorial Helper
+// ============================================
+
+interface MemorialRow {
+  nome: string;
+  valorUnitario: number;
+  totalHoras: number;
+  totalValor: number;
+}
+
+function buildMemorialRows(
+  escalas: EscalaMedica[],
+  todosItensContrato: ItemContrato[],
+  contratoItens: ContratoItem[],
+): MemorialRow[] {
+  const map = new Map<string, MemorialRow>();
+
+  for (const escala of escalas) {
+    const itemContrato = todosItensContrato.find(i => i.id === escala.item_contrato_id);
+    const contratoItem = contratoItens.find(
+      ci => ci.item_id === escala.item_contrato_id && ci.contrato_id === escala.contrato_id,
+    );
+
+    const nome = itemContrato?.nome || `Item ${escala.item_contrato_id}`;
+    const valorUnitario = contratoItem?.valor_unitario ?? 0;
+    const horas = calculateTotalEscalaHours(escala);
+    const key = `${escala.contrato_id}_${escala.item_contrato_id}`;
+
+    const existing = map.get(key);
+    if (existing) {
+      existing.totalHoras += horas;
+      existing.totalValor += valorUnitario * horas;
+    } else {
+      map.set(key, { nome, valorUnitario, totalHoras: horas, totalValor: valorUnitario * horas });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+// ============================================
 // XLSX Export
 // ============================================
 
@@ -51,15 +100,38 @@ export interface CsvExportData {
   contratos: Contrato[];
   unidades: UnidadeHospitalar[];
   todosItensContrato: ItemContrato[];
+  contratoItens: ContratoItem[];
 }
 
 /**
  * Export escalas to XLSX (Excel) format.
  */
-export function exportToCSV(data: CsvExportData): void {
-  const { escalas, contratos, unidades, todosItensContrato } = data;
+export async function exportToCSV(data: CsvExportData): Promise<void> {
+  const { escalas, contratos, unidades, todosItensContrato, contratoItens } = data;
 
-  // Headers
+  // ── Determine if "Docs no PEP" column applies ────────────────────────────
+  const showDocsPep = escalas.some((escala) => {
+    const contrato = contratos.find((c) => c.id === escala.contrato_id);
+    const unidade = unidades.find((u) => u.id === contrato?.unidade_hospitalar_id);
+    return !unidade?.possui_gestao_acesso;
+  });
+
+  // ── Email lookup for "Alterado Por" ──────────────────────────────────────
+  const userIds = [
+    ...new Set(escalas.map((e) => e.status_alterado_por).filter(Boolean)),
+  ] as string[];
+  const emailMap = new Map<string, string>();
+  if (userIds.length > 0) {
+    const { data: usuarios } = await supabase
+      .from('usuarios')
+      .select('id, email')
+      .in('id', userIds);
+    (usuarios || []).forEach((u: { id: string; email: string | null }) => {
+      if (u.email) emailMap.set(u.id, u.email);
+    });
+  }
+
+  // ── Headers ──────────────────────────────────────────────────────────────
   const headers = [
     "Data",
     "Horário Entrada",
@@ -80,72 +152,80 @@ export function exportToCSV(data: CsvExportData): void {
     "Alterado Por",
     "Data Alteração",
   ];
+  if (showDocsPep) headers.splice(7, 0, "Docs no PEP");
 
-  // Build rows
-  const rows = escalas.map((escala) => {
-    const contrato = contratos.find((c) => c.id === escala.contrato_id);
-    const unidade = unidades.find(
-      (u) => u.id === contrato?.unidade_hospitalar_id,
-    );
-    const itemContrato = todosItensContrato.find(
-      (i) => i.id === escala.item_contrato_id,
-    );
-    const medicos = escala.medicos.map((m) => m.nome).join("; ");
-    const cpfs = escala.medicos.map((m) => m.cpf).join("; ");
+  // ── Build rows ────────────────────────────────────────────────────────────
+  const rows = await Promise.all(
+    escalas.map(async (escala) => {
+      const contrato = contratos.find((c) => c.id === escala.contrato_id);
+      const unidade = unidades.find((u) => u.id === contrato?.unidade_hospitalar_id);
+      const itemContrato = todosItensContrato.find((i) => i.id === escala.item_contrato_id);
+      const medicos = escala.medicos.map((m) => m.nome).join("; ");
+      const cpfs = escala.medicos.map((m) => m.cpf).join("; ");
 
-    // Payment datetime & duration for Aprovado com Glosa
-    let horarioPgtoInicio = "";
-    let horarioPgtoFim = "";
-    let duracaoPgto = "";
-    if (escala.status === "Aprovado com Glosa") {
-      if (escala.horario_pagamento_inicio && escala.horario_pagamento_fim) {
-        horarioPgtoInicio = format(
-          new Date(escala.horario_pagamento_inicio),
-          "dd/MM/yyyy HH:mm"
-        );
-        horarioPgtoFim = format(
-          new Date(escala.horario_pagamento_fim),
-          "dd/MM/yyyy HH:mm"
-        );
-        const diffMs =
-          new Date(escala.horario_pagamento_fim).getTime() -
-          new Date(escala.horario_pagamento_inicio).getTime();
-        duracaoPgto = (diffMs / 3_600_000).toFixed(2);
-      } else {
-        horarioPgtoInicio = "Horário original";
-        horarioPgtoFim = "Horário original";
-        duracaoPgto = calculateEscalaHoursLocal(
-          escala.horario_entrada,
-          escala.horario_saida
-        ).toFixed(2);
+      // Docs no PEP (only when column is shown)
+      const docsPep = showDocsPep ? (await getDocumentosPepSum(escala)).toString() : undefined;
+
+      // Payment datetime & duration for Aprovado com Glosa
+      let horarioPgtoInicio = "";
+      let horarioPgtoFim = "";
+      let duracaoPgto = "";
+      if (escala.status === "Aprovado com Glosa") {
+        if (escala.horario_pagamento_inicio && escala.horario_pagamento_fim) {
+          horarioPgtoInicio = format(new Date(escala.horario_pagamento_inicio), "dd/MM/yyyy HH:mm");
+          horarioPgtoFim = format(new Date(escala.horario_pagamento_fim), "dd/MM/yyyy HH:mm");
+          const diffMs =
+            new Date(escala.horario_pagamento_fim).getTime() -
+            new Date(escala.horario_pagamento_inicio).getTime();
+          duracaoPgto = (diffMs / 3_600_000).toFixed(2);
+        } else {
+          horarioPgtoInicio = "Horário original";
+          horarioPgtoFim = "Horário original";
+          duracaoPgto = calculateEscalaHoursLocal(
+            escala.horario_entrada,
+            escala.horario_saida,
+          ).toFixed(2);
+        }
       }
-    }
 
-    return [
-      format(parseISO(escala.data_inicio), "dd/MM/yyyy"),
-      escala.horario_entrada.substring(0, 5),
-      escala.horario_saida.substring(0, 5),
-      contrato?.nome || "N/A",
-      contrato?.empresa || "N/A",
-      unidade?.nome || "N/A",
-      itemContrato?.nome || "N/A",
-      escala.status,
-      escala.status_pagamento,
-      horarioPgtoInicio,
-      horarioPgtoFim,
-      duracaoPgto,
-      medicos,
-      cpfs,
-      escala.observacoes || "",
-      escala.justificativa || "",
-      escala.status_alterado_por || "",
-      escala.status_alterado_em
-        ? format(parseISO(escala.status_alterado_em), "dd/MM/yyyy HH:mm")
-        : "",
-    ];
-  });
+      // Email instead of UUID for "Alterado Por"
+      const alteradoPor = escala.status_alterado_por
+        ? (emailMap.get(escala.status_alterado_por) || escala.status_alterado_por)
+        : "";
 
-  // Create worksheet data
+      const row: (string | number)[] = [
+        format(parseISO(escala.data_inicio), "dd/MM/yyyy"),
+        escala.horario_entrada.substring(0, 5),
+        escala.horario_saida.substring(0, 5),
+        contrato?.nome || "N/A",
+        contrato?.empresa || "N/A",
+        unidade?.nome || "N/A",
+        itemContrato?.nome || "N/A",
+      ];
+
+      if (showDocsPep) row.push(docsPep!);
+
+      row.push(
+        escala.status,
+        escala.status_pagamento,
+        horarioPgtoInicio,
+        horarioPgtoFim,
+        duracaoPgto,
+        medicos,
+        cpfs,
+        escala.observacoes || "",
+        escala.justificativa || "",
+        alteradoPor,
+        escala.status_alterado_em
+          ? format(parseISO(escala.status_alterado_em), "dd/MM/yyyy HH:mm")
+          : "",
+      );
+
+      return row;
+    }),
+  );
+
+  // ── Create main worksheet ─────────────────────────────────────────────────
   const worksheetData = [headers, ...rows];
   const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
@@ -153,19 +233,20 @@ export function exportToCSV(data: CsvExportData): void {
   const colWidths = headers.map((header, colIndex) => {
     const maxLength = Math.max(
       header.length,
-      ...rows.map((row) => String(row[colIndex] ?? "").length)
+      ...rows.map((row) => String(row[colIndex] ?? "").length),
     );
     return { wch: Math.min(Math.max(maxLength + 2, 10), 50) };
   });
   worksheet["!cols"] = colWidths;
 
+  // Status column index shifts when Docs no PEP is shown
+  const statusColIdx = showDocsPep ? 8 : 7;
+  const paidColIdx = showDocsPep ? 9 : 8;
+
   // Amber fill for "Aprovado com Glosa" rows + green for paid rows
   escalas.forEach((escala, rowIdx) => {
     const xlsxRow = rowIdx + 2; // +1 for header, +1 for 1-based index
-    const statusColLetter = "H"; // Status is column H (index 7)
-    const cellRef = `${statusColLetter}${xlsxRow}`;
     if (escala.status === "Aprovado com Glosa") {
-      // Apply amber background to all cells in row
       for (let c = 0; c < headers.length; c++) {
         const col = XLSX.utils.encode_col(c);
         const ref = `${col}${xlsxRow}`;
@@ -173,23 +254,82 @@ export function exportToCSV(data: CsvExportData): void {
         worksheet[ref].s = { fill: { patternType: "solid", fgColor: { rgb: "FFF3CD" } } };
       }
     } else if (escala.status_pagamento === "Sim") {
-      // Soft green background for paid escalas
-      const col = XLSX.utils.encode_col(8); // Column I = "Escala paga?"
+      const col = XLSX.utils.encode_col(paidColIdx);
       const ref = `${col}${xlsxRow}`;
       if (!worksheet[ref]) worksheet[ref] = { v: "Sim", t: "s" };
       worksheet[ref].s = { fill: { patternType: "solid", fgColor: { rgb: "D1FAE5" } } };
     }
-    // Suppress unused variable warning
-    void cellRef;
+    void statusColIdx;
+    void paidColIdx;
   });
 
-  // Create workbook and download
+  // ── Memorial Executivo de Cálculo — second sheet ──────────────────────────
+  const memorialRows = buildMemorialRows(escalas, todosItensContrato, contratoItens);
+  const grandTotal = memorialRows.reduce((sum, r) => sum + r.totalValor, 0);
+
+  const primaryHex = "0EA5E9";
+  const memorialHeader = ["Item de Contrato", "Valor Unitário (R$/h)", "Quantidade (h)", "Total (R$)"];
+  const memorialData: (string | number)[][] = [
+    ["MEMORIAL EXECUTIVO DE CÁLCULO"],
+    [],
+    memorialHeader,
+    ...memorialRows.map((r) => [
+      r.nome,
+      r.valorUnitario,
+      parseFloat(r.totalHoras.toFixed(2)),
+      parseFloat(r.totalValor.toFixed(2)),
+    ]),
+    [],
+    ["TOTAL GERAL", "", "", parseFloat(grandTotal.toFixed(2))],
+  ];
+
+  const memorialWs = XLSX.utils.aoa_to_sheet(memorialData);
+
+  // Style the title cell
+  if (memorialWs["A1"]) {
+    memorialWs["A1"].s = {
+      font: { bold: true, sz: 14, color: { rgb: primaryHex } },
+    };
+  }
+
+  // Style the header row (row 3, index 2 → xlsx row 3)
+  memorialHeader.forEach((_, colIdx) => {
+    const ref = `${XLSX.utils.encode_col(colIdx)}3`;
+    if (!memorialWs[ref]) memorialWs[ref] = { v: memorialHeader[colIdx], t: "s" };
+    memorialWs[ref].s = {
+      fill: { patternType: "solid", fgColor: { rgb: primaryHex } },
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+    };
+  });
+
+  // Style the TOTAL GERAL row
+  const totalRowIdx = memorialData.length; // 1-based xlsx row
+  const totalCols = ["A", "B", "C", "D"];
+  totalCols.forEach((col) => {
+    const ref = `${col}${totalRowIdx}`;
+    if (!memorialWs[ref]) memorialWs[ref] = { v: "", t: "s" };
+    memorialWs[ref].s = {
+      fill: { patternType: "solid", fgColor: { rgb: "DCFCE7" } },
+      font: { bold: true },
+    };
+  });
+
+  // Column widths for memorial sheet
+  memorialWs["!cols"] = [
+    { wch: 40 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 20 },
+  ];
+
+  // ── Build workbook ────────────────────────────────────────────────────────
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Escalas Médicas");
+  XLSX.utils.book_append_sheet(workbook, memorialWs, "Memorial Executivo");
 
   XLSX.writeFile(
     workbook,
-    `escalas_medicas_${format(new Date(), "yyyy-MM-dd_HHmmss")}.xlsx`
+    `escalas_medicas_${format(new Date(), "yyyy-MM-dd_HHmmss")}.xlsx`,
   );
 }
 
@@ -205,8 +345,7 @@ export interface PdfExportData extends CsvExportData {
  * Export escalas to PDF format with branding and metrics.
  */
 export async function exportToPDF(data: PdfExportData): Promise<void> {
-  const { escalas, contratos, unidades, todosItensContrato, contratoItens } =
-    data;
+  const { escalas, contratos, unidades, todosItensContrato, contratoItens } = data;
 
   const doc = new jsPDF({
     orientation: "landscape",
@@ -247,36 +386,28 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(255, 255, 255);
-  const dataRelatorio = format(new Date(), "dd/MM/yyyy 'às' HH:mm", {
-    locale: ptBR,
-  });
-  doc.text(`Gerado em: ${dataRelatorio}`, pageWidth - 15, 15, {
-    align: "right",
-  });
-  doc.text(`Total de escalas: ${escalas.length}`, pageWidth - 15, 22, {
-    align: "right",
-  });
-  doc.text("Powered by Daher.lab - Agir", pageWidth - 15, 29, {
-    align: "right",
+  const dataRelatorio = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+  doc.text(`Gerado em: ${dataRelatorio}`, pageWidth - 15, 15, { align: "right" });
+  doc.text(`Total de escalas: ${escalas.length}`, pageWidth - 15, 22, { align: "right" });
+  doc.text("Powered by Daher.lab - Agir", pageWidth - 15, 29, { align: "right" });
+
+  // ── Determine if "Docs no PEP" column applies ────────────────────────────
+  const showDocsPep = escalas.some((escala) => {
+    const contrato = contratos.find((c) => c.id === escala.contrato_id);
+    const unidade = unidades.find((u) => u.id === contrato?.unidade_hospitalar_id);
+    return !unidade?.possui_gestao_acesso;
   });
 
-  // Build table data - fetch documentos PEP for each escala
+  // ── Build table data ──────────────────────────────────────────────────────
   const amberColor: [number, number, number] = [217, 119, 6]; // #d97706
   const amberBg: [number, number, number] = [255, 243, 205]; // #FFF3CD
 
   const tableData = await Promise.all(
     escalas.map(async (escala) => {
       const contrato = contratos.find((c) => c.id === escala.contrato_id);
-      const unidade = unidades.find(
-        (u) => u.id === contrato?.unidade_hospitalar_id,
-      );
-      const itemContrato = todosItensContrato.find(
-        (i) => i.id === escala.item_contrato_id,
-      );
+      const unidade = unidades.find((u) => u.id === contrato?.unidade_hospitalar_id);
+      const itemContrato = todosItensContrato.find((i) => i.id === escala.item_contrato_id);
       const medicos = escala.medicos.map((m) => m.nome).join("\n");
-
-      // Get sum of documentos PEP for this schedule
-      const documentosPep = await getDocumentosPepSum(escala);
 
       // Payment datetime for Aprovado com Glosa
       let horarioDisplay = `${escala.horario_entrada.substring(0, 5)} - ${escala.horario_saida.substring(0, 5)}`;
@@ -290,7 +421,7 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
         horarioDisplay += `\nPgto: ${pgtoInicio} - ${pgtoFim}`;
       }
 
-      return [
+      const row: string[] = [
         format(parseISO(escala.data_inicio), "dd/MM/yyyy"),
         horarioDisplay,
         contrato?.nome || "N/A",
@@ -298,30 +429,50 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
         unidade?.nome || "N/A",
         itemContrato?.nome || "N/A",
         medicos,
-        documentosPep.toString(),
-        escala.status,
-        escala.status_pagamento,
       ];
+
+      if (showDocsPep) {
+        const documentosPep = await getDocumentosPepSum(escala);
+        row.push(documentosPep.toString());
+      }
+
+      row.push(escala.status, escala.status_pagamento);
+
+      return row;
     }),
   );
 
-  // Create table
+  // ── Column config (adapts to showDocsPep) ────────────────────────────────
+  const headRow = ["Data", "Horário", "Contrato", "Parceiro", "Unidade", "Item", "Médicos"];
+  if (showDocsPep) headRow.push("Docs no PEP");
+  headRow.push("Status", "Pago?");
+
+  // Status and Pago? are always the last two columns
+  const statusIdx = headRow.length - 2;
+
+  const columnStyles: Record<number, object> = {
+    0: { cellWidth: 20, halign: "center" },
+    1: { cellWidth: 25, halign: "center" },
+    2: { cellWidth: 32 },
+    3: { cellWidth: 28 },
+    4: { cellWidth: 28 },
+    5: { cellWidth: 25 },
+    6: { cellWidth: 35 },
+  };
+
+  if (showDocsPep) {
+    columnStyles[7] = { cellWidth: 14, halign: "center" };
+    columnStyles[8] = { cellWidth: 22, halign: "center" };
+    columnStyles[9] = { cellWidth: 18, halign: "center" }; // Pago? — wider to prevent line break
+  } else {
+    columnStyles[7] = { cellWidth: 22, halign: "center" };
+    columnStyles[8] = { cellWidth: 18, halign: "center" }; // Pago? — wider to prevent line break
+  }
+
+  // ── Main table ────────────────────────────────────────────────────────────
   autoTable(doc, {
     startY: 40,
-    head: [
-      [
-        "Data",
-        "Horário",
-        "Contrato",
-        "Parceiro",
-        "Unidade",
-        "Item",
-        "Médicos",
-        "Docs no PEP",
-        "Status",
-        "Pago?",
-      ],
-    ],
+    head: [headRow],
     body: tableData,
     theme: "grid",
     headStyles: {
@@ -336,47 +487,91 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
       cellPadding: 3,
       overflow: "linebreak",
     },
-    columnStyles: {
-      0: { cellWidth: 20, halign: "center" },
-      1: { cellWidth: 25, halign: "center" },
-      2: { cellWidth: 32 },
-      3: { cellWidth: 28 },
-      4: { cellWidth: 28 },
-      5: { cellWidth: 25 },
-      6: { cellWidth: 35 },
-      7: { cellWidth: 14, halign: "center" },
-      8: { cellWidth: 22, halign: "center" },
-      9: { cellWidth: 12, halign: "center" },
-    },
-    alternateRowStyles: {
-      fillColor: [245, 247, 250],
-    },
+    columnStyles,
+    alternateRowStyles: { fillColor: [245, 247, 250] },
     margin: { left: 15, right: 15 },
     didParseCell: (data) => {
-      // Amber left border + background for Aprovado com Glosa rows
+      if (data.row.section === 'head') return;
       const rowData = tableData[data.row.index];
-      if (rowData && rowData[8] === "Aprovado com Glosa") {
+      if (rowData && rowData[statusIdx] === "Aprovado com Glosa") {
         data.cell.styles.fillColor = amberBg;
         data.cell.styles.textColor = amberColor;
         if (data.column.index === 0) {
-          data.cell.styles.lineWidthLeft = 2;
-          data.cell.styles.drawColor = amberColor;
+          data.cell.styles.lineWidth = 2;
         }
       }
     },
   });
 
-  // Calculate total value for approved escalas
-  const valorTotalAprovadas = await calculateApprovedEscalasValue(
-    escalas,
-    contratoItens,
+  // ── Memorial Executivo de Cálculo ─────────────────────────────────────────
+  const memorialRows = buildMemorialRows(escalas, todosItensContrato, contratoItens);
+  const grandTotal = memorialRows.reduce((sum, r) => sum + r.totalValor, 0);
+
+  // Position after main table
+  const afterMainTable = (doc as any).lastAutoTable?.finalY ?? 40;
+
+  // Section title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(14, 165, 233);
+  doc.text("Memorial Executivo de Cálculo", 15, afterMainTable + 12);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text(
+    "Resumo consolidado por item de contrato com base nas escalas exportadas.",
+    15,
+    afterMainTable + 18,
   );
+
+  const darkGreen: [number, number, number] = [22, 163, 74];
+  const lightGreen: [number, number, number] = [220, 252, 231];
+
+  autoTable(doc, {
+    startY: afterMainTable + 22,
+    head: [["Item de Contrato", "Valor Unitário (R$/h)", "Quantidade (h)", "Total (R$)"]],
+    body: [
+      ...memorialRows.map((r) => [
+        r.nome,
+        `R$ ${fmtCurrency(r.valorUnitario)}`,
+        r.totalHoras.toFixed(2),
+        `R$ ${fmtCurrency(r.totalValor)}`,
+      ]),
+      // Grand total row
+      [
+        { content: "TOTAL GERAL", styles: { fontStyle: "bold", fillColor: lightGreen, textColor: darkGreen } },
+        { content: "", styles: { fillColor: lightGreen } },
+        { content: "", styles: { fillColor: lightGreen } },
+        { content: `R$ ${fmtCurrency(grandTotal)}`, styles: { fontStyle: "bold", fillColor: lightGreen, textColor: darkGreen, halign: "right" } },
+      ],
+    ],
+    theme: "grid",
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+      halign: "center",
+    },
+    styles: { fontSize: 8, cellPadding: 3 },
+    columnStyles: {
+      0: { cellWidth: "auto" },
+      1: { cellWidth: 40, halign: "center" },
+      2: { cellWidth: 30, halign: "center" },
+      3: { cellWidth: 40, halign: "right" },
+    },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    margin: { left: 15, right: 15 },
+  });
+
+  // ── Summary & page footer ─────────────────────────────────────────────────
+  const valorTotalAprovadas = await calculateApprovedEscalasValue(escalas, contratoItens);
   const escalasAprovadas = escalas.filter(
-    (e) => e.status === "Aprovado" || e.status === "Aprovado com Glosa"
+    (e) => e.status === "Aprovado" || e.status === "Aprovado com Glosa",
   );
   const escalasPagas = escalas.filter((e) => e.status_pagamento === "Sim");
 
-  // Add footer with page numbers
   const pageCount = doc.getNumberOfPages();
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
@@ -385,23 +580,21 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
     doc.setPage(i);
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // Page number
-    doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, {
-      align: "center",
-    });
+    doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: "center" });
 
-    // Add approved escalas summary on last page
     if (i === pageCount && escalasAprovadas.length > 0) {
-      // Green box for approved summary
       doc.setFillColor(46, 204, 113);
       doc.roundedRect(pageWidth - 165, pageHeight - 27, 150, 22, 3, 3, "F");
 
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
-      doc.text("ESCALAS APROVADAS (incl. Aprovado com Glosa)", pageWidth - 90, pageHeight - 21, {
-        align: "center",
-      });
+      doc.text(
+        "ESCALAS APROVADAS (incl. Aprovado com Glosa)",
+        pageWidth - 90,
+        pageHeight - 21,
+        { align: "center" },
+      );
 
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
@@ -412,23 +605,15 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
         { align: "center" },
       );
 
-      // Total value
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      const valorFormatado = valorTotalAprovadas.toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
       doc.text(
-        `Valor Total: R$ ${valorFormatado}`,
+        `Valor Total: R$ ${fmtCurrency(valorTotalAprovadas)}`,
         pageWidth - 90,
         pageHeight - 10,
-        {
-          align: "center",
-        },
+        { align: "center" },
       );
 
-      // Explanatory note
       doc.setFontSize(7);
       doc.setTextColor(100, 100, 100);
       doc.setFont("helvetica", "italic");
@@ -440,7 +625,6 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
     }
   }
 
-  // Download PDF
   doc.save(`escalas_medicas_${format(new Date(), "yyyy-MM-dd_HHmmss")}.pdf`);
 }
 
@@ -450,8 +634,6 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
 
 /**
  * Get the sum of qtd_documentos_pep for doctors in a schedule on a specific date.
- * Searches by doctor names in the produtividade table.
- * For overnight shifts (e.g., 19:00 - 07:00), also includes productivity from the next day.
  */
 async function getDocumentosPepSum(escala: EscalaMedica): Promise<number> {
   try {
@@ -461,24 +643,19 @@ async function getDocumentosPepSum(escala: EscalaMedica): Promise<number> {
 
     if (medicoNames.length === 0) return 0;
 
-    // Check if it's an overnight shift
     const overnight = isOvernightShift(escala.horario_entrada, escala.horario_saida);
     const dataSeguinteFormatada = overnight
       ? format(addDays(dataEscala, 1), "yyyy-MM-dd")
       : null;
 
-    // Query productivity for all doctors by name on the schedule date
     const { data: produtividadeDia, error: errorDia } = await supabase
       .from("produtividade")
       .select("nome, qtd_documentos_pep")
       .in("nome", medicoNames)
       .eq("data", dataFormatada);
 
-    if (errorDia) {
-      console.error("Error fetching documentos PEP:", errorDia);
-    }
+    if (errorDia) console.error("Error fetching documentos PEP:", errorDia);
 
-    // For overnight shifts, also query the next day
     let produtividadeSeguinte: typeof produtividadeDia = [];
     if (overnight && dataSeguinteFormatada) {
       const { data: prodSeguinte, error: errorSeguinte } = await supabase
@@ -487,21 +664,12 @@ async function getDocumentosPepSum(escala: EscalaMedica): Promise<number> {
         .in("nome", medicoNames)
         .eq("data", dataSeguinteFormatada);
 
-      if (errorSeguinte) {
-        console.error("Error fetching documentos PEP (next day):", errorSeguinte);
-      }
+      if (errorSeguinte) console.error("Error fetching documentos PEP (next day):", errorSeguinte);
       produtividadeSeguinte = prodSeguinte || [];
     }
 
-    // Combine productivity from both days
     const allProdutividade = [...(produtividadeDia || []), ...produtividadeSeguinte];
-
-    // Sum all qtd_documentos_pep values
-    const total = allProdutividade.reduce((sum, record) => {
-      return sum + (record.qtd_documentos_pep || 0);
-    }, 0);
-
-    return total;
+    return allProdutividade.reduce((sum, r) => sum + (r.qtd_documentos_pep || 0), 0);
   } catch (error) {
     console.error("Error in getDocumentosPepSum:", error);
     return 0;
@@ -520,23 +688,16 @@ async function calculateApprovedEscalasValue(
   for (const escala of escalas) {
     if (escala.status !== "Aprovado" && escala.status !== "Aprovado com Glosa") continue;
 
-    // Find the contract item locally first
     const contratoItem = contratoItens.find(
-      (ci) =>
-        ci.item_id === escala.item_contrato_id &&
-        ci.contrato_id === escala.contrato_id,
+      (ci) => ci.item_id === escala.item_contrato_id && ci.contrato_id === escala.contrato_id,
     );
 
     if (contratoItem?.valor_unitario) {
       const totalHoras = calculateTotalEscalaHours(escala);
       valorTotal += totalHoras * contratoItem.valor_unitario;
     } else {
-      // Fallback to database query
       try {
-        const dbItem = await getContratoItemValue(
-          escala.contrato_id,
-          escala.item_contrato_id,
-        );
+        const dbItem = await getContratoItemValue(escala.contrato_id, escala.item_contrato_id);
         if (dbItem?.valor_unitario) {
           const totalHoras = calculateTotalEscalaHours(escala);
           valorTotal += totalHoras * dbItem.valor_unitario;
@@ -550,25 +711,3 @@ async function calculateApprovedEscalasValue(
   return valorTotal;
 }
 
-/**
- * Download a file with the given content.
- */
-function downloadFile(
-  content: string,
-  filename: string,
-  mimeType: string,
-): void {
-  const blob = new Blob([content], { type: mimeType });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-
-  link.setAttribute("href", url);
-  link.setAttribute("download", filename);
-  link.style.visibility = "hidden";
-
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  URL.revokeObjectURL(url);
-}
