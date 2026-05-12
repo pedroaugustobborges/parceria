@@ -228,6 +228,76 @@ export async function bulkUpdateStatus(
 }
 
 // ============================================
+// Update Status Pagamento
+// ============================================
+
+/**
+ * Update the payment status (status_pagamento) of a single escala.
+ * Only administrador-corporativo and administrador-planta should call this.
+ */
+export async function updateStatusPagamento(
+  id: string,
+  status_pagamento: 'Sim' | 'Não',
+  userId: string | null
+): Promise<void> {
+  const { error } = await supabase
+    .from('escalas_medicas')
+    .update({
+      status_pagamento,
+      status_alterado_por: userId,
+      status_alterado_em: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+/**
+ * Bulk update payment status for multiple escalas.
+ * Only administrador-corporativo and administrador-planta should call this.
+ */
+export async function bulkUpdateStatusPagamento(
+  ids: string[],
+  status_pagamento: 'Sim' | 'Não',
+  userId: string | null
+): Promise<number> {
+  let query = supabase
+    .from('escalas_medicas')
+    .update({
+      status_pagamento,
+      status_alterado_por: userId,
+      status_alterado_em: new Date().toISOString(),
+    })
+    .in('id', ids);
+
+  // Only "Aprovado" and "Aprovado com Glosa" escalas can be marked as paid
+  if (status_pagamento === 'Sim') {
+    query = query.in('status', ['Aprovado', 'Aprovado com Glosa']);
+  }
+
+  const { error } = await query;
+  if (error) throw error;
+  return ids.length;
+}
+
+/**
+ * Update payment datetime overrides for an 'Aprovado com Glosa' escala.
+ * Only administrador-corporativo and administrador-planta should call this.
+ */
+export async function updateHorariosPagamento(
+  id: string,
+  horario_pagamento_inicio: string | null,
+  horario_pagamento_fim: string | null
+): Promise<void> {
+  const { error } = await supabase
+    .from('escalas_medicas')
+    .update({ horario_pagamento_inicio, horario_pagamento_fim })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ============================================
 // Delete Escala
 // ============================================
 

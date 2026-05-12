@@ -96,14 +96,15 @@ export function createEmptyMetric(): StatusMetric {
  */
 export function createEmptyScorecardMetrics(): ScorecardMetrics {
   return {
-    pago: createEmptyMetric(),
     programado: createEmptyMetric(),
     preAprovado: createEmptyMetric(),
     aprovacaoParcial: createEmptyMetric(),
     atencao: createEmptyMetric(),
     aprovado: createEmptyMetric(),
+    aprovadoComGlosa: createEmptyMetric(),
     reprovado: createEmptyMetric(),
     excluida: createEmptyMetric(),
+    escalasPagas: { count: 0 },
   };
 }
 
@@ -111,13 +112,13 @@ export function createEmptyScorecardMetrics(): ScorecardMetrics {
  * Get the metrics key for a status.
  */
 function getMetricsKey(status: StatusEscala): keyof ScorecardMetrics | null {
-  const statusKeyMap: Record<StatusEscala, keyof ScorecardMetrics> = {
-    'Pago': 'pago',
+  const statusKeyMap: Partial<Record<StatusEscala, keyof ScorecardMetrics>> = {
     'Programado': 'programado',
     'Pré-Aprovado': 'preAprovado',
     'Aprovação Parcial': 'aprovacaoParcial',
     'Atenção': 'atencao',
     'Aprovado': 'aprovado',
+    'Aprovado com Glosa': 'aprovadoComGlosa',
     'Reprovado': 'reprovado',
     'Excluída': 'excluida',
   };
@@ -152,9 +153,17 @@ export function calculateScorecardMetrics(
       : 0;
 
     // Accumulate metrics
-    metrics[key].valor += valor;
-    metrics[key].horas += totalHoras;
-    metrics[key].count++;
+    const statusMetric = metrics[key];
+    if (statusMetric && 'valor' in statusMetric) {
+      statusMetric.valor += valor;
+      statusMetric.horas += totalHoras;
+      statusMetric.count++;
+    }
+
+    // Count escalas pagas (status_pagamento = 'Sim')
+    if (escala.status_pagamento === 'Sim') {
+      metrics.escalasPagas.count++;
+    }
   }
 
   return metrics;
@@ -170,7 +179,7 @@ export function calculateApprovedValue(
   let valorTotal = 0;
 
   for (const escala of escalas) {
-    if (escala.status !== 'Aprovado') continue;
+    if (escala.status !== 'Aprovado' && escala.status !== 'Aprovado com Glosa') continue;
 
     const contratoItem = contratoItens.find(
       (ci) => ci.item_id === escala.item_contrato_id && ci.contrato_id === escala.contrato_id

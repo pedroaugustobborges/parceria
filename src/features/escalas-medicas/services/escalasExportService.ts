@@ -19,6 +19,18 @@ function isOvernightShift(horarioEntrada: string, horarioSaida: string): boolean
   const saida = horarioSaida.substring(0, 5);
   return saida < entrada;
 }
+
+/**
+ * Local hours calculation without importing the full utility (avoids circular dep).
+ */
+function calculateEscalaHoursLocal(horarioEntrada: string, horarioSaida: string): number {
+  const [eh, em] = horarioEntrada.substring(0, 5).split(':').map(Number);
+  const [sh, sm] = horarioSaida.substring(0, 5).split(':').map(Number);
+  const entMin = eh * 60 + em;
+  const saiMin = sh * 60 + sm;
+  const durMin = saiMin >= entMin ? saiMin - entMin : 1440 - entMin + saiMin;
+  return durMin / 60;
+}
 import type {
   EscalaMedica,
   Contrato,
@@ -57,6 +69,10 @@ export function exportToCSV(data: CsvExportData): void {
     "Unidade",
     "Item Contrato",
     "Status",
+    "Escala paga?",
+    "Horário Pgto Início",
+    "Horário Pgto Fim",
+    "Duração do Pagamento (h)",
     "Médicos",
     "CPFs",
     "Observações",
@@ -77,6 +93,34 @@ export function exportToCSV(data: CsvExportData): void {
     const medicos = escala.medicos.map((m) => m.nome).join("; ");
     const cpfs = escala.medicos.map((m) => m.cpf).join("; ");
 
+    // Payment datetime & duration for Aprovado com Glosa
+    let horarioPgtoInicio = "";
+    let horarioPgtoFim = "";
+    let duracaoPgto = "";
+    if (escala.status === "Aprovado com Glosa") {
+      if (escala.horario_pagamento_inicio && escala.horario_pagamento_fim) {
+        horarioPgtoInicio = format(
+          new Date(escala.horario_pagamento_inicio),
+          "dd/MM/yyyy HH:mm"
+        );
+        horarioPgtoFim = format(
+          new Date(escala.horario_pagamento_fim),
+          "dd/MM/yyyy HH:mm"
+        );
+        const diffMs =
+          new Date(escala.horario_pagamento_fim).getTime() -
+          new Date(escala.horario_pagamento_inicio).getTime();
+        duracaoPgto = (diffMs / 3_600_000).toFixed(2);
+      } else {
+        horarioPgtoInicio = "Horário original";
+        horarioPgtoFim = "Horário original";
+        duracaoPgto = calculateEscalaHoursLocal(
+          escala.horario_entrada,
+          escala.horario_saida
+        ).toFixed(2);
+      }
+    }
+
     return [
       format(parseISO(escala.data_inicio), "dd/MM/yyyy"),
       escala.horario_entrada.substring(0, 5),
@@ -86,6 +130,10 @@ export function exportToCSV(data: CsvExportData): void {
       unidade?.nome || "N/A",
       itemContrato?.nome || "N/A",
       escala.status,
+      escala.status_pagamento,
+      horarioPgtoInicio,
+      horarioPgtoFim,
+      duracaoPgto,
       medicos,
       cpfs,
       escala.observacoes || "",
@@ -110,6 +158,30 @@ export function exportToCSV(data: CsvExportData): void {
     return { wch: Math.min(Math.max(maxLength + 2, 10), 50) };
   });
   worksheet["!cols"] = colWidths;
+
+  // Amber fill for "Aprovado com Glosa" rows + green for paid rows
+  escalas.forEach((escala, rowIdx) => {
+    const xlsxRow = rowIdx + 2; // +1 for header, +1 for 1-based index
+    const statusColLetter = "H"; // Status is column H (index 7)
+    const cellRef = `${statusColLetter}${xlsxRow}`;
+    if (escala.status === "Aprovado com Glosa") {
+      // Apply amber background to all cells in row
+      for (let c = 0; c < headers.length; c++) {
+        const col = XLSX.utils.encode_col(c);
+        const ref = `${col}${xlsxRow}`;
+        if (!worksheet[ref]) worksheet[ref] = { v: "", t: "s" };
+        worksheet[ref].s = { fill: { patternType: "solid", fgColor: { rgb: "FFF3CD" } } };
+      }
+    } else if (escala.status_pagamento === "Sim") {
+      // Soft green background for paid escalas
+      const col = XLSX.utils.encode_col(8); // Column I = "Escala paga?"
+      const ref = `${col}${xlsxRow}`;
+      if (!worksheet[ref]) worksheet[ref] = { v: "Sim", t: "s" };
+      worksheet[ref].s = { fill: { patternType: "solid", fgColor: { rgb: "D1FAE5" } } };
+    }
+    // Suppress unused variable warning
+    void cellRef;
+  });
 
   // Create workbook and download
   const workbook = XLSX.utils.book_new();
@@ -189,6 +261,9 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
   });
 
   // Build table data - fetch documentos PEP for each escala
+  const amberColor: [number, number, number] = [217, 119, 6]; // #d97706
+  const amberBg: [number, number, number] = [255, 243, 205]; // #FFF3CD
+
   const tableData = await Promise.all(
     escalas.map(async (escala) => {
       const contrato = contratos.find((c) => c.id === escala.contrato_id);
@@ -203,9 +278,21 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
       // Get sum of documentos PEP for this schedule
       const documentosPep = await getDocumentosPepSum(escala);
 
+      // Payment datetime for Aprovado com Glosa
+      let horarioDisplay = `${escala.horario_entrada.substring(0, 5)} - ${escala.horario_saida.substring(0, 5)}`;
+      if (
+        escala.status === "Aprovado com Glosa" &&
+        escala.horario_pagamento_inicio &&
+        escala.horario_pagamento_fim
+      ) {
+        const pgtoInicio = format(new Date(escala.horario_pagamento_inicio), "HH:mm");
+        const pgtoFim = format(new Date(escala.horario_pagamento_fim), "HH:mm");
+        horarioDisplay += `\nPgto: ${pgtoInicio} - ${pgtoFim}`;
+      }
+
       return [
         format(parseISO(escala.data_inicio), "dd/MM/yyyy"),
-        `${escala.horario_entrada.substring(0, 5)} - ${escala.horario_saida.substring(0, 5)}`,
+        horarioDisplay,
         contrato?.nome || "N/A",
         contrato?.empresa || "N/A",
         unidade?.nome || "N/A",
@@ -213,6 +300,7 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
         medicos,
         documentosPep.toString(),
         escala.status,
+        escala.status_pagamento,
       ];
     }),
   );
@@ -231,6 +319,7 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
         "Médicos",
         "Docs no PEP",
         "Status",
+        "Pago?",
       ],
     ],
     body: tableData,
@@ -249,19 +338,32 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
     },
     columnStyles: {
       0: { cellWidth: 20, halign: "center" },
-      1: { cellWidth: 23, halign: "center" },
-      2: { cellWidth: 35 },
-      3: { cellWidth: 30 },
-      4: { cellWidth: 30 },
-      5: { cellWidth: 30 },
-      6: { cellWidth: 40 },
-      7: { cellWidth: 18, halign: "center" },
-      8: { cellWidth: 20, halign: "center" },
+      1: { cellWidth: 25, halign: "center" },
+      2: { cellWidth: 32 },
+      3: { cellWidth: 28 },
+      4: { cellWidth: 28 },
+      5: { cellWidth: 25 },
+      6: { cellWidth: 35 },
+      7: { cellWidth: 14, halign: "center" },
+      8: { cellWidth: 22, halign: "center" },
+      9: { cellWidth: 12, halign: "center" },
     },
     alternateRowStyles: {
       fillColor: [245, 247, 250],
     },
     margin: { left: 15, right: 15 },
+    didParseCell: (data) => {
+      // Amber left border + background for Aprovado com Glosa rows
+      const rowData = tableData[data.row.index];
+      if (rowData && rowData[8] === "Aprovado com Glosa") {
+        data.cell.styles.fillColor = amberBg;
+        data.cell.styles.textColor = amberColor;
+        if (data.column.index === 0) {
+          data.cell.styles.lineWidthLeft = 2;
+          data.cell.styles.drawColor = amberColor;
+        }
+      }
+    },
   });
 
   // Calculate total value for approved escalas
@@ -269,7 +371,10 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
     escalas,
     contratoItens,
   );
-  const escalasAprovadas = escalas.filter((e) => e.status === "Aprovado");
+  const escalasAprovadas = escalas.filter(
+    (e) => e.status === "Aprovado" || e.status === "Aprovado com Glosa"
+  );
+  const escalasPagas = escalas.filter((e) => e.status_pagamento === "Sim");
 
   // Add footer with page numbers
   const pageCount = doc.getNumberOfPages();
@@ -289,26 +394,26 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
     if (i === pageCount && escalasAprovadas.length > 0) {
       // Green box for approved summary
       doc.setFillColor(46, 204, 113);
-      doc.roundedRect(pageWidth - 110, pageHeight - 25, 95, 20, 3, 3, "F");
+      doc.roundedRect(pageWidth - 165, pageHeight - 27, 150, 22, 3, 3, "F");
 
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
-      doc.text("ESCALAS APROVADAS", pageWidth - 62.5, pageHeight - 19, {
+      doc.text("ESCALAS APROVADAS (incl. Aprovado com Glosa)", pageWidth - 90, pageHeight - 21, {
         align: "center",
       });
 
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
       doc.text(
-        `Quantidade: ${escalasAprovadas.length} escala${escalasAprovadas.length !== 1 ? "s" : ""}`,
-        pageWidth - 62.5,
-        pageHeight - 14.5,
+        `Qtd: ${escalasAprovadas.length} | Pagas: ${escalasPagas.length}`,
+        pageWidth - 90,
+        pageHeight - 16,
         { align: "center" },
       );
 
       // Total value
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       const valorFormatado = valorTotalAprovadas.toLocaleString("pt-BR", {
         minimumFractionDigits: 2,
@@ -316,8 +421,8 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
       });
       doc.text(
         `Valor Total: R$ ${valorFormatado}`,
-        pageWidth - 62.5,
-        pageHeight - 9,
+        pageWidth - 90,
+        pageHeight - 10,
         {
           align: "center",
         },
@@ -413,7 +518,7 @@ async function calculateApprovedEscalasValue(
   let valorTotal = 0;
 
   for (const escala of escalas) {
-    if (escala.status !== "Aprovado") continue;
+    if (escala.status !== "Aprovado" && escala.status !== "Aprovado com Glosa") continue;
 
     // Find the contract item locally first
     const contratoItem = contratoItens.find(

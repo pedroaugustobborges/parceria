@@ -12,6 +12,7 @@ import {
 } from '../../../hooks/usePersistentState';
 import type {
   StatusEscala,
+  FiltroPagamento,
   EscalaMedica,
   Contrato,
   UnidadeHospitalar,
@@ -52,6 +53,10 @@ export function useEscalaFilters(props: UseEscalaFiltersProps): UseEscalaFilters
   const [filtroNome, setFiltroNome] = usePersistentArray<string>('escalas_filtroNome');
   const [filtroCpf, setFiltroCpf] = usePersistentArray<string>('escalas_filtroCpf');
   const [filtroStatus, setFiltroStatus] = usePersistentArray<StatusEscala>('escalas_filtroStatus');
+  const [filtroStatusPagamento, setFiltroStatusPagamento] = usePersistentState<FiltroPagamento>(
+    'escalas_filtroStatusPagamento',
+    'Todos'
+  );
   const [filtroDataInicio, setFiltroDataInicio] = usePersistentState<Date | null>(
     'escalas_filtroDataInicio',
     null
@@ -140,6 +145,7 @@ export function useEscalaFilters(props: UseEscalaFiltersProps): UseEscalaFilters
     setFiltroNome([]);
     setFiltroCpf([]);
     setFiltroStatus([]);
+    setFiltroStatusPagamento('Todos');
     setFiltroDataInicio(null);
     setFiltroDataFim(null);
     setBuscaRealizada(false);
@@ -154,6 +160,7 @@ export function useEscalaFilters(props: UseEscalaFiltersProps): UseEscalaFilters
     setFiltroNome,
     setFiltroCpf,
     setFiltroStatus,
+    setFiltroStatusPagamento,
     setFiltroDataInicio,
     setFiltroDataFim,
     setBuscaRealizada,
@@ -171,6 +178,7 @@ export function useEscalaFilters(props: UseEscalaFiltersProps): UseEscalaFilters
     filtroNome,
     filtroCpf,
     filtroStatus,
+    filtroStatusPagamento,
     filtroDataInicio,
     filtroDataFim,
     buscaRealizada,
@@ -182,6 +190,7 @@ export function useEscalaFilters(props: UseEscalaFiltersProps): UseEscalaFilters
     setFiltroNome,
     setFiltroCpf,
     setFiltroStatus,
+    setFiltroStatusPagamento,
     setFiltroDataInicio,
     setFiltroDataFim,
     setBuscaRealizada,
@@ -208,6 +217,7 @@ export interface ApplyFiltersParams {
   filtroNome: string[];
   filtroCpf: string[];
   filtroStatus: StatusEscala[];
+  filtroStatusPagamento: FiltroPagamento;
   contratos: Contrato[];
   unidades: UnidadeHospitalar[];
 }
@@ -225,6 +235,7 @@ export function applyFilters(params: ApplyFiltersParams): EscalaMedica[] {
     filtroNome,
     filtroCpf,
     filtroStatus,
+    filtroStatusPagamento,
     contratos,
     unidades,
   } = params;
@@ -268,6 +279,11 @@ export function applyFilters(params: ApplyFiltersParams): EscalaMedica[] {
   // Filter by status
   if (filtroStatus.length > 0) {
     filtered = filtered.filter((escala) => filtroStatus.includes(escala.status));
+  }
+
+  // Filter by payment status
+  if (filtroStatusPagamento !== 'Todos') {
+    filtered = filtered.filter((escala) => escala.status_pagamento === filtroStatusPagamento);
   }
 
   return filtered;

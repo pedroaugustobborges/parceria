@@ -7,7 +7,6 @@
 import React, { useMemo } from 'react';
 import { Box, Card, CardContent, Typography, Chip } from '@mui/material';
 import {
-  AccountBalance,
   HourglassEmpty,
   ThumbUpAlt,
   HowToReg,
@@ -16,6 +15,8 @@ import {
   Cancel,
   AccessTime,
   DeleteForever,
+  PieChart,
+  Payments,
 } from '@mui/icons-material';
 import type { ScorecardMetrics, ScorecardConfig } from '../../types/escalas.types';
 import { formatCurrency } from '../../utils/escalasHoursUtils';
@@ -25,14 +26,15 @@ import { formatCurrency } from '../../utils/escalasHoursUtils';
 // ============================================
 
 const statusIconMap = {
-  pago: AccountBalance,
   programado: HourglassEmpty,
   preAprovado: ThumbUpAlt,
   aprovacaoParcial: HowToReg,
   atencao: Warning,
   aprovado: CheckCircle,
+  aprovadoComGlosa: PieChart,
   reprovado: Cancel,
   excluida: DeleteForever,
+  escalasPagas: Payments,
 };
 
 // ============================================
@@ -58,14 +60,7 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
 
   const scorecardConfig = useMemo<ScorecardConfig[]>(() => {
     const baseConfig: ScorecardConfig[] = [
-      {
-        key: 'pago',
-        label: 'Pago',
-        color: '#116666',
-        bgColor: '#e6f2f2',
-        icon: statusIconMap.pago,
-        metrics: metrics.pago,
-      },
+      // Note: 'excluida' is rendered separately as a full-width card below
       {
         key: 'aprovado',
         label: 'Aprovado',
@@ -73,6 +68,14 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
         bgColor: '#ecfdf5',
         icon: statusIconMap.aprovado,
         metrics: metrics.aprovado,
+      },
+      {
+        key: 'aprovadoComGlosa',
+        label: 'Aprov. c/ Glosa',
+        color: '#d97706',
+        bgColor: '#fffbeb',
+        icon: statusIconMap.aprovadoComGlosa,
+        metrics: metrics.aprovadoComGlosa,
       },
       {
         key: 'preAprovado',
@@ -116,18 +119,6 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
       },
     ];
 
-    // Add "Excluída" scorecard only for admin-agir users
-    if (canSeeExcluida) {
-      baseConfig.push({
-        key: 'excluida',
-        label: 'Excluída',
-        color: '#64748b',
-        bgColor: '#f1f5f9',
-        icon: statusIconMap.excluida,
-        metrics: metrics.excluida,
-      });
-    }
-
     return baseConfig;
   }, [metrics, canSeeExcluida]);
 
@@ -145,6 +136,85 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
         transition: 'all 0.3s ease',
       }}
     >
+      {/* Escalas Pagas — special count-only card */}
+      <Card
+        sx={{
+          position: 'relative',
+          overflow: 'hidden',
+          borderLeft: '4px solid #10b981',
+          transition: 'all 0.3s',
+          '&:hover': {
+            boxShadow: '0 8px 24px #10b98126',
+            transform: 'translateY(-2px)',
+          },
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+          <Box display="flex" justifyContent="space-between" alignItems="start" mb={1.5}>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: '#6b7280',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  fontSize: { xs: '0.65rem', sm: '0.7rem' },
+                  display: 'block',
+                }}
+              >
+                Escalas Pagas
+              </Typography>
+              <Box display="flex" alignItems="baseline" gap={0.5} mt={0.5}>
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                    color: '#10b981',
+                    fontSize: { xs: '1.4rem', sm: '1.6rem', md: '1.9rem' },
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {metrics.escalasPagas.count}
+                </Typography>
+              </Box>
+            </Box>
+            <Box
+              sx={{
+                bgcolor: '#ecfdf5',
+                borderRadius: '50%',
+                p: { xs: 0.75, sm: 1 },
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                ml: 1,
+              }}
+            >
+              <Payments
+                sx={{
+                  color: '#10b981',
+                  fontSize: { xs: 22, sm: 26, md: 28 },
+                }}
+              />
+            </Box>
+          </Box>
+          <Box display="flex" alignItems="center" justifyContent="flex-end">
+            <Chip
+              label="status_pagamento = Sim"
+              size="small"
+              sx={{
+                height: { xs: 20, sm: 22 },
+                fontSize: { xs: '0.6rem', sm: '0.65rem' },
+                bgcolor: '#10b98115',
+                color: '#10b981',
+                fontWeight: 600,
+                '& .MuiChip-label': { px: 1 },
+              }}
+            />
+          </Box>
+        </CardContent>
+      </Card>
+
       {scorecardConfig.map((card) => {
         const IconComponent = card.icon;
 
@@ -271,6 +341,91 @@ export const EscalasScorecards: React.FC<EscalasScorecardsProps> = ({
           </Card>
         );
       })}
+
+      {/* Excluída — full-width card to avoid orphaned single card on last row */}
+      {canSeeExcluida && (
+        <Card
+          sx={{
+            gridColumn: '1 / -1',
+            borderLeft: '4px solid #64748b',
+            transition: 'all 0.3s',
+            '&:hover': {
+              boxShadow: '0 4px 16px #64748b26',
+              transform: 'translateY(-1px)',
+            },
+          }}
+        >
+          <CardContent sx={{ p: { xs: 2, sm: 2 }, '&:last-child': { pb: 2 } }}>
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+              flexWrap="wrap"
+              gap={2}
+            >
+              {/* Left: label + icon */}
+              <Box display="flex" alignItems="center" gap={1.5}>
+                <Box
+                  sx={{
+                    bgcolor: '#f1f5f9',
+                    borderRadius: '50%',
+                    p: 0.75,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <DeleteForever sx={{ color: '#64748b', fontSize: 22 }} />
+                </Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: '#6b7280',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  Excluída
+                </Typography>
+              </Box>
+
+              {/* Center: value */}
+              <Box display="flex" alignItems="baseline" gap={0.5}>
+                <Typography sx={{ fontWeight: 700, color: '#64748b', fontSize: '1.25rem', lineHeight: 1.2 }}>
+                  R$
+                </Typography>
+                <Typography sx={{ fontWeight: 700, color: '#64748b', fontSize: '1.25rem', lineHeight: 1.2 }}>
+                  {formatCurrency(metrics.excluida.valor)}
+                </Typography>
+              </Box>
+
+              {/* Right: hours + count */}
+              <Box display="flex" alignItems="center" gap={2}>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <AccessTime sx={{ fontSize: 14, color: '#9ca3af' }} />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                    {metrics.excluida.horas.toFixed(1)}h
+                  </Typography>
+                </Box>
+                <Chip
+                  label={`${metrics.excluida.count} escala${metrics.excluida.count !== 1 ? 's' : ''}`}
+                  size="small"
+                  sx={{
+                    height: 22,
+                    fontSize: '0.7rem',
+                    bgcolor: '#64748b15',
+                    color: '#64748b',
+                    fontWeight: 600,
+                    '& .MuiChip-label': { px: 1 },
+                  }}
+                />
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
     </Box>
   );
 };

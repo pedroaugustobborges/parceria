@@ -27,20 +27,20 @@ import {
   ThumbUpAlt,
   Warning,
   HowToReg,
-  AccountBalance,
   DeleteForever,
+  PieChart,
 } from '@mui/icons-material';
 import type { StatusEscala } from '../../types/escalas.types';
 import { getStatusConfig, statusColorMap } from '../../utils/escalasStatusUtils';
 
 // Icon mapping for status
 const statusIconMap: Record<StatusEscala, React.ReactElement> = {
-  'Pago': <AccountBalance fontSize="small" />,
   'Programado': <HourglassEmpty fontSize="small" />,
   'Pré-Aprovado': <ThumbUpAlt fontSize="small" />,
   'Aprovação Parcial': <HowToReg fontSize="small" />,
   'Atenção': <Warning fontSize="small" />,
   'Aprovado': <CheckCircle fontSize="small" />,
+  'Aprovado com Glosa': <PieChart fontSize="small" />,
   'Reprovado': <Cancel fontSize="small" />,
   'Excluída': <DeleteForever fontSize="small" />,
 };
@@ -66,8 +66,8 @@ export interface BulkStatusDialogProps {
 // ============================================
 
 const STATUS_OPTIONS: StatusEscala[] = [
-  'Pago',
   'Aprovado',
+  'Aprovado com Glosa',
   'Pré-Aprovado',
   'Aprovação Parcial',
   'Atenção',

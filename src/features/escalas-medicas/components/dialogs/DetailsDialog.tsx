@@ -41,7 +41,8 @@ import {
   Warning,
   HowToReg,
   DeleteForever,
-  AccountBalance,
+  PieChart,
+  Payments,
 } from "@mui/icons-material";
 import { format, parseISO, subDays, addDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -56,17 +57,17 @@ import {
   getStatusConfig,
   statusColorMap,
   canEditStatus,
-  isStatusPago,
+  isEscalaPaga,
 } from "../../utils/escalasStatusUtils";
 
 // Icon mapping for status
 const statusIconMap: Record<StatusEscala, React.ReactElement> = {
-  Pago: <AccountBalance fontSize="small" />,
   Programado: <HourglassEmpty fontSize="small" />,
   "Pré-Aprovado": <ThumbUpAlt fontSize="small" />,
   "Aprovação Parcial": <HowToReg fontSize="small" />,
   Atenção: <Warning fontSize="small" />,
   Aprovado: <CheckCircle fontSize="small" />,
+  "Aprovado com Glosa": <PieChart fontSize="small" />,
   Reprovado: <Cancel fontSize="small" />,
   Excluída: <DeleteForever fontSize="small" />,
 };
@@ -144,40 +145,42 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
 
   if (!escala) return null;
 
-  // "Pago" and "Excluída" schedules cannot be edited by anyone
-  // "Aprovado" and "Reprovado" can only be edited by admin-agir (planta and corporativo)
+  const escalaPaga = isEscalaPaga(escala.status_pagamento);
+  const isAprovadoComGlosa = escala.status === "Aprovado com Glosa";
+
+  // Paid escalas and Excluída cannot be edited by anyone
   const canEdit =
-    !isStatusPago(escala.status) &&
+    !escalaPaga &&
     escala.status !== "Excluída" &&
-    canEditStatus(escala.status, isAdminAgir, isAdminTerceiro);
+    canEditStatus(escala.status, isAdminAgir, isAdminTerceiro, escala.status_pagamento);
   const canChangeStatusFlag =
-    isAdminAgir && !isStatusPago(escala.status) && escala.status !== "Excluída";
-  // All users can delete schedules that are not finalized (except Pago which is completely locked)
-  // Aprovado and Reprovado can only be deleted by admin-agir
+    isAdminAgir && !escalaPaga && escala.status !== "Excluída";
   const canDelete =
-    !isStatusPago(escala.status) &&
+    !escalaPaga &&
     escala.status !== "Excluída" &&
-    ((escala.status !== "Aprovado" && escala.status !== "Reprovado") ||
+    ((escala.status !== "Aprovado" &&
+      escala.status !== "Reprovado" &&
+      escala.status !== "Aprovado com Glosa") ||
       isAdminAgir);
 
   const getEditTooltip = () => {
     if (canEdit) return "";
-    if (isStatusPago(escala.status)) {
-      return 'Escalas com status "Pago" não podem ser editadas. Este status é definitivo.';
+    if (escalaPaga) {
+      return "Esta escala já foi paga e não pode ser editada.";
     }
     if (escala.status === "Excluída") {
       return "Escalas excluídas não podem ser editadas.";
     }
     const allowedStatuses = isAdminTerceiro
       ? '"Programado", "Atenção" ou "Aprovação Parcial"'
-      : '"Programado", "Aprovação Parcial" ou "Aprovado"';
+      : '"Programado", "Aprovação Parcial", "Aprovado" ou "Aprovado com Glosa"';
     return `Não é possível editar. Apenas escalas com status ${allowedStatuses} podem ser editadas.`;
   };
 
   const getStatusChangeTooltip = () => {
     if (canChangeStatusFlag) return "";
-    if (isStatusPago(escala.status)) {
-      return 'Escalas com status "Pago" não podem ter o status alterado. Este status é definitivo.';
+    if (escalaPaga) {
+      return "Esta escala já foi paga. O status não pode ser alterado.";
     }
     if (escala.status === "Excluída") {
       return "Escalas excluídas não podem ter o status alterado.";
@@ -187,8 +190,8 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
 
   const getDeleteTooltip = () => {
     if (canDelete) return "";
-    if (isStatusPago(escala.status)) {
-      return 'Escalas com status "Pago" não podem ser excluídas. Este status é definitivo.';
+    if (escalaPaga) {
+      return "Esta escala já foi paga e não pode ser excluída.";
     }
     if (escala.status === "Excluída") {
       return "Esta escala já foi excluída.";
@@ -199,21 +202,37 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
+        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
           <span style={{ fontWeight: 700 }}>Detalhes da Escala Médica</span>
-          <Chip
-            icon={statusIconMap[escala.status]}
-            label={getStatusConfig(escala.status).label}
-            size="small"
-            sx={{
-              bgcolor: statusColorMap[escala.status]?.bg,
-              color: statusColorMap[escala.status]?.hex,
-              border: `1px solid ${statusColorMap[escala.status]?.hex}`,
-              "& .MuiChip-icon": {
+          <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
+            <Chip
+              icon={statusIconMap[escala.status]}
+              label={getStatusConfig(escala.status).label}
+              size="small"
+              sx={{
+                bgcolor: statusColorMap[escala.status]?.bg,
                 color: statusColorMap[escala.status]?.hex,
-              },
-            }}
-          />
+                border: `1px solid ${statusColorMap[escala.status]?.hex}`,
+                "& .MuiChip-icon": {
+                  color: statusColorMap[escala.status]?.hex,
+                },
+              }}
+            />
+            <Chip
+              icon={<Payments fontSize="small" />}
+              label={`Escala paga? ${escala.status_pagamento}`}
+              size="small"
+              sx={{
+                bgcolor: escalaPaga ? '#ecfdf5' : '#f8fafc',
+                color: escalaPaga ? '#10b981' : '#64748b',
+                border: `1px solid ${escalaPaga ? '#10b981' : '#cbd5e1'}`,
+                "& .MuiChip-icon": {
+                  color: escalaPaga ? '#10b981' : '#64748b',
+                },
+                fontWeight: 600,
+              }}
+            />
+          </Box>
         </Box>
       </DialogTitle>
 
@@ -450,6 +469,86 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
               </Grid>
             </CardContent>
           </Card>
+
+          {/* Aprovado com Glosa — Horário para fins de pagamento */}
+          {isAprovadoComGlosa && (
+            <Card
+              sx={{
+                borderLeft: "4px solid #d97706",
+                bgcolor: "#fffbeb",
+              }}
+            >
+              <CardContent>
+                <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                  <PieChart sx={{ color: "#d97706" }} />
+                  <Typography variant="h6" fontWeight={600} color="#d97706">
+                    Horário para fins de pagamento
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" mb={2}>
+                  Esta escala foi aprovada com glosa. Os horários abaixo são
+                  usados para cálculo do pagamento. Se não definidos, são
+                  usados os horários originais da escala.
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Horário original
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600} mt={0.5}>
+                      {escala.horario_entrada.substring(0, 5)} –{" "}
+                      {escala.horario_saida.substring(0, 5)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {format(parseISO(escala.data_inicio), "dd/MM/yyyy")}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Horário de pagamento
+                    </Typography>
+                    {escala.horario_pagamento_inicio &&
+                    escala.horario_pagamento_fim ? (
+                      <>
+                        <Typography
+                          variant="body1"
+                          fontWeight={600}
+                          color="#d97706"
+                          mt={0.5}
+                        >
+                          {format(
+                            new Date(escala.horario_pagamento_inicio),
+                            "HH:mm",
+                          )}{" "}
+                          –{" "}
+                          {format(
+                            new Date(escala.horario_pagamento_fim),
+                            "HH:mm",
+                          )}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {format(
+                            new Date(escala.horario_pagamento_inicio),
+                            "dd/MM/yyyy",
+                            { locale: ptBR },
+                          )}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        mt={0.5}
+                        fontStyle="italic"
+                      >
+                        Não definido — usando horário original
+                      </Typography>
+                    )}
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Observations */}
           {escala.observacoes && (

@@ -10,6 +10,9 @@ export type { StatusDialogProps } from './StatusDialog';
 export { BulkStatusDialog } from './BulkStatusDialog';
 export type { BulkStatusDialogProps } from './BulkStatusDialog';
 
+export { BulkPaymentDialog } from './BulkPaymentDialog';
+export type { BulkPaymentDialogProps } from './BulkPaymentDialog';
+
 export { DetailsDialog } from './DetailsDialog';
 export type { DetailsDialogProps } from './DetailsDialog';
 

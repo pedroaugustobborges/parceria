@@ -36,6 +36,7 @@ import { BulkActionsBar } from './bulk-actions/BulkActionsBar';
 import { WizardDialog } from './dialogs/WizardDialog';
 import { StatusDialog } from './dialogs/StatusDialog';
 import { BulkStatusDialog } from './dialogs/BulkStatusDialog';
+import { BulkPaymentDialog } from './dialogs/BulkPaymentDialog';
 import { DeleteDialog } from './dialogs/DeleteDialog';
 import { BulkDeleteDialog } from './dialogs/BulkDeleteDialog';
 import { DetailsDialog } from './dialogs/DetailsDialog';
@@ -87,6 +88,13 @@ export const EscalasMedicasPage: React.FC = () => {
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<StatusEscala>('Aprovado');
   const [bulkJustificativa, setBulkJustificativa] = useState('');
+
+  // ============================================
+  // Bulk Payment Dialog State
+  // ============================================
+
+  const [bulkPaymentDialogOpen, setBulkPaymentDialogOpen] = useState(false);
+  const [bulkStatusPagamento, setBulkStatusPagamento] = useState<'Sim' | 'Não'>('Sim');
 
   // ============================================
   // Delete Dialog State (for terceiro/admin-terceiro)
@@ -355,6 +363,34 @@ export const EscalasMedicasPage: React.FC = () => {
   }, [bulkStatus, bulkJustificativa, escalas, handleCloseBulkStatusDialog]);
 
   // ============================================
+  // Bulk Payment Dialog Handlers
+  // ============================================
+
+  const handleOpenBulkPaymentDialog = useCallback(() => {
+    setBulkStatusPagamento('Sim');
+    setBulkPaymentDialogOpen(true);
+  }, []);
+
+  const handleCloseBulkPaymentDialog = useCallback(() => {
+    setBulkPaymentDialogOpen(false);
+    setBulkStatusPagamento('Sim');
+  }, []);
+
+  const handleBulkPaymentUpdate = useCallback(async () => {
+    try {
+      const count = await escalas.bulkUpdateStatusPagamento(bulkStatusPagamento);
+      handleCloseBulkPaymentDialog();
+      escalas.setSuccess(
+        `${count} escala(s) ${bulkStatusPagamento === 'Sim' ? 'marcada(s) como paga(s)' : 'desmarcada(s) como paga(s)'} com sucesso!`
+      );
+      escalas.deselectAll();
+      await escalas.buscarEscalas();
+    } catch (err: any) {
+      escalas.setError('Erro ao atualizar status de pagamento: ' + err.message);
+    }
+  }, [bulkStatusPagamento, escalas, handleCloseBulkPaymentDialog]);
+
+  // ============================================
   // Details Dialog Handlers
   // ============================================
 
@@ -511,6 +547,7 @@ export const EscalasMedicasPage: React.FC = () => {
           filtroNome={escalas.filters.filtroNome}
           filtroCpf={escalas.filters.filtroCpf}
           filtroStatus={escalas.filters.filtroStatus}
+          filtroStatusPagamento={escalas.filters.filtroStatusPagamento}
           filtroDataInicio={escalas.filters.filtroDataInicio}
           filtroDataFim={escalas.filters.filtroDataFim}
           buscaRealizada={escalas.filters.buscaRealizada}
@@ -525,6 +562,7 @@ export const EscalasMedicasPage: React.FC = () => {
           setFiltroNome={escalas.filters.setFiltroNome}
           setFiltroCpf={escalas.filters.setFiltroCpf}
           setFiltroStatus={escalas.filters.setFiltroStatus}
+          setFiltroStatusPagamento={escalas.filters.setFiltroStatusPagamento}
           setFiltroDataInicio={escalas.filters.setFiltroDataInicio}
           setFiltroDataFim={escalas.filters.setFiltroDataFim}
           onBuscar={escalas.buscarEscalas}
@@ -552,7 +590,7 @@ export const EscalasMedicasPage: React.FC = () => {
                 selectedCount={escalas.selectedEscalas.size}
                 totalSelectableCount={
                   escalas.escalasFiltradas.filter((e) => {
-                    if (e.status === 'Pago' || e.status === 'Excluída') return false;
+                    if (e.status_pagamento === 'Sim' || e.status === 'Excluída') return false;
                     if (e.status === 'Reprovado' && !isAdminAgir) return false;
                     return true;
                   }).length
@@ -570,6 +608,7 @@ export const EscalasMedicasPage: React.FC = () => {
                   }
                 }}
                 onChangeStatus={() => handleOpenBulkStatusDialog()}
+                onChangePayment={handleOpenBulkPaymentDialog}
                 isAdminAgir={isAdminAgir}
                 isAdminTerceiro={isAdminTerceiro}
                 isTerceiro={isTerceiro}
@@ -740,6 +779,26 @@ export const EscalasMedicasPage: React.FC = () => {
           justificativa={bulkJustificativa}
           setJustificativa={setBulkJustificativa}
           onSave={handleBulkStatusUpdate}
+          loading={escalas.loading}
+        />
+
+        {/* Bulk Payment Dialog */}
+        <BulkPaymentDialog
+          open={bulkPaymentDialogOpen}
+          onClose={handleCloseBulkPaymentDialog}
+          selectedCount={escalas.selectedEscalas.size}
+          qualifyingCount={
+            bulkStatusPagamento === 'Sim'
+              ? escalas.escalasFiltradas.filter(
+                  (e) =>
+                    escalas.selectedEscalas.has(e.id) &&
+                    (e.status === 'Aprovado' || e.status === 'Aprovado com Glosa')
+                ).length
+              : escalas.selectedEscalas.size
+          }
+          statusPagamento={bulkStatusPagamento}
+          setStatusPagamento={setBulkStatusPagamento}
+          onSave={handleBulkPaymentUpdate}
           loading={escalas.loading}
         />
 

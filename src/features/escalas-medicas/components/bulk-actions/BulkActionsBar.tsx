@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Box, Button, Chip } from '@mui/material';
+import { Box, Button, Chip, Divider } from '@mui/material';
 import {
   CheckBox as CheckBoxIcon,
   CheckBoxOutlineBlank,
@@ -14,6 +14,7 @@ import {
   ThumbDown,
   Edit,
   DeleteForever,
+  Payments,
 } from '@mui/icons-material';
 
 // ============================================
@@ -29,6 +30,7 @@ export interface BulkActionsBarProps {
   onRejectSelected: () => void;
   onDeleteSelected: () => void;
   onChangeStatus: () => void;
+  onChangePayment: () => void;
   isAdminAgir: boolean;
   isAdminTerceiro?: boolean;
   isTerceiro?: boolean;
@@ -47,6 +49,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   onRejectSelected,
   onDeleteSelected,
   onChangeStatus,
+  onChangePayment,
   isAdminAgir,
   isAdminTerceiro = false,
   isTerceiro = false,
@@ -143,14 +146,34 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
 
           {/* Change status action - Admin-Agir only */}
           {isAdminAgir && (
-            <Button
-              variant="outlined"
-              startIcon={<Edit />}
-              onClick={onChangeStatus}
-              size="small"
-            >
-              Alterar Status
-            </Button>
+            <>
+              <Button
+                variant="outlined"
+                startIcon={<Edit />}
+                onClick={onChangeStatus}
+                size="small"
+              >
+                Alterar Status
+              </Button>
+
+              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+              {/* Payment status action - Admin-Agir only */}
+              <Button
+                variant="contained"
+                startIcon={<Payments />}
+                onClick={onChangePayment}
+                size="small"
+                sx={{
+                  bgcolor: '#10b981',
+                  '&:hover': {
+                    bgcolor: '#059669',
+                  },
+                }}
+              >
+                Escala Paga?
+              </Button>
+            </>
           )}
         </>
       )}

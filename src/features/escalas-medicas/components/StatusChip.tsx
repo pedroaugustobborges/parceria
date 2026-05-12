@@ -7,7 +7,6 @@
 import React from 'react';
 import { Chip } from '@mui/material';
 import {
-  AccountBalance,
   HourglassEmpty,
   ThumbUpAlt,
   HowToReg,
@@ -15,6 +14,7 @@ import {
   CheckCircle,
   Cancel,
   DeleteForever,
+  PieChart,
 } from '@mui/icons-material';
 import type { StatusEscala } from '../types/escalas.types';
 import { getStatusConfig, getStatusColors } from '../utils/escalasStatusUtils';
@@ -24,12 +24,12 @@ import { getStatusConfig, getStatusColors } from '../utils/escalasStatusUtils';
 // ============================================
 
 const statusIconMap: Record<StatusEscala, React.ReactElement> = {
-  'Pago': <AccountBalance />,
   'Programado': <HourglassEmpty />,
   'Pré-Aprovado': <ThumbUpAlt />,
   'Aprovação Parcial': <HowToReg />,
   'Atenção': <Warning />,
   'Aprovado': <CheckCircle />,
+  'Aprovado com Glosa': <PieChart />,
   'Reprovado': <Cancel />,
   'Excluída': <DeleteForever />,
 };

@@ -10,6 +10,7 @@ export type {
   EscalaMedica,
   MedicoEscala,
   StatusEscala,
+  StatusPagamento,
   Contrato,
   Usuario,
   UnidadeHospitalar,
@@ -23,6 +24,7 @@ import type {
   EscalaMedica,
   MedicoEscala,
   StatusEscala,
+  StatusPagamento,
   Contrato,
   Usuario,
   UnidadeHospitalar,
@@ -61,14 +63,15 @@ export interface StatusMetric {
 }
 
 export interface ScorecardMetrics {
-  pago: StatusMetric;
   programado: StatusMetric;
   preAprovado: StatusMetric;
   aprovacaoParcial: StatusMetric;
   atencao: StatusMetric;
   aprovado: StatusMetric;
+  aprovadoComGlosa: StatusMetric;
   reprovado: StatusMetric;
   excluida: StatusMetric;
+  escalasPagas: { count: number };
 }
 
 export interface ScorecardConfig {
@@ -84,6 +87,8 @@ export interface ScorecardConfig {
 // Filter State Types
 // ============================================
 
+export type FiltroPagamento = 'Todos' | 'Sim' | 'Não';
+
 export interface EscalaFiltersState {
   filtroContrato: string[];
   filtroItemContrato: string[];
@@ -91,6 +96,7 @@ export interface EscalaFiltersState {
   filtroNome: string[];
   filtroCpf: string[];
   filtroStatus: StatusEscala[];
+  filtroStatusPagamento: FiltroPagamento;
   filtroDataInicio: Date | null;
   filtroDataFim: Date | null;
   buscaRealizada: boolean;
@@ -310,6 +316,7 @@ export interface UseEscalaFiltersReturn extends EscalaFiltersState {
   setFiltroNome: (value: string[]) => void;
   setFiltroCpf: (value: string[]) => void;
   setFiltroStatus: (value: StatusEscala[]) => void;
+  setFiltroStatusPagamento: (value: FiltroPagamento) => void;
   setFiltroDataInicio: (value: Date | null) => void;
   setFiltroDataFim: (value: Date | null) => void;
   setBuscaRealizada: (value: boolean) => void;

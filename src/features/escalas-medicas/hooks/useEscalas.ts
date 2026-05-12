@@ -76,6 +76,7 @@ export interface UseEscalasReturn {
     justificativa: string
   ) => Promise<void>;
   bulkUpdateStatus: (status: StatusEscala, justificativa: string) => Promise<number>;
+  bulkUpdateStatusPagamento: (status_pagamento: 'Sim' | 'Não') => Promise<number>;
   recalcularStatus: () => Promise<void>;
 
   // Details dialog
@@ -183,6 +184,7 @@ export function useEscalas(): UseEscalasReturn {
       filtroNome: filters.filtroNome,
       filtroCpf: filters.filtroCpf,
       filtroStatus: filters.filtroStatus,
+      filtroStatusPagamento: filters.filtroStatusPagamento,
       contratos,
       unidades,
     });
@@ -211,6 +213,7 @@ export function useEscalas(): UseEscalasReturn {
     filters.filtroNome,
     filters.filtroCpf,
     filters.filtroStatus,
+    filters.filtroStatusPagamento,
     contratos,
     unidades,
   ]);
@@ -459,15 +462,52 @@ export function useEscalas(): UseEscalasReturn {
   }, [buscarEscalas]);
 
   // ============================================
+  // Bulk Update Status Pagamento
+  // ============================================
+
+  const bulkUpdateStatusPagamento = useCallback(
+    async (status_pagamento: 'Sim' | 'Não') => {
+      try {
+        setLoading(true);
+        let ids = Array.from(selectedEscalas);
+
+        // When marking as paid, only allow "Aprovado" and "Aprovado com Glosa" escalas
+        if (status_pagamento === 'Sim') {
+          const qualifyingStatuses = new Set(['Aprovado', 'Aprovado com Glosa']);
+          ids = ids.filter((id) => {
+            const escala = escalas.find((e) => e.id === id);
+            return escala && qualifyingStatuses.has(escala.status);
+          });
+        }
+
+        if (ids.length === 0) return 0;
+
+        const count = await escalasService.bulkUpdateStatusPagamento(
+          ids,
+          status_pagamento,
+          userProfile?.id || null
+        );
+        setSelectedEscalas(new Set());
+        return count;
+      } catch (err: any) {
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userProfile?.id, selectedEscalas, escalas]
+  );
+
+  // ============================================
   // Bulk Selection
   // ============================================
 
   const selectAll = useCallback(() => {
-    // Only select escalas that can have status changed (not Pago or Excluída)
+    // Only select escalas that can have status/payment changed (not paid or Excluída)
     // Reprovado can be selected only by admin-agir users
     const isAdminAgir = isAdminAgirCorporativo || isAdminAgirPlanta;
     const selectableEscalas = escalasFiltradas.filter((e) => {
-      if (e.status === 'Pago' || e.status === 'Excluída') return false;
+      if (e.status_pagamento === 'Sim' || e.status === 'Excluída') return false;
       if (e.status === 'Reprovado' && !isAdminAgir) return false;
       return true;
     });
@@ -863,6 +903,7 @@ export function useEscalas(): UseEscalasReturn {
     deleteEscala,
     updateEscalaStatus,
     bulkUpdateStatus,
+    bulkUpdateStatusPagamento,
     recalcularStatus,
 
     // Details dialog

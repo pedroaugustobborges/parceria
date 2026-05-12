@@ -456,6 +456,8 @@ export type Database = {
           created_by: string | null
           data_inicio: string
           horario_entrada: string
+          horario_pagamento_fim: string | null
+          horario_pagamento_inicio: string | null
           horario_saida: string
           id: string
           item_contrato_id: string
@@ -465,6 +467,7 @@ export type Database = {
           status: string
           status_alterado_em: string | null
           status_alterado_por: string | null
+          status_pagamento: string
           updated_at: string | null
         }
         Insert: {
@@ -474,6 +477,8 @@ export type Database = {
           created_by?: string | null
           data_inicio: string
           horario_entrada: string
+          horario_pagamento_fim?: string | null
+          horario_pagamento_inicio?: string | null
           horario_saida: string
           id?: string
           item_contrato_id: string
@@ -483,6 +488,7 @@ export type Database = {
           status?: string
           status_alterado_em?: string | null
           status_alterado_por?: string | null
+          status_pagamento?: string
           updated_at?: string | null
         }
         Update: {
@@ -492,6 +498,8 @@ export type Database = {
           created_by?: string | null
           data_inicio?: string
           horario_entrada?: string
+          horario_pagamento_fim?: string | null
+          horario_pagamento_inicio?: string | null
           horario_saida?: string
           id?: string
           item_contrato_id?: string
@@ -501,6 +509,7 @@ export type Database = {
           status?: string
           status_alterado_em?: string | null
           status_alterado_por?: string | null
+          status_pagamento?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -1163,14 +1172,54 @@ export const Constants = {
 
 /**
  * Status types for medical schedules (escalas).
- * "Pago" is completely unchangeable - no editing, no status changes.
+ * Payment is now tracked via status_pagamento column ('Sim'/'Não').
+ * When status_pagamento = 'Sim', the schedule is locked for editing.
  */
 export type StatusEscala =
-  | 'Pago'
   | 'Programado'
   | 'Pré-Aprovado'
   | 'Aprovação Parcial'
   | 'Atenção'
   | 'Aprovado'
+  | 'Aprovado com Glosa'
   | 'Reprovado'
   | 'Excluída';
+
+/**
+ * Payment status for medical schedules.
+ * Only administrador-corporativo and administrador-planta can change this.
+ */
+export type StatusPagamento = 'Sim' | 'Não';
+
+/**
+ * Single doctor record in a schedule.
+ */
+export interface MedicoEscala {
+  nome: string;
+  cpf: string;
+}
+
+/**
+ * Medical schedule record (escalas_medicas table Row).
+ */
+export interface EscalaMedica {
+  id: string;
+  contrato_id: string;
+  item_contrato_id: string;
+  data_inicio: string;
+  horario_entrada: string;
+  horario_saida: string;
+  medicos: MedicoEscala[];
+  observacoes: string | null;
+  status: StatusEscala;
+  justificativa: string | null;
+  status_alterado_por: string | null;
+  status_alterado_em: string | null;
+  status_pagamento: StatusPagamento;
+  horario_pagamento_inicio: string | null;
+  horario_pagamento_fim: string | null;
+  ativo: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+  created_by: string | null;
+}

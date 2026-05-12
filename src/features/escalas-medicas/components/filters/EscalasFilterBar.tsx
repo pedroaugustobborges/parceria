@@ -16,10 +16,12 @@ import {
   TextField,
   Typography,
   Autocomplete,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { FilterList, Search, Refresh, Close } from '@mui/icons-material';
-import type { StatusEscala, FilterOption } from '../../types/escalas.types';
+import { FilterList, Search, Refresh, Close, Payments } from '@mui/icons-material';
+import type { StatusEscala, FiltroPagamento, FilterOption } from '../../types/escalas.types';
 import { getVisibleStatusOptions } from '../../utils/escalasStatusUtils';
 import StatusChip from '../StatusChip';
 
@@ -35,6 +37,7 @@ export interface EscalasFilterBarProps {
   filtroNome: string[];
   filtroCpf: string[];
   filtroStatus: StatusEscala[];
+  filtroStatusPagamento: FiltroPagamento;
   filtroDataInicio: Date | null;
   filtroDataFim: Date | null;
   buscaRealizada: boolean;
@@ -53,6 +56,7 @@ export interface EscalasFilterBarProps {
   setFiltroNome: (value: string[]) => void;
   setFiltroCpf: (value: string[]) => void;
   setFiltroStatus: (value: StatusEscala[]) => void;
+  setFiltroStatusPagamento: (value: FiltroPagamento) => void;
   setFiltroDataInicio: (value: Date | null) => void;
   setFiltroDataFim: (value: Date | null) => void;
 
@@ -77,6 +81,7 @@ export const EscalasFilterBar: React.FC<EscalasFilterBarProps> = ({
   filtroNome,
   filtroCpf,
   filtroStatus,
+  filtroStatusPagamento,
   filtroDataInicio,
   filtroDataFim,
   buscaRealizada,
@@ -91,6 +96,7 @@ export const EscalasFilterBar: React.FC<EscalasFilterBarProps> = ({
   setFiltroNome,
   setFiltroCpf,
   setFiltroStatus,
+  setFiltroStatusPagamento,
   setFiltroDataInicio,
   setFiltroDataFim,
   onBuscar,
@@ -256,6 +262,50 @@ export const EscalasFilterBar: React.FC<EscalasFilterBarProps> = ({
                 },
               }}
             />
+          </Grid>
+
+          {/* Payment Status — below CPF, after Data Fim */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{ color: 'text.secondary', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}
+              >
+                <Payments sx={{ fontSize: 14 }} />
+                Escala paga?
+              </Typography>
+              <ToggleButtonGroup
+                value={filtroStatusPagamento}
+                exclusive
+                onChange={(_, value) => { if (value !== null) setFiltroStatusPagamento(value); }}
+                size="small"
+                fullWidth
+              >
+                <ToggleButton value="Todos" sx={{ fontSize: '0.75rem', py: 0.75 }}>
+                  Todas
+                </ToggleButton>
+                <ToggleButton
+                  value="Sim"
+                  sx={{
+                    fontSize: '0.75rem',
+                    py: 0.75,
+                    '&.Mui-selected': { bgcolor: '#ecfdf5', color: '#10b981', borderColor: '#10b981' },
+                  }}
+                >
+                  Pagas
+                </ToggleButton>
+                <ToggleButton
+                  value="Não"
+                  sx={{
+                    fontSize: '0.75rem',
+                    py: 0.75,
+                    '&.Mui-selected': { bgcolor: '#fef2f2', color: '#ef4444', borderColor: '#ef4444' },
+                  }}
+                >
+                  Não pagas
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
           </Grid>
         </Grid>
 
