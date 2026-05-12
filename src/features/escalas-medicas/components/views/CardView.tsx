@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Box, Card, CardContent, Chip, Grid, Tooltip, Typography } from '@mui/material';
-import { AccessTime, Person, PieChart } from '@mui/icons-material';
+import { AccessTime, Payments, Person, PieChart } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { EscalaMedica } from '../../types/escalas.types';
@@ -72,8 +72,8 @@ export const CardView: React.FC<CardViewProps> = ({ escalas, onEscalaClick }) =>
               }}
             >
               <CardContent>
-                {/* Status Chip */}
-                <Box sx={{ mb: 2 }}>
+                {/* Status Chip + Paid badge */}
+                <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
                   <Chip
                     label={escala.status}
                     size="small"
@@ -84,6 +84,11 @@ export const CardView: React.FC<CardViewProps> = ({ escalas, onEscalaClick }) =>
                       fontSize: '0.7rem',
                     }}
                   />
+                  {escala.status_pagamento === 'Sim' && (
+                    <Tooltip title="Escala paga">
+                      <Payments sx={{ fontSize: 18, color: '#16a34a' }} />
+                    </Tooltip>
+                  )}
                 </Box>
 
                 {/* Date */}

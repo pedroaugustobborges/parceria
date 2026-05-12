@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Payments } from '@mui/icons-material';
 import {
   format,
   parseISO,
@@ -181,6 +182,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         },
                       }}
                     >
+                      {/* Paid indicator */}
+                      {escala.status_pagamento === 'Sim' && (
+                        <Tooltip title="Escala paga" placement="top">
+                          <Payments sx={{ fontSize: 12, color: '#16a34a', float: 'right', mt: '1px' }} />
+                        </Tooltip>
+                      )}
+
                       {/* Doctor Name */}
                       {escala.medicos.slice(0, 1).map((medico, idx) => (
                         <Typography
