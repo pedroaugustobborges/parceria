@@ -5,7 +5,7 @@
  * including access logs and productivity metrics.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -16,6 +16,8 @@ import {
   Card,
   CardContent,
   Chip,
+  Collapse,
+  Alert,
   Grid,
   Paper,
   Table,
@@ -44,6 +46,8 @@ import {
   PieChart,
   Payments,
   EditCalendar,
+  BarChart,
+  SwapVert,
 } from "@mui/icons-material";
 import { format, parseISO, subDays, addDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -51,9 +55,11 @@ import type {
   EscalaMedica,
   Contrato,
   ItemContrato,
+  ContratoItem,
   Usuario,
   StatusEscala,
 } from "../../types/escalas.types";
+import { updateBaseCalculo } from "../../services/escalasService";
 import {
   getStatusConfig,
   statusColorMap,
@@ -73,6 +79,25 @@ const statusIconMap: Record<StatusEscala, React.ReactElement> = {
   Reprovado: <Cancel fontSize="small" />,
   Excluída: <DeleteForever fontSize="small" />,
 };
+
+// ============================================
+// Productivity fields config
+// ============================================
+
+const PROD_FIELDS: Array<{ key: keyof ProdutividadeMedico; label: string }> = [
+  { key: 'prescricao', label: 'Prescrição' },
+  { key: 'evolucao', label: 'Evoluções' },
+  { key: 'procedimento', label: 'Procedimentos' },
+  { key: 'urgencia', label: 'Urgências' },
+  { key: 'parecer_solicitado', label: 'Parecer Solicitado' },
+  { key: 'parecer_realizado', label: 'Parecer Realizado' },
+  { key: 'ambulatorio', label: 'Ambulatórios' },
+  { key: 'evolucao_noturna_cti', label: 'Evol. Noturna CTI' },
+  { key: 'evolucao_diurna_cti', label: 'Evol. Diurna CTI' },
+  { key: 'cirurgia_realizada', label: 'Cirurgias' },
+  { key: 'folha_objetivo_diario', label: 'Folha Obj. Diário' },
+  { key: 'qtd_documentos_pep', label: 'Docs no PEP' },
+];
 
 // ============================================
 // Types
@@ -117,10 +142,12 @@ export interface DetailsDialogProps {
   isAdminAgir: boolean;
   isAdminTerceiro: boolean;
   isTerceiro?: boolean;
+  contratoItens?: ContratoItem[];
   onEdit: (escala: EscalaMedica) => void;
   onChangeStatus: (escala: EscalaMedica) => void;
   onDelete?: (escala: EscalaMedica) => void;
   onHorariosPagamentoUpdated?: () => void;
+  onBaseCalculoUpdated?: () => void;
 }
 
 // ============================================
@@ -140,13 +167,32 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   isAdminAgir,
   isAdminTerceiro,
   isTerceiro: _isTerceiro = false,
+  contratoItens = [],
   onEdit,
   onChangeStatus,
   onDelete,
   onHorariosPagamentoUpdated,
+  onBaseCalculoUpdated,
 }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   const [horarioPagamentoOpen, setHorarioPagamentoOpen] = useState(false);
+
+  // ── Base de cálculo state ────────────────────────────────────────────────
+  const [pendingProdField, setPendingProdField] = useState<string | null>(null);
+  const [localBaseCalculo, setLocalBaseCalculo] = useState<string | null>(null);
+  const [localCampoProducao, setLocalCampoProducao] = useState<string | null>(null);
+  const [savingBaseCalculo, setSavingBaseCalculo] = useState(false);
+  const [baseCalculoError, setBaseCalculoError] = useState('');
+
+  // Sync local state when escala or dialog open/close changes
+  useEffect(() => {
+    setLocalBaseCalculo(escala?.base_calculo ?? null);
+    setLocalCampoProducao(escala?.campo_producao ?? null);
+    setPendingProdField(null);
+    setBaseCalculoError('');
+  }, [escala?.id, open]);
 
   if (!escala) return null;
 
@@ -202,6 +248,57 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
       return "Esta escala já foi excluída.";
     }
     return `Não é possível excluir. Escalas ${escala.status.toLowerCase()}s não podem ser excluídas.`;
+  };
+
+  // ── Base de cálculo derived values ────────────────────────────────────────
+  const contratoItem = contratoItens.find(
+    (ci) => ci.item_id === escala.item_contrato_id && ci.contrato_id === escala.contrato_id,
+  );
+  const valorUnitario = contratoItem?.valor_unitario ?? 0;
+
+  const canChangeBaseCalculo = isAdminAgir && !escalaPaga && !!produtividadeMedico;
+
+  const activeProdLabel =
+    localCampoProducao
+      ? (PROD_FIELDS.find((f) => f.key === localCampoProducao)?.label ?? localCampoProducao)
+      : null;
+
+  // Pending field info (for confirmation panel)
+  const pendingIsReset = pendingProdField === '__reset__';
+  const pendingFieldInfo = pendingProdField && !pendingIsReset
+    ? PROD_FIELDS.find((f) => f.key === pendingProdField)
+    : null;
+  const pendingQuantity =
+    pendingFieldInfo && produtividadeMedico
+      ? (produtividadeMedico as unknown as Record<string, number>)[pendingProdField!] ?? 0
+      : 0;
+  const pendingTotal = pendingQuantity * valorUnitario;
+
+  const handleSaveBaseCalculo = async (field: string | null) => {
+    setSavingBaseCalculo(true);
+    setBaseCalculoError('');
+    try {
+      const newBase = field ? 'producao' : null;
+      const newQuantity =
+        field && produtividadeMedico
+          ? (produtividadeMedico as unknown as Record<string, number>)[field] ?? 0
+          : null;
+
+      await updateBaseCalculo(escala.id, newBase, field, newQuantity);
+
+      // Optimistic local update — dialog stays open, card shows new state
+      setLocalBaseCalculo(newBase);
+      setLocalCampoProducao(field);
+      setPendingProdField(null);
+
+      // Refresh the list in the background
+      onBaseCalculoUpdated?.();
+      onHorariosPagamentoUpdated?.(); // also reloads escala list
+    } catch (err: any) {
+      setBaseCalculoError('Erro ao salvar: ' + (err.message ?? 'Tente novamente.'));
+    } finally {
+      setSavingBaseCalculo(false);
+    }
   };
 
   return (
@@ -821,86 +918,277 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
               {/* Productivity Metrics */}
               <Card
                 sx={{
-                  background:
-                    "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                  background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
                   color: "white",
                 }}
               >
                 <CardContent>
-                  <Typography variant="h6" fontWeight={700} gutterBottom>
-                    Produtividade do Médico
-                  </Typography>
+                  {/* Section header */}
+                  <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1} mb={0.5}>
+                    <Typography variant="h6" fontWeight={700}>
+                      Produtividade do Médico
+                    </Typography>
+                    <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                      {/* Current base badge */}
+                      <Chip
+                        size="small"
+                        icon={
+                          localBaseCalculo === 'producao'
+                            ? <BarChart sx={{ fontSize: '14px !important', color: 'white !important' }} />
+                            : <Schedule sx={{ fontSize: '14px !important', color: 'white !important' }} />
+                        }
+                        label={
+                          localBaseCalculo === 'producao' && activeProdLabel
+                            ? `Base: ${activeProdLabel}`
+                            : 'Base: Horas'
+                        }
+                        sx={{
+                          bgcolor: localBaseCalculo === 'producao'
+                            ? 'rgba(99,102,241,0.35)'
+                            : 'rgba(255,255,255,0.2)',
+                          color: 'white',
+                          fontWeight: 600,
+                          border: localBaseCalculo === 'producao'
+                            ? '1px solid rgba(99,102,241,0.7)'
+                            : '1px solid rgba(255,255,255,0.35)',
+                          fontSize: '0.7rem',
+                          '& .MuiChip-icon': { color: 'white' },
+                        }}
+                      />
+                      {/* Reset to hours */}
+                      {canChangeBaseCalculo && localBaseCalculo === 'producao' && (
+                        <Button
+                          size="small"
+                          onClick={() => setPendingProdField('__reset__')}
+                          disabled={savingBaseCalculo}
+                          sx={{
+                            color: 'white',
+                            fontSize: '0.7rem',
+                            py: 0.25,
+                            px: 1,
+                            borderColor: 'rgba(255,255,255,0.5)',
+                            border: '1px solid',
+                            borderRadius: 1,
+                            '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' },
+                          }}
+                        >
+                          Resetar para horas
+                        </Button>
+                      )}
+                    </Box>
+                  </Box>
+
+                  {/* Admin hint */}
+                  {canChangeBaseCalculo && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: 'rgba(255,255,255,0.75)', display: 'block', mb: 1.5 }}
+                    >
+                      Selecione um item para usar como base de cálculo do pagamento
+                    </Typography>
+                  )}
+
                   {produtividadeMedico ? (
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                      {[
-                        {
-                          label: "Prescrição",
-                          value: produtividadeMedico.prescricao,
-                        },
-                        {
-                          label: "Evoluções",
-                          value: produtividadeMedico.evolucao,
-                        },
-                        {
-                          label: "Procedimentos",
-                          value: produtividadeMedico.procedimento,
-                        },
-                        {
-                          label: "Urgências",
-                          value: produtividadeMedico.urgencia,
-                        },
-                        {
-                          label: "Parecer Solicitado",
-                          value: produtividadeMedico.parecer_solicitado,
-                        },
-                        {
-                          label: "Parecer Realizado",
-                          value: produtividadeMedico.parecer_realizado,
-                        },
-                        {
-                          label: "Ambulatórios",
-                          value: produtividadeMedico.ambulatorio,
-                        },
-                        {
-                          label: "Evol. Noturna CTI",
-                          value: produtividadeMedico.evolucao_noturna_cti,
-                        },
-                        {
-                          label: "Evol. Diurna CTI",
-                          value: produtividadeMedico.evolucao_diurna_cti,
-                        },
-                        {
-                          label: "Cirurgias",
-                          value: produtividadeMedico.cirurgia_realizada,
-                        },
-                        {
-                          label: "Folha Obj. Diário",
-                          value: produtividadeMedico.folha_objetivo_diario,
-                        },
-                        {
-                          label: "Docs no PEP",
-                          value: produtividadeMedico.qtd_documentos_pep,
-                        },
-                      ].map((item, idx) => (
-                        <Grid item xs={6} sm={4} md={3} key={idx}>
-                          <Paper sx={{ p: 2, textAlign: "center" }}>
-                            <Typography
-                              variant="h4"
-                              color="primary"
-                              fontWeight={700}
+                    <>
+                      <Grid container spacing={1.5} sx={{ mt: 0.5 }}>
+                        {PROD_FIELDS.map((field) => {
+                          const value = produtividadeMedico[field.key] ?? 0;
+                          const isSelected = localCampoProducao === field.key && localBaseCalculo === 'producao';
+                          const isPending = pendingProdField === field.key;
+                          const isSelectable = canChangeBaseCalculo;
+
+                          return (
+                            <Grid item xs={6} sm={4} md={3} key={field.key}>
+                              <Paper
+                                onClick={() => {
+                                  if (!isSelectable) return;
+                                  if (isSelected) {
+                                    // clicking active selection triggers reset
+                                    setPendingProdField('__reset__');
+                                  } else {
+                                    setPendingProdField(field.key);
+                                    setBaseCalculoError('');
+                                  }
+                                }}
+                                elevation={isPending || isSelected ? 4 : 1}
+                                sx={{
+                                  p: 1.5,
+                                  textAlign: 'center',
+                                  position: 'relative',
+                                  cursor: isSelectable ? 'pointer' : 'default',
+                                  border: '2px solid',
+                                  borderColor: isSelected
+                                    ? '#6366f1'
+                                    : isPending
+                                    ? 'rgba(99,102,241,0.55)'
+                                    : 'transparent',
+                                  transition: 'all 0.18s ease',
+                                  '&:hover': isSelectable
+                                    ? {
+                                        borderColor: '#6366f1',
+                                        boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
+                                        transform: 'translateY(-2px)',
+                                      }
+                                    : {},
+                                }}
+                              >
+                                {/* Selected indicator */}
+                                {isSelected && (
+                                  <CheckCircle
+                                    sx={{
+                                      position: 'absolute',
+                                      top: 4,
+                                      right: 4,
+                                      fontSize: 15,
+                                      color: '#6366f1',
+                                    }}
+                                  />
+                                )}
+                                <Typography variant="h5" fontWeight={700} color={isSelected ? '#6366f1' : 'primary'}>
+                                  {value}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2, display: 'block' }}>
+                                  {field.label}
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                          );
+                        })}
+                      </Grid>
+
+                      {/* Inline confirmation panel */}
+                      <Collapse in={pendingProdField !== null} unmountOnExit>
+                        <Box
+                          sx={{
+                            mt: 2,
+                            p: 2.5,
+                            borderRadius: 2,
+                            bgcolor: isDark ? '#1e1b4b' : 'white',
+                            border: '2px solid #6366f1',
+                            boxShadow: '0 8px 28px rgba(99,102,241,0.25)',
+                          }}
+                        >
+                          {pendingIsReset ? (
+                            /* ─── Reset confirmation ───────────────────────── */
+                            <>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Schedule sx={{ color: '#6366f1', fontSize: 20 }} />
+                                <Typography fontWeight={700} color={isDark ? 'white' : '#1e1b4b'}>
+                                  Voltar para cálculo por horas?
+                                </Typography>
+                              </Box>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                O pagamento voltará a ser calculado com base nas horas de plantão × valor unitário.
+                              </Typography>
+                            </>
+                          ) : (
+                            /* ─── Production field confirmation ───────────── */
+                            <>
+                              <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                                <BarChart sx={{ color: '#6366f1', fontSize: 20 }} />
+                                <Typography fontWeight={700} color={isDark ? 'white' : '#1e1b4b'}>
+                                  Alterar base de cálculo do pagamento?
+                                </Typography>
+                              </Box>
+
+                              {/* Comparison */}
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                                {/* Current (hours) */}
+                                <Box
+                                  sx={{
+                                    p: 1.5,
+                                    borderRadius: 1.5,
+                                    bgcolor: isDark ? 'rgba(255,255,255,0.06)' : '#f9fafb',
+                                    border: '1px solid',
+                                    borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#e5e7eb',
+                                  }}
+                                >
+                                  <Typography variant="caption" color="text.secondary" fontWeight={700} display="block" gutterBottom>
+                                    BASE ATUAL — HORAS
+                                  </Typography>
+                                  <Typography variant="body2" color="text.primary">
+                                    Horas de plantão × R$ {valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/h
+                                  </Typography>
+                                </Box>
+
+                                {/* Arrow */}
+                                <Box display="flex" justifyContent="center">
+                                  <SwapVert sx={{ color: '#6366f1', fontSize: 22 }} />
+                                </Box>
+
+                                {/* New (production) */}
+                                <Box
+                                  sx={{
+                                    p: 1.5,
+                                    borderRadius: 1.5,
+                                    bgcolor: isDark ? 'rgba(99,102,241,0.18)' : 'rgba(99,102,241,0.07)',
+                                    border: '2px solid #6366f1',
+                                  }}
+                                >
+                                  <Typography variant="caption" fontWeight={700} display="block" gutterBottom sx={{ color: '#6366f1' }}>
+                                    NOVA BASE — {pendingFieldInfo?.label?.toUpperCase()}
+                                  </Typography>
+                                  <Box display="flex" alignItems="baseline" gap={0.5} flexWrap="wrap">
+                                    <Typography variant="body2" color="text.primary" fontWeight={600}>
+                                      {pendingQuantity}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      × R$ {valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} =
+                                    </Typography>
+                                    <Typography variant="body2" fontWeight={700} sx={{ color: '#6366f1' }}>
+                                      R$ {pendingTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </Typography>
+                                  </Box>
+                                  {pendingQuantity === 0 && (
+                                    <Typography variant="caption" sx={{ color: '#f59e0b', display: 'block', mt: 0.5 }}>
+                                      Quantidade zero — verifique se há produtividade registrada.
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </Box>
+
+                              <Alert severity="info" sx={{ mb: 1.5, py: 0.5 }}>
+                                <Typography variant="caption">
+                                  O valor <strong>{pendingQuantity}</strong> é a produção capturada agora e será salvo na escala como base de pagamento.
+                                </Typography>
+                              </Alert>
+                            </>
+                          )}
+
+                          {baseCalculoError && (
+                            <Alert severity="error" sx={{ mb: 1.5, py: 0.5 }}>
+                              {baseCalculoError}
+                            </Alert>
+                          )}
+
+                          {/* Action buttons */}
+                          <Box display="flex" gap={1} justifyContent="flex-end">
+                            <Button
+                              size="small"
+                              onClick={() => { setPendingProdField(null); setBaseCalculoError(''); }}
+                              disabled={savingBaseCalculo}
+                              sx={{ color: 'text.secondary' }}
                             >
-                              {item.value || 0}
-                            </Typography>
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
+                              Cancelar
+                            </Button>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={() => handleSaveBaseCalculo(pendingIsReset ? null : pendingProdField)}
+                              disabled={savingBaseCalculo}
+                              startIcon={savingBaseCalculo ? <CircularProgress size={13} sx={{ color: 'white' }} /> : null}
+                              sx={{
+                                bgcolor: '#6366f1',
+                                '&:hover': { bgcolor: '#4f46e5' },
+                                '&.Mui-disabled': { bgcolor: isDark ? 'rgba(99,102,241,0.4)' : 'rgba(99,102,241,0.5)' },
+                              }}
                             >
-                              {item.label}
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                      ))}
-                    </Grid>
+                              {pendingIsReset ? 'Confirmar reset' : 'Confirmar alteração'}
+                            </Button>
+                          </Box>
+                        </Box>
+                      </Collapse>
+                    </>
                   ) : (
                     <Paper
                       sx={{

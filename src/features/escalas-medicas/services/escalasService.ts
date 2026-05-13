@@ -297,6 +297,26 @@ export async function updateHorariosPagamento(
   if (error) throw error;
 }
 
+/**
+ * Update the payment calculation base for an escala.
+ * - base_calculo: 'producao' or null (null = default hours-based)
+ * - campo_producao: the produtividade column key (e.g. 'ambulatorio')
+ * - quantidade_producao: the captured aggregate value at time of setting
+ */
+export async function updateBaseCalculo(
+  id: string,
+  base_calculo: string | null,
+  campo_producao: string | null,
+  quantidade_producao: number | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('escalas_medicas')
+    .update({ base_calculo, campo_producao, quantidade_producao })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
 // ============================================
 // Delete Escala
 // ============================================

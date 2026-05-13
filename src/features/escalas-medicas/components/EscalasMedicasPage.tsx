@@ -833,6 +833,7 @@ export const EscalasMedicasPage: React.FC = () => {
           escala={escalaDetalhes}
           contratos={escalas.auxiliaryData.contratos}
           todosItensContrato={escalas.auxiliaryData.todosItensContrato}
+          contratoItens={escalas.auxiliaryData.contratoItens}
           usuarioAlterouStatus={usuarioAlterouStatus}
           acessosMedico={acessosMedico}
           produtividadeMedico={produtividadeMedico}
@@ -853,6 +854,7 @@ export const EscalasMedicasPage: React.FC = () => {
             handleDeleteEscala(escala);
           }}
           onHorariosPagamentoUpdated={escalas.buscarEscalas}
+          onBaseCalculoUpdated={escalas.buscarEscalas}
         />
 
         {/* CSV Import Dialog */}

@@ -456,6 +456,8 @@ export type Database = {
           created_by: string | null
           data_inicio: string
           horario_entrada: string
+          base_calculo: string | null
+          campo_producao: string | null
           horario_pagamento_fim: string | null
           horario_pagamento_inicio: string | null
           horario_saida: string
@@ -464,6 +466,7 @@ export type Database = {
           justificativa: string | null
           medicos: Json
           observacoes: string | null
+          quantidade_producao: number | null
           status: string
           status_alterado_em: string | null
           status_alterado_por: string | null
@@ -472,6 +475,8 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean | null
+          base_calculo?: string | null
+          campo_producao?: string | null
           contrato_id: string
           created_at?: string | null
           created_by?: string | null
@@ -485,6 +490,7 @@ export type Database = {
           justificativa?: string | null
           medicos: Json
           observacoes?: string | null
+          quantidade_producao?: number | null
           status?: string
           status_alterado_em?: string | null
           status_alterado_por?: string | null
@@ -493,6 +499,8 @@ export type Database = {
         }
         Update: {
           ativo?: boolean | null
+          base_calculo?: string | null
+          campo_producao?: string | null
           contrato_id?: string
           created_at?: string | null
           created_by?: string | null
@@ -506,6 +514,7 @@ export type Database = {
           justificativa?: string | null
           medicos?: Json
           observacoes?: string | null
+          quantidade_producao?: number | null
           status?: string
           status_alterado_em?: string | null
           status_alterado_por?: string | null
@@ -1218,6 +1227,9 @@ export interface EscalaMedica {
   status_pagamento: StatusPagamento;
   horario_pagamento_inicio: string | null;
   horario_pagamento_fim: string | null;
+  base_calculo: string | null;
+  campo_producao: string | null;
+  quantidade_producao: number | null;
   ativo: boolean | null;
   created_at: string | null;
   updated_at: string | null;

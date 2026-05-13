@@ -64,13 +64,26 @@ export function calculateEscalaHours(horarioEntrada: string, horarioSaida: strin
 }
 
 /**
- * Calculate total hours for an escala including all doctors.
- * For "Aprovado com Glosa" with payment datetimes set, uses the payment
- * interval duration instead of the original schedule times.
+ * Calculate the billing quantity for an escala including all doctors.
+ *
+ * Priority order:
+ * 1. Production-based: returns the captured aggregate quantity directly
+ *    (already aggregated across all doctors, no multiplication needed).
+ * 2. "Aprovado com Glosa" with payment datetimes: uses the payment interval duration.
+ * 3. Default: original schedule hours × number of doctors.
  */
 export function calculateTotalEscalaHours(escala: EscalaMedica): number {
-  let hours: number;
+  // 1. Production-based calculation
+  if (
+    escala.base_calculo === 'producao' &&
+    escala.quantidade_producao !== null &&
+    escala.quantidade_producao !== undefined
+  ) {
+    return escala.quantidade_producao;
+  }
 
+  // 2. Glosa payment time override
+  let hours: number;
   if (
     escala.status === 'Aprovado com Glosa' &&
     escala.horario_pagamento_inicio &&
@@ -84,6 +97,7 @@ export function calculateTotalEscalaHours(escala: EscalaMedica): number {
     hours = calculateEscalaHours(escala.horario_entrada, escala.horario_saida);
   }
 
+  // 3. Default: multiply by doctor count
   return hours * escala.medicos.length;
 }
 
