@@ -65,9 +65,25 @@ export function calculateEscalaHours(horarioEntrada: string, horarioSaida: strin
 
 /**
  * Calculate total hours for an escala including all doctors.
+ * For "Aprovado com Glosa" with payment datetimes set, uses the payment
+ * interval duration instead of the original schedule times.
  */
 export function calculateTotalEscalaHours(escala: EscalaMedica): number {
-  const hours = calculateEscalaHours(escala.horario_entrada, escala.horario_saida);
+  let hours: number;
+
+  if (
+    escala.status === 'Aprovado com Glosa' &&
+    escala.horario_pagamento_inicio &&
+    escala.horario_pagamento_fim
+  ) {
+    const diffMs =
+      new Date(escala.horario_pagamento_fim).getTime() -
+      new Date(escala.horario_pagamento_inicio).getTime();
+    hours = diffMs / 3_600_000;
+  } else {
+    hours = calculateEscalaHours(escala.horario_entrada, escala.horario_saida);
+  }
+
   return hours * escala.medicos.length;
 }
 
