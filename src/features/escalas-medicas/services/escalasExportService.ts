@@ -311,7 +311,7 @@ export async function exportToCSV(data: CsvExportData): Promise<void> {
   const primaryHex = "0EA5E9";
   const memorialHeader = [
     "Item de Contrato",
-    "Valor Unitário (R$/h)",
+    "Valor Unitário (R$)",
     "Quantidade (h)",
     "Total (R$)",
   ];
@@ -605,7 +605,7 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
     head: [
       [
         "Item de Contrato",
-        "Valor Unitário (R$/h)",
+        "Valor Unitário (R$)",
         "Quantidade (h)",
         "Total (R$)",
       ],
