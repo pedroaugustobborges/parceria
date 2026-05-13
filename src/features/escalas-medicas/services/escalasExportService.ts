@@ -312,7 +312,7 @@ export async function exportToCSV(data: CsvExportData): Promise<void> {
   const memorialHeader = [
     "Item de Contrato",
     "Valor Unitário (R$)",
-    "Quantidade (h)",
+    "Quantidade",
     "Total (R$)",
   ];
   const memorialData: (string | number)[][] = [
@@ -603,12 +603,7 @@ export async function exportToPDF(data: PdfExportData): Promise<void> {
   autoTable(doc, {
     startY: afterMainTable + 22,
     head: [
-      [
-        "Item de Contrato",
-        "Valor Unitário (R$)",
-        "Quantidade (h)",
-        "Total (R$)",
-      ],
+      ["Item de Contrato", "Valor Unitário (R$)", "Quantidade", "Total (R$)"],
     ],
     body: [
       ...memorialRows.map((r) => [
