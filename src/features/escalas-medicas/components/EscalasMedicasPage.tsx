@@ -843,6 +843,8 @@ export const EscalasMedicasPage: React.FC = () => {
           produtividadeMedico={produtividadeMedico}
           loadingDetalhes={loadingDetalhes}
           isAdminAgir={isAdminAgir}
+          isAdminAgirCorporativo={isAdminAgirCorporativo}
+          isAdminAgirPlanta={isAdminAgirPlanta}
           isAdminTerceiro={isAdminTerceiro}
           isTerceiro={isTerceiro}
           onEdit={(escala) => {

@@ -140,6 +140,8 @@ export interface DetailsDialogProps {
   produtividadeMedico: ProdutividadeMedico | null;
   loadingDetalhes: boolean;
   isAdminAgir: boolean;
+  isAdminAgirCorporativo?: boolean;
+  isAdminAgirPlanta?: boolean;
   isAdminTerceiro: boolean;
   isTerceiro?: boolean;
   contratoItens?: ContratoItem[];
@@ -166,6 +168,8 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   produtividadeMedico,
   loadingDetalhes,
   isAdminAgir,
+  isAdminAgirCorporativo = false,
+  isAdminAgirPlanta = false,
   isAdminTerceiro,
   isTerceiro: _isTerceiro = false,
   contratoItens = [],
@@ -258,7 +262,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   );
   const valorUnitario = contratoItem?.valor_unitario ?? 0;
 
-  const canChangeBaseCalculo = isAdminAgir && !escalaPaga && !!produtividadeMedico;
+  const canChangeBaseCalculo = (isAdminAgirCorporativo || isAdminAgirPlanta) && !escalaPaga && !!produtividadeMedico;
 
   const activeProdLabel =
     localCampoProducao
