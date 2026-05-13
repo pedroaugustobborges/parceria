@@ -84,6 +84,7 @@ export interface UseEscalasReturn {
     usuarioAlterouStatus: Usuario | null;
     acessosMedico: any[];
     produtividadeMedico: any | null;
+    codigosMV: Record<string, string | null>;
   }>;
 
   // CSV Import
@@ -92,7 +93,7 @@ export interface UseEscalasReturn {
     previewData: CsvPreviewRow[],
     contratoId: string,
     itemContratoId: string
-  ) => Promise<void>;
+  ) => Promise<{ imported: number; skipped: number; errors: string[] }>;
 
   // Bulk selection
   selectedEscalas: Set<string>;
@@ -539,6 +540,7 @@ export function useEscalas(): UseEscalasReturn {
       let usuarioAlterouStatus: Usuario | null = null;
       let acessosMedico: any[] = [];
       let produtividadeMedico: any | null = null;
+      let codigosMV: Record<string, string | null> = {};
 
       try {
         // Load user who changed status
@@ -546,22 +548,25 @@ export function useEscalas(): UseEscalasReturn {
           usuarioAlterouStatus = await escalasService.loadUsuarioById(escala.status_alterado_por);
         }
 
-        // Load access logs and productivity for first doctor
         if (escala.medicos.length > 0) {
-          const primeiroMedico = escala.medicos[0];
-
           // Check if shift crosses midnight
-          const atravessaMeiaNoite = escala.horario_saida < escala.horario_entrada;
+          const isOvernight = escala.horario_saida < escala.horario_entrada;
 
+          // Access logs use the first doctor's CPF
           acessosMedico = await escalasService.loadAcessosMedico(
-            primeiroMedico.cpf,
+            escala.medicos[0].cpf,
             escala.data_inicio,
-            atravessaMeiaNoite
+            isOvernight
           );
-          produtividadeMedico = await escalasService.loadProdutividadeMedico(
+
+          // Productivity aggregated for ALL doctors, with correct date & codigo_mv matching
+          const result = await escalasService.loadProdutividadeMedico(
             escala.data_inicio,
-            primeiroMedico.nome
+            escala.medicos,
+            isOvernight,
           );
+          produtividadeMedico = result.produtividade;
+          codigosMV = result.codigosMV;
         }
       } catch (err) {
         console.error('Error loading escala details:', err);
@@ -571,6 +576,7 @@ export function useEscalas(): UseEscalasReturn {
         usuarioAlterouStatus,
         acessosMedico,
         produtividadeMedico,
+        codigosMV,
       };
     },
     []

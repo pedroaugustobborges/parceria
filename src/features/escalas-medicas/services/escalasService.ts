@@ -5,7 +5,7 @@
  * Also includes auxiliary data fetching (contratos, usuarios, unidades, etc.)
  */
 
-import { format } from 'date-fns';
+import { format, addDays, parseISO } from 'date-fns';
 import { supabase } from '../../../lib/supabase';
 import type {
   EscalaMedica,
@@ -544,25 +544,74 @@ export async function loadAcessosMedico(
 }
 
 /**
- * Load doctor's productivity for a specific date.
- * Aggregates all productivity records for the doctor on that date.
+ * Load productivity for all doctors on an escala, aggregated into a single record.
+ *
+ * Fixes vs. the old version:
+ * - Strips time/timezone from data_inicio before comparing (avoids off-by-one day)
+ * - Matches by codigo_mv (same as Dashboard) with nome fallback
+ * - Queries ALL doctors on the escala, not just the first
+ * - Handles overnight shifts by also querying the next day
+ *
+ * Returns both the aggregated Produtividade and a CPF→codigoMV map for display.
  */
 export async function loadProdutividadeMedico(
   dataEscala: string,
-  nomeMedico: string
-): Promise<Produtividade | null> {
-  const { data: produtividadeRecords } = await supabase
-    .from('produtividade')
-    .select('*')
-    .eq('data', dataEscala)
-    .ilike('nome', nomeMedico);
+  medicos: Array<{ nome: string; cpf: string }>,
+  isOvernight: boolean,
+): Promise<{ produtividade: Produtividade | null; codigosMV: Record<string, string | null> }> {
+  if (medicos.length === 0) return { produtividade: null, codigosMV: {} };
 
-  if (!produtividadeRecords || produtividadeRecords.length === 0) {
-    return null;
+  // 1. Safe date extraction — strip any time or timezone component
+  const dateStr = dataEscala.split('T')[0];
+  const datesToQuery = isOvernight
+    ? [dateStr, format(addDays(parseISO(dateStr), 1), 'yyyy-MM-dd')]
+    : [dateStr];
+
+  // 2. Lookup codigo_mv for each doctor by CPF
+  const cpfs = medicos.map(m => m.cpf).filter(Boolean);
+  const codigosMV: Record<string, string | null> = {};
+
+  if (cpfs.length > 0) {
+    const { data: usuarios } = await supabase
+      .from('usuarios')
+      .select('cpf, codigomv')
+      .in('cpf', cpfs);
+    (usuarios || []).forEach((u: { cpf: string | null; codigomv: string | null }) => {
+      if (u.cpf) codigosMV[u.cpf] = u.codigomv ?? null;
+    });
   }
 
-  // Aggregate all records into a single object
-  const aggregated: Produtividade = produtividadeRecords.reduce(
+  // 3. Query produtividade — primary: codigo_mv, fallback: nome
+  const codigosMVList = Object.values(codigosMV).filter((v): v is string => !!v);
+  let produtividadeRecords: Produtividade[] = [];
+
+  if (codigosMVList.length > 0) {
+    const { data } = await supabase
+      .from('produtividade')
+      .select('*')
+      .in('data', datesToQuery)
+      .in('codigo_mv', codigosMVList);
+    produtividadeRecords = (data || []) as Produtividade[];
+  }
+
+  if (produtividadeRecords.length === 0) {
+    // Fallback: match by name
+    const nomes = medicos.map(m => m.nome).filter(Boolean);
+    if (nomes.length > 0) {
+      const { data } = await supabase
+        .from('produtividade')
+        .select('*')
+        .in('data', datesToQuery)
+        .in('nome', nomes);
+      produtividadeRecords = (data || []) as Produtividade[];
+    }
+  }
+
+  if (produtividadeRecords.length === 0) return { produtividade: null, codigosMV };
+
+  // 4. Aggregate all records across all doctors and both days
+  const [first, ...rest] = produtividadeRecords;
+  const aggregated: Produtividade = rest.reduce(
     (acc, record) => ({
       ...acc,
       prescricao: (acc.prescricao || 0) + (record.prescricao || 0),
@@ -580,10 +629,10 @@ export async function loadProdutividadeMedico(
       auxiliar: (acc.auxiliar || 0) + (record.auxiliar || 0),
       encaminhamento: (acc.encaminhamento || 0) + (record.encaminhamento || 0),
     }),
-    produtividadeRecords[0] as Produtividade
+    { ...first } as Produtividade,
   );
 
-  return aggregated;
+  return { produtividade: aggregated, codigosMV };
 }
 
 // ============================================

@@ -143,6 +143,7 @@ export interface DetailsDialogProps {
   isAdminTerceiro: boolean;
   isTerceiro?: boolean;
   contratoItens?: ContratoItem[];
+  medicosCodigosMV?: Record<string, string | null>;
   onEdit: (escala: EscalaMedica) => void;
   onChangeStatus: (escala: EscalaMedica) => void;
   onDelete?: (escala: EscalaMedica) => void;
@@ -168,6 +169,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   isAdminTerceiro,
   isTerceiro: _isTerceiro = false,
   contratoItens = [],
+  medicosCodigosMV = {},
   onEdit,
   onChangeStatus,
   onDelete,
@@ -465,10 +467,15 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                     <TableCell>
                       <strong>CPF</strong>
                     </TableCell>
+                    <TableCell>
+                      <strong>Código MV</strong>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {escala.medicos.map((medico, idx) => (
+                  {escala.medicos.map((medico, idx) => {
+                    const codigoMV = medicosCodigosMV[medico.cpf];
+                    return (
                     <TableRow key={idx}>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1}>
@@ -477,8 +484,15 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                         </Box>
                       </TableCell>
                       <TableCell>{medico.cpf}</TableCell>
+                      <TableCell>
+                        {codigoMV
+                          ? <Chip label={codigoMV} size="small" sx={{ fontFamily: 'monospace', fontWeight: 600 }} />
+                          : <Typography variant="caption" color="text.disabled">—</Typography>
+                        }
+                      </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -1225,7 +1239,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
           >
             <Typography variant="caption" color="text.secondary">
               <strong>Criado em:</strong>{" "}
-              {format(parseISO(escala.created_at), "dd/MM/yyyy 'às' HH:mm")}
+              {escala.created_at ? format(parseISO(escala.created_at), "dd/MM/yyyy 'às' HH:mm") : '—'}
             </Typography>
             {escala.updated_at && (
               <>

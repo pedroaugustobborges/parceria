@@ -15,7 +15,6 @@ import {
   isSameDay,
   isToday,
 } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import type { EscalaMedica } from '../../types/escalas.types';
 import { statusColorMap } from '../../utils/escalasStatusUtils';
 import { getEffectiveHorario } from '../../utils/escalasHoursUtils';

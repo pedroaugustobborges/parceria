@@ -120,6 +120,7 @@ export const EscalasMedicasPage: React.FC = () => {
   const [usuarioAlterouStatus, setUsuarioAlterouStatus] = useState<Usuario | null>(null);
   const [acessosMedico, setAcessosMedico] = useState<any[]>([]);
   const [produtividadeMedico, setProdutividadeMedico] = useState<any | null>(null);
+  const [medicosCodigosMV, setMedicosCodigosMV] = useState<Record<string, string | null>>({});
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
 
   // ============================================
@@ -406,6 +407,7 @@ export const EscalasMedicasPage: React.FC = () => {
       setUsuarioAlterouStatus(details.usuarioAlterouStatus);
       setAcessosMedico(details.acessosMedico);
       setProdutividadeMedico(details.produtividadeMedico);
+      setMedicosCodigosMV(details.codigosMV);
     } catch (err) {
       console.error('Error loading escala details:', err);
     } finally {
@@ -419,6 +421,7 @@ export const EscalasMedicasPage: React.FC = () => {
     setUsuarioAlterouStatus(null);
     setAcessosMedico([]);
     setProdutividadeMedico(null);
+    setMedicosCodigosMV({});
   }, []);
 
   // ============================================
@@ -836,6 +839,7 @@ export const EscalasMedicasPage: React.FC = () => {
           contratoItens={escalas.auxiliaryData.contratoItens}
           usuarioAlterouStatus={usuarioAlterouStatus}
           acessosMedico={acessosMedico}
+          medicosCodigosMV={medicosCodigosMV}
           produtividadeMedico={produtividadeMedico}
           loadingDetalhes={loadingDetalhes}
           isAdminAgir={isAdminAgir}
