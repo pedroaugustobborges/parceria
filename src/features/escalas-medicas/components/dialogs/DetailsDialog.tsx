@@ -48,9 +48,17 @@ import {
   EditCalendar,
   BarChart,
   SwapVert,
+  ArrowForward,
+  Save,
+  RestartAlt,
+  Info,
 } from "@mui/icons-material";
-import { format, parseISO, subDays, addDays, isSameDay } from "date-fns";
+import { Divider } from "@mui/material";
+import { format, parseISO, subDays, addDays, isSameDay, differenceInMinutes, isValid, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import type {
   EscalaMedica,
   Contrato,
@@ -59,14 +67,14 @@ import type {
   Usuario,
   StatusEscala,
 } from "../../types/escalas.types";
-import { updateBaseCalculo } from "../../services/escalasService";
+import { updateBaseCalculo, updateHorariosPagamento } from "../../services/escalasService";
 import {
   getStatusConfig,
   statusColorMap,
   canEditStatus,
   isEscalaPaga,
 } from "../../utils/escalasStatusUtils";
-import { HorarioPagamentoDialog } from "./HorarioPagamentoDialog";
+import { shiftCrossesMidnight } from "../../utils/escalasHoursUtils";
 
 // Icon mapping for status
 const statusIconMap: Record<StatusEscala, React.ReactElement> = {
@@ -189,6 +197,66 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
 
   const [horarioPagamentoOpen, setHorarioPagamentoOpen] = useState(false);
   const horarioPagamentoRef = useRef<HTMLDivElement>(null);
+
+  // ── Inline Horário de Pagamento form state ───────────────────────────────
+  const [hpInicio, setHpInicio] = useState<Date | null>(null);
+  const [hpFim, setHpFim] = useState<Date | null>(null);
+  const [hpLoading, setHpLoading] = useState(false);
+  const [hpError, setHpError] = useState('');
+
+  // Initialize form values whenever the inline panel opens
+  useEffect(() => {
+    if (!horarioPagamentoOpen || !escala) return;
+    setHpError('');
+    if (escala.horario_pagamento_inicio && escala.horario_pagamento_fim) {
+      setHpInicio(new Date(escala.horario_pagamento_inicio));
+      setHpFim(new Date(escala.horario_pagamento_fim));
+    } else {
+      // Default to original schedule times
+      const crossesMidnight = shiftCrossesMidnight(escala.horario_entrada, escala.horario_saida);
+      const baseDate = escala.data_inicio.split('T')[0];
+      const fimDate = crossesMidnight
+        ? format(addDays(new Date(baseDate), 1), 'yyyy-MM-dd')
+        : baseDate;
+      setHpInicio(new Date(`${baseDate}T${escala.horario_entrada.length === 5 ? escala.horario_entrada + ':00' : escala.horario_entrada}`));
+      setHpFim(new Date(`${fimDate}T${escala.horario_saida.length === 5 ? escala.horario_saida + ':00' : escala.horario_saida}`));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [horarioPagamentoOpen]);
+
+  const hpIsClearing = hpInicio === null && hpFim === null;
+  const hpDurationMinutes =
+    hpInicio && hpFim && isValid(hpInicio) && isValid(hpFim)
+      ? differenceInMinutes(hpFim, hpInicio)
+      : null;
+  const hpDurationLabel =
+    hpDurationMinutes !== null && hpDurationMinutes > 0
+      ? `${Math.floor(hpDurationMinutes / 60)}h${hpDurationMinutes % 60 > 0 ? ` ${hpDurationMinutes % 60}min` : ''}`
+      : '—';
+  const hpIsValidRange =
+    hpInicio !== null && hpFim !== null && isValid(hpInicio) && isValid(hpFim) && isAfter(hpFim, hpInicio);
+
+  const handleSaveHorarioPagamento = async () => {
+    if (!hpIsClearing && !hpIsValidRange) {
+      setHpError('O horário de fim deve ser posterior ao horário de início.');
+      return;
+    }
+    setHpLoading(true);
+    setHpError('');
+    try {
+      await updateHorariosPagamento(
+        escala!.id,
+        hpInicio ? hpInicio.toISOString() : null,
+        hpFim ? hpFim.toISOString() : null,
+      );
+      setHorarioPagamentoOpen(false);
+      onHorariosPagamentoUpdated?.();
+    } catch (err: any) {
+      setHpError('Erro ao salvar: ' + err.message);
+    } finally {
+      setHpLoading(false);
+    }
+  };
 
   // Auto-scroll + auto-open Horário de Pagamento when signalled from parent
   useEffect(() => {
@@ -627,11 +695,13 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                   {isAdminAgir && !escalaPaga && (
                     <Button
                       size="small"
-                      variant={escala.horario_pagamento_inicio ? "outlined" : "contained"}
-                      startIcon={<EditCalendar />}
-                      onClick={() => setHorarioPagamentoOpen(true)}
+                      variant={horarioPagamentoOpen ? "outlined" : escala.horario_pagamento_inicio ? "outlined" : "contained"}
+                      startIcon={horarioPagamentoOpen ? <Cancel sx={{ fontSize: 16 }} /> : <EditCalendar />}
+                      onClick={() => setHorarioPagamentoOpen((v) => !v)}
                       sx={
-                        escala.horario_pagamento_inicio
+                        horarioPagamentoOpen
+                          ? { borderColor: "divider", color: "text.secondary" }
+                          : escala.horario_pagamento_inicio
                           ? {
                               borderColor: "#d97706",
                               color: "#d97706",
@@ -643,7 +713,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                           : { bgcolor: "#d97706", "&:hover": { bgcolor: "#b45309" } }
                       }
                     >
-                      {escala.horario_pagamento_inicio ? "Editar horário" : "Definir horário"}
+                      {horarioPagamentoOpen ? "Fechar" : escala.horario_pagamento_inicio ? "Editar horário" : "Definir horário"}
                     </Button>
                   )}
                 </Box>
@@ -735,29 +805,142 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                             onClick={() => setHorarioPagamentoOpen(true)}
                             sx={{ mt: 0.5, color: "#d97706", fontSize: "0.7rem", p: 0.5 }}
                           >
-                            Clique para definir
+                            Definir horário
                           </Button>
                         )}
                       </Box>
                     )}
                   </Grid>
                 </Grid>
+
+
+                {/* ── Inline form ─────────────────────────────────────────── */}
+                {isAdminAgir && !escalaPaga && (
+                  <Collapse in={horarioPagamentoOpen} unmountOnExit>
+                    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
+                      <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${isDark ? 'rgba(217,119,6,0.25)' : '#fde68a'}` }}>
+                        <Alert severity="info" icon={<Info />} sx={{ mb: 2 }}>
+                          <Typography variant="body2" fontWeight={600} gutterBottom>
+                            Defina o intervalo efetivo para cálculo do pagamento da glosa.
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Se deixado em branco, o horário original será usado.
+                          </Typography>
+                        </Alert>
+
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <DateTimePicker
+                            label="Início do pagamento"
+                            value={hpInicio}
+                            onChange={(val) => { setHpInicio(val); setHpError(''); }}
+                            ampm={false}
+                            format="dd/MM/yyyy HH:mm"
+                            slotProps={{
+                              textField: {
+                                fullWidth: true,
+                                size: 'small',
+                                helperText: 'Data e hora em que o período de pagamento começa',
+                              },
+                            }}
+                          />
+
+                          <Box display="flex" justifyContent="center">
+                            <ArrowForward sx={{ color: 'text.disabled' }} />
+                          </Box>
+
+                          <DateTimePicker
+                            label="Fim do pagamento"
+                            value={hpFim}
+                            onChange={(val) => { setHpFim(val); setHpError(''); }}
+                            ampm={false}
+                            format="dd/MM/yyyy HH:mm"
+                            minDateTime={hpInicio ?? undefined}
+                            slotProps={{
+                              textField: {
+                                fullWidth: true,
+                                size: 'small',
+                                helperText: 'Data e hora em que o período de pagamento termina',
+                                error: hpFim !== null && hpInicio !== null && !isAfter(hpFim, hpInicio),
+                              },
+                            }}
+                          />
+                        </Box>
+
+                        {/* Live duration */}
+                        <Box
+                          sx={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            gap: 1.5, p: 1.5, mt: 2, borderRadius: 2,
+                            bgcolor: hpIsValidRange
+                              ? isDark ? 'rgba(217,119,6,0.12)' : '#fffbeb'
+                              : isDark ? 'rgba(255,255,255,0.04)' : '#f8fafc',
+                            border: '1px dashed',
+                            borderColor: hpIsValidRange ? '#d97706' : isDark ? 'rgba(255,255,255,0.12)' : '#e2e8f0',
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          <Schedule sx={{ color: hpIsValidRange ? '#d97706' : 'text.disabled', fontSize: 18 }} />
+                          <Typography variant="body2" fontWeight={600} color={hpIsValidRange ? '#d97706' : 'text.secondary'}>
+                            Duração calculada:
+                          </Typography>
+                          <Typography variant="h6" fontWeight={700} color={hpIsValidRange ? '#d97706' : 'text.disabled'}>
+                            {hpDurationLabel}
+                          </Typography>
+                        </Box>
+
+                        {hpError && <Alert severity="error" sx={{ mt: 1.5 }}>{hpError}</Alert>}
+
+                        {hpIsClearing && (
+                          <Alert severity="success" sx={{ mt: 1.5, py: 0.5 }}>
+                            <Typography variant="caption">
+                              Nenhum horário definido — o <strong>horário original</strong> será usado para calcular o valor.
+                            </Typography>
+                          </Alert>
+                        )}
+
+                        <Divider sx={{ my: 2 }} />
+
+                        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+                          <Button
+                            startIcon={<RestartAlt />}
+                            onClick={() => { setHpInicio(null); setHpFim(null); setHpError(''); }}
+                            disabled={hpLoading || hpIsClearing}
+                            color="inherit"
+                            size="small"
+                            sx={{ color: 'text.secondary' }}
+                          >
+                            Usar horário original
+                          </Button>
+                          <Box display="flex" gap={1}>
+                            <Button
+                              size="small"
+                              onClick={() => setHorarioPagamentoOpen(false)}
+                              disabled={hpLoading}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              startIcon={hpLoading ? <CircularProgress size={14} sx={{ color: 'white' }} /> : <Save />}
+                              onClick={handleSaveHorarioPagamento}
+                              disabled={hpLoading || (!hpIsValidRange && !hpIsClearing)}
+                              sx={{
+                                bgcolor: '#d97706',
+                                '&:hover': { bgcolor: '#b45309' },
+                                '&.Mui-disabled': { bgcolor: isDark ? 'rgba(217,119,6,0.3)' : '#fcd34d' },
+                              }}
+                            >
+                              Salvar
+                            </Button>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </LocalizationProvider>
+                  </Collapse>
+                )}
               </CardContent>
             </Card>
-          )}
-
-          {/* HorarioPagamentoDialog */}
-          {isAprovadoComGlosa && escala && (
-            <HorarioPagamentoDialog
-              open={horarioPagamentoOpen}
-              onClose={() => setHorarioPagamentoOpen(false)}
-              escala={escala}
-              onSaved={() => {
-                setHorarioPagamentoOpen(false);
-                onClose();
-                onHorariosPagamentoUpdated?.();
-              }}
-            />
           )}
 
           {/* Observations */}
