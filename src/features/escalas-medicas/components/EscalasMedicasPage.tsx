@@ -122,6 +122,7 @@ export const EscalasMedicasPage: React.FC = () => {
   const [produtividadeMedico, setProdutividadeMedico] = useState<any | null>(null);
   const [medicosCodigosMV, setMedicosCodigosMV] = useState<Record<string, string | null>>({});
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
+  const [scrollToHorario, setScrollToHorario] = useState(false);
 
   // ============================================
   // CSV Import State
@@ -322,10 +323,25 @@ export const EscalasMedicasPage: React.FC = () => {
       handleCloseStatusDialog();
       escalas.setSuccess('Status atualizado com sucesso!');
       await escalas.buscarEscalas();
+
+      if (novoStatus === 'Aprovado com Glosa' && detailsDialogOpen) {
+        // Keep DetailsDialog open, update escala status in state, then scroll to Horário de Pagamento
+        setEscalaDetalhes((prev) => prev ? { ...prev, status: 'Aprovado com Glosa' } : prev);
+        setScrollToHorario(true);
+      } else {
+        // Close DetailsDialog (same as handleCloseDetailsDialog, inlined to avoid declaration order issues)
+        setDetailsDialogOpen(false);
+        setEscalaDetalhes(null);
+        setUsuarioAlterouStatus(null);
+        setAcessosMedico([]);
+        setProdutividadeMedico(null);
+        setMedicosCodigosMV({});
+        setScrollToHorario(false);
+      }
     } catch (err: any) {
       escalas.setError('Erro ao atualizar status: ' + err.message);
     }
-  }, [escalaParaStatus, novoStatus, novaJustificativa, escalas, handleCloseStatusDialog]);
+  }, [escalaParaStatus, novoStatus, novaJustificativa, escalas, handleCloseStatusDialog, detailsDialogOpen]);
 
   // ============================================
   // Bulk Status Dialog Handlers
@@ -422,6 +438,7 @@ export const EscalasMedicasPage: React.FC = () => {
     setAcessosMedico([]);
     setProdutividadeMedico(null);
     setMedicosCodigosMV({});
+    setScrollToHorario(false);
   }, []);
 
   // ============================================
@@ -852,7 +869,6 @@ export const EscalasMedicasPage: React.FC = () => {
             form.openDialog(escala);
           }}
           onChangeStatus={(escala) => {
-            handleCloseDetailsDialog();
             handleOpenStatusDialog(escala);
           }}
           onDelete={(escala) => {
@@ -861,6 +877,8 @@ export const EscalasMedicasPage: React.FC = () => {
           }}
           onHorariosPagamentoUpdated={escalas.buscarEscalas}
           onBaseCalculoUpdated={escalas.buscarEscalas}
+          scrollToHorarioPagamento={scrollToHorario}
+          onScrollToHorarioDone={() => setScrollToHorario(false)}
         />
 
         {/* CSV Import Dialog */}

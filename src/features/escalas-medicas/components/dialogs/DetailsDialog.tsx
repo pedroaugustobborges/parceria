@@ -5,7 +5,7 @@
  * including access logs and productivity metrics.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -151,6 +151,8 @@ export interface DetailsDialogProps {
   onDelete?: (escala: EscalaMedica) => void;
   onHorariosPagamentoUpdated?: () => void;
   onBaseCalculoUpdated?: () => void;
+  scrollToHorarioPagamento?: boolean;
+  onScrollToHorarioDone?: () => void;
 }
 
 // ============================================
@@ -179,11 +181,25 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   onDelete,
   onHorariosPagamentoUpdated,
   onBaseCalculoUpdated,
+  scrollToHorarioPagamento = false,
+  onScrollToHorarioDone,
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
   const [horarioPagamentoOpen, setHorarioPagamentoOpen] = useState(false);
+  const horarioPagamentoRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll + auto-open Horário de Pagamento when signalled from parent
+  useEffect(() => {
+    if (!scrollToHorarioPagamento || !open) return;
+    const timer = setTimeout(() => {
+      horarioPagamentoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setHorarioPagamentoOpen(true);
+      onScrollToHorarioDone?.();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [scrollToHorarioPagamento, open, onScrollToHorarioDone]);
 
   // ── Base de cálculo state ────────────────────────────────────────────────
   const [pendingProdField, setPendingProdField] = useState<string | null>(null);
@@ -593,6 +609,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
           {/* Aprovado com Glosa — Horário para fins de pagamento */}
           {isAprovadoComGlosa && (
             <Card
+              ref={horarioPagamentoRef}
               sx={{
                 borderLeft: "4px solid #d97706",
                 bgcolor: theme.palette.mode === "dark" ? "rgba(217,119,6,0.08)" : "#fffbeb",
@@ -1315,7 +1332,6 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
             <span>
               <Button
                 onClick={() => {
-                  onClose();
                   onChangeStatus(escala);
                 }}
                 variant="contained"
