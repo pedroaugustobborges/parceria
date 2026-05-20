@@ -22,7 +22,16 @@
       "Bash(powershell -Command \"[System.IO.File]::ReadAllLines\\(''src/types/database.types.ts'', [System.Text.Encoding]::Unicode\\) | Where-Object { $_-match ''StatusEscala|EscalaMedica|MedicoEscala'' }\")",
       "Bash(powershell:*)",
       "Bash(findstr:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git rm:*)",
+      "Bash(curl -s --connect-timeout 5 http://10.12.1.251:8000 -I)",
+      "Bash(pip install:*)",
+      "Bash(chmod 600 /c/Users/16144-pedro/.ssh/agirchave.pem)",
+      "Bash(ssh -i /c/Users/16144-pedro/.ssh/agirchave.pem -o StrictHostKeyChecking=no -o ConnectTimeout=8 admin@10.12.1.170 \"echo connected && uname -a && cat /etc/os-release | grep PRETTY\")",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(curl:*)",
+      "Bash(aws sts:*)"
     ],
     "deny": [],
     "ask": []
