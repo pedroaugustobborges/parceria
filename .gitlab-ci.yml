@@ -1,0 +1,26 @@
+# Pipeline de segurança (SAST + Secret Detection) do GitLab.
+# Os resultados aparecem em Security & Compliance e nos MRs.
+
+stages:
+  - test
+
+include:
+  # SAST: análise estática de código (usa analisadores baseados em Semgrep).
+  - template: Jobs/SAST.gitlab-ci.yml
+  # Secret Detection: procura credenciais/chaves commitadas no repositório.
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+# Garante que os jobs de segurança rodem em merge requests e nas branches
+# principais (e não só no default do template).
+.security-rules: &security-rules
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  - if: $CI_COMMIT_BRANCH == "main"
+  - if: $CI_COMMIT_BRANCH == "master"
+
+sast:
+  stage: test
+  rules: *security-rules
+
+secret_detection:
+  stage: test
+  rules: *security-rules
