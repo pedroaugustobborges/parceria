@@ -108,6 +108,12 @@ const Contratos: React.FC = () => {
   const [documentos, setDocumentos] = useState<DocumentoContrato[]>([]);
   const [uploadingDoc, setUploadingDoc] = useState(false);
 
+  // AI extraction state (only for Novo Contrato)
+  const [arquivoPdfExtracao, setArquivoPdfExtracao] = useState<File | null>(null);
+  const [extraindoDados, setExtraindoDados] = useState(false);
+  const [dadosExtraidos, setDadosExtraidos] = useState(false);
+  const [itensNaoMapeados, setItensNaoMapeados] = useState<string[]>([]);
+
   // Parceiros state
   const [parceiros, setParceiros] = useState<Parceiro[]>([]);
 
@@ -383,6 +389,11 @@ const Contratos: React.FC = () => {
         unidade_hospitalar_id: isAdminAgirPlanta ? unidadeHospitalarId : null,
       });
       setItensSelecionados([]);
+      // Reset AI extraction state for new contracts
+      setArquivoPdfExtracao(null);
+      setExtraindoDados(false);
+      setDadosExtraidos(false);
+      setItensNaoMapeados([]);
     }
     setOpenDialog(true);
   };
@@ -393,6 +404,162 @@ const Contratos: React.FC = () => {
     setItensSelecionados([]);
     setItemParaAdicionar(null);
     setError("");
+    setArquivoPdfExtracao(null);
+    setExtraindoDados(false);
+    setDadosExtraidos(false);
+    setItensNaoMapeados([]);
+  };
+
+  const handleExtrairDadosPdf = async (file: File) => {
+    if (file.type !== "application/pdf") {
+      setError("Apenas arquivos PDF são aceitos para extração com IA");
+      return;
+    }
+
+    try {
+      setExtraindoDados(true);
+      setError("");
+      setArquivoPdfExtracao(file);
+      setDadosExtraidos(false);
+      setItensNaoMapeados([]);
+
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const formDataPdf = new FormData();
+      formDataPdf.append("pdf", file);
+
+      // Enviar contexto do sistema para matching preciso pela IA
+      const contexto = {
+        parceiros: parceiros.map((p) => ({ id: p.id, nome: p.nome })),
+        unidades: unidades.map((u) => ({
+          id: u.id,
+          nome: u.nome,
+          codigo: u.codigo,
+        })),
+        itens: itensDisponiveis.map((i) => ({
+          id: i.id,
+          nome: i.nome,
+          unidade_medida: i.unidade_medida,
+          codigo_corporativo: i.codigo_corporativo,
+        })),
+      };
+      formDataPdf.append("contexto", JSON.stringify(contexto));
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/extrair-dados-contrato`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: supabaseAnonKey,
+          },
+          body: formDataPdf,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.erro || `Erro ${response.status} na extração`);
+      }
+
+      const result = await response.json();
+      if (!result.sucesso) {
+        throw new Error(result.erro || "Falha na extração de dados");
+      }
+
+      const dados = result.dados;
+
+      // Resolver empresa pelo ID retornado pela IA
+      const parceiroEncontrado = dados.empresa_id
+        ? parceiros.find((p) => p.id === dados.empresa_id)
+        : null;
+
+      // Resolver unidade pelo ID retornado pela IA
+      const unidadeEncontrada = dados.unidade_hospitalar_id
+        ? unidades.find((u) => u.id === dados.unidade_hospitalar_id)
+        : null;
+
+      // Pre-preencher campos do formulário
+      setFormData((prev) => ({
+        ...prev,
+        nome: dados.nome || prev.nome,
+        numero_contrato: dados.numero_contrato || prev.numero_contrato,
+        empresa: parceiroEncontrado?.nome || dados.empresa_nome_contrato || prev.empresa,
+        data_inicio: dados.data_inicio
+          ? new Date(dados.data_inicio + "T12:00:00")
+          : prev.data_inicio,
+        data_fim: dados.data_fim
+          ? new Date(dados.data_fim + "T12:00:00")
+          : prev.data_fim,
+        unidade_hospitalar_id:
+          // Não sobrescrever se o usuário é admin planta (unidade já fixada)
+          !isAdminAgirPlanta && unidadeEncontrada
+            ? unidadeEncontrada.id
+            : prev.unidade_hospitalar_id,
+      }));
+
+      // Resolver itens pelos IDs retornados pela IA
+      if (Array.isArray(dados.itens) && dados.itens.length > 0) {
+        const itensPreenchidos: ItemSelecionado[] = [];
+        const nomesSemCorrespondencia: string[] = [];
+
+        for (const itemExtraido of dados.itens) {
+          // Prioridade 1: ID exato da IA
+          let itemExistente = dados.empresa_id !== undefined && itemExtraido.item_catalogo_id
+            ? itensDisponiveis.find((i) => i.id === itemExtraido.item_catalogo_id)
+            : undefined;
+
+          // Prioridade 2: fallback por codigo_corporativo ou nome
+          if (!itemExistente) {
+            const codigoExtraido = itemExtraido.codigo_corporativo as string | null;
+            const nomeExtraido = (itemExtraido.nome_no_contrato || "").toLowerCase().trim();
+            itemExistente = itensDisponiveis.find((i) => {
+              if (codigoExtraido && i.codigo_corporativo) {
+                return i.codigo_corporativo === codigoExtraido;
+              }
+              const nomeItem = i.nome.toLowerCase();
+              return (
+                nomeItem.includes(nomeExtraido) ||
+                nomeExtraido.includes(nomeItem)
+              );
+            });
+          }
+
+          if (itemExistente) {
+            if (!itensPreenchidos.some((is) => is.item.id === itemExistente!.id)) {
+              itensPreenchidos.push({
+                item: itemExistente,
+                quantidade: Number(itemExtraido.quantidade) || 1,
+                valor_unitario: Number(itemExtraido.valor_unitario) || 0,
+                observacoes: "",
+              });
+            }
+          } else {
+            const nomeExibir =
+              itemExtraido.nome_no_contrato || itemExtraido.nome || null;
+            if (nomeExibir) {
+              nomesSemCorrespondencia.push(nomeExibir as string);
+            }
+          }
+        }
+
+        if (itensPreenchidos.length > 0) {
+          setItensSelecionados(itensPreenchidos);
+        }
+        setItensNaoMapeados(nomesSemCorrespondencia);
+      }
+
+      setDadosExtraidos(true);
+    } catch (err: any) {
+      setError("Erro ao extrair dados do PDF: " + (err.message || "Tente novamente"));
+      setArquivoPdfExtracao(null);
+      setDadosExtraidos(false);
+    } finally {
+      setExtraindoDados(false);
+    }
   };
 
   const handleAdicionarItem = () => {
@@ -850,6 +1017,101 @@ const Contratos: React.FC = () => {
             <Box
               sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}
             >
+              {/* ── AI Extraction Section (Novo Contrato only) ─────────────── */}
+              {!editingContrato && !isReadOnly && (
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: dadosExtraidos ? "success.main" : "primary.light",
+                    bgcolor: (theme) =>
+                      dadosExtraidos
+                        ? theme.palette.mode === "dark"
+                          ? "rgba(34,197,94,0.08)"
+                          : "rgba(34,197,94,0.06)"
+                        : theme.palette.mode === "dark"
+                        ? "rgba(14,165,233,0.08)"
+                        : "rgba(14,165,233,0.05)",
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
+                      ✨ Extração Automática com IA
+                    </Typography>
+                    <Chip label="Opcional" size="small" variant="outlined" color="primary" />
+                  </Box>
+
+                  {dadosExtraidos && arquivoPdfExtracao ? (
+                    <Box>
+                      <Alert
+                        severity="success"
+                        sx={{ mb: itensNaoMapeados.length > 0 ? 1 : 0 }}
+                        action={
+                          <Button
+                            size="small"
+                            color="inherit"
+                            onClick={() => {
+                              setDadosExtraidos(false);
+                              setArquivoPdfExtracao(null);
+                              setItensNaoMapeados([]);
+                            }}
+                          >
+                            Limpar
+                          </Button>
+                        }
+                      >
+                        Dados extraídos de{" "}
+                        <strong>{arquivoPdfExtracao.name}</strong> — revise os
+                        campos abaixo antes de salvar.
+                      </Alert>
+                      {itensNaoMapeados.length > 0 && (
+                        <Alert severity="warning" sx={{ mt: 1 }}>
+                          {itensNaoMapeados.length} item(ns) do PDF não foram
+                          encontrados no catálogo:{" "}
+                          <em>{itensNaoMapeados.join(", ")}</em>. Adicione-os
+                          manualmente abaixo.
+                        </Alert>
+                      )}
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        startIcon={
+                          extraindoDados ? (
+                            <CircularProgress size={18} />
+                          ) : (
+                            <CloudUpload />
+                          )
+                        }
+                        disabled={extraindoDados}
+                        size="small"
+                        color="primary"
+                      >
+                        {extraindoDados
+                          ? "Analisando com IA…"
+                          : "Carregar PDF do Contrato"}
+                        <input
+                          type="file"
+                          hidden
+                          accept="application/pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleExtrairDadosPdf(file);
+                            e.target.value = "";
+                          }}
+                        />
+                      </Button>
+                      <Typography variant="caption" color="text.secondary">
+                        Pré-preenche os campos automaticamente a partir do PDF
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
               <TextField
                 label="Objeto do Contrato"
                 value={formData.nome}
@@ -1064,6 +1326,15 @@ const Contratos: React.FC = () => {
                                 >
                                   {is.item.unidade_medida}
                                 </Typography>
+                                {is.item.codigo_corporativo && (
+                                  <Typography
+                                    variant="caption"
+                                    color="primary.main"
+                                    sx={{ display: "block", fontWeight: 600 }}
+                                  >
+                                    Cód. {is.item.codigo_corporativo}
+                                  </Typography>
+                                )}
                               </TableCell>
                               <TableCell>
                                 {isReadOnly ? (

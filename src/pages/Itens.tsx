@@ -53,6 +53,7 @@ const Itens: React.FC = () => {
     nome: "",
     descricao: "",
     unidade_medida: "horas" as UnidadeMedida,
+    codigo_corporativo: "",
   });
 
   // Delete dialog state
@@ -95,6 +96,7 @@ const Itens: React.FC = () => {
         nome: item.nome,
         descricao: item.descricao || "",
         unidade_medida: item.unidade_medida,
+        codigo_corporativo: item.codigo_corporativo || "",
       });
     } else {
       setEditingItem(null);
@@ -102,6 +104,7 @@ const Itens: React.FC = () => {
         nome: "",
         descricao: "",
         unidade_medida: "horas",
+        codigo_corporativo: "",
       });
     }
     setDialogOpen(true);
@@ -114,6 +117,7 @@ const Itens: React.FC = () => {
       nome: "",
       descricao: "",
       unidade_medida: "horas",
+      codigo_corporativo: "",
     });
   };
 
@@ -134,10 +138,17 @@ const Itens: React.FC = () => {
             nome: formData.nome,
             descricao: formData.descricao || null,
             unidade_medida: formData.unidade_medida,
+            codigo_corporativo: formData.codigo_corporativo.trim() || null,
           })
           .eq("id", editingItem.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          if (updateError.code === "23505") {
+            setError("Este código corporativo já está em uso. Utilize um código único.");
+            return;
+          }
+          throw updateError;
+        }
       } else {
         // Create new item
         const { error: insertError } = await supabase
@@ -146,9 +157,16 @@ const Itens: React.FC = () => {
             nome: formData.nome,
             descricao: formData.descricao || null,
             unidade_medida: formData.unidade_medida,
+            codigo_corporativo: formData.codigo_corporativo.trim() || null,
           });
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          if (insertError.code === "23505") {
+            setError("Este código corporativo já está em uso. Utilize um código único.");
+            return;
+          }
+          throw insertError;
+        }
       }
 
       handleCloseDialog();
@@ -262,6 +280,20 @@ const Itens: React.FC = () => {
       renderCell: (params) => (
         <Typography variant="body2" color="text.secondary">
           {params.value || "-"}
+        </Typography>
+      ),
+    },
+    {
+      field: "codigo_corporativo",
+      headerName: "Cód. Corporativo",
+      width: 160,
+      renderCell: (params) => (
+        <Typography
+          variant="body2"
+          color={params.value ? "primary.main" : "text.disabled"}
+          fontWeight={params.value ? 600 : 400}
+        >
+          {params.value || "—"}
         </Typography>
       ),
     },
@@ -425,6 +457,17 @@ const Itens: React.FC = () => {
               required
               fullWidth
               autoFocus
+            />
+
+            <TextField
+              label="Cód. Corporativo"
+              value={formData.codigo_corporativo}
+              onChange={(e) =>
+                setFormData({ ...formData, codigo_corporativo: e.target.value })
+              }
+              fullWidth
+              helperText="Código único do item (ex: 001, A01). Deixe em branco se não houver."
+              inputProps={{ maxLength: 50 }}
             />
 
             <TextField

@@ -600,6 +600,7 @@ export type Database = {
       itens_contrato: {
         Row: {
           ativo: boolean | null
+          codigo_corporativo: string | null
           created_at: string | null
           descricao: string | null
           id: string
@@ -609,6 +610,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean | null
+          codigo_corporativo?: string | null
           created_at?: string | null
           descricao?: string | null
           id?: string
@@ -618,6 +620,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean | null
+          codigo_corporativo?: string | null
           created_at?: string | null
           descricao?: string | null
           id?: string
@@ -1207,6 +1210,32 @@ export interface MedicoEscala {
   nome: string;
   cpf: string;
 }
+
+// ============================================
+// Convenience Type Aliases (Table Row types)
+// ============================================
+
+export type Contrato = Database['public']['Tables']['contratos']['Row']
+export type ItemContrato = Database['public']['Tables']['itens_contrato']['Row']
+export type ContratoItem = Database['public']['Tables']['contrato_itens']['Row']
+export type Parceiro = Database['public']['Tables']['parceiros']['Row']
+export type UnidadeHospitalar = Database['public']['Tables']['unidades_hospitalares']['Row']
+export type DocumentoContrato = Database['public']['Tables']['documentos_contrato']['Row']
+
+export type UnidadeMedida =
+  | 'horas'
+  | 'plantão'
+  | 'procedimento'
+  | 'cirurgia'
+  | 'consulta'
+  | 'diária'
+  | 'atendimento ambulatorial'
+  | 'atendimento domiciliar'
+  | 'intervenção'
+  | 'parecer médico'
+  | 'visita'
+  | 'carga horária semanal'
+  | 'carga horária mensal'
 
 /**
  * Medical schedule record (escalas_medicas table Row).
