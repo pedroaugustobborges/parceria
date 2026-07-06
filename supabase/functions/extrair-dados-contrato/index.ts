@@ -58,12 +58,7 @@ interface UnidadeCtx {
   codigo: string;
 }
 
-interface ItemCatalogoCtx {
-  id: string;
-  nome: string;
-  unidade_medida: string;
-  codigo_corporativo: string | null;
-}
+// (catalog context removed — matching is done client-side for reliability)
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -120,10 +115,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Contexto opcional: listas do sistema para matching preciso
+    // Contexto opcional: parceiros e unidades para matching pela IA
+    // (itens do catálogo NÃO são enviados — matching feito no cliente para não sobrecarregar o prompt)
     let parceiros: ParceiroCtx[] = [];
     let unidades: UnidadeCtx[] = [];
-    let itensCatalogo: ItemCatalogoCtx[] = [];
 
     const contextoStr = formData.get("contexto");
     if (contextoStr && typeof contextoStr === "string") {
@@ -131,7 +126,6 @@ Deno.serve(async (req) => {
         const ctx = JSON.parse(contextoStr);
         parceiros = ctx.parceiros || [];
         unidades = ctx.unidades || [];
-        itensCatalogo = ctx.itens || [];
       } catch {
         console.warn("[extrair-dados-contrato] Falha ao parsear contexto, continuando sem ele");
       }
@@ -150,8 +144,10 @@ Deno.serve(async (req) => {
 
     console.log(`[extrair-dados-contrato] Texto extraido: ${textoPDF.length} chars`);
 
-    // Limitar a 15000 chars para o contexto da IA
-    const textoParaExtracao = textoPDF.substring(0, 15000);
+    // Fatia linear: os primeiros 22000 chars cobrem cabecalho, clausulas e ANEXO I
+    // na grande maioria dos contratos. Nao usar estrategia de split com gap marker
+    // pois o ANEXO I pode estar no meio do documento e seria cortado.
+    const textoParaExtracao = textoPDF.substring(0, 22000);
 
     // Montar secoes de contexto para o prompt
     const secaoParceiros = parceiros.length > 0
@@ -164,48 +160,42 @@ ${parceiros.map((p) => `- id="${p.id}" | nome="${p.nome}"`).join("\n")}`
 ${unidades.map((u) => `- id="${u.id}" | codigo="${u.codigo}" | nome="${u.nome}"`).join("\n")}`
       : "\nNenhuma unidade hospitalar cadastrada.";
 
-    const secaoItens = itensCatalogo.length > 0
-      ? `\nITENS DO CATÁLOGO DE SERVIÇOS (para cada servico encontrado no contrato, identifique o item do catalogo mais proximo e retorne seu id):
-${itensCatalogo.map((i) => `- id="${i.id}" | nome="${i.nome}" | unidade="${i.unidade_medida}"${i.codigo_corporativo ? ` | cod="${i.codigo_corporativo}"` : ""}`).join("\n")}`
-      : "\nNenhum item de catalogo disponivel.";
-
     const prompt = `Voce e um extrator especializado em contratos de servicos medicos brasileiros.
 
 Analise o texto do contrato abaixo e extraia as informacoes no formato JSON especificado.
-Use o contexto do sistema (listas abaixo) para retornar IDs exatos — isso e FUNDAMENTAL para o pre-preenchimento funcionar.
+Use o contexto do sistema (listas abaixo) para retornar IDs exatos de parceiros e unidades.
 
 Retorne APENAS JSON valido, sem explicacoes.
 
 ${secaoParceiros}
 ${secaoUnidades}
-${secaoItens}
 
 FORMATO DE SAIDA (JSON):
 {
-  "nome": "descricao completa do objeto/servico do contrato (ex: PRESTACAO DE SERVICOS MEDICOS ESPECIALIZADOS EM UTI)",
-  "numero_contrato": "numero IDENTIFICADOR do contrato — procure no cabecalho, titulo ou campo 'Contrato N°'. Geralmente tem formato alfanumerico como 'CTS29.2025.AGO.02063', '001/2024', 'CT-2024-001'. NAO confunda com numeros de clausulas, artigos, paragrafos ou paginas. Use null se nao encontrar.",
-  "empresa_id": "id exato da empresa CONTRATADA da lista acima, ou null se nao encontrar correspondencia",
+  "nome": "descricao completa do objeto/servico do contrato",
+  "numero_contrato": "numero IDENTIFICADOR do contrato — procure no cabecalho, titulo ou campo 'Contrato N°' / 'REF'. Geralmente tem formato alfanumerico como 'CTS88.2025.OUT.00153', '001/2024'. NUNCA use numero de clausula, artigo, paragrafo ou pagina. null se nao encontrar.",
+  "empresa_id": "id exato da empresa CONTRATADA da lista acima, ou null",
   "empresa_nome_contrato": "nome da empresa CONTRATADA exatamente como aparece no contrato",
   "unidade_hospitalar_id": "id exato da unidade hospitalar da lista acima, ou null",
-  "data_inicio": "YYYY-MM-DD — data de inicio de vigencia do contrato",
-  "data_fim": "YYYY-MM-DD — regra: (1) se a data fim estiver explicita, use-a; (2) se o contrato mencionar duracao em meses/anos a partir da data inicio, CALCULE: data_fim = data_inicio + duracao - 1 dia. Exemplo: '12 meses a partir de 21/12/2025' = 2026-12-20. (3) se for renovavel/indeterminado sem data, use null.",
+  "data_inicio": "YYYY-MM-DD — data de inicio de vigencia",
+  "data_fim": "YYYY-MM-DD — REGRAS: (1) data explicita: use-a diretamente; (2) duracao em meses/anos: CALCULE data_fim = data_inicio + duracao - 1 dia (ex: '12 meses a partir de 21/12/2025' = '2026-12-20'); (3) renovavel/indeterminado: null.",
   "itens": [
     {
-      "item_catalogo_id": "id exato do item do catalogo mais proximo, ou null se nao encontrar",
-      "nome_no_contrato": "nome do servico exatamente como aparece no contrato (ex: do ANEXO I)",
-      "quantidade": numero (use 1 se nao especificado),
-      "valor_unitario": valor em reais como numero (ex: 2500.00 para R$ 2.500,00),
-      "codigo_corporativo": "codigo do item na tabela do contrato se presente (ex: '001', 'A-01'), ou null"
+      "nome_no_contrato": "nome/descricao do servico EXATAMENTE como aparece no contrato",
+      "codigo_corporativo": "codigo alfanumerico do item no contrato se presente (ex: '37S', '6900S', '6611S', '001'), ou null",
+      "unidade_medida": "unidade de medida do servico como aparece no contrato (ex: horas, plantao, cirurgia, diaria, procedimento), ou null",
+      "quantidade": 0,
+      "valor_unitario": 0.00
     }
   ]
 }
 
-INSTRUCOES IMPORTANTES:
-- Os itens geralmente estao no ANEXO I ou em tabela de servicos/remuneracao
-- Para cada item do contrato, tente encontrar o item_catalogo_id mais proximo na lista acima
-- Se houver tabela com codigos, descricao, quantidade e valor unitario, extraia todos os itens
-- Valores: use ponto como separador decimal (2500.00), sem R$ ou pontos de milhar
-- numero_contrato: NUNCA use numero de clausula ou artigo. O numero do contrato aparece geralmente no titulo, cabecalho, ou campo especifico como "NUMERO DO CONTRATO", "REF:", "CTS...", "CT-..." etc.
+REGRAS CRITICAS PARA ITENS — LEIA COM ATENCAO:
+1. EXTRAIA TODOS OS ITENS DA TABELA, nao apenas o primeiro. Se a tabela tiver 3, 5, 8 linhas, retorne TODAS elas no array "itens".
+2. A tabela de itens fica no ANEXO I, QUADRO DE SERVICOS, TABELA DE REMUNERACAO ou secao equivalente.
+3. Cada linha da tabela e um item separado. Exemplos de itens distintos: CIRURGIA PROGRAMADA, PLANTAO DIURNO, PLANTAO NOTURNO, DIARISTA, URG/EMERG — todos devem ser extraidos.
+4. Valores: numero puro em reais (ex: 2500.00 para R$ 2.500,00), sem simbolo de moeda.
+5. Se nao houver tabela de itens visivel no texto, retorne "itens": [].
 
 TEXTO DO CONTRATO:
 ${textoParaExtracao}`;
@@ -226,7 +216,7 @@ ${textoParaExtracao}`;
           { role: "user", content: prompt },
         ],
         temperature: 0.1,
-        max_tokens: 2500,
+        max_tokens: 4000,
         response_format: { type: "json_object" },
       }),
     });
@@ -252,7 +242,19 @@ ${textoParaExtracao}`;
       throw new Error("A IA retornou um formato invalido");
     }
 
-    console.log("[extrair-dados-contrato] Extracao concluida com sucesso");
+    const itensExtraidos = Array.isArray((dadosExtraidos as any).itens)
+      ? (dadosExtraidos as any).itens
+      : [];
+    console.log(
+      `[extrair-dados-contrato] Concluido. Itens extraidos: ${itensExtraidos.length}`,
+      itensExtraidos.map((i: any) => ({
+        nome: i.nome_no_contrato,
+        cod: i.codigo_corporativo,
+        unidade: i.unidade_medida,
+        qty: i.quantidade,
+        valor: i.valor_unitario,
+      }))
+    );
 
     return new Response(
       JSON.stringify({ sucesso: true, dados: dadosExtraidos }),

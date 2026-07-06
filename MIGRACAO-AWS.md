@@ -1,11 +1,57 @@
-# Guia de Migração: ParcerIA — Vercel → AWS VM
+# Guia de Migração: ParcerIA — Vercel + Supabase Gerenciado → AWS VM (Completo)
 
-**Decisão arquitetural:** Supabase permanece gerenciado (`qszqzdnlhxpglllyqtht.supabase.co`).  
-Apenas o frontend sai do Vercel e passa a rodar na VM AWS.
+**Decisão arquitetural:** migração completa para a VM AWS.  
+Frontend (React/Vite) **e** backend (Supabase self-hosted via Docker) rodarão na mesma VM.
 
 **Ambiente de destino:** AWS EC2 `10.12.1.170` (SSH via PuTTY + chave `.ppk`)  
 **Repositório fonte:** `http://10.12.1.251:8000/pedro.borges/parceria`  
-**Stack:** React 18 + Vite → build estático servido por Nginx
+**Stack:** React 18 + Vite (Nginx) + Supabase self-hosted (Docker Compose)
+
+---
+
+## ⚠️ Princípios de Segurança Desta Migração
+
+1. **O Supabase gerenciado só é cancelado depois de 2 semanas de estabilidade confirmada** em produção. Ele é o fallback.
+2. **Nenhum dado é deletado** em nenhuma fase. Apenas copiado.
+3. **Os scripts de cron são parados** antes da virada para evitar gap de dados entre os dois bancos.
+4. **Backup completo** é tirado imediatamente antes de cada etapa destrutiva.
+5. **Se qualquer etapa falhar**, existe um procedimento de rollback documentado abaixo que restaura tudo em menos de 10 minutos.
+
+---
+
+## 🔄 Plano de Rollback (Ler antes de começar)
+
+Se qualquer coisa der errado após a virada, o rollback completo é:
+
+```bash
+# 1. Reverter o .env.production do frontend
+cd /opt/parceria
+cat > .env.production << 'EOF'
+VITE_SUPABASE_URL=https://qszqzdnlhxpglllyqtht.supabase.co
+VITE_SUPABASE_ANON_KEY=ANON_KEY_ORIGINAL
+EOF
+
+# 2. Reverter o .env dos scripts
+cat > .env << 'EOF'
+VITE_SUPABASE_URL=https://qszqzdnlhxpglllyqtht.supabase.co
+VITE_SUPABASE_ANON_KEY=ANON_KEY_ORIGINAL
+VITE_SUPABASE_SERVICE_ROLE_KEY=SERVICE_ROLE_KEY_ORIGINAL
+EOF
+
+# 3. Rebuild do frontend apontando de volta para o gerenciado
+npm run build
+sudo rsync -a --delete dist/ /var/www/parceria/
+sudo chown -R www-data:www-data /var/www/parceria
+
+# 4. Reativar os cron scripts
+crontab -e   # descomentar as linhas dos scripts
+
+# 5. Reload Nginx
+sudo systemctl reload nginx
+```
+
+> Guarde as chaves originais do Supabase gerenciado em local seguro antes de começar.  
+> O Supabase gerenciado **não será cancelado** durante toda a migração — está sempre disponível para rollback.
 
 ---
 
@@ -15,123 +61,468 @@ Apenas o frontend sai do Vercel e passa a rodar na VM AWS.
 Usuário (internet)
        │
        ▼  porta 443 (HTTPS)
-  Route 53 (DNS)
+  Route 53 — parceria.daherlab.org.br
        │  aponta para o ALB
        ▼
   ALB — Application Load Balancer
   (IP público + certificado SSL via ACM)
        │
        ▼  porta 80 (HTTP interno)
-  Nginx na VM (10.12.1.170) — sem IP público, acessível só via VPN/ALB
+  Nginx na VM (10.12.1.170)
        │
-       ├── /          → React SPA (/var/www/parceria/dist/)
-       │
-       └── (todo o resto)  → Supabase Gerenciado
-                              https://qszqzdnlhxpglllyqtht.supabase.co
-                              (banco, auth, storage, edge functions — sem mudança)
-```
+       ├── /                  → React SPA (/var/www/parceria/)
+       ├── /rest/v1/          → Supabase Kong (localhost:8000)
+       ├── /auth/v1/          → Supabase Kong (localhost:8000)
+       ├── /storage/v1/       → Supabase Kong (localhost:8000)
+       ├── /realtime/v1/      → Supabase Kong (localhost:8000) [WebSocket]
+       └── /functions/v1/     → Supabase Kong (localhost:8000)
 
-**Notas importantes sobre esta arquitetura:**
-- A VM **não tem IP público** — acesso externo passa obrigatoriamente pelo ALB.
-- A terminação SSL/HTTPS ocorre **no ALB**, com certificado gerenciado pelo ACM (AWS Certificate Manager).
-- O Nginx escuta apenas na **porta 80** (HTTP interno). Não é necessário Certbot.
-- O Supabase continua funcionando exatamente como hoje.
-- As variáveis de ambiente do projeto **não mudam**.
+  Supabase self-hosted (Docker Compose na mesma VM)
+       ├── PostgreSQL          (porta 5432 — interno apenas)
+       ├── Kong API Gateway    (porta 8000 — interno apenas)
+       ├── GoTrue (Auth)
+       ├── PostgREST
+       ├── Realtime
+       ├── Storage
+       └── Edge Functions (IA — chat, insights, PDFs)
+
+  Scripts Python (cron na VM)
+       ├── coletar-produtividade-ontem-AWS.py   (roda todo dia)
+       ├── coletar-produtividade-escalas-AWS.py
+       └── (outros)
+       Todos leem .env → VITE_SUPABASE_URL + VITE_SUPABASE_SERVICE_ROLE_KEY
+       Após a virada: apontam para localhost (self-hosted)
+```
 
 ---
 
-## Fase 0 — Verificar Disco da VM
+## Checklist Completo
+
+```
+# ── JÁ FEITO ──────────────────────────────────────────────────────────
+[x] Fase 1   — Node.js, Git e Nginx instalados
+[x] Fase 2   — Repositório clonado em /opt/parceria
+[x] Fase 3   — .env.production criado
+[x] Fase 4   — Build do frontend gerado
+[x] Fase 5   — dist/ publicado no Nginx
+[x] Fase 6   — Nginx configurado (SPA acessível via VPN)
+[x] Fase 7   — Script de deploy criado em /opt/scripts/
+
+# ── CONFIGURAÇÃO (Supabase self-hosted, paralelo ao gerenciado) ────────
+[ ] Fase 8   — Verificar disco (mín. 40 GB livres)
+[ ] Fase 9   — Docker instalado na VM
+[ ] Fase 10  — Supabase self-hosted configurado e rodando
+[ ] Fase 11  — Backup completo do Supabase gerenciado
+[ ] Fase 12  — Dados importados e verificados no self-hosted
+
+# ── VIRADA (janela de manutenção — fazer de uma vez, sem interrupção) ──
+[ ] Fase 13  — PARAR os cron scripts
+[ ] Fase 14  — Backup final (delta desde a Fase 11)
+[ ] Fase 15  — Importar delta no self-hosted
+[ ] Fase 16  — Atualizar .env e .env.production → self-hosted
+[ ] Fase 17  — Rebuild frontend + teste via VPN
+[ ] Fase 18  — Reativar cron scripts (agora apontam para self-hosted)
+[ ] Fase 19  — Nginx atualizado para proxy do Supabase
+
+# ── TI (Carlos) ────────────────────────────────────────────────────────
+[ ] Fase 20a — Certificado ACM para parceria.daherlab.org.br
+[ ] Fase 20b — Target Group no ALB (EC2 porta 80)
+[ ] Fase 20c — Listener HTTPS/443 no ALB com certificado ACM
+[ ] Fase 20d — Registro A Alias no Route 53 → ALB
+[ ] Fase 20e — Security Group da VM: porta 80 do ALB liberada
+
+# ── VALIDAÇÃO E ENCERRAMENTO ───────────────────────────────────────────
+[ ] Fase 21  — Validação completa em produção (HTTPS)
+[ ]           — Período de observação: 2 semanas com self-hosted em produção
+[ ]           — Cancelar plano Vercel
+[ ]           — Cancelar plano Supabase gerenciado (só após 2 semanas OK)
+[ ]           — Comunicar usuários da nova URL
+```
+
+---
+
+## Fase 8 — Verificar Disco da VM
 
 ```bash
 df -h /
 ```
 
-> **Status atual:** 20 GB total, 14 GB livres.  
-> Para esta abordagem (só frontend + Nginx) isso é **suficiente** — o build ocupa ~600 MB.
+> Necessário: mínimo **40 GB livres**.  
+> O Supabase self-hosted (Docker images + dados + backups locais) ocupa ~15–25 GB.  
+> Se o disco estiver abaixo de 40 GB livres, pedir ao Carlos para ampliar antes de continuar.
 
 ---
 
-## Fase 1 — Instalar Node.js, Git e Nginx
+## Fase 9 — Instalar Docker na VM
 
 ```bash
-# Node.js 20
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs git rsync
+# Remover versões antigas (se houver)
+sudo apt remove -y docker docker-engine docker.io containerd runc 2>/dev/null
 
-# Nginx
-sudo apt install -y nginx
-sudo systemctl enable nginx
-sudo systemctl start nginx
+# Instalar dependências
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg lsb-release
+
+# Adicionar repositório oficial do Docker
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Instalar Docker e Docker Compose
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Permitir rodar Docker sem sudo
+sudo usermod -aG docker $USER
+newgrp docker
 
 # Verificar
-node --version    # v20.x.x
-nginx -v
+docker --version
+docker compose version
 ```
 
 ---
 
-## Fase 2 — Clonar o Repositório
+## Fase 10 — Configurar Supabase Self-Hosted
+
+> O Supabase gerenciado **continua ativo** durante toda esta fase. Nenhum dado é afetado.
+
+### 10.1 — Baixar os arquivos do Supabase
 
 ```bash
-sudo mkdir -p /opt/parceria
-sudo chown $USER:$USER /opt/parceria
+sudo mkdir -p /opt/supabase
+sudo chown $USER:$USER /opt/supabase
 
-git clone http://10.12.1.251:8000/pedro.borges/parceria /opt/parceria
+cd /opt/supabase
+git clone --depth 1 https://github.com/supabase/supabase .
+cd docker
+cp .env.example .env
+```
+
+### 10.2 — Gerar chaves e senhas
+
+```bash
+# Executar cada comando e copiar o resultado para um local seguro (senha do Windows por ex.)
+openssl rand -base64 32   # → JWT_SECRET
+openssl rand -base64 24   # → POSTGRES_PASSWORD
+openssl rand -base64 16   # → DASHBOARD_PASSWORD
+```
+
+Para gerar as chaves `anon` e `service_role` a partir do JWT_SECRET:
+
+- Acesse: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
+- Cole o JWT_SECRET gerado acima
+- Copie e salve as duas chaves geradas (`anon key` e `service_role key`)
+
+> **Salve todas essas chaves em local seguro agora.** Elas serão usadas no `.env` dos scripts e no `.env.production` do frontend.
+
+### 10.3 — Configurar o .env do Supabase
+
+```bash
+nano /opt/supabase/docker/.env
+```
+
+Preencher obrigatoriamente (substituir os valores gerados no passo 10.2):
+
+```env
+# Senhas e chaves
+POSTGRES_PASSWORD=SENHA_GERADA
+JWT_SECRET=JWT_SECRET_GERADO
+ANON_KEY=ANON_KEY_GERADA
+SERVICE_ROLE_KEY=SERVICE_ROLE_KEY_GERADA
+DASHBOARD_USERNAME=admin
+DASHBOARD_PASSWORD=SENHA_DASHBOARD_GERADA
+
+# Banco de dados
+POSTGRES_HOST=db
+POSTGRES_DB=postgres
+POSTGRES_PORT=5432
+
+# URL pública (domínio final)
+SITE_URL=https://parceria.daherlab.org.br
+API_EXTERNAL_URL=https://parceria.daherlab.org.br
+SUPABASE_PUBLIC_URL=https://parceria.daherlab.org.br
+
+# E-mail (recuperação de senha)
+SMTP_ADMIN_EMAIL=suporte@agir.com.br
+SMTP_HOST=smtp.agir.com.br
+SMTP_PORT=587
+SMTP_USER=suporte@agir.com.br
+SMTP_PASS=SENHA_DO_EMAIL
+SMTP_SENDER_NAME=ParcerIA
+```
+
+### 10.4 — Subir o Supabase
+
+```bash
+cd /opt/supabase/docker
+docker compose up -d
+
+# Aguardar ~2 minutos e verificar
+docker compose ps
+```
+
+Todos os serviços devem aparecer com status `running` ou `healthy`.  
+O Kong ficará disponível em `http://localhost:8000`.
+
+```bash
+# Confirmar que o Kong está respondendo
+curl http://localhost:8000/rest/v1/ \
+  -H "apikey: ANON_KEY_GERADA" \
+  -H "Authorization: Bearer ANON_KEY_GERADA"
+# Esperado: resposta JSON (pode ser vazia, mas não erro de conexão)
 ```
 
 ---
 
-## Fase 3 — Configurar Variáveis de Ambiente
+## Fase 11 — Backup Completo do Supabase Gerenciado
+
+> Este backup é a rede de segurança principal. Guarde o arquivo.
+
+```bash
+# Instalar cliente PostgreSQL
+sudo apt install -y postgresql-client
+
+# Criar diretório de backups
+sudo mkdir -p /opt/backups
+sudo chown $USER:$USER /opt/backups
+
+# Exportar tudo do Supabase gerenciado
+# A SENHA está em: Supabase Dashboard → Project Settings → Database → Database password
+pg_dump \
+  "postgresql://postgres:SENHA_SUPABASE_GERENCIADO@db.qszqzdnlhxpglllyqtht.supabase.co:5432/postgres" \
+  --no-owner --no-acl \
+  -f /opt/backups/backup-gerenciado-$(date +%Y%m%d-%H%M).sql
+
+# Verificar que o arquivo foi criado e tem tamanho razoável
+ls -lh /opt/backups/
+```
+
+---
+
+## Fase 12 — Importar Dados no Supabase Self-Hosted e Verificar
+
+### 12.1 — Importar o backup
+
+```bash
+# Aguardar o PostgreSQL do self-hosted estar pronto
+docker exec supabase-db pg_isready -U postgres
+
+# Importar
+docker exec -i supabase-db psql \
+  -U postgres -d postgres \
+  < /opt/backups/backup-gerenciado-YYYYMMDD-HHMM.sql
+```
+
+### 12.2 — Verificar os dados
+
+```bash
+# Listar tabelas públicas
+docker exec supabase-db psql -U postgres -d postgres \
+  -c "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;"
+
+# Contar registros nas tabelas críticas
+docker exec supabase-db psql -U postgres -d postgres \
+  -c "SELECT 'acessos' as tabela, COUNT(*) FROM public.acessos
+      UNION ALL
+      SELECT 'produtividade', COUNT(*) FROM public.produtividade;"
+```
+
+Compare os totais com o Supabase gerenciado (Supabase Dashboard → Table Editor).  
+Os números devem ser iguais ou muito próximos (diferença = registros adicionados após o backup).
+
+### 12.3 — Migrar arquivos do Storage (PDFs, imagens)
+
+```bash
+# Instalar Supabase CLI
+npm install -g supabase
+
+# Login no Supabase gerenciado
+supabase login
+# (usar o access token do Supabase Dashboard → Account → Access Tokens)
+
+# Listar buckets
+supabase storage ls --project-ref qszqzdnlhxpglllyqtht
+
+# Para cada bucket, baixar e reenviar para o self-hosted
+# (repetir para cada bucket existente, ex: "contratos", "documentos")
+supabase storage cp -r \
+  ss://qszqzdnlhxpglllyqtht/contratos \
+  /opt/backups/storage-contratos/
+```
+
+> Se os buckets tiverem poucos arquivos, o upload pode ser feito manualmente via
+> Supabase Studio (acessível em `http://10.12.1.170:3000` após o self-hosted subir).
+
+---
+
+## ── JANELA DE MANUTENÇÃO ──────────────────────────────────────────────
+
+> As fases 13 a 19 devem ser executadas **de uma vez, sem interrupção**, de preferência
+> em um horário de baixo uso (noite ou fim de semana).
+> Tempo estimado: 30 a 60 minutos.
+> Durante este período, o sistema ficará fora do ar para os usuários.
+
+---
+
+## Fase 13 — Parar os Scripts de Cron
+
+```bash
+# Listar os cron jobs ativos
+crontab -l
+
+# Abrir o cron e comentar todas as linhas dos scripts de produtividade/acessos
+crontab -e
+# Adicionar # na frente de cada linha dos scripts coletar-produtividade-* e importar-acessos-*
+
+# Confirmar que não há nenhum script rodando no momento
+ps aux | grep python
+```
+
+> Anote o horário exato em que os scripts foram parados.  
+> **Não pule esta etapa.** Se os scripts continuarem rodando durante a virada,
+> dados novos irão para o Supabase gerenciado e não para o self-hosted, criando inconsistência.
+
+---
+
+## Fase 14 — Backup Final (Delta)
+
+```bash
+# Novo backup capturando tudo que chegou desde a Fase 11
+pg_dump \
+  "postgresql://postgres:SENHA_SUPABASE_GERENCIADO@db.qszqzdnlhxpglllyqtht.supabase.co:5432/postgres" \
+  --no-owner --no-acl \
+  -f /opt/backups/backup-final-$(date +%Y%m%d-%H%M).sql
+
+ls -lh /opt/backups/
+```
+
+---
+
+## Fase 15 — Importar Delta no Self-Hosted
+
+```bash
+# Reimportar o backup final sobre o self-hosted
+# (o --clean apaga e recria as tabelas para garantir consistência)
+docker exec -i supabase-db psql \
+  -U postgres -d postgres \
+  < /opt/backups/backup-final-YYYYMMDD-HHMM.sql
+
+# Verificar contagens novamente
+docker exec supabase-db psql -U postgres -d postgres \
+  -c "SELECT 'acessos' as tabela, COUNT(*) FROM public.acessos
+      UNION ALL
+      SELECT 'produtividade', COUNT(*) FROM public.produtividade;"
+```
+
+---
+
+## Fase 16 — Atualizar Variáveis de Ambiente
+
+### 16.1 — Atualizar `.env.production` (usado pelo frontend)
 
 ```bash
 cd /opt/parceria
 
 cat > .env.production << 'EOF'
-# Supabase gerenciado — sem alteração
-VITE_SUPABASE_URL=https://qszqzdnlhxpglllyqtht.supabase.co
-VITE_SUPABASE_ANON_KEY=cole_a_anon_key_atual_aqui
+VITE_SUPABASE_URL=https://parceria.daherlab.org.br
+VITE_SUPABASE_ANON_KEY=ANON_KEY_GERADA_NO_PASSO_10.2
 EOF
 ```
 
-> Copie a `ANON_KEY` do seu `.env` local atual.  
-> Nunca inclua `VITE_SUPABASE_SERVICE_ROLE_KEY` neste arquivo.
-
----
-
-## Fase 4 — Build do Frontend
+### 16.2 — Atualizar `.env` (usado pelos scripts Python)
 
 ```bash
 cd /opt/parceria
 
-npm install
-npm run build
-
-# Verificar output
-ls -la dist/
+cat > .env << 'EOF'
+VITE_SUPABASE_URL=https://parceria.daherlab.org.br
+VITE_SUPABASE_ANON_KEY=ANON_KEY_GERADA_NO_PASSO_10.2
+VITE_SUPABASE_SERVICE_ROLE_KEY=SERVICE_ROLE_KEY_GERADA_NO_PASSO_10.2
+EOF
 ```
+
+> **Atenção:** o `.env` dos scripts agora usa a `SERVICE_ROLE_KEY` do Supabase **self-hosted**,
+> não mais a do gerenciado. São chaves diferentes.
 
 ---
 
-## Fase 5 — Publicar no Nginx
+## Fase 17 — Rebuild do Frontend e Teste via VPN
 
 ```bash
-sudo mkdir -p /var/www/parceria
+cd /opt/parceria
+npm run build
 sudo rsync -a --delete dist/ /var/www/parceria/
 sudo chown -R www-data:www-data /var/www/parceria
 ```
 
+**Teste imediato via VPN** (antes de qualquer configuração do TI):
+
+```bash
+# A API do Supabase self-hosted deve responder via Nginx
+curl http://10.12.1.170/rest/v1/ \
+  -H "apikey: ANON_KEY_GERADA" \
+  -H "Authorization: Bearer ANON_KEY_GERADA"
+```
+
+Abra `http://10.12.1.170` no navegador (via VPN):
+
+- [ ] Tela de login aparece
+- [ ] Login com usuário real funciona
+- [ ] Dados (acessos, produtividade) aparecem corretamente
+- [ ] Navegação entre páginas sem erro 404
+
+> Se o login não funcionar: os usuários do Auth do Supabase gerenciado foram migrados via
+> pg_dump. Se estiver com problema, verificar a tabela `auth.users` no self-hosted:
+>
+> ```bash
+> docker exec supabase-db psql -U postgres -d postgres \
+>   -c "SELECT COUNT(*) FROM auth.users;"
+> ```
+
 ---
 
-## Fase 6 — Configurar o Nginx
+## Fase 18 — Reativar os Scripts de Cron (agora apontando para self-hosted)
+
+```bash
+# Testar um script manualmente antes de reativar o cron
+cd /opt/parceria
+python3 coletar-produtividade-ontem-AWS.py
+
+# Se funcionar sem erros, reativar o cron
+crontab -e
+# Remover o # das linhas dos scripts
+```
+
+Verificar que os dados novos estão chegando no self-hosted:
+
+```bash
+docker exec supabase-db psql -U postgres -d postgres \
+  -c "SELECT MAX(created_at) FROM public.produtividade;"
+# O timestamp deve ser recente (hoje)
+```
+
+---
+
+## Fase 19 — Atualizar Nginx para Proxy do Supabase
 
 ```bash
 sudo nano /etc/nginx/sites-available/parceria
 ```
 
+Substituir a configuração atual por:
+
 ```nginx
 server {
     listen 80;
-    server_name parceria.agir.com.br;  # domínio final — ajustar se necessário
+    server_name parceria.daherlab.org.br;
 
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -142,17 +533,62 @@ server {
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/javascript;
 
+    # ── Supabase API (Kong em localhost:8000) ──────────────────────────
+
+    location /rest/v1/ {
+        proxy_pass http://localhost:8000/rest/v1/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /auth/v1/ {
+        proxy_pass http://localhost:8000/auth/v1/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /storage/v1/ {
+        proxy_pass http://localhost:8000/storage/v1/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 50M;
+    }
+
+    location /functions/v1/ {
+        proxy_pass http://localhost:8000/functions/v1/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /realtime/v1/ {
+        proxy_pass http://localhost:8000/realtime/v1/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 86400;
+    }
+
+    # ── Frontend React (SPA) ───────────────────────────────────────────
+
     root /var/www/parceria;
     index index.html;
 
-    # Assets com cache longo (Vite gera nome com hash)
     location ~* \.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
     }
 
-    # SPA fallback — redireciona todas as rotas para index.html
     location / {
         try_files $uri $uri/ /index.html;
     }
@@ -160,160 +596,92 @@ server {
 ```
 
 ```bash
-# Ativar o site e desativar o default
-sudo ln -s /etc/nginx/sites-available/parceria /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default
-
-# Testar e aplicar
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-**Testar localmente (via VPN):** abra `http://10.12.1.170` no navegador dentro da VPN — deve aparecer a tela de login.  
-**Testar em produção:** só funciona após o TI configurar o ALB e o Route 53 (ver Fase 8).
-
----
-
-## Fase 7 — Script de Deploy (para atualizações futuras)
-
-```bash
-sudo mkdir -p /opt/scripts
-sudo nano /opt/scripts/deploy-frontend.sh
-```
-
-```bash
-#!/bin/bash
-# Uso: sudo bash /opt/scripts/deploy-frontend.sh
-set -e
-
-APP_DIR="/opt/parceria"
-WEB_DIR="/var/www/parceria"
-
-echo "=== ParcerIA — Deploy de nova versão ==="
-
-echo "[1/4] Atualizando código..."
-cd "$APP_DIR"
-git fetch origin
-git reset --hard origin/main
-
-echo "[2/4] Instalando dependências..."
-npm install --production=false
-
-echo "[3/4] Gerando build..."
-npm run build
-
-echo "[4/4] Publicando..."
-sudo rsync -a --delete dist/ "$WEB_DIR/"
-sudo chown -R www-data:www-data "$WEB_DIR"
-sudo systemctl reload nginx
-
-echo "Deploy concluído."
-```
-
-```bash
-sudo chmod +x /opt/scripts/deploy-frontend.sh
-```
-
----
-
-## Fase 8 — HTTPS via ALB + ACM (feito pelo TI, não pelo Certbot)
-
-A VM não tem IP público, portanto **não é possível usar Certbot/Let's Encrypt**.  
-O HTTPS é gerenciado pelo **ALB** com certificado do **AWS Certificate Manager (ACM)**.
-
-### O que o TI precisa fazer (Carlos):
-
-**1. Emitir ou importar o certificado no ACM**
-- AWS Console → Certificate Manager → Request certificate
-- Domínio: `parceria.agir.com.br` (ou o subdomínio escolhido)
-- Validação: via DNS (Carlos adiciona registro CNAME no Route 53 — automático se o domínio já estiver no Route 53)
-
-**2. Configurar o Target Group no ALB**
-- AWS Console → EC2 → Load Balancers → selecionar o ALB existente da Agir
-- Target Groups → Create target group:
-  - Target type: `Instances`
-  - Protocol: `HTTP`, Port: `80`
-  - Health check: `HTTP`, Path: `/`
-  - Registrar a instância `10.12.1.170` como target
-
-**3. Adicionar Listener HTTPS no ALB (se não existir)**
-- Listener na porta `443`, protocolo `HTTPS`
-- Certificado: o emitido no passo 1
-- Action: Forward para o Target Group criado acima
-
-**4. Criar registro no Route 53**
-- Tipo: `A` (Alias)
-- Nome: `parceria.agir.com.br`
-- Alias target: DNS name do ALB (ex: `agir-alb-123456.us-east-1.elb.amazonaws.com`)
-
-**5. Liberar porta 80 no Security Group da VM**
-- Regra de entrada: HTTP / TCP / 80 / origem = Security Group do ALB (ou CIDR da VPC)
-
-### O que Pedro faz após o TI concluir:
-
-Verificar que o `server_name` no Nginx está correto e fazer reload:
-
-```bash
-# Confirmar server_name
-sudo grep server_name /etc/nginx/sites-available/parceria
-
-# Se precisar ajustar:
-sudo sed -i 's|server_name .*;|server_name parceria.agir.com.br;|' \
-  /etc/nginx/sites-available/parceria
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-O `Supabase Redirect URLs` no dashboard do Supabase também precisa incluir a URL de produção:
-- Acessar `app.supabase.com` → projeto → Authentication → URL Configuration
-- Adicionar `https://parceria.agir.com.br` em **Site URL** e **Redirect URLs**
+---
+
+## Fase 20 — HTTPS via ALB + ACM (feito pelo TI — Carlos)
+
+### O que Carlos precisa fazer:
+
+1. **ACM** — emitir certificado para `parceria.daherlab.org.br`
+2. **ALB** — Target Group: instância `10.12.1.170`, porta `80`, health check `GET /`
+3. **ALB** — Listener HTTPS/443 com certificado ACM → forward ao Target Group
+4. **Route 53** — registro A Alias: `parceria.daherlab.org.br` → DNS name do ALB
+5. **Security Group da VM** — porta 80 liberada do Security Group do ALB
 
 ---
 
-## Checklist de Go-Live
+## Fase 21 — Validação Final em Produção
 
+```bash
+# Confirmar que o domínio resolve
+nslookup parceria.daherlab.org.br
+
+# Testar HTTPS
+curl -I https://parceria.daherlab.org.br
+
+# Testar API via domínio público
+curl https://parceria.daherlab.org.br/rest/v1/ \
+  -H "apikey: ANON_KEY_GERADA"
 ```
-[x] Fase 1  — Node.js, Git e Nginx instalados
-[x] Fase 2  — Repositório clonado em /opt/parceria
-[x] Fase 3  — .env.production criado com as chaves do Supabase
-[x] Fase 4  — npm install + npm run build executados sem erro
-[x] Fase 5  — dist/ copiado para /var/www/parceria
-[x] Fase 6  — Nginx configurado e reload feito
-              Validar (via VPN): http://10.12.1.170 abre a tela de login ✅
-              Validar: fazer login com usuário real funciona ✅
-              Validar: navegar entre páginas (sem 404 no F5) ✅
-[x] Fase 7  — Script de deploy criado em /opt/scripts/
 
---- AGUARDANDO TI (Carlos) ---
+Validações manuais:
 
-[ ] Fase 8a — TI: Certificado ACM emitido para parceria.agir.com.br
-[ ] Fase 8b — TI: Target Group no ALB apontando para EC2 porta 80
-[ ] Fase 8c — TI: Listener HTTPS (443) no ALB com certificado ACM
-[ ] Fase 8d — TI: Registro A (Alias) no Route 53 → ALB
-[ ] Fase 8e — TI: Security Group da VM liberando porta 80 do ALB
+- [ ] `https://parceria.daherlab.org.br` abre com cadeado verde
+- [ ] Login com usuário real funciona
+- [ ] Dados históricos de acessos e produtividade aparecem
+- [ ] Navegação entre páginas sem erro 404
+- [ ] Upload de arquivo funciona (Storage)
+- [ ] Chat IA responde (Edge Functions)
+- [ ] Recuperação de senha por e-mail funciona
+- [ ] Script de cron executou e inseriu dados no self-hosted
 
---- PEDRO (após TI concluir 8a–8e) ---
+---
 
-[ ] Fase 9  — Confirmar server_name no Nginx e reload
-[ ] Fase 9  — Atualizar Site URL no Supabase para https://parceria.agir.com.br
-              Validar: https://parceria.agir.com.br abre sem aviso de segurança
-              Validar: login funciona com a URL de produção
-[ ]         — Comunicar usuários da nova URL
+## Após 2 Semanas de Estabilidade
+
+Só após 2 semanas sem problemas em produção:
+
+```bash
+# Backup final do self-hosted antes de cancelar o gerenciado
+docker exec supabase-db pg_dump -U postgres postgres \
+  > /opt/backups/backup-selfhosted-$(date +%Y%m%d).sql
 ```
+
+- [ ] Cancelar plano Vercel
+- [ ] Cancelar plano Supabase gerenciado (Dashboard → Settings → General → Delete project)
+- [ ] Comunicar usuários da nova URL: `https://parceria.daherlab.org.br`
 
 ---
 
 ## Comandos de Manutenção
 
 ```bash
-# Atualizar o frontend quando sair nova versão no Gitea
+# Atualizar o frontend
 sudo bash /opt/scripts/deploy-frontend.sh
 
-# Ver logs do Nginx
+# Status do Supabase
+cd /opt/supabase/docker && docker compose ps
+
+# Logs do Supabase (todos os serviços)
+cd /opt/supabase/docker && docker compose logs -f
+
+# Logs de um serviço específico
+cd /opt/supabase/docker && docker compose logs -f kong
+cd /opt/supabase/docker && docker compose logs -f db
+
+# Reiniciar Supabase
+cd /opt/supabase/docker && docker compose restart
+
+# Backup do banco (rodar periodicamente)
+docker exec supabase-db pg_dump -U postgres postgres \
+  > /opt/backups/backup-$(date +%Y%m%d).sql
+
+# Logs do Nginx
 sudo tail -f /var/log/nginx/error.log
 sudo tail -f /var/log/nginx/access.log
-
-# Reiniciar Nginx
-sudo systemctl restart nginx
 
 # Status do Nginx
 sudo systemctl status nginx
@@ -321,21 +689,13 @@ sudo systemctl status nginx
 
 ---
 
-## Portas abertas no Security Group AWS
+## Portas no Security Group da VM
 
-### Security Group da VM (EC2 10.12.1.170)
+| Porta | Protocolo | Origem                 | Motivo                         |
+| ----- | --------- | ---------------------- | ------------------------------ |
+| 22    | TCP       | Rede interna Agir      | SSH / PuTTY                    |
+| 80    | TCP       | VPN (192.168.144.0/20) | Teste via VPN (já configurado) |
+| 80    | TCP       | Security Group do ALB  | Tráfego público via ALB        |
 
-| Porta | Protocolo | Origem                      | Motivo                             |
-| ----- | --------- | --------------------------- | ---------------------------------- |
-| 22    | TCP       | IP da rede interna Agir     | SSH / PuTTY                        |
-| 80    | TCP       | Security Group do ALB (VPC) | Nginx recebe tráfego interno do ALB |
-
-> Porta 443 **não precisa** estar aberta na VM — o SSL termina no ALB.  
-> A porta 80 deve aceitar apenas tráfego do ALB, não da internet diretamente.
-
-### Security Group / Listener do ALB
-
-| Porta | Protocolo | Origem    | Motivo                                   |
-| ----- | --------- | --------- | ---------------------------------------- |
-| 443   | TCP       | 0.0.0.0/0 | HTTPS público (certificado ACM)          |
-| 80    | TCP       | 0.0.0.0/0 | HTTP → redirecionar para 443 (opcional)  |
+> Portas 5432 (Postgres) e 8000 (Kong) **não devem ser abertas** no Security Group.
+> São internas à VM e acessadas apenas pelo Nginx e pelos scripts Python localmente.

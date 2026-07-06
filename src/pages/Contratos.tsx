@@ -428,19 +428,13 @@ const Contratos: React.FC = () => {
       const formDataPdf = new FormData();
       formDataPdf.append("pdf", file);
 
-      // Enviar contexto do sistema para matching preciso pela IA
+      // Enviar apenas parceiros e unidades para a IA — o matching de itens é feito no cliente
       const contexto = {
         parceiros: parceiros.map((p) => ({ id: p.id, nome: p.nome })),
         unidades: unidades.map((u) => ({
           id: u.id,
           nome: u.nome,
           codigo: u.codigo,
-        })),
-        itens: itensDisponiveis.map((i) => ({
-          id: i.id,
-          nome: i.nome,
-          unidade_medida: i.unidade_medida,
-          codigo_corporativo: i.codigo_corporativo,
         })),
       };
       formDataPdf.append("contexto", JSON.stringify(contexto));
@@ -501,31 +495,72 @@ const Contratos: React.FC = () => {
             : prev.unidade_hospitalar_id,
       }));
 
-      // Resolver itens pelos IDs retornados pela IA
+      // Resolver itens com prioridade de matching (tudo client-side):
+      // P1: codigo_corporativo via DB → P2: word-intersection nos itens em memória
+      console.log("[IA] dados extraídos:", dados);
+
       if (Array.isArray(dados.itens) && dados.itens.length > 0) {
+        const extraidos: any[] = dados.itens;
+        console.log("[IA] itens brutos extraídos:", extraidos);
+
+        // ── P1: DB query por codigo_corporativo ───────────────────────────────
+        const codigosExtraidos = [...new Set(
+          extraidos.map((i) => (i.codigo_corporativo as string || "").trim()).filter(Boolean)
+        )];
+
+        const mapPorCodigo: Record<string, ItemContrato> = {};
+        if (codigosExtraidos.length > 0) {
+          try {
+            const { data } = await supabase
+              .from("itens_contrato")
+              .select("*")
+              .in("codigo_corporativo", codigosExtraidos);
+            (data || []).forEach((item: any) => {
+              if (item.codigo_corporativo) {
+                mapPorCodigo[item.codigo_corporativo.trim().toLowerCase()] = item;
+              }
+            });
+            console.log("[IA] P1 DB por código:", mapPorCodigo);
+          } catch {
+            // coluna ainda não existe no DB — ignorar, usar P2
+          }
+        }
+
+        // ── P2: word-intersection sobre itensDisponiveis (em memória) ─────────
+        // Divide em palavras ≥3 chars; threshold ≥35% para aceitar abreviações
+        const scoreIntersecao = (a: string, b: string): number => {
+          const words = (s: string) =>
+            new Set(s.split(/[\s/\-_(),]+/).filter((w) => w.length >= 3));
+          const wa = words(a);
+          const wb = words(b);
+          let hits = 0;
+          wa.forEach((w) => { if (wb.has(w)) hits++; });
+          return hits / Math.max(wa.size, wb.size, 1);
+        };
+
+        // ── Resolver cada item extraído ───────────────────────────────────────
         const itensPreenchidos: ItemSelecionado[] = [];
         const nomesSemCorrespondencia: string[] = [];
 
-        for (const itemExtraido of dados.itens) {
-          // Prioridade 1: ID exato da IA
-          let itemExistente = dados.empresa_id !== undefined && itemExtraido.item_catalogo_id
-            ? itensDisponiveis.find((i) => i.id === itemExtraido.item_catalogo_id)
+        for (const itemExtraido of extraidos) {
+          const codigoExtraido = (itemExtraido.codigo_corporativo as string || "").trim().toLowerCase();
+          const nomeExtraido = (itemExtraido.nome_no_contrato as string || "").toLowerCase().trim();
+
+          // P1 — codigo_corporativo via DB
+          let itemExistente: ItemContrato | undefined = codigoExtraido
+            ? mapPorCodigo[codigoExtraido]
             : undefined;
 
-          // Prioridade 2: fallback por codigo_corporativo ou nome
-          if (!itemExistente) {
-            const codigoExtraido = itemExtraido.codigo_corporativo as string | null;
-            const nomeExtraido = (itemExtraido.nome_no_contrato || "").toLowerCase().trim();
-            itemExistente = itensDisponiveis.find((i) => {
-              if (codigoExtraido && i.codigo_corporativo) {
-                return i.codigo_corporativo === codigoExtraido;
-              }
-              const nomeItem = i.nome.toLowerCase();
-              return (
-                nomeItem.includes(nomeExtraido) ||
-                nomeExtraido.includes(nomeItem)
-              );
-            });
+          // P2 — word-intersection sobre todos os itens em memória
+          if (!itemExistente && nomeExtraido.length > 2) {
+            let melhorScore = 0;
+            let melhorItem: ItemContrato | undefined;
+            for (const i of itensDisponiveis) {
+              const score = scoreIntersecao(i.nome.toLowerCase(), nomeExtraido);
+              if (score > melhorScore) { melhorScore = score; melhorItem = i; }
+            }
+            console.log(`[IA] P2 word-score para "${nomeExtraido}": melhor="${melhorItem?.nome}" score=${melhorScore.toFixed(2)}`);
+            if (melhorScore >= 0.35) itemExistente = melhorItem;
           }
 
           if (itemExistente) {
@@ -538,17 +573,15 @@ const Contratos: React.FC = () => {
               });
             }
           } else {
-            const nomeExibir =
-              itemExtraido.nome_no_contrato || itemExtraido.nome || null;
-            if (nomeExibir) {
-              nomesSemCorrespondencia.push(nomeExibir as string);
-            }
+            const nomeExibir = (itemExtraido.nome_no_contrato || itemExtraido.nome) as string | null;
+            if (nomeExibir) nomesSemCorrespondencia.push(nomeExibir);
           }
         }
 
-        if (itensPreenchidos.length > 0) {
-          setItensSelecionados(itensPreenchidos);
-        }
+        console.log("[IA] itens mapeados:", itensPreenchidos.map(is => is.item.nome));
+        console.log("[IA] sem correspondência:", nomesSemCorrespondencia);
+
+        if (itensPreenchidos.length > 0) setItensSelecionados(itensPreenchidos);
         setItensNaoMapeados(nomesSemCorrespondencia);
       }
 

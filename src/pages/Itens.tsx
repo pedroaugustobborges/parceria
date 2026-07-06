@@ -43,7 +43,7 @@ const UNIDADES_MEDIDA: UnidadeMedida[] = [
 
 const Itens: React.FC = () => {
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
+  const isDark = theme.palette.mode === "dark";
   const [itens, setItens] = useState<ItemContrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -144,7 +144,9 @@ const Itens: React.FC = () => {
 
         if (updateError) {
           if (updateError.code === "23505") {
-            setError("Este código corporativo já está em uso. Utilize um código único.");
+            setError(
+              "Este código corporativo já está em uso. Utilize um código único.",
+            );
             return;
           }
           throw updateError;
@@ -162,7 +164,9 @@ const Itens: React.FC = () => {
 
         if (insertError) {
           if (insertError.code === "23505") {
-            setError("Este código corporativo já está em uso. Utilize um código único.");
+            setError(
+              "Este código corporativo já está em uso. Utilize um código único.",
+            );
             return;
           }
           throw insertError;
@@ -221,7 +225,7 @@ const Itens: React.FC = () => {
       if (relatedItems.length > 0) {
         setDeleteBlocked(true);
         setDeleteBlockReason(
-          "Este item não pode ser excluído pois está vinculado a contratos. Remova o item dos contratos antes de excluir."
+          "Este item não pode ser excluído pois está vinculado a contratos. Remova o item dos contratos antes de excluir.",
         );
         setDeleteRelatedItems(relatedItems);
       }
@@ -285,7 +289,7 @@ const Itens: React.FC = () => {
     },
     {
       field: "codigo_corporativo",
-      headerName: "Cód. Corporativo",
+      headerName: "Cód. Padronização",
       width: 160,
       renderCell: (params) => (
         <Typography
@@ -450,6 +454,8 @@ const Itens: React.FC = () => {
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <TextField
               label="Nome do Item"
+              variant="outlined"
+              margin="normal"
               value={formData.nome}
               onChange={(e) =>
                 setFormData({ ...formData, nome: e.target.value })
@@ -457,10 +463,13 @@ const Itens: React.FC = () => {
               required
               fullWidth
               autoFocus
+              InputLabelProps={{
+                shrink: !!formData.nome,
+              }}
             />
 
             <TextField
-              label="Cód. Corporativo"
+              label="Cód. Padronização"
               value={formData.codigo_corporativo}
               onChange={(e) =>
                 setFormData({ ...formData, codigo_corporativo: e.target.value })

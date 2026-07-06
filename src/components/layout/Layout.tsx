@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   AppBar,
   Box,
@@ -39,6 +39,7 @@ import {
   CorporateFare,
   CalendarMonth,
   Warning,
+  LockReset,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import { useThemeMode } from "../../contexts/ThemeContext";
@@ -46,7 +47,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useContractExpirationAlert } from "../../hooks/useContractExpirationAlert";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "../../lib/supabase";
 import ChatBot from "../ChatBot";
+import MudarSenhaModal from "./MudarSenhaModal";
 
 const drawerWidth = 280;
 const collapsedDrawerWidth = 72;
@@ -62,6 +65,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return saved === "true";
   });
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [mudarSenhaOpen, setMudarSenhaOpen] = useState(false);
+  const [senhaJaAlterada, setSenhaJaAlterada] = useState(true);
   const { userProfile, signOut, isAdminAgir, isAdminAgirCorporativo, isAdminTerceiro, isTerceiro } =
     useAuth();
   const { mode, toggleTheme } = useThemeMode();
@@ -71,6 +76,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { count: expiringContractsCount, contracts: expiringContracts } =
     useContractExpirationAlert();
+
+  useEffect(() => {
+    const verificarSenhaAlterada = async () => {
+      const { data } = await supabase.auth.getUser();
+      const alterada = data?.user?.user_metadata?.senha_alterada === true;
+      setSenhaJaAlterada(alterada);
+    };
+    verificarSenhaAlterada();
+  }, []);
 
   const handleSidebarToggle = () => {
     const newState = !sidebarCollapsed;
@@ -93,6 +107,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
+  };
+
+  const handleAbrirMudarSenha = () => {
+    handleMenuClose();
+    setMudarSenhaOpen(true);
+  };
+
+  const handleSenhaAlterada = () => {
+    setSenhaJaAlterada(true);
   };
 
   const menuItems = [
@@ -335,6 +358,73 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           <Box sx={{ flexGrow: 1 }} />
 
+          {/* Notificação de senha nunca alterada */}
+          {!senhaJaAlterada && (
+            <Tooltip
+              title={
+                <Box sx={{ p: 0.5 }}>
+                  <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                    Senha nunca alterada
+                  </Typography>
+                  <Typography variant="body2">
+                    Você ainda está usando a senha inicial. Recomendamos alterá-la
+                    para manter sua conta segura.
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ mt: 1, display: "block", fontStyle: "italic" }}
+                  >
+                    Clique para alterar agora
+                  </Typography>
+                </Box>
+              }
+              arrow
+              placement="bottom"
+            >
+              <IconButton
+                onClick={() => setMudarSenhaOpen(true)}
+                sx={{
+                  mr: 1,
+                  background:
+                    mode === "dark"
+                      ? "rgba(14, 165, 233, 0.15)"
+                      : "rgba(14, 165, 233, 0.1)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid",
+                  borderColor:
+                    mode === "dark"
+                      ? "rgba(14, 165, 233, 0.3)"
+                      : "rgba(14, 165, 233, 0.2)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background:
+                      mode === "dark"
+                        ? "rgba(14, 165, 233, 0.25)"
+                        : "rgba(14, 165, 233, 0.2)",
+                    borderColor: "primary.main",
+                    transform: "scale(1.05)",
+                  },
+                }}
+              >
+                <Badge
+                  variant="dot"
+                  color="info"
+                  sx={{
+                    "& .MuiBadge-badge": {
+                      animation: "pulse 2s ease-in-out infinite",
+                      "@keyframes pulse": {
+                        "0%, 100%": { transform: "scale(1)" },
+                        "50%": { transform: "scale(1.3)" },
+                      },
+                    },
+                  }}
+                >
+                  <LockReset sx={{ color: "primary.main" }} />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          )}
+
           {/* Badge de Contratos Próximos ao Vencimento */}
           {isAdminAgir && expiringContractsCount > 0 && (
             <Tooltip
@@ -473,6 +563,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               />
             </MenuItem>
             <Divider />
+            <MenuItem onClick={handleAbrirMudarSenha}>
+              <ListItemIcon>
+                <LockReset fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Mudar senha</ListItemText>
+            </MenuItem>
+            <Divider />
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <Logout fontSize="small" />
@@ -533,6 +630,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Toolbar />
         {children}
       </Box>
+
+      {/* Modal de alteração de senha */}
+      <MudarSenhaModal
+        open={mudarSenhaOpen}
+        onClose={() => setMudarSenhaOpen(false)}
+        emailUsuario={userProfile?.email || ""}
+        onSenhaAlterada={handleSenhaAlterada}
+      />
 
       {/* ChatBot global - disponivel em todas as paginas */}
       <ChatBot />

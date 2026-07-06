@@ -104,11 +104,11 @@ O sistema já funciona tecnicamente. Faltam apenas dois passos burocráticos/adm
 
 ### O que é o Route 53?
 
-Route 53 é o serviço de DNS (Domain Name System) da AWS — funciona como a "lista telefônica" da internet. Quando um usuário digita `parceria.agir.com.br` no navegador, o Route 53 é consultado para saber para onde deve ser direcionada essa requisição.
+Route 53 é o serviço de DNS (Domain Name System) da AWS — funciona como a "lista telefônica" da internet. Quando um usuário digita `parceria.daherlab.org.br` no navegador, o Route 53 é consultado para saber para onde deve ser direcionada essa requisição.
 
-**No contexto do ParcerIA:** o Route 53 terá um registro que diz "quando alguém acessar `parceria.agir.com.br`, encaminhe para o ALB da Agir". Sem esse registro, o endereço simplesmente não existe na internet — ninguém consegue acessar o sistema pelo nome.
+**No contexto do ParcerIA:** o Route 53 terá um registro que diz "quando alguém acessar `parceria.daherlab.org.br`, encaminhe para o ALB da Agir". Sem esse registro, o endereço simplesmente não existe na internet — ninguém consegue acessar o sistema pelo nome.
 
-**Analogia:** pense no Route 53 como o GPS da empresa. O usuário diz o destino (`parceria.agir.com.br`) e o GPS diz qual caminho pegar (o ALB).
+**Analogia:** pense no Route 53 como o GPS da empresa. O usuário diz o destino (`parceria.daherlab.org.br`) e o GPS diz qual caminho pegar (o ALB).
 
 ---
 
@@ -138,7 +138,7 @@ ACM é o serviço da AWS que emite e gerencia certificados SSL gratuitamente par
 
 **No contexto do ParcerIA:** como a VM não tem IP público, o Certbot (método tradicional) não funciona. O ACM resolve isso — o certificado fica instalado no ALB, não na VM. A renovação é automática e sem prazo de validade visível para o usuário.
 
-**Analogia:** o ACM é como a carteira de identidade do sistema. Ele prova para o navegador do usuário que `parceria.agir.com.br` é mesmo o sistema da Agir, e não um site falso.
+**Analogia:** o ACM é como a carteira de identidade do sistema. Ele prova para o navegador do usuário que `parceria.daherlab.org.br` é mesmo o sistema da Agir, e não um site falso.
 
 ---
 
@@ -298,7 +298,7 @@ Navegador do usuário
 
 - AWS Console → **Certificate Manager** → Request certificate
 - Tipo: Public certificate
-- Domínio: `parceria.agir.com.br` (confirmar o subdomínio com Pedro/diretoria)
+- Domínio: `parceria.daherlab.org.br` (confirmar o subdomínio com Pedro/diretoria)
 - Validação: DNS — se o domínio já está no Route 53, a validação é automática
 - Aguardar status `Issued`
 
@@ -323,7 +323,7 @@ Navegador do usuário
 - AWS Console → **Route 53** → Hosted Zone do domínio agir.com.br
 - Criar registro:
   - Tipo: `A` — **Alias**
-  - Nome: `parceria` (resulta em `parceria.agir.com.br`)
+  - Nome: `parceria` (resulta em `parceria.daherlab.org.br`)
   - Alias target: DNS name do ALB (ex: `agir-alb-xxxxxxx.us-east-1.elb.amazonaws.com`)
 
 ### Tarefa 5 — Liberar porta 80 no Security Group da VM (~5 min)
@@ -339,17 +339,17 @@ Pedro executa na VM (apenas verificação e Supabase):
 ```bash
 # Verificar server_name no Nginx
 sudo grep server_name /etc/nginx/sites-available/parceria
-# Deve mostrar: server_name parceria.agir.com.br;
+# Deve mostrar: server_name parceria.daherlab.org.br;
 
 # Se precisar ajustar:
-sudo sed -i 's|server_name .*;|server_name parceria.agir.com.br;|' \
+sudo sed -i 's|server_name .*;|server_name parceria.daherlab.org.br;|' \
   /etc/nginx/sites-available/parceria
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
 Depois acessar `app.supabase.com` → projeto → Authentication → URL Configuration:
-- **Site URL**: `https://parceria.agir.com.br`
-- **Redirect URLs**: adicionar `https://parceria.agir.com.br/**`
+- **Site URL**: `https://parceria.daherlab.org.br`
+- **Redirect URLs**: adicionar `https://parceria.daherlab.org.br/**`
 
 ---
 
@@ -413,7 +413,7 @@ R: Sim. Os dados (contratos, acessos, produtividade) permanecem no Supabase, que
 R: O Nginx é configurado para reiniciar automaticamente. Se a VM inteira cair, o TI precisará reiniciá-la pelo Console AWS. Os dados no Supabase não são afetados. Tempo estimado para recuperação: 2 a 5 minutos.
 
 **P: A URL do sistema vai mudar?**  
-R: Sim, a URL mudará do endereço Vercel atual para o domínio que a Agir escolher (ex: `parceria.agir.com.br`). Os usuários precisarão ser informados da nova URL. O acesso continua por navegador normalmente.
+R: Sim, a URL mudará do endereço Vercel atual para o domínio que a Agir escolher (ex: `parceria.daherlab.org.br`). Os usuários precisarão ser informados da nova URL. O acesso continua por navegador normalmente.
 
 **P: Economizamos algo com essa mudança?**  
 R: Sim. O custo mensal do Vercel é eliminado. O Supabase continua com o mesmo custo de antes. A VM AWS já estava provisionada pela TI e não gera custo adicional para este sistema.
@@ -427,7 +427,7 @@ R: Sim. O assistente de IA (chat, insights, processamento de PDFs) roda nos serv
 
 | Ação                                                        | Responsável           | Prazo estimado                        |
 | ----------------------------------------------------------- | --------------------- | ------------------------------------- |
-| Definir o subdomínio final (ex: parceria.agir.com.br)       | Diretoria / TI        | A definir                             |
+| Definir o subdomínio final (ex: parceria.daherlab.org.br)       | Diretoria / TI        | A definir                             |
 | Emitir certificado SSL no ACM                               | TI Agir (Carlos)      | ~15 min                               |
 | Configurar Target Group no ALB (porta 80 → VM)              | TI Agir (Carlos)      | ~15 min                               |
 | Listener HTTPS no ALB com certificado ACM                   | TI Agir (Carlos)      | ~10 min                               |
