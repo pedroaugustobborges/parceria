@@ -1,0 +1,11 @@
+# Pipeline de segurança (SAST + Secret Detection) do GitLab.
+# Os resultados aparecem em Security & Compliance e nos MRs.
+
+stages:
+  - test
+
+include:
+  # SAST: análise estática de código (analisadores baseados em Semgrep).
+  - template: Jobs/SAST.gitlab-ci.yml
+  # Secret Detection: procura credenciais/chaves commitadas no repositório.
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
