@@ -215,13 +215,45 @@ openssl rand -base64 24   # → POSTGRES_PASSWORD
 openssl rand -base64 16   # → DASHBOARD_PASSWORD
 ```
 
-Para gerar as chaves `anon` e `service_role` a partir do JWT_SECRET:
+Agora gere as chaves `anon` e `service_role` diretamente na VM a partir do JWT_SECRET:
 
-- Acesse: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
-- Cole o JWT_SECRET gerado acima
-- Copie e salve as duas chaves geradas (`anon key` e `service_role key`)
+```bash
+# Instalar biblioteca JWT
+pip3 install PyJWT
 
-> **Salve todas essas chaves em local seguro agora.** Elas serão usadas no `.env` dos scripts e no `.env.production` do frontend.
+# Gerar as chaves — substitua SEU_JWT_SECRET pelo valor gerado acima
+python3 - << 'EOF'
+import jwt, time
+
+SECRET = "HS2Zo0b7+uFl+fCUDwv4Do/98lMOEhQPFAMU7bM9zk8="
+now = int(time.time())
+exp = now + (5 * 365 * 24 * 60 * 60)  # 5 anos
+
+anon = jwt.encode(
+    {"role": "anon", "iss": "supabase", "iat": now, "exp": exp},
+    SECRET, algorithm="HS256"
+)
+service = jwt.encode(
+    {"role": "service_role", "iss": "supabase", "iat": now, "exp": exp},
+    SECRET, algorithm="HS256"
+)
+
+print(f"\nANON_KEY={anon}")
+print(f"\nSERVICE_ROLE_KEY={service}\n")
+EOF
+```
+
+Copie e salve as duas chaves impressas na tela.
+
+> **Salve os 5 valores em local seguro agora** (ex: bloco de notas protegido por senha):
+>
+> - `JWT_SECRET`
+> - `POSTGRES_PASSWORD`
+> - `DASHBOARD_PASSWORD`
+> - `ANON_KEY`
+> - `SERVICE_ROLE_KEY`
+>
+> Elas serão usadas no `.env` dos scripts e no `.env.production` do frontend.
 
 ### 10.3 — Configurar o .env do Supabase
 
@@ -233,12 +265,12 @@ Preencher obrigatoriamente (substituir os valores gerados no passo 10.2):
 
 ```env
 # Senhas e chaves
-POSTGRES_PASSWORD=SENHA_GERADA
-JWT_SECRET=JWT_SECRET_GERADO
-ANON_KEY=ANON_KEY_GERADA
-SERVICE_ROLE_KEY=SERVICE_ROLE_KEY_GERADA
+POSTGRES_PASSWORD=24f55bfb55640c8797f4307eb15b08311076aed9022e4aa0
+JWT_SECRET=HS2Zo0b7+uFl+fCUDwv4Do/98lMOEhQPFAMU7bM9zk8=
+ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgzMzQ2MTY3LCJleHAiOjE5NDEwMjYxNjd9.ygeg2QFy5y6fN_3p0u53s6Z3D2xGP4p53WJ6IFW0ccU
+SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3ODMzNDYxNjcsImV4cCI6MTk0MTAyNjE2N30.cNgf3uQ2_4VtS0JfnS2Ga44V9sVkIqrMvFf6Vw-QrPM
 DASHBOARD_USERNAME=admin
-DASHBOARD_PASSWORD=SENHA_DASHBOARD_GERADA
+DASHBOARD_PASSWORD=a81ed6c41f540bea19cc2b23
 
 # Banco de dados
 POSTGRES_HOST=db
@@ -251,10 +283,10 @@ API_EXTERNAL_URL=https://parceria.daherlab.org.br
 SUPABASE_PUBLIC_URL=https://parceria.daherlab.org.br
 
 # E-mail (recuperação de senha)
-SMTP_ADMIN_EMAIL=suporte@agir.com.br
+SMTP_ADMIN_EMAIL=pedro.borges@agirsaude.org.br
 SMTP_HOST=smtp.agir.com.br
 SMTP_PORT=587
-SMTP_USER=suporte@agir.com.br
+SMTP_USER=pedro.borges@agirsaude.org.br
 SMTP_PASS=SENHA_DO_EMAIL
 SMTP_SENDER_NAME=ParcerIA
 ```
@@ -295,9 +327,17 @@ sudo mkdir -p /opt/backups
 sudo chown $USER:$USER /opt/backups
 
 # Exportar tudo do Supabase gerenciado
+
+
+
+
+
+
+
+
 # A SENHA está em: Supabase Dashboard → Project Settings → Database → Database password
 pg_dump \
-  "postgresql://postgres:SENHA_SUPABASE_GERENCIADO@db.qszqzdnlhxpglllyqtht.supabase.co:5432/postgres" \
+  "postgresql://postgres:d2KGzq3sjb2QxgQP@db.qszqzdnlhxpglllyqtht.supabase.co:5432/postgres" \
   --no-owner --no-acl \
   -f /opt/backups/backup-gerenciado-$(date +%Y%m%d-%H%M).sql
 

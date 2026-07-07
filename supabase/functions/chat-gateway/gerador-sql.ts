@@ -42,9 +42,17 @@ const SCHEMA_DESCRICAO = `
 - id (uuid), nome (text), cnpj (text), telefone (text), email (text), ativo (boolean)
 
 ## Views Materializadas
-### vm_escalas_mensal (mes, contrato_id, unidade_hospitalar_id, empresa, especialidade, total_escalas, aprovadas, reprovadas, programadas, pre_agendadas, total_medicos)
-### vm_produtividade_mensal (mes, unidade_hospitalar_id, especialidade, profissionais_ativos, total_procedimentos, total_pareceres_solicitados, total_pareceres_realizados, total_cirurgias, total_prescricoes, total_evolucoes, total_urgencias, total_ambulatorios)
-### vm_acessos_mensal (mes, planta, tipo, total_registros, entradas, saidas, pessoas_unicas)
+### vm_escalas_mensal (mes DATE, contrato_id, unidade_hospitalar_id, empresa, especialidade, total_escalas, aprovadas, reprovadas, programadas, pre_agendadas, total_medicos)
+### vm_produtividade_mensal (mes DATE, unidade_hospitalar_id, especialidade, profissionais_ativos, total_procedimentos, total_pareceres_solicitados, total_pareceres_realizados, total_cirurgias, total_prescricoes, total_evolucoes, total_urgencias, total_ambulatorios)
+### vm_acessos_mensal (mes DATE, planta, tipo, total_registros, entradas, saidas, pessoas_unicas)
+
+IMPORTANTE: A coluna "mes" nas views e do tipo DATE e sempre representa o primeiro dia do mes (ex: 2026-06-01 para junho/2026).
+Para filtrar por mes/ano, use SEMPRE: mes = 'YYYY-MM-01'::date
+NUNCA use: mes = 'YYYY-MM' (formato invalido para tipo date)
+Exemplos corretos:
+- junho de 2026: mes = '2026-06-01'::date
+- janeiro de 2025: mes = '2025-01-01'::date
+- ultimo mes: mes = DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')::date
 `;
 
 export interface ResultadoSQL {
@@ -85,6 +93,7 @@ ${colunasProibidas}
 5. Limite resultados a no maximo 100 linhas
 6. Use nomes de colunas em portugues quando gerar aliases
 7. Para contar medicos em escalas: jsonb_array_length(medicos)
+8. CRITICO: Para filtrar mes nas views (vm_*), use SEMPRE mes = 'YYYY-MM-01'::date (nunca 'YYYY-MM')
 
 Pergunta do usuario: "${pergunta}"
 
