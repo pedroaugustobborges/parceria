@@ -27,8 +27,6 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Tooltip,
-  Checkbox,
-  FormControlLabel,
 } from "@mui/material";
 import {
   PersonAdd,
@@ -37,11 +35,8 @@ import {
   Email,
   PersonOff,
   Delete,
-  Add,
-  Business,
-  LocalHospital,
-  Badge,
   AdminPanelSettings,
+  LockReset,
 } from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
 import {
@@ -51,6 +46,7 @@ import {
   UnidadeHospitalar,
 } from "../types/database.types";
 import { format, parseISO } from "date-fns";
+import { useAuth } from "../contexts/AuthContext";
 
 const ESPECIALIDADES = [
   "Anestesiologia",
@@ -132,6 +128,7 @@ interface UsuarioContrato {
 }
 
 const Usuarios: React.FC = () => {
+  const { isAdminAgirCorporativo, isAdminAgirPlanta } = useAuth();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [usuariosFiltrados, setUsuariosFiltrados] = useState<Usuario[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
@@ -172,9 +169,6 @@ const Usuarios: React.FC = () => {
     codigomv: "",
     especialidade: [] as string[],
     unidade_hospitalar_id: "",
-    password: "",
-    createAuthUser: false, // New field to control if we create auth user
-    sendInvitationAutomatically: false, // Control automatic invitation sending
   });
 
   useEffect(() => {
@@ -352,9 +346,6 @@ const Usuarios: React.FC = () => {
       codigomv: "",
       especialidade: [],
       unidade_hospitalar_id: "",
-      password: "",
-      createAuthUser: false,
-      sendInvitationAutomatically: false,
     });
     setCreateDialogOpen(true);
   };
@@ -372,9 +363,6 @@ const Usuarios: React.FC = () => {
       codigomv: selectedUser.codigomv || "",
       especialidade: selectedUser.especialidade || [],
       unidade_hospitalar_id: selectedUser.unidade_hospitalar_id || "",
-      password: "",
-      createAuthUser: false,
-      sendInvitationAutomatically: false,
     });
     setDetailsDialogOpen(false);
     setCreateDialogOpen(true);
@@ -409,9 +397,9 @@ const Usuarios: React.FC = () => {
         formData.tipo === "administrador-agir-corporativo" ||
         formData.tipo === "administrador-agir-planta";
 
-      // Se marcou para enviar convite automaticamente, email é obrigatório
-      if (formData.sendInvitationAutomatically && !formData.email) {
-        setError("Email é obrigatório para enviar convite automaticamente");
+      // Email obrigatório para usuários com acesso ao sistema
+      if (formData.tipo !== "terceiro" && !editMode && !formData.email) {
+        setError("Email é obrigatório para usuários com acesso ao sistema");
         setSaving(false);
         return;
       }
@@ -518,125 +506,83 @@ const Usuarios: React.FC = () => {
         handleCloseCreateDialog();
         handleSearch(); // Refresh search
       } else {
-        // Create new terceiro WITHOUT auth account
+        // Create new user
 
-        // First, check if CPF already exists
-        const { data: existingUser } = await supabase
-          .from("usuarios")
-          .select("id, cpf")
-          .eq("cpf", formData.cpf)
-          .maybeSingle();
+        if (formData.tipo === "terceiro") {
+          // Terceiros: insert direto sem conta auth
+          const { data: existingCpf } = await supabase
+            .from("usuarios")
+            .select("id")
+            .eq("cpf", formData.cpf)
+            .maybeSingle();
 
-        if (existingUser) {
-          setError("Já existe um usuário com este CPF");
-          setSaving(false);
-          return;
-        }
-
-        // Generate a valid UUID for the user (will be replaced when auth is created)
-        const tempUUID = crypto.randomUUID();
-
-        const insertData: any = {
-          id: tempUUID,
-          email: formData.email || null,
-          nome: formData.nome,
-          cpf: formData.cpf,
-          tipo: formData.tipo,
-          codigomv: formData.tipo === "terceiro" ? formData.codigomv : null,
-          especialidade:
-            formData.tipo === "terceiro" ? formData.especialidade : null,
-          unidade_hospitalar_id:
-            formData.tipo === "administrador-agir-planta"
-              ? formData.unidade_hospitalar_id
-              : null,
-        };
-
-        // Add contrato_id for backward compatibility
-        if (formData.contrato_ids.length > 0) {
-          insertData.contrato_id = formData.contrato_ids[0];
-        }
-
-        console.log("Inserting user data:", insertData);
-
-        const { data: newUser, error: insertError } = await supabase
-          .from("usuarios")
-          .insert(insertData)
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error("Insert error details:", insertError);
-          throw insertError;
-        }
-
-        // Create contract links (only if not admin or if admin has contracts)
-        if (formData.contrato_ids.length > 0 && newUser) {
-          const contractInserts = formData.contrato_ids.map((contrato_id) => ({
-            usuario_id: newUser.id,
-            contrato_id,
-            cpf: formData.cpf,
-          }));
-
-          const { error: contractError } = await supabase
-            .from("usuario_contrato")
-            .insert(contractInserts);
-
-          if (contractError) {
-            console.error("Error inserting contracts:", contractError);
-            throw new Error(
-              `Erro ao vincular contratos: ${contractError.message}`,
-            );
+          if (existingCpf) {
+            setError("Já existe um usuário com este CPF");
+            setSaving(false);
+            return;
           }
-        }
 
-        // Send invitation automatically if checkbox is marked
-        if (formData.sendInvitationAutomatically && newUser && formData.email) {
-          console.log("Enviando convite automaticamente...");
+          const tempUUID = crypto.randomUUID();
+          const { data: newUser, error: insertError } = await supabase
+            .from("usuarios")
+            .insert({
+              id: tempUUID,
+              email: null,
+              nome: formData.nome,
+              cpf: formData.cpf,
+              tipo: formData.tipo,
+              codigomv: formData.codigomv,
+              especialidade: formData.especialidade,
+              unidade_hospitalar_id: null,
+              contrato_id: formData.contrato_ids.length > 0 ? formData.contrato_ids[0] : null,
+            })
+            .select()
+            .single();
 
-          // Extra warning for corporate domains
-          const isCorp = isCorporateDomain(formData.email);
-          const confirmMessage = isCorp
-            ? `Confirma o envio de convite para o email: ${formData.email}?\n\n` +
-              `⚠️ ATENÇÃO - EMAIL CORPORATIVO:\n` +
-              `Você confirmou que este endereço de email JÁ EXISTE e está ATIVO no servidor de email da empresa?\n\n` +
-              `Emails que não existem causam bloqueio temporário do sistema de envio.\n\n` +
-              `Se não tiver certeza, clique em CANCELAR e verifique antes.`
-            : `Confirma o envio de convite para o email: ${formData.email}?\n\n` +
-              `⚠️ IMPORTANTE: Verifique se o email está correto. Emails inválidos podem causar bloqueio temporário do sistema de envio.`;
+          if (insertError) throw insertError;
 
-          // Confirm before sending to avoid bounced emails
-          const confirmSend = window.confirm(confirmMessage);
-
-          if (confirmSend) {
-            try {
-              await handleSendInvitation(newUser as Usuario);
-              setSuccess(
-                `Usuário criado com sucesso! Convite de acesso enviado para ${formData.email}.`,
+          if (formData.contrato_ids.length > 0 && newUser) {
+            const { error: contractError } = await supabase
+              .from("usuario_contrato")
+              .insert(
+                formData.contrato_ids.map((contrato_id) => ({
+                  usuario_id: newUser.id,
+                  contrato_id,
+                  cpf: formData.cpf,
+                }))
               );
-            } catch (inviteError: any) {
-              console.error("Erro ao enviar convite:", inviteError);
-              setSuccess(
-                `Usuário criado com sucesso, mas houve erro ao enviar convite: ${inviteError.message}. Use o botão 'Enviar Convite' manualmente.`,
-              );
-            }
-          } else {
-            setSuccess(
-              "Usuário criado com sucesso! Envio de convite cancelado. Use o botão 'Enviar Convite' quando estiver pronto.",
-            );
+            if (contractError) throw new Error(`Erro ao vincular contratos: ${contractError.message}`);
           }
+
+          setSuccess("Terceiro criado com sucesso!");
         } else {
+          // Não-terceiros: cria conta auth via edge function com senha padrão Agir@123
+          const { data, error: fnError } = await supabase.functions.invoke("admin-users", {
+            body: {
+              action: "create-user",
+              email: formData.email,
+              nome: formData.nome,
+              cpf: formData.cpf,
+              tipo: formData.tipo,
+              unidade_hospitalar_id:
+                formData.tipo === "administrador-agir-planta"
+                  ? formData.unidade_hospitalar_id
+                  : null,
+              contrato_ids: formData.contrato_ids,
+            },
+          });
+
+          if (fnError) throw new Error(fnError.message);
+          if (data?.error) throw new Error(data.error);
+
           setSuccess(
-            `Usuário criado com sucesso! ${
-              formData.email
-                ? "Use o botão 'Enviar Convite' para criar acesso ao sistema."
-                : "Adicione um email e use o botão 'Enviar Convite' para criar acesso."
-            }`,
+            `Usuário ${formData.nome} criado com sucesso! Senha padrão: Agir@123 — lembre de avisar o usuário para alterá-la no primeiro acesso.`
           );
         }
 
         setSaving(false);
         handleCloseCreateDialog();
-        handleSearch(); // Refresh search
+        handleSearch();
       }
     } catch (err: any) {
       setSaving(false);
@@ -671,130 +617,29 @@ const Usuarios: React.FC = () => {
     }
   };
 
-  const handleSendInvitation = async (usuario: Usuario) => {
+  const handleResetPassword = async (usuario: Usuario) => {
+    if (
+      !window.confirm(
+        `Redefinir a senha de "${usuario.nome}" para a senha padrão Agir@123?\n\nLembre de avisar o usuário para alterá-la no próximo acesso.`
+      )
+    ) return;
+
     try {
       setError("");
       setSuccess("");
 
-      if (!usuario.email) {
-        setError(
-          "Email é obrigatório para enviar convite. Edite o usuário e adicione um email.",
-        );
-        return;
-      }
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(usuario.email)) {
-        setError("Email inválido");
-        return;
-      }
-
-      // Check if email domain is blocked
-      if (isEmailDomainBlocked(usuario.email)) {
-        setError(getBlockedDomainMessage(usuario.email));
-        return;
-      }
-
-      // Check if user might already have access (has email)
-      // Always show confirmation when sending invitation
-      const hasAccess = usuario.email;
-      const isCorp = isCorporateDomain(usuario.email);
-
-      let confirmMessage = "";
-      if (hasAccess) {
-        confirmMessage =
-          "Usuário(a) já possui acesso ao ParcerIA, ao enviar novo convite você estará também criando uma nova senha. Deseja confirmar o envio?";
-      } else if (isCorp) {
-        confirmMessage =
-          `⚠️ ATENÇÃO - EMAIL CORPORATIVO: ${usuario.email}\n\n` +
-          `Você confirmou que este endereço de email JÁ EXISTE e está ATIVO no servidor de email da empresa (${
-            usuario.email.split("@")[1]
-          })?\n\n` +
-          `Emails que não existem causam bloqueio temporário do sistema de envio.\n\n` +
-          `Deseja continuar com o envio?`;
-      } else {
-        confirmMessage = `Enviar convite de acesso para ${usuario.email}?`;
-      }
-
-      if (!window.confirm(confirmMessage)) {
-        return; // User cancelled
-      }
-
-      // Generate a temporary password (user should change it on first login)
-      const tempPassword = `Temp@${Math.random().toString(36).substr(2, 9)}`;
-
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: usuario.email,
-        password: tempPassword,
+      const { data, error: fnError } = await supabase.functions.invoke("admin-users", {
+        body: { action: "reset-password", targetUserId: usuario.id },
       });
 
-      if (authError) {
-        if (authError.message.includes("already registered")) {
-          setError("Este email já está registrado no sistema");
-        } else {
-          throw authError;
-        }
-        return;
-      }
+      if (fnError) throw new Error(fnError.message);
+      if (data?.error) throw new Error(data.error);
 
-      if (authData.user) {
-        // We need to replace the old user record with a new one using the auth ID
-        // 1. Save the old data
-        const userData = {
-          email: usuario.email,
-          nome: usuario.nome,
-          cpf: usuario.cpf,
-          tipo: usuario.tipo,
-          contrato_id: usuario.contrato_id,
-          codigomv: usuario.codigomv,
-          especialidade: usuario.especialidade,
-          unidade_hospitalar_id: usuario.unidade_hospitalar_id,
-        };
-
-        // 2. Get all usuario_contrato records
-        const { data: userContracts } = await supabase
-          .from("usuario_contrato")
-          .select("*")
-          .eq("usuario_id", usuario.id);
-
-        // 3. Delete old usuario record
-        await supabase.from("usuarios").delete().eq("id", usuario.id);
-
-        // 4. Insert new usuario record with auth ID
-        const { error: insertError } = await supabase.from("usuarios").insert({
-          id: authData.user.id,
-          ...userData,
-        });
-
-        if (insertError) {
-          console.error("Error creating user record:", insertError);
-          setError(
-            "Conta criada, mas erro ao criar registro. Contate o suporte.",
-          );
-          return;
-        }
-
-        // 5. Recreate usuario_contrato records with new ID
-        if (userContracts && userContracts.length > 0) {
-          const newContracts = userContracts.map((uc) => ({
-            usuario_id: authData.user!.id,
-            contrato_id: uc.contrato_id,
-            cpf: uc.cpf,
-          }));
-          await supabase.from("usuario_contrato").insert(newContracts);
-        }
-
-        setSuccess(
-          `Convite enviado para ${usuario.email}. Senha temporária: ${tempPassword}`,
-        );
-        handleCloseUserDetails();
-        handleSearch(); // Refresh
-      }
+      setSuccess(
+        `Senha de ${usuario.nome} redefinida para "Agir@123". Avise o usuário para alterá-la no próximo login.`
+      );
     } catch (err: any) {
-      console.error("Error sending invitation:", err);
-      setError(err.message || "Erro ao enviar convite");
+      setError(err.message || "Erro ao redefinir senha");
     }
   };
 
@@ -1349,28 +1194,24 @@ const Usuarios: React.FC = () => {
                 </Paper>
               </Box>
 
-              {/* Send Invitation */}
-              {!selectedUser.email ? (
-                <Alert severity="info">
-                  Este usuário ainda não possui email cadastrado. Edite o
-                  usuário para adicionar um email e depois envie o convite.
-                </Alert>
-              ) : (
+              {/* Reset Password - visível apenas para quem tem permissão */}
+              {selectedUser.email &&
+                (isAdminAgirCorporativo ||
+                  (isAdminAgirPlanta &&
+                    ["administrador-terceiro", "terceiro"].includes(selectedUser.tipo))) && (
                 <Button
                   variant="contained"
-                  startIcon={<Email />}
-                  onClick={() => handleSendInvitation(selectedUser)}
+                  startIcon={<LockReset />}
+                  onClick={() => handleResetPassword(selectedUser)}
                   fullWidth
                   sx={{
-                    background:
-                      "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                    background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
                     "&:hover": {
-                      background:
-                        "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
+                      background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
                     },
                   }}
                 >
-                  Enviar Convite
+                  Redefinir Senha para Padrão (Agir@123)
                 </Button>
               )}
             </Box>
@@ -1428,11 +1269,7 @@ const Usuarios: React.FC = () => {
                   setFormData({
                     ...formData,
                     tipo: newTipo,
-                    // Limpar email e convite automático quando mudar para terceiro
-                    ...(newTipo === "terceiro" && {
-                      email: "",
-                      sendInvitationAutomatically: false,
-                    }),
+                    ...(newTipo === "terceiro" && { email: "" }),
                   });
                 }}
               >
@@ -1451,51 +1288,22 @@ const Usuarios: React.FC = () => {
 
             {/* Email - apenas para tipos que não são terceiro */}
             {formData.tipo !== "terceiro" && (
-              <>
-                <TextField
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  fullWidth
-                  required={formData.sendInvitationAutomatically}
-                  error={
-                    formData.email ? isEmailDomainBlocked(formData.email) : false
-                  }
-                  helperText={
-                    formData.email && isEmailDomainBlocked(formData.email)
-                      ? getBlockedDomainMessage(formData.email)
-                      : "Email necessário para enviar convite de acesso ao sistema. Verifique cuidadosamente se o email está correto."
-                  }
-                />
-
-                {/* Aviso especial para domínios corporativos */}
-                {formData.email && isCorporateDomain(formData.email) && (
-                  <Alert severity="warning" sx={{ mt: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      ⚠️ Email corporativo detectado: {formData.email.split("@")[1]}
-                    </Typography>
-                    <Typography variant="caption">
-                      <strong>IMPORTANTE:</strong> Verifique se este endereço de
-                      email JÁ FOI CRIADO no servidor de email da empresa. Emails
-                      que não existem causam rejeição e podem bloquear
-                      temporariamente o sistema de envio.
-                      <br />
-                      <br />
-                      <strong>Antes de enviar o convite:</strong>
-                      <br />
-                      1. Confirme que o email {formData.email} existe e está ativo
-                      <br />
-                      2. Teste enviando um email de teste manualmente para verificar
-                      <br />
-                      3. Só marque "enviar automaticamente" se tiver certeza que o
-                      email existe
-                    </Typography>
-                  </Alert>
-                )}
-              </>
+              <TextField
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                fullWidth
+                required={!editMode}
+                error={formData.email ? isEmailDomainBlocked(formData.email) : false}
+                helperText={
+                  formData.email && isEmailDomainBlocked(formData.email)
+                    ? getBlockedDomainMessage(formData.email)
+                    : "Email utilizado como login no sistema. Verifique cuidadosamente se está correto."
+                }
+              />
             )}
 
             <TextField
@@ -1618,77 +1426,41 @@ const Usuarios: React.FC = () => {
                 />
               )}
 
-            {/* Envio automático de convite - apenas em modo de criação e para não-terceiros */}
-            {!editMode && formData.tipo !== "terceiro" && formData.email && (
-              <Box sx={{ mt: 1 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.sendInvitationAutomatically}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          sendInvitationAutomatically: e.target.checked,
-                        })
-                      }
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body2" fontWeight={600}>
-                        Enviar convite de acesso automaticamente após criar
-                        usuário
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        O convite será enviado para o email informado. Uma
-                        confirmação será solicitada antes do envio.
-                      </Typography>
-                    </Box>
-                  }
-                />
-              </Box>
-            )}
-
-            {/* Avisos */}
-            {formData.tipo === "administrador-agir-corporativo" ||
-            formData.tipo === "administrador-agir-planta" ? (
+            {/* Avisos por tipo */}
+            {(formData.tipo === "administrador-agir-corporativo" ||
+              formData.tipo === "administrador-agir-planta") && (
               <Alert severity="info">
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   Administradores Agir não precisam de vínculo com contrato
                 </Typography>
-                <Typography variant="caption">
-                  Adicione um email válido e marque a opção acima para enviar o
-                  convite automaticamente.
-                </Typography>
               </Alert>
-            ) : formData.tipo === "terceiro" && !editMode ? (
-              <Alert severity="info">
-                <Typography variant="body2">
-                  Terceiros são criados apenas para registro e controle de
-                  escalas. Eles não possuem acesso ao sistema.
-                </Typography>
-              </Alert>
-            ) : formData.tipo === "administrador-terceiro" && !editMode ? (
-              <Alert severity="info">
-                <Typography variant="body2">
-                  O usuário será criado sem acesso ao sistema. Use o botão
-                  "Enviar Convite" nos detalhes do usuário para criar o acesso,
-                  ou marque a opção acima para enviar automaticamente.
-                </Typography>
-              </Alert>
-            ) : null}
+            )}
 
-            {/* Aviso importante sobre emails inválidos */}
-            {!editMode && formData.tipo !== "terceiro" && formData.sendInvitationAutomatically && (
-              <Alert severity="warning">
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  ⚠️ Atenção: Verifique o email cuidadosamente
+            {formData.tipo === "terceiro" && !editMode && (
+              <Alert severity="info">
+                <Typography variant="body2">
+                  Terceiros são criados apenas para registro e controle de escalas. Eles não possuem acesso ao sistema.
                 </Typography>
-                <Typography variant="caption">
-                  Emails inválidos ou inexistentes causam bloqueio temporário no
-                  sistema de envio. Certifique-se de que o email está correto
-                  antes de prosseguir.
+              </Alert>
+            )}
+
+            {/* Lembrete de senha padrão - apenas ao criar usuário com acesso */}
+            {!editMode && formData.tipo !== "terceiro" && (
+              <Alert
+                severity="success"
+                icon={<LockReset fontSize="inherit" />}
+                sx={{
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "success.light",
+                  "& .MuiAlert-message": { width: "100%" },
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  Senha padrão: Agir@123
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  O usuário receberá acesso imediato com esta senha. Lembre-se de avisá-lo para alterá-la no primeiro login.
                 </Typography>
               </Alert>
             )}
