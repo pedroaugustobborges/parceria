@@ -211,7 +211,7 @@ const ForgotPassword: React.FC = () => {
                     Administrador Corporativo Agir
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Coordenação Corporativa de Gestão Clínica
+                    Coordenação Corporativa de Contratos Assistenciais
                   </Typography>
                 </Box>
               </Box>
