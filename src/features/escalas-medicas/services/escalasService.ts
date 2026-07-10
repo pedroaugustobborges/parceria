@@ -401,17 +401,22 @@ export async function loadUsuariosByContrato(contratoId: string): Promise<Usuari
   let usuariosData: Usuario[] = [];
 
   // Get users linked via usuario_contrato table
+  // Query in chunks of 50 to avoid URL length limits (502 Bad Gateway)
   if (usuarioIdsFromLink.length > 0) {
-    const { data: usuariosFromLink, error: usersLinkError } = await supabase
-      .from('usuarios')
-      .select('*')
-      .in('id', usuarioIdsFromLink)
-      .eq('tipo', 'terceiro');
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < usuarioIdsFromLink.length; i += CHUNK_SIZE) {
+      const chunk = usuarioIdsFromLink.slice(i, i + CHUNK_SIZE);
+      const { data: usuariosFromLink, error: usersLinkError } = await supabase
+        .from('usuarios')
+        .select('*')
+        .in('id', chunk)
+        .eq('tipo', 'terceiro');
 
-    if (usersLinkError) {
-      console.error('Erro ao buscar usuários via link:', usersLinkError);
-    } else if (usuariosFromLink) {
-      usuariosData = [...usuariosFromLink];
+      if (usersLinkError) {
+        console.error('Erro ao buscar usuários via link:', usersLinkError);
+      } else if (usuariosFromLink) {
+        usuariosData = [...usuariosData, ...usuariosFromLink];
+      }
     }
   }
 
