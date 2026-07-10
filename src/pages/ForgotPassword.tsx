@@ -1,200 +1,238 @@
-import React, { useState } from 'react';
+import React from "react";
 import {
   Box,
-  Button,
   Card,
   CardContent,
-  TextField,
   Typography,
-  Alert,
   Container,
-  InputAdornment,
   Link,
-} from '@mui/material';
-import { Email, ArrowBack, CheckCircle } from '@mui/icons-material';
-import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+  Divider,
+} from "@mui/material";
+import {
+  ArrowBack,
+  AdminPanelSettings,
+  LocalHospital,
+  LockReset,
+} from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 
 const ForgotPassword: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [cooldown, setCooldown] = useState(false);
   const navigate = useNavigate();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-
-      if (resetError) {
-        if (resetError.message?.toLowerCase().includes('rate limit') || resetError.status === 429) {
-          throw new Error('Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.');
-        }
-        throw resetError;
-      }
-
-      setSuccess(true);
-      setCooldown(true);
-      setTimeout(() => setCooldown(false), 60000);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao enviar email de recuperação. Tente novamente.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <Box
-      className="min-h-screen flex items-center justify-center"
       sx={{
-        background: 'linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)',
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+        position: "relative",
+        overflow: "hidden",
+        "&::before": {
           content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          position: "absolute",
+          inset: 0,
           background: `
-            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 40% 80%, rgba(14, 165, 233, 0.2) 0%, transparent 50%)
+            radial-gradient(circle at 20% 50%, rgba(255,255,255,0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(139,92,246,0.3) 0%, transparent 50%),
+            radial-gradient(circle at 40% 80%, rgba(14,165,233,0.2) 0%, transparent 50%)
           `,
         },
       }}
     >
-      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
+      <Container maxWidth="sm" sx={{ position: "relative", zIndex: 1 }}>
         <Card
           elevation={0}
           sx={{
             borderRadius: 4,
-            backdropFilter: 'blur(20px)',
-            backgroundColor: 'rgba(255, 255, 255, 0.98)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
+            backdropFilter: "blur(20px)",
+            backgroundColor: "rgba(255,255,255,0.98)",
+            boxShadow: "0 25px 50px -12px rgba(0,0,0,0.4)",
+            border: "1px solid rgba(255,255,255,0.3)",
           }}
         >
-          <CardContent sx={{ p: 4 }}>
-            <Box sx={{ mb: 4, textAlign: 'center' }}>
-              <Typography variant="h5" fontWeight={700} gutterBottom sx={{ color: '#1e293b' }}>
-                Esqueceu sua senha?
+          <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+            {/* Ícone e título */}
+            <Box sx={{ textAlign: "center", mb: 3 }}>
+              <Box
+                sx={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: "50%",
+                  background:
+                    "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mx: "auto",
+                  mb: 2,
+                  boxShadow: "0 8px 24px rgba(139,92,246,0.35)",
+                }}
+              >
+                <LockReset sx={{ fontSize: 36, color: "#fff" }} />
+              </Box>
+
+              <Typography
+                variant="h5"
+                fontWeight={700}
+                sx={{ color: "#1e293b", mb: 0.5 }}
+              >
+                Redefinição de Senha
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {success
-                  ? 'Instruções enviadas com sucesso!'
-                  : 'Digite seu email e enviaremos instruções para redefinir sua senha'}
+                Como recuperar o acesso ao ParcerIA
               </Typography>
             </Box>
 
-            {!success ? (
-              <>
-                {error && (
-                  <Alert
-                    severity="error"
-                    sx={{
-                      mb: 3,
-                      borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'error.light',
-                    }}
-                  >
-                    {error}
-                  </Alert>
-                )}
+            <Divider sx={{ mb: 3 }} />
 
-                <form onSubmit={handleSubmit}>
-                  <TextField
-                    fullWidth
-                    label="Email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                    autoFocus
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Email sx={{ color: '#0ea5e9' }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      mb: 3,
-                      '& .MuiOutlinedInput-root': {
-                        '&:hover fieldset': {
-                          borderColor: '#0ea5e9',
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: '#8b5cf6',
-                        },
-                      },
-                    }}
-                  />
+            {/* Mensagem principal */}
+            <Box
+              sx={{
+                background: "linear-gradient(135deg, #f0f9ff 0%, #faf5ff 100%)",
+                border: "1px solid",
+                borderColor: "rgba(139,92,246,0.2)",
+                borderRadius: 3,
+                p: 3,
+                mb: 3,
+              }}
+            >
+              <Typography
+                variant="body1"
+                sx={{ color: "#1e293b", lineHeight: 1.7 }}
+              >
+                Por questões de segurança, a redefinição de senhas no ParcerIA é
+                realizada exclusivamente pela equipe de gestão de escalas.
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 1.5, lineHeight: 1.7 }}
+              >
+                Entre em contato com a equipe de sua unidade e solicite a
+                redefinição. Sua senha será restaurada para o padrão do sistema,
+                permitindo que você acesse e altere-a novamente.
+              </Typography>
+            </Box>
 
-                  <Button
-                    fullWidth
-                    type="submit"
-                    variant="contained"
-                    size="large"
-                    disabled={loading || cooldown}
-                    sx={{
-                      py: 1.8,
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      borderRadius: 2,
-                      textTransform: 'none',
-                      background: 'linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)',
-                      boxShadow: '0 4px 14px 0 rgba(139, 92, 246, 0.4)',
-                      '&:hover': {
-                        background: 'linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)',
-                        boxShadow: '0 6px 20px 0 rgba(139, 92, 246, 0.5)',
-                        transform: 'translateY(-2px)',
-                      },
-                      transition: 'all 0.3s ease',
-                    }}
+            {/* Quem contatar */}
+            <Typography
+              variant="caption"
+              fontWeight={700}
+              sx={{
+                color: "#64748b",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Quem contatar
+            </Typography>
+
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 1.5,
+                mt: 1.5,
+                mb: 3,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, #0ea5e9, #0284c7)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <LocalHospital sx={{ fontSize: 20, color: "#fff" }} />
+                </Box>
+                <Box>
+                  <Typography
+                    variant="body2"
+                    fontWeight={600}
+                    sx={{ color: "#1e293b" }}
                   >
-                    {loading ? 'Enviando...' : 'Enviar Email de Recuperação'}
-                  </Button>
-                </form>
-              </>
-            ) : (
-              <Box sx={{ textAlign: 'center', py: 3 }}>
-                <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-                <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
-                  Um email foi enviado para <strong>{email}</strong> com instruções para redefinir sua
-                  senha. Verifique sua caixa de entrada e spam.
-                </Alert>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  O link é válido por 1 hora.
-                </Typography>
+                    Equipe de Gestão de Escalas da Unidade Hospitalar
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Responsável pelo seu hospital (HUGOL, HECAD, CRER...)
+                  </Typography>
+                </Box>
               </Box>
-            )}
 
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <AdminPanelSettings sx={{ fontSize: 20, color: "#fff" }} />
+                </Box>
+                <Box>
+                  <Typography
+                    variant="body2"
+                    fontWeight={600}
+                    sx={{ color: "#1e293b" }}
+                  >
+                    Administrador Corporativo Agir
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Coordenação Corporativa de Gestão Clínica
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            <Divider sx={{ mb: 2.5 }} />
+
+            {/* Voltar */}
+            <Box sx={{ textAlign: "center" }}>
               <Link
                 component="button"
                 variant="body2"
-                onClick={() => navigate('/login')}
+                onClick={() => navigate("/login")}
                 sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
+                  display: "inline-flex",
+                  alignItems: "center",
                   gap: 0.5,
-                  color: 'primary.main',
-                  textDecoration: 'none',
+                  color: "#8b5cf6",
+                  textDecoration: "none",
                   fontWeight: 600,
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
+                  "&:hover": { textDecoration: "underline" },
                 }}
               >
                 <ArrowBack fontSize="small" />
@@ -202,9 +240,9 @@ const ForgotPassword: React.FC = () => {
               </Link>
             </Box>
 
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Box sx={{ mt: 2.5, textAlign: "center" }}>
               <Typography variant="caption" color="text.secondary">
-                © 2024-2025 Todos os direitos reservados
+                © 2026 Todos os direitos reservados
               </Typography>
             </Box>
           </CardContent>
