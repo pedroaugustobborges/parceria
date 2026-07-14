@@ -70,6 +70,49 @@ export const downloadXLSXMultiSheet = (
 };
 
 /**
+ * Gera e baixa o modelo XLSX para importação de escalas via CSV.
+ * - CPF: coluna formatada como texto para preservar zeros à esquerda
+ * - data_inicio: formato YYYY-MM-DD como texto
+ * - horario_entrada / horario_saida: HH:MM como texto (com zero à esquerda)
+ */
+export const downloadEscalasModeloXlsx = (): void => {
+  const wb = XLSX.utils.book_new();
+
+  // Dados do modelo: cabeçalhos + 2 linhas de exemplo
+  const aoa: (string)[][] = [
+    ['cpf', 'data_inicio', 'horario_entrada', 'horario_saida'],
+    ['01234567890', '2026-01-15', '08:00', '17:00'],
+    ['09876543210', '2026-01-16', '07:30', '19:30'],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Forçar todas as células como texto para evitar que o Excel
+  // remova zeros à esquerda do CPF ou converta horários em frações decimais
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:D3');
+  for (let row = range.s.r; row <= range.e.r; row++) {
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+      if (ws[cellRef]) {
+        ws[cellRef].t = 's'; // tipo string
+        ws[cellRef].z = '@'; // formato "Texto" do Excel
+      }
+    }
+  }
+
+  // Larguras das colunas
+  ws['!cols'] = [
+    { wch: 16 }, // cpf
+    { wch: 16 }, // data_inicio
+    { wch: 18 }, // horario_entrada
+    { wch: 16 }, // horario_saida
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Modelo');
+  XLSX.writeFile(wb, 'modelo_importacao_escalas.xlsx');
+};
+
+/**
  * Exporta dados de um DataGrid para XLSX
  */
 export const exportDataGridToXLSX = (

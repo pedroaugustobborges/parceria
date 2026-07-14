@@ -1,0 +1,3937 @@
+[
+  {
+    "word": "olá",
+    "start": 0.0,
+    "end": 1.16
+  },
+  {
+    "word": "pessoal,",
+    "start": 1.16,
+    "end": 1.6
+  },
+  {
+    "word": "é",
+    "start": 2.02,
+    "end": 2.1
+  },
+  {
+    "word": "com",
+    "start": 2.1,
+    "end": 2.24
+  },
+  {
+    "word": "muita",
+    "start": 2.24,
+    "end": 2.46
+  },
+  {
+    "word": "entusiasmo,",
+    "start": 2.46,
+    "end": 3.36
+  },
+  {
+    "word": "satisfação",
+    "start": 3.52,
+    "end": 4.18
+  },
+  {
+    "word": "e",
+    "start": 4.18,
+    "end": 4.36
+  },
+  {
+    "word": "orgulho",
+    "start": 4.36,
+    "end": 4.8
+  },
+  {
+    "word": "que",
+    "start": 4.8,
+    "end": 4.96
+  },
+  {
+    "word": "estamos",
+    "start": 4.96,
+    "end": 5.2
+  },
+  {
+    "word": "aqui",
+    "start": 5.2,
+    "end": 5.5
+  },
+  {
+    "word": "para",
+    "start": 5.5,
+    "end": 5.68
+  },
+  {
+    "word": "apresentar",
+    "start": 5.68,
+    "end": 6.24
+  },
+  {
+    "word": "para",
+    "start": 6.24,
+    "end": 6.38
+  },
+  {
+    "word": "vocês",
+    "start": 6.38,
+    "end": 6.82
+  },
+  {
+    "word": "o",
+    "start": 6.82,
+    "end": 7.38
+  },
+  {
+    "word": "parceria,",
+    "start": 7.38,
+    "end": 8.06
+  },
+  {
+    "word": "um",
+    "start": 8.54,
+    "end": 8.74
+  },
+  {
+    "word": "novo",
+    "start": 8.74,
+    "end": 8.88
+  },
+  {
+    "word": "sistema",
+    "start": 8.88,
+    "end": 9.36
+  },
+  {
+    "word": "que",
+    "start": 9.36,
+    "end": 9.86
+  },
+  {
+    "word": "era",
+    "start": 9.86,
+    "end": 9.98
+  },
+  {
+    "word": "composto",
+    "start": 9.98,
+    "end": 10.56
+  },
+  {
+    "word": "no",
+    "start": 10.56,
+    "end": 10.68
+  },
+  {
+    "word": "sportifólio",
+    "start": 10.68,
+    "end": 11.4
+  },
+  {
+    "word": "de",
+    "start": 11.4,
+    "end": 11.5
+  },
+  {
+    "word": "produtos",
+    "start": 11.5,
+    "end": 11.96
+  },
+  {
+    "word": "de",
+    "start": 11.96,
+    "end": 12.2
+  },
+  {
+    "word": "gestão",
+    "start": 12.2,
+    "end": 12.58
+  },
+  {
+    "word": "e",
+    "start": 12.58,
+    "end": 12.7
+  },
+  {
+    "word": "saúde",
+    "start": 12.7,
+    "end": 13.08
+  },
+  {
+    "word": "e",
+    "start": 13.08,
+    "end": 13.9
+  },
+  {
+    "word": "foi",
+    "start": 13.9,
+    "end": 14.04
+  },
+  {
+    "word": "desenvolvido",
+    "start": 14.04,
+    "end": 14.88
+  },
+  {
+    "word": "com",
+    "start": 14.88,
+    "end": 15.06
+  },
+  {
+    "word": "a",
+    "start": 15.06,
+    "end": 15.12
+  },
+  {
+    "word": "intenção",
+    "start": 15.12,
+    "end": 15.5
+  },
+  {
+    "word": "de",
+    "start": 15.5,
+    "end": 15.64
+  },
+  {
+    "word": "aprimorar",
+    "start": 15.64,
+    "end": 16.1
+  },
+  {
+    "word": "a",
+    "start": 16.1,
+    "end": 16.34
+  },
+  {
+    "word": "forma",
+    "start": 16.34,
+    "end": 16.44
+  },
+  {
+    "word": "como",
+    "start": 16.44,
+    "end": 16.72
+  },
+  {
+    "word": "nós",
+    "start": 16.72,
+    "end": 17.0
+  },
+  {
+    "word": "fazemos",
+    "start": 17.0,
+    "end": 17.38
+  },
+  {
+    "word": "a",
+    "start": 17.38,
+    "end": 17.52
+  },
+  {
+    "word": "administração",
+    "start": 17.52,
+    "end": 18.12
+  },
+  {
+    "word": "dos",
+    "start": 18.12,
+    "end": 18.38
+  },
+  {
+    "word": "contratos",
+    "start": 18.38,
+    "end": 18.8
+  },
+  {
+    "word": "assistenciais.",
+    "start": 18.8,
+    "end": 19.64
+  },
+  {
+    "word": "o",
+    "start": 22.779999999999998,
+    "end": 23.419999999999998
+  },
+  {
+    "word": "parceria",
+    "start": 23.419999999999998,
+    "end": 24.06
+  },
+  {
+    "word": "é",
+    "start": 24.06,
+    "end": 24.38
+  },
+  {
+    "word": "o",
+    "start": 24.38,
+    "end": 24.42
+  },
+  {
+    "word": "primeiro",
+    "start": 24.42,
+    "end": 24.72
+  },
+  {
+    "word": "produto",
+    "start": 24.72,
+    "end": 25.22
+  },
+  {
+    "word": "desenvolvido",
+    "start": 25.22,
+    "end": 25.98
+  },
+  {
+    "word": "pelo",
+    "start": 25.98,
+    "end": 26.22
+  },
+  {
+    "word": "dyerlab,",
+    "start": 26.22,
+    "end": 26.9
+  },
+  {
+    "word": "que",
+    "start": 27.3,
+    "end": 27.46
+  },
+  {
+    "word": "é",
+    "start": 27.46,
+    "end": 27.56
+  },
+  {
+    "word": "o",
+    "start": 27.56,
+    "end": 27.62
+  },
+  {
+    "word": "nosso",
+    "start": 27.62,
+    "end": 27.8
+  },
+  {
+    "word": "laboratório",
+    "start": 27.8,
+    "end": 28.48
+  },
+  {
+    "word": "de",
+    "start": 28.48,
+    "end": 28.68
+  },
+  {
+    "word": "desenvolvimento",
+    "start": 28.68,
+    "end": 29.44
+  },
+  {
+    "word": "de",
+    "start": 29.44,
+    "end": 29.7
+  },
+  {
+    "word": "tecnologias",
+    "start": 29.7,
+    "end": 30.56
+  },
+  {
+    "word": "em",
+    "start": 30.56,
+    "end": 30.72
+  },
+  {
+    "word": "saúde.",
+    "start": 30.72,
+    "end": 31.18
+  },
+  {
+    "word": "o",
+    "start": 32.52,
+    "end": 33.06
+  },
+  {
+    "word": "parceria",
+    "start": 33.06,
+    "end": 33.7
+  },
+  {
+    "word": "foi",
+    "start": 33.7,
+    "end": 33.9
+  },
+  {
+    "word": "desenvolvido",
+    "start": 33.9,
+    "end": 34.72
+  },
+  {
+    "word": "para",
+    "start": 34.72,
+    "end": 35.02
+  },
+  {
+    "word": "resolver",
+    "start": 35.02,
+    "end": 35.38
+  },
+  {
+    "word": "um",
+    "start": 35.38,
+    "end": 35.56
+  },
+  {
+    "word": "problema",
+    "start": 35.56,
+    "end": 35.92
+  },
+  {
+    "word": "recorrente",
+    "start": 35.92,
+    "end": 36.6
+  },
+  {
+    "word": "na",
+    "start": 36.6,
+    "end": 36.82
+  },
+  {
+    "word": "gestão",
+    "start": 36.82,
+    "end": 37.12
+  },
+  {
+    "word": "de",
+    "start": 37.12,
+    "end": 37.24
+  },
+  {
+    "word": "contratos",
+    "start": 37.24,
+    "end": 37.6
+  },
+  {
+    "word": "assistenciais,",
+    "start": 37.6,
+    "end": 38.48
+  },
+  {
+    "word": "que",
+    "start": 38.98,
+    "end": 39.18
+  },
+  {
+    "word": "é",
+    "start": 39.18,
+    "end": 39.26
+  },
+  {
+    "word": "o",
+    "start": 39.26,
+    "end": 39.32
+  },
+  {
+    "word": "de",
+    "start": 39.32,
+    "end": 39.42
+  },
+  {
+    "word": "como",
+    "start": 39.42,
+    "end": 39.68
+  },
+  {
+    "word": "garantir",
+    "start": 39.68,
+    "end": 40.3
+  },
+  {
+    "word": "de",
+    "start": 40.3,
+    "end": 40.46
+  },
+  {
+    "word": "forma",
+    "start": 40.46,
+    "end": 40.66
+  },
+  {
+    "word": "automatizada",
+    "start": 40.66,
+    "end": 41.56
+  },
+  {
+    "word": "que",
+    "start": 41.56,
+    "end": 42.18
+  },
+  {
+    "word": "as",
+    "start": 42.18,
+    "end": 42.28
+  },
+  {
+    "word": "escalas",
+    "start": 42.28,
+    "end": 42.74
+  },
+  {
+    "word": "médicas",
+    "start": 42.74,
+    "end": 43.2
+  },
+  {
+    "word": "estão",
+    "start": 43.2,
+    "end": 43.52
+  },
+  {
+    "word": "sendo",
+    "start": 43.52,
+    "end": 43.76
+  },
+  {
+    "word": "cobertas",
+    "start": 43.76,
+    "end": 44.32
+  },
+  {
+    "word": "pelos",
+    "start": 44.32,
+    "end": 44.6
+  },
+  {
+    "word": "profissionais,",
+    "start": 44.6,
+    "end": 45.24
+  },
+  {
+    "word": "ou",
+    "start": 45.24,
+    "end": 45.46
+  },
+  {
+    "word": "seja,",
+    "start": 45.46,
+    "end": 45.74
+  },
+  {
+    "word": "de",
+    "start": 45.9,
+    "end": 45.92
+  },
+  {
+    "word": "que",
+    "start": 45.92,
+    "end": 46.02
+  },
+  {
+    "word": "eles",
+    "start": 46.02,
+    "end": 46.16
+  },
+  {
+    "word": "estão",
+    "start": 46.16,
+    "end": 46.52
+  },
+  {
+    "word": "realmente",
+    "start": 46.52,
+    "end": 46.96
+  },
+  {
+    "word": "presente",
+    "start": 46.96,
+    "end": 47.36
+  },
+  {
+    "word": "naquele",
+    "start": 47.36,
+    "end": 47.9
+  },
+  {
+    "word": "horário",
+    "start": 47.9,
+    "end": 48.16
+  },
+  {
+    "word": "que",
+    "start": 48.16,
+    "end": 48.34
+  },
+  {
+    "word": "foi",
+    "start": 48.34,
+    "end": 48.44
+  },
+  {
+    "word": "programado",
+    "start": 48.44,
+    "end": 48.92
+  },
+  {
+    "word": "para",
+    "start": 48.92,
+    "end": 49.14
+  },
+  {
+    "word": "que",
+    "start": 49.14,
+    "end": 49.52
+  },
+  {
+    "word": "eles",
+    "start": 49.52,
+    "end": 49.68
+  },
+  {
+    "word": "estejam,",
+    "start": 49.68,
+    "end": 50.16
+  },
+  {
+    "word": "e",
+    "start": 50.84,
+    "end": 50.94
+  },
+  {
+    "word": "também",
+    "start": 50.94,
+    "end": 51.24
+  },
+  {
+    "word": "de",
+    "start": 51.24,
+    "end": 51.38
+  },
+  {
+    "word": "como",
+    "start": 51.38,
+    "end": 52.22
+  },
+  {
+    "word": "que",
+    "start": 52.22,
+    "end": 52.44
+  },
+  {
+    "word": "a",
+    "start": 52.44,
+    "end": 52.52
+  },
+  {
+    "word": "produtividade",
+    "start": 52.52,
+    "end": 53.14
+  },
+  {
+    "word": "lançada",
+    "start": 53.14,
+    "end": 53.9
+  },
+  {
+    "word": "dentro",
+    "start": 53.9,
+    "end": 54.16
+  },
+  {
+    "word": "do",
+    "start": 54.16,
+    "end": 54.32
+  },
+  {
+    "word": "miv",
+    "start": 54.32,
+    "end": 54.6
+  },
+  {
+    "word": "foi",
+    "start": 54.6,
+    "end": 54.94
+  },
+  {
+    "word": "feita",
+    "start": 54.94,
+    "end": 55.28
+  },
+  {
+    "word": "por",
+    "start": 55.28,
+    "end": 55.46
+  },
+  {
+    "word": "um",
+    "start": 55.46,
+    "end": 55.58
+  },
+  {
+    "word": "profissional",
+    "start": 55.58,
+    "end": 56.08
+  },
+  {
+    "word": "que",
+    "start": 56.08,
+    "end": 56.3
+  },
+  {
+    "word": "estava",
+    "start": 56.3,
+    "end": 56.58
+  },
+  {
+    "word": "presente",
+    "start": 56.58,
+    "end": 57.1
+  },
+  {
+    "word": "dentro",
+    "start": 57.1,
+    "end": 57.52
+  },
+  {
+    "word": "da",
+    "start": 57.52,
+    "end": 57.74
+  },
+  {
+    "word": "unidade",
+    "start": 57.74,
+    "end": 58.06
+  },
+  {
+    "word": "naquele",
+    "start": 58.06,
+    "end": 58.44
+  },
+  {
+    "word": "momento",
+    "start": 58.44,
+    "end": 58.78
+  },
+  {
+    "word": "em",
+    "start": 58.78,
+    "end": 59.12
+  },
+  {
+    "word": "que",
+    "start": 59.12,
+    "end": 59.2
+  },
+  {
+    "word": "aquela",
+    "start": 59.2,
+    "end": 59.42
+  },
+  {
+    "word": "produtividade",
+    "start": 59.42,
+    "end": 60.08
+  },
+  {
+    "word": "foi",
+    "start": 60.08,
+    "end": 60.36
+  },
+  {
+    "word": "lançada.",
+    "start": 60.36,
+    "end": 60.9
+  },
+  {
+    "word": "hoje",
+    "start": 61.7,
+    "end": 62.06
+  },
+  {
+    "word": "nós",
+    "start": 62.06,
+    "end": 62.36
+  },
+  {
+    "word": "possuímos",
+    "start": 62.36,
+    "end": 62.98
+  },
+  {
+    "word": "todos",
+    "start": 62.98,
+    "end": 63.32
+  },
+  {
+    "word": "esses",
+    "start": 63.32,
+    "end": 63.66
+  },
+  {
+    "word": "dados",
+    "start": 63.66,
+    "end": 63.96
+  },
+  {
+    "word": "de",
+    "start": 63.96,
+    "end": 64.28
+  },
+  {
+    "word": "forma",
+    "start": 64.28,
+    "end": 64.52
+  },
+  {
+    "word": "desintegrada",
+    "start": 64.52,
+    "end": 65.32
+  },
+  {
+    "word": "e",
+    "start": 65.32,
+    "end": 65.66
+  },
+  {
+    "word": "eles",
+    "start": 65.66,
+    "end": 65.86
+  },
+  {
+    "word": "não",
+    "start": 65.86,
+    "end": 66.08
+  },
+  {
+    "word": "estavam",
+    "start": 66.08,
+    "end": 66.66
+  },
+  {
+    "word": "interoperáveis",
+    "start": 66.66,
+    "end": 68.02
+  },
+  {
+    "word": "dentro",
+    "start": 68.02,
+    "end": 68.34
+  },
+  {
+    "word": "de",
+    "start": 68.34,
+    "end": 68.52
+  },
+  {
+    "word": "um",
+    "start": 68.52,
+    "end": 68.66
+  },
+  {
+    "word": "único",
+    "start": 68.66,
+    "end": 68.88
+  },
+  {
+    "word": "sistema,",
+    "start": 68.88,
+    "end": 69.32
+  },
+  {
+    "word": "e",
+    "start": 69.32,
+    "end": 70.24
+  },
+  {
+    "word": "isso",
+    "start": 70.24,
+    "end": 70.56
+  },
+  {
+    "word": "acontece",
+    "start": 70.56,
+    "end": 71.2
+  },
+  {
+    "word": "agora",
+    "start": 71.2,
+    "end": 71.66
+  },
+  {
+    "word": "dentro",
+    "start": 71.66,
+    "end": 72.02
+  },
+  {
+    "word": "do",
+    "start": 72.02,
+    "end": 72.22
+  },
+  {
+    "word": "parceria.",
+    "start": 72.22,
+    "end": 72.8
+  },
+  {
+    "word": "então",
+    "start": 73.26,
+    "end": 73.48
+  },
+  {
+    "word": "nós",
+    "start": 73.48,
+    "end": 73.74
+  },
+  {
+    "word": "temos",
+    "start": 73.74,
+    "end": 73.94
+  },
+  {
+    "word": "os",
+    "start": 73.94,
+    "end": 74.26
+  },
+  {
+    "word": "dados",
+    "start": 74.26,
+    "end": 74.48
+  },
+  {
+    "word": "da",
+    "start": 74.48,
+    "end": 74.68
+  },
+  {
+    "word": "gestão",
+    "start": 74.68,
+    "end": 75.0
+  },
+  {
+    "word": "de",
+    "start": 75.0,
+    "end": 75.14
+  },
+  {
+    "word": "acesso",
+    "start": 75.14,
+    "end": 75.44
+  },
+  {
+    "word": "que",
+    "start": 75.44,
+    "end": 75.74
+  },
+  {
+    "word": "nos",
+    "start": 75.74,
+    "end": 75.9
+  },
+  {
+    "word": "mostram",
+    "start": 75.9,
+    "end": 76.7
+  },
+  {
+    "word": "o",
+    "start": 76.7,
+    "end": 77.02
+  },
+  {
+    "word": "horário",
+    "start": 77.02,
+    "end": 77.5
+  },
+  {
+    "word": "de",
+    "start": 77.5,
+    "end": 77.74
+  },
+  {
+    "word": "entrada",
+    "start": 77.74,
+    "end": 78.52
+  },
+  {
+    "word": "do",
+    "start": 78.52,
+    "end": 78.82
+  },
+  {
+    "word": "profissional,",
+    "start": 78.82,
+    "end": 79.28
+  },
+  {
+    "word": "o",
+    "start": 79.62,
+    "end": 79.62
+  },
+  {
+    "word": "horário",
+    "start": 79.62,
+    "end": 79.94
+  },
+  {
+    "word": "de",
+    "start": 79.94,
+    "end": 80.1
+  },
+  {
+    "word": "saída",
+    "start": 80.1,
+    "end": 80.48
+  },
+  {
+    "word": "e",
+    "start": 80.48,
+    "end": 80.7
+  },
+  {
+    "word": "o",
+    "start": 80.7,
+    "end": 80.78
+  },
+  {
+    "word": "horário",
+    "start": 80.78,
+    "end": 81.1
+  },
+  {
+    "word": "de",
+    "start": 81.1,
+    "end": 81.24
+  },
+  {
+    "word": "circulação",
+    "start": 81.24,
+    "end": 82.2
+  },
+  {
+    "word": "em",
+    "start": 82.2,
+    "end": 82.42
+  },
+  {
+    "word": "tercetores",
+    "start": 82.42,
+    "end": 82.96
+  },
+  {
+    "word": "dentro",
+    "start": 82.96,
+    "end": 83.26
+  },
+  {
+    "word": "do",
+    "start": 83.26,
+    "end": 83.48
+  },
+  {
+    "word": "hospital.",
+    "start": 83.48,
+    "end": 83.74
+  },
+  {
+    "word": "nós",
+    "start": 84.54,
+    "end": 84.78
+  },
+  {
+    "word": "temos",
+    "start": 84.78,
+    "end": 84.98
+  },
+  {
+    "word": "também",
+    "start": 84.98,
+    "end": 85.32
+  },
+  {
+    "word": "a",
+    "start": 85.32,
+    "end": 85.56
+  },
+  {
+    "word": "produtividade",
+    "start": 85.56,
+    "end": 86.28
+  },
+  {
+    "word": "que",
+    "start": 86.28,
+    "end": 86.68
+  },
+  {
+    "word": "aquele",
+    "start": 86.68,
+    "end": 86.82
+  },
+  {
+    "word": "profissional",
+    "start": 86.82,
+    "end": 87.48
+  },
+  {
+    "word": "tem",
+    "start": 87.48,
+    "end": 87.76
+  },
+  {
+    "word": "lançado",
+    "start": 87.76,
+    "end": 88.42
+  },
+  {
+    "word": "dentro",
+    "start": 88.42,
+    "end": 89.16
+  },
+  {
+    "word": "do",
+    "start": 89.16,
+    "end": 89.72
+  },
+  {
+    "word": "miv",
+    "start": 89.72,
+    "end": 90.04
+  },
+  {
+    "word": "e",
+    "start": 90.04,
+    "end": 90.76
+  },
+  {
+    "word": "nós",
+    "start": 90.76,
+    "end": 90.96
+  },
+  {
+    "word": "temos",
+    "start": 90.96,
+    "end": 91.24
+  },
+  {
+    "word": "as",
+    "start": 91.24,
+    "end": 91.52
+  },
+  {
+    "word": "escalas",
+    "start": 91.52,
+    "end": 92.16
+  },
+  {
+    "word": "médicas",
+    "start": 92.16,
+    "end": 92.76
+  },
+  {
+    "word": "que",
+    "start": 92.76,
+    "end": 93.1
+  },
+  {
+    "word": "são",
+    "start": 93.1,
+    "end": 93.5
+  },
+  {
+    "word": "programadas",
+    "start": 93.5,
+    "end": 94.64
+  },
+  {
+    "word": "pelas",
+    "start": 94.64,
+    "end": 95.02
+  },
+  {
+    "word": "empresas",
+    "start": 95.02,
+    "end": 95.32
+  },
+  {
+    "word": "parceiras",
+    "start": 95.32,
+    "end": 96.0
+  },
+  {
+    "word": "e",
+    "start": 96.0,
+    "end": 96.18
+  },
+  {
+    "word": "são",
+    "start": 96.18,
+    "end": 96.32
+  },
+  {
+    "word": "validadas",
+    "start": 96.32,
+    "end": 97.12
+  },
+  {
+    "word": "pelas",
+    "start": 97.12,
+    "end": 98.52
+  },
+  {
+    "word": "supervisões",
+    "start": 98.52,
+    "end": 99.46
+  },
+  {
+    "word": "dos",
+    "start": 99.46,
+    "end": 100.3
+  },
+  {
+    "word": "contratos",
+    "start": 100.3,
+    "end": 100.78
+  },
+  {
+    "word": "assistenciais.",
+    "start": 100.78,
+    "end": 101.64
+  },
+  {
+    "word": "resumindo,",
+    "start": 103.46,
+    "end": 104.22
+  },
+  {
+    "word": "o",
+    "start": 104.56,
+    "end": 104.62
+  },
+  {
+    "word": "parceria",
+    "start": 104.62,
+    "end": 105.26
+  },
+  {
+    "word": "integra",
+    "start": 105.26,
+    "end": 105.96
+  },
+  {
+    "word": "dentro",
+    "start": 105.96,
+    "end": 106.18
+  },
+  {
+    "word": "de",
+    "start": 106.18,
+    "end": 106.48
+  },
+  {
+    "word": "um",
+    "start": 106.48,
+    "end": 106.6
+  },
+  {
+    "word": "único",
+    "start": 106.6,
+    "end": 106.78
+  },
+  {
+    "word": "sistema",
+    "start": 106.78,
+    "end": 107.34
+  },
+  {
+    "word": "os",
+    "start": 107.34,
+    "end": 108.14
+  },
+  {
+    "word": "dados",
+    "start": 108.14,
+    "end": 108.38
+  },
+  {
+    "word": "da",
+    "start": 108.38,
+    "end": 108.64
+  },
+  {
+    "word": "gestão",
+    "start": 108.64,
+    "end": 109.0
+  },
+  {
+    "word": "de",
+    "start": 109.0,
+    "end": 109.14
+  },
+  {
+    "word": "acesso,",
+    "start": 109.14,
+    "end": 109.5
+  },
+  {
+    "word": "os",
+    "start": 110.12,
+    "end": 110.18
+  },
+  {
+    "word": "dados",
+    "start": 110.18,
+    "end": 110.44
+  },
+  {
+    "word": "da",
+    "start": 110.44,
+    "end": 110.68
+  },
+  {
+    "word": "produtividade",
+    "start": 110.68,
+    "end": 111.26
+  },
+  {
+    "word": "médica",
+    "start": 111.26,
+    "end": 111.98
+  },
+  {
+    "word": "dentro",
+    "start": 111.98,
+    "end": 112.42
+  },
+  {
+    "word": "do",
+    "start": 112.42,
+    "end": 112.7
+  },
+  {
+    "word": "miv",
+    "start": 112.7,
+    "end": 113.18
+  },
+  {
+    "word": "e",
+    "start": 113.18,
+    "end": 113.98
+  },
+  {
+    "word": "os",
+    "start": 113.98,
+    "end": 114.16
+  },
+  {
+    "word": "dados",
+    "start": 114.16,
+    "end": 114.4
+  },
+  {
+    "word": "das",
+    "start": 114.4,
+    "end": 114.7
+  },
+  {
+    "word": "escalas",
+    "start": 114.7,
+    "end": 115.36
+  },
+  {
+    "word": "médicas",
+    "start": 115.36,
+    "end": 115.78
+  },
+  {
+    "word": "programadas",
+    "start": 115.78,
+    "end": 116.34
+  },
+  {
+    "word": "pelas",
+    "start": 116.34,
+    "end": 116.72
+  },
+  {
+    "word": "empresas",
+    "start": 116.72,
+    "end": 117.04
+  },
+  {
+    "word": "parceiras,",
+    "start": 117.04,
+    "end": 117.82
+  },
+  {
+    "word": "garantindo",
+    "start": 117.82,
+    "end": 118.88
+  },
+  {
+    "word": "uma",
+    "start": 118.88,
+    "end": 119.1
+  },
+  {
+    "word": "verificação",
+    "start": 119.1,
+    "end": 119.92
+  },
+  {
+    "word": "automatizada",
+    "start": 119.92,
+    "end": 121.12
+  },
+  {
+    "word": "da",
+    "start": 121.12,
+    "end": 121.8
+  },
+  {
+    "word": "cobertura",
+    "start": 121.8,
+    "end": 122.44
+  },
+  {
+    "word": "assistencial",
+    "start": 122.44,
+    "end": 123.36
+  },
+  {
+    "word": "dentro",
+    "start": 123.36,
+    "end": 123.82
+  },
+  {
+    "word": "das",
+    "start": 123.82,
+    "end": 124.1
+  },
+  {
+    "word": "unidades",
+    "start": 124.1,
+    "end": 124.52
+  },
+  {
+    "word": "da",
+    "start": 124.52,
+    "end": 124.82
+  },
+  {
+    "word": "rede",
+    "start": 124.82,
+    "end": 125.04
+  },
+  {
+    "word": "agência.",
+    "start": 125.04,
+    "end": 125.54
+  },
+  {
+    "word": "sendo",
+    "start": 126.82000000000001,
+    "end": 127.42
+  },
+  {
+    "word": "assim,",
+    "start": 127.42,
+    "end": 127.7
+  },
+  {
+    "word": "vamos",
+    "start": 128.02,
+    "end": 128.08
+  },
+  {
+    "word": "adentrar",
+    "start": 128.08,
+    "end": 128.7
+  },
+  {
+    "word": "aqui",
+    "start": 128.7,
+    "end": 129.0
+  },
+  {
+    "word": "um",
+    "start": 129.0,
+    "end": 129.14
+  },
+  {
+    "word": "pouco",
+    "start": 129.14,
+    "end": 129.4
+  },
+  {
+    "word": "dentro",
+    "start": 129.4,
+    "end": 129.72
+  },
+  {
+    "word": "das",
+    "start": 129.72,
+    "end": 130.04
+  },
+  {
+    "word": "telas",
+    "start": 130.04,
+    "end": 130.48
+  },
+  {
+    "word": "que",
+    "start": 130.48,
+    "end": 130.7
+  },
+  {
+    "word": "o",
+    "start": 130.7,
+    "end": 130.8
+  },
+  {
+    "word": "sistema",
+    "start": 130.8,
+    "end": 131.1
+  },
+  {
+    "word": "parceria",
+    "start": 131.1,
+    "end": 131.68
+  },
+  {
+    "word": "possui.",
+    "start": 131.68,
+    "end": 132.2
+  },
+  {
+    "word": "a",
+    "start": 132.74,
+    "end": 132.88
+  },
+  {
+    "word": "primeira",
+    "start": 132.88,
+    "end": 133.14
+  },
+  {
+    "word": "tela",
+    "start": 133.14,
+    "end": 133.44
+  },
+  {
+    "word": "de",
+    "start": 133.44,
+    "end": 133.6
+  },
+  {
+    "word": "contato",
+    "start": 133.6,
+    "end": 134.14
+  },
+  {
+    "word": "é",
+    "start": 134.14,
+    "end": 134.3
+  },
+  {
+    "word": "justamente",
+    "start": 134.3,
+    "end": 134.6
+  },
+  {
+    "word": "a",
+    "start": 134.6,
+    "end": 134.86
+  },
+  {
+    "word": "tela",
+    "start": 134.86,
+    "end": 135.08
+  },
+  {
+    "word": "de",
+    "start": 135.08,
+    "end": 135.24
+  },
+  {
+    "word": "login,",
+    "start": 135.24,
+    "end": 135.5
+  },
+  {
+    "word": "onde",
+    "start": 135.9,
+    "end": 136.16
+  },
+  {
+    "word": "o",
+    "start": 136.16,
+    "end": 136.22
+  },
+  {
+    "word": "usuário",
+    "start": 136.22,
+    "end": 136.6
+  },
+  {
+    "word": "vai",
+    "start": 136.6,
+    "end": 136.86
+  },
+  {
+    "word": "entrar",
+    "start": 136.86,
+    "end": 137.34
+  },
+  {
+    "word": "com",
+    "start": 137.34,
+    "end": 137.62
+  },
+  {
+    "word": "seu",
+    "start": 137.62,
+    "end": 137.84
+  },
+  {
+    "word": "e",
+    "start": 137.84,
+    "end": 138.04
+  },
+  {
+    "word": "-mail",
+    "start": 138.04,
+    "end": 138.22
+  },
+  {
+    "word": "e",
+    "start": 138.22,
+    "end": 138.46
+  },
+  {
+    "word": "sua",
+    "start": 138.46,
+    "end": 138.6
+  },
+  {
+    "word": "senha,",
+    "start": 138.6,
+    "end": 139.2
+  },
+  {
+    "word": "que",
+    "start": 139.2,
+    "end": 139.4
+  },
+  {
+    "word": "serão",
+    "start": 139.4,
+    "end": 139.7
+  },
+  {
+    "word": "disponibilizados",
+    "start": 139.7,
+    "end": 140.44
+  },
+  {
+    "word": "pela",
+    "start": 140.44,
+    "end": 140.66
+  },
+  {
+    "word": "equipe",
+    "start": 140.66,
+    "end": 140.98
+  },
+  {
+    "word": "do",
+    "start": 140.98,
+    "end": 141.12
+  },
+  {
+    "word": "air",
+    "start": 141.12,
+    "end": 141.38
+  },
+  {
+    "word": "lab.",
+    "start": 141.38,
+    "end": 141.62
+  },
+  {
+    "word": "a",
+    "start": 142.89999999999998,
+    "end": 143.42
+  },
+  {
+    "word": "primeira",
+    "start": 143.42,
+    "end": 143.76
+  },
+  {
+    "word": "tela",
+    "start": 143.76,
+    "end": 144.24
+  },
+  {
+    "word": "que",
+    "start": 144.24,
+    "end": 144.4
+  },
+  {
+    "word": "se",
+    "start": 144.4,
+    "end": 144.54
+  },
+  {
+    "word": "abrirá",
+    "start": 144.54,
+    "end": 145.04
+  },
+  {
+    "word": "sem",
+    "start": 145.04,
+    "end": 145.22
+  },
+  {
+    "word": "você",
+    "start": 145.22,
+    "end": 145.48
+  },
+  {
+    "word": "fizer",
+    "start": 145.48,
+    "end": 145.84
+  },
+  {
+    "word": "o",
+    "start": 145.84,
+    "end": 146.0
+  },
+  {
+    "word": "login",
+    "start": 146.0,
+    "end": 146.26
+  },
+  {
+    "word": "será",
+    "start": 146.26,
+    "end": 146.62
+  },
+  {
+    "word": "o",
+    "start": 146.62,
+    "end": 146.82
+  },
+  {
+    "word": "dashboard",
+    "start": 146.82,
+    "end": 147.14
+  },
+  {
+    "word": "gerencial",
+    "start": 147.14,
+    "end": 147.88
+  },
+  {
+    "word": "e",
+    "start": 147.88,
+    "end": 148.52
+  },
+  {
+    "word": "aqui",
+    "start": 148.52,
+    "end": 148.68
+  },
+  {
+    "word": "eu",
+    "start": 148.68,
+    "end": 148.8
+  },
+  {
+    "word": "consigo",
+    "start": 148.8,
+    "end": 148.98
+  },
+  {
+    "word": "ver",
+    "start": 148.98,
+    "end": 149.24
+  },
+  {
+    "word": "informações",
+    "start": 149.24,
+    "end": 149.66
+  },
+  {
+    "word": "como",
+    "start": 149.66,
+    "end": 150.0
+  },
+  {
+    "word": "total",
+    "start": 150.0,
+    "end": 150.26
+  },
+  {
+    "word": "de",
+    "start": 150.26,
+    "end": 150.42
+  },
+  {
+    "word": "pessoas",
+    "start": 150.42,
+    "end": 150.7
+  },
+  {
+    "word": "que",
+    "start": 150.7,
+    "end": 150.9
+  },
+  {
+    "word": "a",
+    "start": 150.9,
+    "end": 150.94
+  },
+  {
+    "word": "medida",
+    "start": 150.94,
+    "end": 151.1
+  },
+  {
+    "word": "de",
+    "start": 151.1,
+    "end": 152.32
+  },
+  {
+    "word": "horas",
+    "start": 152.32,
+    "end": 152.48
+  },
+  {
+    "word": "que",
+    "start": 152.48,
+    "end": 152.66
+  },
+  {
+    "word": "o",
+    "start": 152.66,
+    "end": 152.72
+  },
+  {
+    "word": "profissional",
+    "start": 152.72,
+    "end": 153.04
+  },
+  {
+    "word": "ficou",
+    "start": 153.04,
+    "end": 153.38
+  },
+  {
+    "word": "dentro",
+    "start": 153.38,
+    "end": 153.58
+  },
+  {
+    "word": "da",
+    "start": 153.58,
+    "end": 153.82
+  },
+  {
+    "word": "unidade,",
+    "start": 153.82,
+    "end": 154.2
+  },
+  {
+    "word": "aqui",
+    "start": 154.72,
+    "end": 155.24
+  },
+  {
+    "word": "o",
+    "start": 155.24,
+    "end": 155.38
+  },
+  {
+    "word": "mapa",
+    "start": 155.38,
+    "end": 155.6
+  },
+  {
+    "word": "de",
+    "start": 155.6,
+    "end": 155.78
+  },
+  {
+    "word": "calor",
+    "start": 155.78,
+    "end": 156.06
+  },
+  {
+    "word": "do",
+    "start": 156.06,
+    "end": 156.3
+  },
+  {
+    "word": "fluxo",
+    "start": 156.3,
+    "end": 156.94
+  },
+  {
+    "word": "dentro",
+    "start": 156.94,
+    "end": 157.16
+  },
+  {
+    "word": "da",
+    "start": 157.16,
+    "end": 157.44
+  },
+  {
+    "word": "unidade,",
+    "start": 157.44,
+    "end": 157.96
+  },
+  {
+    "word": "qual",
+    "start": 158.46,
+    "end": 158.66
+  },
+  {
+    "word": "foi",
+    "start": 158.66,
+    "end": 158.84
+  },
+  {
+    "word": "a",
+    "start": 158.84,
+    "end": 158.96
+  },
+  {
+    "word": "produtividade",
+    "start": 158.96,
+    "end": 159.36
+  },
+  {
+    "word": "total,",
+    "start": 159.36,
+    "end": 159.92
+  },
+  {
+    "word": "então",
+    "start": 160.12,
+    "end": 160.14
+  },
+  {
+    "word": "número",
+    "start": 160.14,
+    "end": 160.44
+  },
+  {
+    "word": "de",
+    "start": 160.44,
+    "end": 160.6
+  },
+  {
+    "word": "prescrições,",
+    "start": 160.6,
+    "end": 161.24
+  },
+  {
+    "word": "número",
+    "start": 161.52,
+    "end": 161.56
+  },
+  {
+    "word": "de",
+    "start": 161.56,
+    "end": 161.76
+  },
+  {
+    "word": "evoluções,",
+    "start": 161.76,
+    "end": 162.24
+  },
+  {
+    "word": "número",
+    "start": 162.42,
+    "end": 162.56
+  },
+  {
+    "word": "de",
+    "start": 162.56,
+    "end": 162.74
+  },
+  {
+    "word": "procedimentos,",
+    "start": 162.74,
+    "end": 163.38
+  },
+  {
+    "word": "qual",
+    "start": 164.3,
+    "end": 164.58
+  },
+  {
+    "word": "é",
+    "start": 164.58,
+    "end": 165.04
+  },
+  {
+    "word": "aqui",
+    "start": 165.04,
+    "end": 165.52
+  },
+  {
+    "word": "a",
+    "start": 165.52,
+    "end": 165.84
+  },
+  {
+    "word": "uma",
+    "start": 165.84,
+    "end": 166.02
+  },
+  {
+    "word": "linha",
+    "start": 166.02,
+    "end": 166.26
+  },
+  {
+    "word": "do",
+    "start": 166.26,
+    "end": 166.54
+  },
+  {
+    "word": "tempo",
+    "start": 166.54,
+    "end": 166.9
+  },
+  {
+    "word": "de",
+    "start": 166.9,
+    "end": 167.14
+  },
+  {
+    "word": "contos",
+    "start": 167.14,
+    "end": 167.44
+  },
+  {
+    "word": "profissionais",
+    "start": 167.44,
+    "end": 167.98
+  },
+  {
+    "word": "que",
+    "start": 167.98,
+    "end": 168.18
+  },
+  {
+    "word": "tem",
+    "start": 168.18,
+    "end": 168.26
+  },
+  {
+    "word": "na",
+    "start": 168.26,
+    "end": 168.38
+  },
+  {
+    "word": "unidade",
+    "start": 168.38,
+    "end": 168.66
+  },
+  {
+    "word": "naquele",
+    "start": 168.66,
+    "end": 169.04
+  },
+  {
+    "word": "dia,",
+    "start": 169.04,
+    "end": 169.34
+  },
+  {
+    "word": "naquele",
+    "start": 169.46,
+    "end": 169.62
+  },
+  {
+    "word": "momento.",
+    "start": 169.62,
+    "end": 170.0
+  },
+  {
+    "word": "eu",
+    "start": 170.0,
+    "end": 170.92
+  },
+  {
+    "word": "consigo",
+    "start": 170.92,
+    "end": 171.28
+  },
+  {
+    "word": "ver",
+    "start": 171.28,
+    "end": 171.58
+  },
+  {
+    "word": "aqui",
+    "start": 171.58,
+    "end": 171.78
+  },
+  {
+    "word": "um",
+    "start": 171.78,
+    "end": 171.88
+  },
+  {
+    "word": "card",
+    "start": 171.88,
+    "end": 172.16
+  },
+  {
+    "word": "com",
+    "start": 172.16,
+    "end": 172.42
+  },
+  {
+    "word": "a",
+    "start": 172.42,
+    "end": 172.52
+  },
+  {
+    "word": "produtividade",
+    "start": 172.52,
+    "end": 173.1
+  },
+  {
+    "word": "sem",
+    "start": 173.1,
+    "end": 173.36
+  },
+  {
+    "word": "acesso,",
+    "start": 173.36,
+    "end": 173.72
+  },
+  {
+    "word": "ou",
+    "start": 173.92,
+    "end": 173.92
+  },
+  {
+    "word": "seja,",
+    "start": 173.92,
+    "end": 174.02
+  },
+  {
+    "word": "aqueles",
+    "start": 174.2,
+    "end": 174.28
+  },
+  {
+    "word": "profissionais",
+    "start": 174.28,
+    "end": 174.98
+  },
+  {
+    "word": "que",
+    "start": 174.98,
+    "end": 175.18
+  },
+  {
+    "word": "têm",
+    "start": 175.18,
+    "end": 175.38
+  },
+  {
+    "word": "produtividade",
+    "start": 175.38,
+    "end": 177.02
+  },
+  {
+    "word": "lançada",
+    "start": 177.02,
+    "end": 177.52
+  },
+  {
+    "word": "dentro",
+    "start": 177.52,
+    "end": 177.8
+  },
+  {
+    "word": "da",
+    "start": 177.8,
+    "end": 177.98
+  },
+  {
+    "word": "mv,",
+    "start": 177.98,
+    "end": 178.16
+  },
+  {
+    "word": "mas",
+    "start": 178.74,
+    "end": 178.98
+  },
+  {
+    "word": "que",
+    "start": 178.98,
+    "end": 179.16
+  },
+  {
+    "word": "não",
+    "start": 179.16,
+    "end": 179.3
+  },
+  {
+    "word": "possuem",
+    "start": 179.3,
+    "end": 179.62
+  },
+  {
+    "word": "acesso",
+    "start": 179.62,
+    "end": 179.92
+  },
+  {
+    "word": "dentro",
+    "start": 179.92,
+    "end": 180.28
+  },
+  {
+    "word": "da",
+    "start": 180.28,
+    "end": 180.5
+  },
+  {
+    "word": "unidade,",
+    "start": 180.5,
+    "end": 180.92
+  },
+  {
+    "word": "também",
+    "start": 181.34,
+    "end": 181.8
+  },
+  {
+    "word": "aqui",
+    "start": 181.8,
+    "end": 182.02
+  },
+  {
+    "word": "o",
+    "start": 182.02,
+    "end": 182.12
+  },
+  {
+    "word": "caso",
+    "start": 182.12,
+    "end": 182.34
+  },
+  {
+    "word": "contrário,",
+    "start": 182.34,
+    "end": 183.02
+  },
+  {
+    "word": "que",
+    "start": 183.7,
+    "end": 183.84
+  },
+  {
+    "word": "é",
+    "start": 183.84,
+    "end": 183.92
+  },
+  {
+    "word": "o",
+    "start": 183.92,
+    "end": 184.0
+  },
+  {
+    "word": "acesso",
+    "start": 184.0,
+    "end": 184.4
+  },
+  {
+    "word": "sem",
+    "start": 184.4,
+    "end": 184.7
+  },
+  {
+    "word": "produtividade,",
+    "start": 184.7,
+    "end": 185.28
+  },
+  {
+    "word": "ou",
+    "start": 185.44,
+    "end": 185.52
+  },
+  {
+    "word": "seja,",
+    "start": 185.52,
+    "end": 185.68
+  },
+  {
+    "word": "o",
+    "start": 186.06,
+    "end": 186.14
+  },
+  {
+    "word": "médico",
+    "start": 186.14,
+    "end": 186.34
+  },
+  {
+    "word": "que",
+    "start": 186.34,
+    "end": 186.48
+  },
+  {
+    "word": "adentrou",
+    "start": 186.48,
+    "end": 186.92
+  },
+  {
+    "word": "dentro",
+    "start": 186.92,
+    "end": 187.64
+  },
+  {
+    "word": "do",
+    "start": 187.64,
+    "end": 187.92
+  },
+  {
+    "word": "hospital,",
+    "start": 187.92,
+    "end": 188.26
+  },
+  {
+    "word": "mas",
+    "start": 188.66,
+    "end": 188.94
+  },
+  {
+    "word": "não",
+    "start": 188.94,
+    "end": 189.12
+  },
+  {
+    "word": "possui",
+    "start": 189.12,
+    "end": 189.58
+  },
+  {
+    "word": "nenhuma",
+    "start": 189.58,
+    "end": 189.92
+  },
+  {
+    "word": "produtividade",
+    "start": 189.92,
+    "end": 190.48
+  },
+  {
+    "word": "registrada.",
+    "start": 190.48,
+    "end": 191.24
+  },
+  {
+    "word": "o",
+    "start": 191.72,
+    "end": 191.88
+  },
+  {
+    "word": "índice",
+    "start": 191.88,
+    "end": 192.2
+  },
+  {
+    "word": "de",
+    "start": 192.2,
+    "end": 192.34
+  },
+  {
+    "word": "puntualidade,",
+    "start": 192.34,
+    "end": 192.96
+  },
+  {
+    "word": "ou",
+    "start": 193.08,
+    "end": 193.22
+  },
+  {
+    "word": "seja,",
+    "start": 193.22,
+    "end": 193.24
+  },
+  {
+    "word": "aqueles",
+    "start": 193.34,
+    "end": 193.44
+  },
+  {
+    "word": "profissionais",
+    "start": 193.44,
+    "end": 193.98
+  },
+  {
+    "word": "que",
+    "start": 193.98,
+    "end": 194.16
+  },
+  {
+    "word": "estão",
+    "start": 194.16,
+    "end": 194.36
+  },
+  {
+    "word": "chegando",
+    "start": 194.36,
+    "end": 194.66
+  },
+  {
+    "word": "atrás",
+    "start": 194.66,
+    "end": 194.92
+  },
+  {
+    "word": "da",
+    "start": 194.92,
+    "end": 195.2
+  },
+  {
+    "word": "adita,",
+    "start": 195.2,
+    "end": 195.42
+  },
+  {
+    "word": "e",
+    "start": 195.42,
+    "end": 195.98
+  },
+  {
+    "word": "o",
+    "start": 195.98,
+    "end": 196.08
+  },
+  {
+    "word": "índice",
+    "start": 196.08,
+    "end": 196.52
+  },
+  {
+    "word": "de",
+    "start": 196.52,
+    "end": 196.94
+  },
+  {
+    "word": "absenteísmo,",
+    "start": 196.94,
+    "end": 197.9
+  },
+  {
+    "word": "ou",
+    "start": 197.94,
+    "end": 198.0
+  },
+  {
+    "word": "seja,",
+    "start": 198.0,
+    "end": 198.08
+  },
+  {
+    "word": "os",
+    "start": 198.22,
+    "end": 198.24
+  },
+  {
+    "word": "profissionais",
+    "start": 198.24,
+    "end": 198.56
+  },
+  {
+    "word": "que",
+    "start": 198.56,
+    "end": 198.72
+  },
+  {
+    "word": "têm",
+    "start": 198.72,
+    "end": 198.88
+  },
+  {
+    "word": "escala",
+    "start": 198.88,
+    "end": 199.28
+  },
+  {
+    "word": "estão",
+    "start": 199.28,
+    "end": 199.52
+  },
+  {
+    "word": "faltando.",
+    "start": 199.52,
+    "end": 200.02
+  },
+  {
+    "word": "e",
+    "start": 200.48,
+    "end": 200.72
+  },
+  {
+    "word": "aqui",
+    "start": 200.72,
+    "end": 200.92
+  },
+  {
+    "word": "eu",
+    "start": 200.92,
+    "end": 201.1
+  },
+  {
+    "word": "resolvo",
+    "start": 201.1,
+    "end": 201.6
+  },
+  {
+    "word": "com",
+    "start": 201.6,
+    "end": 201.78
+  },
+  {
+    "word": "todos",
+    "start": 201.78,
+    "end": 201.94
+  },
+  {
+    "word": "os",
+    "start": 201.94,
+    "end": 202.16
+  },
+  {
+    "word": "profissionais",
+    "start": 202.16,
+    "end": 202.7
+  },
+  {
+    "word": "que",
+    "start": 202.7,
+    "end": 203.16
+  },
+  {
+    "word": "foram",
+    "start": 203.16,
+    "end": 203.46
+  },
+  {
+    "word": "no",
+    "start": 203.46,
+    "end": 203.94
+  },
+  {
+    "word": "hospital",
+    "start": 203.94,
+    "end": 204.32
+  },
+  {
+    "word": "dentro",
+    "start": 204.32,
+    "end": 204.64
+  },
+  {
+    "word": "daquela",
+    "start": 204.64,
+    "end": 205.0
+  },
+  {
+    "word": "data,",
+    "start": 205.0,
+    "end": 205.38
+  },
+  {
+    "word": "e",
+    "start": 205.66,
+    "end": 205.88
+  },
+  {
+    "word": "que",
+    "start": 205.88,
+    "end": 205.96
+  },
+  {
+    "word": "eu",
+    "start": 205.96,
+    "end": 206.04
+  },
+  {
+    "word": "consigo",
+    "start": 206.04,
+    "end": 206.26
+  },
+  {
+    "word": "clicar",
+    "start": 206.26,
+    "end": 206.72
+  },
+  {
+    "word": "aqui",
+    "start": 206.72,
+    "end": 207.06
+  },
+  {
+    "word": "e",
+    "start": 207.06,
+    "end": 207.3
+  },
+  {
+    "word": "ver",
+    "start": 207.3,
+    "end": 207.42
+  },
+  {
+    "word": "com",
+    "start": 207.42,
+    "end": 207.6
+  },
+  {
+    "word": "detalhes",
+    "start": 207.6,
+    "end": 208.22
+  },
+  {
+    "word": "qual",
+    "start": 208.22,
+    "end": 208.9
+  },
+  {
+    "word": "foi",
+    "start": 208.9,
+    "end": 209.14
+  },
+  {
+    "word": "o",
+    "start": 209.14,
+    "end": 209.18
+  },
+  {
+    "word": "horário",
+    "start": 209.18,
+    "end": 209.44
+  },
+  {
+    "word": "que",
+    "start": 209.44,
+    "end": 209.68
+  },
+  {
+    "word": "eles",
+    "start": 209.68,
+    "end": 209.8
+  },
+  {
+    "word": "entraram,",
+    "start": 209.8,
+    "end": 210.3
+  },
+  {
+    "word": "quais",
+    "start": 210.42,
+    "end": 210.46
+  },
+  {
+    "word": "os",
+    "start": 210.46,
+    "end": 210.62
+  },
+  {
+    "word": "dias,",
+    "start": 210.62,
+    "end": 210.94
+  },
+  {
+    "word": "e",
+    "start": 211.24,
+    "end": 211.28
+  },
+  {
+    "word": "clicar",
+    "start": 211.28,
+    "end": 211.56
+  },
+  {
+    "word": "aqui",
+    "start": 211.56,
+    "end": 211.76
+  },
+  {
+    "word": "também",
+    "start": 211.76,
+    "end": 212.02
+  },
+  {
+    "word": "para",
+    "start": 212.02,
+    "end": 212.26
+  },
+  {
+    "word": "a",
+    "start": 212.26,
+    "end": 212.38
+  },
+  {
+    "word": "produtividade",
+    "start": 212.38,
+    "end": 213.08
+  },
+  {
+    "word": "que",
+    "start": 213.08,
+    "end": 213.26
+  },
+  {
+    "word": "foi",
+    "start": 213.26,
+    "end": 213.42
+  },
+  {
+    "word": "registrada.",
+    "start": 213.42,
+    "end": 213.82
+  },
+  {
+    "word": "a",
+    "start": 214.4,
+    "end": 214.88
+  },
+  {
+    "word": "próxima",
+    "start": 214.88,
+    "end": 215.18
+  },
+  {
+    "word": "tela,",
+    "start": 215.18,
+    "end": 215.68
+  },
+  {
+    "word": "que",
+    "start": 215.88,
+    "end": 215.9
+  },
+  {
+    "word": "é",
+    "start": 215.9,
+    "end": 216.1
+  },
+  {
+    "word": "a",
+    "start": 216.1,
+    "end": 216.16
+  },
+  {
+    "word": "tela",
+    "start": 216.16,
+    "end": 216.44
+  },
+  {
+    "word": "de",
+    "start": 216.44,
+    "end": 216.64
+  },
+  {
+    "word": "escala",
+    "start": 216.64,
+    "end": 217.04
+  },
+  {
+    "word": "médica,",
+    "start": 217.04,
+    "end": 217.58
+  },
+  {
+    "word": "que",
+    "start": 217.68,
+    "end": 217.9
+  },
+  {
+    "word": "eu",
+    "start": 217.9,
+    "end": 218.1
+  },
+  {
+    "word": "consigo",
+    "start": 218.1,
+    "end": 218.52
+  },
+  {
+    "word": "acompanhar,",
+    "start": 218.52,
+    "end": 219.16
+  },
+  {
+    "word": "quais",
+    "start": 219.4,
+    "end": 219.46
+  },
+  {
+    "word": "são",
+    "start": 219.46,
+    "end": 219.98
+  },
+  {
+    "word": "os",
+    "start": 219.98,
+    "end": 220.08
+  },
+  {
+    "word": "valores",
+    "start": 220.08,
+    "end": 220.32
+  },
+  {
+    "word": "que",
+    "start": 220.32,
+    "end": 220.6
+  },
+  {
+    "word": "foram",
+    "start": 220.6,
+    "end": 220.76
+  },
+  {
+    "word": "aprovadas,",
+    "start": 220.76,
+    "end": 221.3
+  },
+  {
+    "word": "quais",
+    "start": 221.44,
+    "end": 221.6
+  },
+  {
+    "word": "os",
+    "start": 221.6,
+    "end": 221.74
+  },
+  {
+    "word": "valores",
+    "start": 221.74,
+    "end": 222.04
+  },
+  {
+    "word": "que",
+    "start": 222.04,
+    "end": 222.32
+  },
+  {
+    "word": "estão",
+    "start": 222.32,
+    "end": 222.48
+  },
+  {
+    "word": "programados,",
+    "start": 222.48,
+    "end": 223.16
+  },
+  {
+    "word": "e",
+    "start": 223.16,
+    "end": 223.76
+  },
+  {
+    "word": "eu",
+    "start": 223.76,
+    "end": 223.9
+  },
+  {
+    "word": "tenho",
+    "start": 223.9,
+    "end": 224.14
+  },
+  {
+    "word": "aqui",
+    "start": 224.14,
+    "end": 224.44
+  },
+  {
+    "word": "uma",
+    "start": 224.44,
+    "end": 224.76
+  },
+  {
+    "word": "espécie",
+    "start": 224.76,
+    "end": 225.06
+  },
+  {
+    "word": "de",
+    "start": 225.06,
+    "end": 225.18
+  },
+  {
+    "word": "calendário",
+    "start": 225.18,
+    "end": 225.72
+  },
+  {
+    "word": "que",
+    "start": 225.72,
+    "end": 225.86
+  },
+  {
+    "word": "eu",
+    "start": 225.86,
+    "end": 225.96
+  },
+  {
+    "word": "consigo",
+    "start": 225.96,
+    "end": 226.2
+  },
+  {
+    "word": "ir",
+    "start": 226.2,
+    "end": 226.58
+  },
+  {
+    "word": "vendo",
+    "start": 226.58,
+    "end": 226.88
+  },
+  {
+    "word": "todas",
+    "start": 226.88,
+    "end": 227.2
+  },
+  {
+    "word": "as",
+    "start": 227.2,
+    "end": 227.5
+  },
+  {
+    "word": "escalas",
+    "start": 227.5,
+    "end": 228.1
+  },
+  {
+    "word": "e",
+    "start": 228.1,
+    "end": 228.56
+  },
+  {
+    "word": "como",
+    "start": 228.56,
+    "end": 228.9
+  },
+  {
+    "word": "elas",
+    "start": 228.9,
+    "end": 230.02
+  },
+  {
+    "word": "foram",
+    "start": 230.02,
+    "end": 230.46
+  },
+  {
+    "word": "cobertas.",
+    "start": 230.46,
+    "end": 231.22
+  },
+  {
+    "word": "então,",
+    "start": 231.4,
+    "end": 231.4
+  },
+  {
+    "word": "por",
+    "start": 231.46,
+    "end": 231.54
+  },
+  {
+    "word": "exemplo,",
+    "start": 231.54,
+    "end": 231.66
+  },
+  {
+    "word": "vou",
+    "start": 231.76,
+    "end": 231.84
+  },
+  {
+    "word": "clicar",
+    "start": 231.84,
+    "end": 232.12
+  },
+  {
+    "word": "aqui",
+    "start": 232.12,
+    "end": 232.34
+  },
+  {
+    "word": "em",
+    "start": 232.34,
+    "end": 232.42
+  },
+  {
+    "word": "uma",
+    "start": 232.42,
+    "end": 232.52
+  },
+  {
+    "word": "das",
+    "start": 232.52,
+    "end": 232.64
+  },
+  {
+    "word": "escalas,",
+    "start": 232.64,
+    "end": 233.16
+  },
+  {
+    "word": "vejo",
+    "start": 233.3,
+    "end": 233.5
+  },
+  {
+    "word": "os",
+    "start": 233.5,
+    "end": 233.62
+  },
+  {
+    "word": "detalhes",
+    "start": 233.62,
+    "end": 234.14
+  },
+  {
+    "word": "dessa",
+    "start": 234.14,
+    "end": 234.32
+  },
+  {
+    "word": "escala,",
+    "start": 234.32,
+    "end": 234.78
+  },
+  {
+    "word": "qual",
+    "start": 235.42,
+    "end": 235.74
+  },
+  {
+    "word": "o",
+    "start": 235.74,
+    "end": 235.94
+  },
+  {
+    "word": "item",
+    "start": 235.94,
+    "end": 236.06
+  },
+  {
+    "word": "do",
+    "start": 236.06,
+    "end": 236.22
+  },
+  {
+    "word": "contrato",
+    "start": 236.22,
+    "end": 236.62
+  },
+  {
+    "word": "que",
+    "start": 236.62,
+    "end": 236.76
+  },
+  {
+    "word": "está",
+    "start": 236.76,
+    "end": 236.84
+  },
+  {
+    "word": "sendo",
+    "start": 236.84,
+    "end": 237.04
+  },
+  {
+    "word": "consumido,",
+    "start": 237.04,
+    "end": 237.7
+  },
+  {
+    "word": "qual",
+    "start": 237.8,
+    "end": 237.96
+  },
+  {
+    "word": "o",
+    "start": 237.96,
+    "end": 238.06
+  },
+  {
+    "word": "horário",
+    "start": 238.06,
+    "end": 238.32
+  },
+  {
+    "word": "que",
+    "start": 238.32,
+    "end": 238.46
+  },
+  {
+    "word": "estava",
+    "start": 238.46,
+    "end": 238.66
+  },
+  {
+    "word": "programado,",
+    "start": 238.66,
+    "end": 239.34
+  },
+  {
+    "word": "qual",
+    "start": 239.48,
+    "end": 239.66
+  },
+  {
+    "word": "é",
+    "start": 239.66,
+    "end": 239.8
+  },
+  {
+    "word": "o",
+    "start": 239.8,
+    "end": 239.86
+  },
+  {
+    "word": "médico",
+    "start": 239.86,
+    "end": 240.16
+  },
+  {
+    "word": "responsável,",
+    "start": 240.16,
+    "end": 240.98
+  },
+  {
+    "word": "e",
+    "start": 241.52,
+    "end": 241.56
+  },
+  {
+    "word": "quais",
+    "start": 241.56,
+    "end": 241.7
+  },
+  {
+    "word": "são,",
+    "start": 241.7,
+    "end": 242.06
+  },
+  {
+    "word": "foi",
+    "start": 242.3,
+    "end": 242.64
+  },
+  {
+    "word": "o",
+    "start": 242.64,
+    "end": 242.96
+  },
+  {
+    "word": "horário",
+    "start": 242.96,
+    "end": 243.26
+  },
+  {
+    "word": "de",
+    "start": 243.26,
+    "end": 243.38
+  },
+  {
+    "word": "entrada",
+    "start": 243.38,
+    "end": 243.6
+  },
+  {
+    "word": "ou",
+    "start": 243.6,
+    "end": 243.9
+  },
+  {
+    "word": "o",
+    "start": 243.9,
+    "end": 243.94
+  },
+  {
+    "word": "horário",
+    "start": 243.94,
+    "end": 244.06
+  },
+  {
+    "word": "de",
+    "start": 244.06,
+    "end": 244.2
+  },
+  {
+    "word": "saída",
+    "start": 244.2,
+    "end": 244.42
+  },
+  {
+    "word": "desse",
+    "start": 244.42,
+    "end": 244.66
+  },
+  {
+    "word": "médico,",
+    "start": 244.66,
+    "end": 244.96
+  },
+  {
+    "word": "qual",
+    "start": 245.08,
+    "end": 245.22
+  },
+  {
+    "word": "foi",
+    "start": 245.22,
+    "end": 245.4
+  },
+  {
+    "word": "a",
+    "start": 245.4,
+    "end": 245.52
+  },
+  {
+    "word": "produtividade",
+    "start": 245.52,
+    "end": 246.16
+  },
+  {
+    "word": "que",
+    "start": 246.16,
+    "end": 246.46
+  },
+  {
+    "word": "está",
+    "start": 246.46,
+    "end": 246.64
+  },
+  {
+    "word": "registrada",
+    "start": 246.64,
+    "end": 247.1
+  },
+  {
+    "word": "no",
+    "start": 247.1,
+    "end": 247.28
+  },
+  {
+    "word": "mv",
+    "start": 247.28,
+    "end": 247.52
+  },
+  {
+    "word": "para",
+    "start": 247.52,
+    "end": 248.2
+  },
+  {
+    "word": "aquele",
+    "start": 248.2,
+    "end": 248.42
+  },
+  {
+    "word": "médico.",
+    "start": 248.42,
+    "end": 248.8
+  },
+  {
+    "word": "além",
+    "start": 250.28,
+    "end": 250.84
+  },
+  {
+    "word": "disso,",
+    "start": 250.84,
+    "end": 251.3
+  },
+  {
+    "word": "o",
+    "start": 251.58,
+    "end": 251.58
+  },
+  {
+    "word": "parceria",
+    "start": 251.58,
+    "end": 252.08
+  },
+  {
+    "word": "conta",
+    "start": 252.08,
+    "end": 252.42
+  },
+  {
+    "word": "com",
+    "start": 252.42,
+    "end": 252.7
+  },
+  {
+    "word": "chatbot,",
+    "start": 252.7,
+    "end": 253.32
+  },
+  {
+    "word": "que",
+    "start": 253.58,
+    "end": 253.82
+  },
+  {
+    "word": "ele",
+    "start": 253.82,
+    "end": 253.94
+  },
+  {
+    "word": "permite",
+    "start": 253.94,
+    "end": 254.42
+  },
+  {
+    "word": "fazer",
+    "start": 254.42,
+    "end": 254.9
+  },
+  {
+    "word": "perguntas",
+    "start": 254.9,
+    "end": 255.5
+  },
+  {
+    "word": "em",
+    "start": 255.5,
+    "end": 255.6
+  },
+  {
+    "word": "linguagem",
+    "start": 255.6,
+    "end": 256.0
+  },
+  {
+    "word": "natural,",
+    "start": 256.0,
+    "end": 256.5
+  },
+  {
+    "word": "para",
+    "start": 256.96,
+    "end": 257.22
+  },
+  {
+    "word": "que",
+    "start": 257.22,
+    "end": 257.38
+  },
+  {
+    "word": "a",
+    "start": 257.38,
+    "end": 257.6
+  },
+  {
+    "word": "tia",
+    "start": 257.6,
+    "end": 257.66
+  },
+  {
+    "word": "ajude",
+    "start": 257.66,
+    "end": 258.1
+  },
+  {
+    "word": "a",
+    "start": 258.1,
+    "end": 258.26
+  },
+  {
+    "word": "fazer",
+    "start": 258.26,
+    "end": 258.44
+  },
+  {
+    "word": "acompanhamento",
+    "start": 258.44,
+    "end": 259.26
+  },
+  {
+    "word": "das",
+    "start": 259.26,
+    "end": 259.56
+  },
+  {
+    "word": "escalas",
+    "start": 259.56,
+    "end": 260.02
+  },
+  {
+    "word": "dentro",
+    "start": 260.02,
+    "end": 260.26
+  },
+  {
+    "word": "do",
+    "start": 260.26,
+    "end": 260.44
+  },
+  {
+    "word": "sistema.",
+    "start": 260.44,
+    "end": 260.76
+  },
+  {
+    "word": "por",
+    "start": 261.22,
+    "end": 261.32
+  },
+  {
+    "word": "exemplo,",
+    "start": 261.32,
+    "end": 261.54
+  },
+  {
+    "word": "eu",
+    "start": 261.66,
+    "end": 261.7
+  },
+  {
+    "word": "posso",
+    "start": 261.7,
+    "end": 261.84
+  },
+  {
+    "word": "perguntar",
+    "start": 261.84,
+    "end": 262.4
+  },
+  {
+    "word": "aqui",
+    "start": 262.4,
+    "end": 262.6
+  },
+  {
+    "word": "quantas",
+    "start": 262.6,
+    "end": 263.06
+  },
+  {
+    "word": "escalas",
+    "start": 263.06,
+    "end": 263.52
+  },
+  {
+    "word": "aprovadas",
+    "start": 263.52,
+    "end": 264.08
+  },
+  {
+    "word": "no",
+    "start": 264.08,
+    "end": 264.34
+  },
+  {
+    "word": "qual",
+    "start": 264.34,
+    "end": 264.6
+  },
+  {
+    "word": "em",
+    "start": 264.6,
+    "end": 264.92
+  },
+  {
+    "word": "maio",
+    "start": 264.92,
+    "end": 265.14
+  },
+  {
+    "word": "de",
+    "start": 265.14,
+    "end": 265.26
+  },
+  {
+    "word": "2026,",
+    "start": 265.26,
+    "end": 265.98
+  },
+  {
+    "word": "ele",
+    "start": 266.32,
+    "end": 266.6
+  },
+  {
+    "word": "vai",
+    "start": 266.6,
+    "end": 266.74
+  },
+  {
+    "word": "fazer",
+    "start": 266.74,
+    "end": 266.98
+  },
+  {
+    "word": "essa",
+    "start": 266.98,
+    "end": 267.2
+  },
+  {
+    "word": "análise",
+    "start": 267.2,
+    "end": 267.64
+  },
+  {
+    "word": "e",
+    "start": 267.64,
+    "end": 267.8
+  },
+  {
+    "word": "te",
+    "start": 267.8,
+    "end": 267.9
+  },
+  {
+    "word": "responder,",
+    "start": 267.9,
+    "end": 268.18
+  },
+  {
+    "word": "google",
+    "start": 268.42,
+    "end": 268.58
+  },
+  {
+    "word": "teve",
+    "start": 268.58,
+    "end": 268.94
+  },
+  {
+    "word": "1",
+    "start": 268.94,
+    "end": 269.1
+  },
+  {
+    "word": ".525",
+    "start": 269.1,
+    "end": 269.8
+  },
+  {
+    "word": "escalas",
+    "start": 269.8,
+    "end": 270.38
+  },
+  {
+    "word": "aprovadas",
+    "start": 270.38,
+    "end": 270.9
+  },
+  {
+    "word": "em",
+    "start": 270.9,
+    "end": 271.12
+  },
+  {
+    "word": "maio",
+    "start": 271.12,
+    "end": 271.34
+  },
+  {
+    "word": "de",
+    "start": 271.34,
+    "end": 271.42
+  },
+  {
+    "word": "2026.",
+    "start": 271.42,
+    "end": 272.1
+  },
+  {
+    "word": "o",
+    "start": 272.91999999999996,
+    "end": 273.64
+  },
+  {
+    "word": "parceria",
+    "start": 273.64,
+    "end": 274.16
+  },
+  {
+    "word": "também",
+    "start": 274.16,
+    "end": 274.46
+  },
+  {
+    "word": "conta",
+    "start": 274.46,
+    "end": 274.8
+  },
+  {
+    "word": "com",
+    "start": 274.8,
+    "end": 275.06
+  },
+  {
+    "word": "outras",
+    "start": 275.06,
+    "end": 275.3
+  },
+  {
+    "word": "telas",
+    "start": 275.3,
+    "end": 275.74
+  },
+  {
+    "word": "operacionais",
+    "start": 275.74,
+    "end": 276.48
+  },
+  {
+    "word": "que",
+    "start": 276.48,
+    "end": 276.7
+  },
+  {
+    "word": "serão",
+    "start": 276.7,
+    "end": 277.04
+  },
+  {
+    "word": "abordadas",
+    "start": 277.04,
+    "end": 277.62
+  },
+  {
+    "word": "em",
+    "start": 277.62,
+    "end": 277.98
+  },
+  {
+    "word": "outros",
+    "start": 277.98,
+    "end": 278.2
+  },
+  {
+    "word": "vídeos,",
+    "start": 278.2,
+    "end": 278.6
+  },
+  {
+    "word": "por",
+    "start": 278.84,
+    "end": 278.9
+  },
+  {
+    "word": "exemplo,",
+    "start": 278.9,
+    "end": 279.12
+  },
+  {
+    "word": "como",
+    "start": 279.28,
+    "end": 279.38
+  },
+  {
+    "word": "cadastrar",
+    "start": 279.38,
+    "end": 279.96
+  },
+  {
+    "word": "uma",
+    "start": 279.96,
+    "end": 280.18
+  },
+  {
+    "word": "nova",
+    "start": 280.18,
+    "end": 280.38
+  },
+  {
+    "word": "unidade",
+    "start": 280.38,
+    "end": 280.72
+  },
+  {
+    "word": "especial",
+    "start": 280.72,
+    "end": 281.08
+  },
+  {
+    "word": "hospitalar,",
+    "start": 281.08,
+    "end": 282.04
+  },
+  {
+    "word": "como",
+    "start": 282.6,
+    "end": 282.62
+  },
+  {
+    "word": "cadastrar",
+    "start": 282.62,
+    "end": 283.28
+  },
+  {
+    "word": "as",
+    "start": 283.28,
+    "end": 283.5
+  },
+  {
+    "word": "empresas",
+    "start": 283.5,
+    "end": 283.76
+  },
+  {
+    "word": "parceiras,",
+    "start": 283.76,
+    "end": 284.5
+  },
+  {
+    "word": "como",
+    "start": 284.82,
+    "end": 285.08
+  },
+  {
+    "word": "cadastrar",
+    "start": 285.08,
+    "end": 285.6
+  },
+  {
+    "word": "os",
+    "start": 285.6,
+    "end": 285.88
+  },
+  {
+    "word": "itens",
+    "start": 285.88,
+    "end": 286.16
+  },
+  {
+    "word": "de",
+    "start": 286.16,
+    "end": 286.36
+  },
+  {
+    "word": "contrato,",
+    "start": 286.36,
+    "end": 286.76
+  },
+  {
+    "word": "como",
+    "start": 287.12,
+    "end": 287.5
+  },
+  {
+    "word": "cadastrar",
+    "start": 287.5,
+    "end": 288.12
+  },
+  {
+    "word": "os",
+    "start": 288.12,
+    "end": 288.48
+  },
+  {
+    "word": "contrato",
+    "start": 288.48,
+    "end": 289.0
+  },
+  {
+    "word": "e",
+    "start": 289.0,
+    "end": 289.42
+  },
+  {
+    "word": "como",
+    "start": 289.42,
+    "end": 289.68
+  },
+  {
+    "word": "cadastrar",
+    "start": 289.68,
+    "end": 290.34
+  },
+  {
+    "word": "novos",
+    "start": 290.34,
+    "end": 290.78
+  },
+  {
+    "word": "usuários.",
+    "start": 290.78,
+    "end": 291.24
+  },
+  {
+    "word": "ficou",
+    "start": 293.08000000000004,
+    "end": 293.8
+  },
+  {
+    "word": "curiosa",
+    "start": 293.8,
+    "end": 294.36
+  },
+  {
+    "word": "ou",
+    "start": 294.36,
+    "end": 294.42
+  },
+  {
+    "word": "curiosa",
+    "start": 294.42,
+    "end": 295.04
+  },
+  {
+    "word": "para",
+    "start": 295.04,
+    "end": 295.28
+  },
+  {
+    "word": "saber",
+    "start": 295.28,
+    "end": 295.56
+  },
+  {
+    "word": "como",
+    "start": 295.56,
+    "end": 295.9
+  },
+  {
+    "word": "realmente",
+    "start": 295.9,
+    "end": 296.38
+  },
+  {
+    "word": "funciona",
+    "start": 296.38,
+    "end": 296.8
+  },
+  {
+    "word": "a",
+    "start": 296.8,
+    "end": 297.1
+  },
+  {
+    "word": "operação",
+    "start": 297.1,
+    "end": 297.7
+  },
+  {
+    "word": "do",
+    "start": 297.7,
+    "end": 297.86
+  },
+  {
+    "word": "parceria?",
+    "start": 297.86,
+    "end": 298.54
+  },
+  {
+    "word": "acompanhe",
+    "start": 298.54,
+    "end": 299.46
+  },
+  {
+    "word": "os",
+    "start": 299.46,
+    "end": 299.54
+  },
+  {
+    "word": "próximos",
+    "start": 299.54,
+    "end": 300.08
+  },
+  {
+    "word": "vídeos",
+    "start": 300.08,
+    "end": 300.36
+  },
+  {
+    "word": "que",
+    "start": 300.36,
+    "end": 300.58
+  },
+  {
+    "word": "terão",
+    "start": 300.58,
+    "end": 300.88
+  },
+  {
+    "word": "muita",
+    "start": 300.88,
+    "end": 301.1
+  },
+  {
+    "word": "ação",
+    "start": 301.1,
+    "end": 301.52
+  },
+  {
+    "word": "e",
+    "start": 301.52,
+    "end": 301.62
+  },
+  {
+    "word": "detalhamento",
+    "start": 301.62,
+    "end": 302.3
+  },
+  {
+    "word": "de",
+    "start": 302.3,
+    "end": 302.48
+  },
+  {
+    "word": "cada",
+    "start": 302.48,
+    "end": 302.78
+  },
+  {
+    "word": "um",
+    "start": 302.78,
+    "end": 302.98
+  },
+  {
+    "word": "desses",
+    "start": 302.98,
+    "end": 303.18
+  },
+  {
+    "word": "módulos.",
+    "start": 303.18,
+    "end": 303.82
+  },
+  {
+    "word": "conto",
+    "start": 304.08,
+    "end": 304.38
+  },
+  {
+    "word": "com",
+    "start": 304.38,
+    "end": 304.48
+  },
+  {
+    "word": "vocês.",
+    "start": 304.48,
+    "end": 304.82
+  }
+]

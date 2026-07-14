@@ -99,7 +99,7 @@ export const CsvImportDialog: React.FC<CsvImportDialogProps> = ({
             <List dense>
               <ListItem sx={{ py: 0 }}>
                 <ListItemText
-                  primary="• CPF: 8 a 13 dígitos numéricos (deve existir na base de usuários)"
+                  primary="• CPF: 11 dígitos numéricos (deve existir na base de usuários)"
                   primaryTypographyProps={{ variant: 'body2' }}
                 />
               </ListItem>

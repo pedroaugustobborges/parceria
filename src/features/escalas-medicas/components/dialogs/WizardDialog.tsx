@@ -41,11 +41,13 @@ import {
   ArrowBack,
   CalendarMonth,
   Check,
+  Download,
   Info,
   Person,
   Schedule,
   UploadFile,
 } from '@mui/icons-material';
+import { downloadEscalasModeloXlsx } from '../../../../utils/xlsxExport';
 import { format } from 'date-fns';
 import type {
   EscalaMedica,
@@ -227,24 +229,43 @@ export const WizardDialog: React.FC<WizardDialogProps> = ({
                         Deseja importar múltiplas escalas de uma vez?
                       </Typography>
                     </Box>
-                    <Button
-                      variant="outlined"
-                      startIcon={<UploadFile />}
-                      onClick={onOpenCsvDialog}
-                      sx={{
-                        borderColor: '#0ea5e9',
-                        color: '#0ea5e9',
-                        '&:hover': {
-                          borderColor: '#0284c7',
-                          bgcolor: '#f0f9ff',
-                        },
-                      }}
-                    >
-                      Importar CSV
-                    </Button>
+                    <Box display="flex" gap={1}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<Download />}
+                        onClick={downloadEscalasModeloXlsx}
+                        sx={{
+                          borderColor: '#8b5cf6',
+                          color: '#8b5cf6',
+                          '&:hover': {
+                            borderColor: '#7c3aed',
+                            bgcolor: '#faf5ff',
+                          },
+                        }}
+                      >
+                        Baixar Modelo
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<UploadFile />}
+                        onClick={onOpenCsvDialog}
+                        sx={{
+                          borderColor: '#0ea5e9',
+                          color: '#0ea5e9',
+                          '&:hover': {
+                            borderColor: '#0284c7',
+                            bgcolor: '#f0f9ff',
+                          },
+                        }}
+                      >
+                        Importar CSV
+                      </Button>
+                    </Box>
                   </Box>
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    Formato do CSV: cpf (8-13 dígitos), data_inicio (YYYY-MM-DD), horario_entrada,
+                    Formato do CSV: cpf (11 dígitos), data_inicio (YYYY-MM-DD), horario_entrada,
                     horario_saida (HH:MM ou HH:MM:SS)
                   </Typography>
                 </Box>

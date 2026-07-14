@@ -53,18 +53,18 @@ export function cleanCpf(cpf: string): string {
 }
 
 /**
- * Validate CPF format (8-13 digits).
+ * Validate CPF format (exactly 11 digits).
  */
 export function isValidCpfFormat(cpf: string): boolean {
   const cpfLimpo = cleanCpf(cpf);
-  return cpfLimpo.length >= 8 && cpfLimpo.length <= 13;
+  return cpfLimpo.length === 11;
 }
 
 /**
  * Get CPF validation error message.
  */
 export function getCpfFormatError(cpf: string): string {
-  return `CPF "${cpf}" em formato inválido (deve ter entre 8 e 13 dígitos)`;
+  return `CPF "${cpf}" em formato inválido (deve ter exatamente 11 dígitos numéricos)`;
 }
 
 // ============================================
