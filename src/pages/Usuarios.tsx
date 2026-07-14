@@ -504,7 +504,8 @@ const Usuarios: React.FC = () => {
         setSuccess("Usuário atualizado com sucesso!");
         setSaving(false);
         handleCloseCreateDialog();
-        handleSearch(); // Refresh search
+        loadInitialData(); // Atualiza autocompletes de nome/CPF
+        handleSearch();
       } else {
         // Create new user
 
@@ -582,6 +583,7 @@ const Usuarios: React.FC = () => {
 
         setSaving(false);
         handleCloseCreateDialog();
+        loadInitialData(); // Atualiza autocompletes de nome/CPF
         handleSearch();
       }
     } catch (err: any) {
@@ -726,7 +728,8 @@ const Usuarios: React.FC = () => {
 
       setSuccess("Usuário excluído com sucesso!");
       handleCloseUserDetails();
-      handleSearch(); // Refresh
+      loadInitialData(); // Atualiza autocompletes de nome/CPF
+      handleSearch();
     } catch (err: any) {
       setError(err.message);
     }
