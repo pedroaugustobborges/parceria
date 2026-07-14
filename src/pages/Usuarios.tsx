@@ -175,26 +175,46 @@ const Usuarios: React.FC = () => {
     loadInitialData();
   }, []);
 
+  // Busca todos os usuários paginando de 1000 em 1000 para contornar
+  // o limite padrão do PostgREST (PGRST_DB_MAX_ROWS = 1000)
+  const fetchAllUsuarios = async (): Promise<Usuario[]> => {
+    const PAGE_SIZE = 1000;
+    const allData: Usuario[] = [];
+    let page = 0;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select("*")
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+
+      allData.push(...data);
+      if (data.length < PAGE_SIZE) break;
+      page++;
+    }
+
+    return allData;
+  };
+
   const loadInitialData = async () => {
     try {
       setLoading(true);
       const [
         { data: contratosData },
         { data: unidadesData },
-        { data: usuariosData },
+        usuariosData,
       ] = await Promise.all([
         supabase.from("contratos").select("*").eq("ativo", true),
-        supabase
-          .from("unidades_hospitalares")
-          .select("*")
-          .eq("ativo", true)
-          .order("codigo"),
-        supabase.from("usuarios").select("*").limit(5000),
+        supabase.from("unidades_hospitalares").select("*").eq("ativo", true).order("codigo"),
+        fetchAllUsuarios(),
       ]);
 
       setContratos(contratosData || []);
       setUnidades(unidadesData || []);
-      setUsuarios(usuariosData || []); // Load all users for autocomplete
+      setUsuarios(usuariosData);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -207,30 +227,33 @@ const Usuarios: React.FC = () => {
       setLoading(true);
       setError("");
 
-      // Build query
-      let query = supabase.from("usuarios").select("*").limit(5000);
+      const hasServerFilters =
+        filtroNome.length > 0 || filtroCpf.length > 0 || filtroEspecialidade.length > 0;
 
-      // Apply filters
-      if (filtroNome.length > 0) {
-        // ilike com OR: busca parcial e case-insensitive para cada nome digitado
-        const nomeFilter = filtroNome.map((n) => `nome.ilike.*${n}*`).join(",");
-        query = query.or(nomeFilter);
+      let filteredUsers: Usuario[] = [];
+
+      if (hasServerFilters) {
+        // Com filtros server-side: uma única query (resultado < 1000)
+        let query = supabase.from("usuarios").select("*");
+
+        if (filtroNome.length > 0) {
+          const nomeFilter = filtroNome.map((n) => `nome.ilike.*${n}*`).join(",");
+          query = query.or(nomeFilter);
+        }
+        if (filtroCpf.length > 0) {
+          query = query.in("cpf", filtroCpf);
+        }
+        if (filtroEspecialidade.length > 0) {
+          query = query.overlaps("especialidade", filtroEspecialidade);
+        }
+
+        const { data, error: queryError } = await query;
+        if (queryError) throw queryError;
+        filteredUsers = data || [];
+      } else {
+        // Sem filtros server-side: paginar para buscar todos os usuários
+        filteredUsers = await fetchAllUsuarios();
       }
-
-      if (filtroCpf.length > 0) {
-        query = query.in("cpf", filtroCpf);
-      }
-
-      if (filtroEspecialidade.length > 0) {
-        // Filter by especialidade array overlap
-        query = query.overlaps("especialidade", filtroEspecialidade);
-      }
-
-      const { data: usuariosData, error: usuariosError } = await query;
-
-      if (usuariosError) throw usuariosError;
-
-      let filteredUsers = usuariosData || [];
 
       // Filter by contract (need to check usuario_contrato table and usuarios.contrato_id)
       if (filtroContrato) {
