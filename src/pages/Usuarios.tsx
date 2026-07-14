@@ -212,7 +212,9 @@ const Usuarios: React.FC = () => {
 
       // Apply filters
       if (filtroNome.length > 0) {
-        query = query.in("nome", filtroNome);
+        // ilike com OR: busca parcial e case-insensitive para cada nome digitado
+        const nomeFilter = filtroNome.map((n) => `nome.ilike.*${n}*`).join(",");
+        query = query.or(nomeFilter);
       }
 
       if (filtroCpf.length > 0) {
@@ -793,14 +795,15 @@ const Usuarios: React.FC = () => {
             <Grid item xs={12} md={6} lg={4}>
               <Autocomplete
                 multiple
+                freeSolo
                 options={nombresDisponiveis}
                 value={filtroNome}
-                onChange={(_, newValue) => setFiltroNome(newValue)}
+                onChange={(_, newValue) => setFiltroNome(newValue as string[])}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Nome"
-                    placeholder="Selecione..."
+                    placeholder="Digite e pressione Enter..."
                   />
                 )}
                 size="small"
@@ -810,14 +813,15 @@ const Usuarios: React.FC = () => {
             <Grid item xs={12} md={6} lg={4}>
               <Autocomplete
                 multiple
+                freeSolo
                 options={cpfsDisponiveis}
                 value={filtroCpf}
-                onChange={(_, newValue) => setFiltroCpf(newValue)}
+                onChange={(_, newValue) => setFiltroCpf(newValue as string[])}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="CPF"
-                    placeholder="Selecione..."
+                    placeholder="Digite e pressione Enter..."
                   />
                 )}
                 size="small"
