@@ -189,7 +189,7 @@ const Usuarios: React.FC = () => {
           .select("*")
           .eq("ativo", true)
           .order("codigo"),
-        supabase.from("usuarios").select("*"),
+        supabase.from("usuarios").select("*").limit(5000),
       ]);
 
       setContratos(contratosData || []);
@@ -208,7 +208,7 @@ const Usuarios: React.FC = () => {
       setError("");
 
       // Build query
-      let query = supabase.from("usuarios").select("*");
+      let query = supabase.from("usuarios").select("*").limit(5000);
 
       // Apply filters
       if (filtroNome.length > 0) {
