@@ -39,6 +39,9 @@ const UNIDADES_MEDIDA: UnidadeMedida[] = [
   "visita",
   "carga horária semanal",
   "carga horária mensal",
+  "sobreaviso",
+  "período",
+  "do mensal estimado",
 ];
 
 const Itens: React.FC = () => {

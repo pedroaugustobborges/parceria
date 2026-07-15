@@ -1236,6 +1236,9 @@ export type UnidadeMedida =
   | 'visita'
   | 'carga horária semanal'
   | 'carga horária mensal'
+  | 'sobreaviso'
+  | 'período'
+  | 'do mensal estimado'
 
 /**
  * Medical schedule record (escalas_medicas table Row).

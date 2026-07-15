@@ -38,6 +38,23 @@ AS $$
   SELECT COALESCE(ARRAY_AGG(contrato_id), '{}') FROM public.usuario_contrato WHERE usuario_id = auth.uid();
 $$;
 
+-- Retorna array de usuario_ids que compartilham os contratos do usuário logado
+-- Usado para permitir que administrador-terceiro veja os médicos de seus contratos
+CREATE OR REPLACE FUNCTION public.get_my_contract_member_ids()
+RETURNS uuid[]
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT COALESCE(ARRAY_AGG(DISTINCT usuario_id), '{}')
+  FROM public.usuario_contrato
+  WHERE contrato_id = ANY(
+    SELECT COALESCE(ARRAY_AGG(contrato_id), '{}')
+    FROM public.usuario_contrato
+    WHERE usuario_id = auth.uid()
+  );
+$$;
+
 -- -------------------------------------------------------
 -- TABLE: usuarios
 -- -------------------------------------------------------
@@ -48,12 +65,19 @@ DROP POLICY IF EXISTS "usuarios_update" ON public.usuarios;
 DROP POLICY IF EXISTS "usuarios_insert" ON public.usuarios;
 DROP POLICY IF EXISTS "usuarios_delete" ON public.usuarios;
 
--- Usuário vê apenas seu próprio perfil; admins-agir veem todos
+-- Usuário vê seu próprio perfil; admins-agir veem todos; admin-terceiro vê membros dos seus contratos
 CREATE POLICY "usuarios_select" ON public.usuarios
 FOR SELECT USING (
   auth.uid() IS NOT NULL AND (
     id = auth.uid()
     OR get_my_tipo() IN ('administrador-agir-corporativo', 'administrador-agir-planta')
+    OR (
+      get_my_tipo() = 'administrador-terceiro'
+      AND (
+        id = ANY(get_my_contract_member_ids())
+        OR contrato_id = ANY(get_my_contrato_ids())
+      )
+    )
   )
 );
 
@@ -86,6 +110,10 @@ FOR SELECT USING (
   auth.uid() IS NOT NULL AND (
     usuario_id = auth.uid()
     OR get_my_tipo() IN ('administrador-agir-corporativo', 'administrador-agir-planta')
+    OR (
+      get_my_tipo() = 'administrador-terceiro'
+      AND contrato_id = ANY(get_my_contrato_ids())
+    )
   )
 );
 
