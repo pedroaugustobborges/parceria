@@ -26,22 +26,23 @@ import { ItemContrato, UnidadeMedida } from "../types/database.types";
 import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
 const UNIDADES_MEDIDA: UnidadeMedida[] = [
-  "horas",
-  "plantão",
-  "procedimento",
+  "atendimento ambulatorial",
+  "atendimento domiciliar",
+  "auxílio",
+  "carga horária mensal",
+  "carga horária semanal",
   "cirurgia",
   "consulta",
   "diária",
-  "atendimento ambulatorial",
-  "atendimento domiciliar",
+  "do mensal estimado",
+  "horas",
   "intervenção",
   "parecer médico",
-  "visita",
-  "carga horária semanal",
-  "carga horária mensal",
-  "sobreaviso",
   "período",
-  "do mensal estimado",
+  "plantão",
+  "procedimento",
+  "sobreaviso",
+  "visita",
 ];
 
 const Itens: React.FC = () => {

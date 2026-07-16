@@ -1223,22 +1223,23 @@ export type UnidadeHospitalar = Database['public']['Tables']['unidades_hospitala
 export type DocumentoContrato = Database['public']['Tables']['documentos_contrato']['Row']
 
 export type UnidadeMedida =
-  | 'horas'
-  | 'plantão'
-  | 'procedimento'
+  | 'atendimento ambulatorial'
+  | 'atendimento domiciliar'
+  | 'auxílio'
+  | 'carga horária mensal'
+  | 'carga horária semanal'
   | 'cirurgia'
   | 'consulta'
   | 'diária'
-  | 'atendimento ambulatorial'
-  | 'atendimento domiciliar'
+  | 'do mensal estimado'
+  | 'horas'
   | 'intervenção'
   | 'parecer médico'
-  | 'visita'
-  | 'carga horária semanal'
-  | 'carga horária mensal'
-  | 'sobreaviso'
   | 'período'
-  | 'do mensal estimado'
+  | 'plantão'
+  | 'procedimento'
+  | 'sobreaviso'
+  | 'visita'
 
 /**
  * Medical schedule record (escalas_medicas table Row).
