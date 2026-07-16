@@ -1278,8 +1278,37 @@ const Contratos: React.FC = () => {
                       onChange={(_, newValue) => setItemParaAdicionar(newValue)}
                       options={itensDisponiveis}
                       getOptionLabel={(option) =>
-                        `${option.nome} (${option.unidade_medida})`
+                        option.codigo_corporativo
+                          ? `${option.codigo_corporativo} – ${option.nome} (${option.unidade_medida})`
+                          : `${option.nome} (${option.unidade_medida})`
                       }
+                      filterOptions={(options, { inputValue }) => {
+                        const term = inputValue.toLowerCase();
+                        return options.filter(
+                          (o) =>
+                            o.nome.toLowerCase().includes(term) ||
+                            (o.codigo_corporativo || "").toLowerCase().includes(term),
+                        );
+                      }}
+                      renderOption={(props, option) => (
+                        <Box component="li" {...props}>
+                          {option.codigo_corporativo && (
+                            <Chip
+                              label={option.codigo_corporativo}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              sx={{ mr: 1, fontSize: "0.7rem", height: 20 }}
+                            />
+                          )}
+                          <Box>
+                            <Typography variant="body2">{option.nome}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {option.unidade_medida}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
                       renderInput={(params) => (
                         <TextField
                           {...params}
