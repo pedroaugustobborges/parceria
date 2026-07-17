@@ -44,6 +44,7 @@ export const UNIDADES_MEDIDA: UnidadeMedida[] = [
   "plantão",
   "procedimento",
   "sobreaviso",
+  "unidade",
   "visita",
 ];
 

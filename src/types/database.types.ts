@@ -1242,6 +1242,7 @@ export type UnidadeMedida =
   | 'plantão'
   | 'procedimento'
   | 'sobreaviso'
+  | 'unidade'
   | 'visita'
 
 /**
