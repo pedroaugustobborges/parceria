@@ -10,11 +10,13 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem,
   IconButton,
   Chip,
   Alert,
   CircularProgress,
+  Autocomplete,
+  FormHelperText,
+  FormControl,
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { useTheme } from "@mui/material";
@@ -25,7 +27,7 @@ import { supabase } from "../lib/supabase";
 import { ItemContrato, UnidadeMedida } from "../types/database.types";
 import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
-const UNIDADES_MEDIDA: UnidadeMedida[] = [
+export const UNIDADES_MEDIDA: UnidadeMedida[] = [
   "atendimento ambulatorial",
   "atendimento domiciliar",
   "auxílio",
@@ -56,7 +58,7 @@ const Itens: React.FC = () => {
   const [formData, setFormData] = useState({
     nome: "",
     descricao: "",
-    unidade_medida: "horas" as UnidadeMedida,
+    unidades_medida: ["horas"] as UnidadeMedida[],
     codigo_corporativo: "",
   });
 
@@ -99,7 +101,7 @@ const Itens: React.FC = () => {
       setFormData({
         nome: item.nome,
         descricao: item.descricao || "",
-        unidade_medida: item.unidade_medida,
+        unidades_medida: (item.unidade_medida as UnidadeMedida[]) || ["horas"],
         codigo_corporativo: item.codigo_corporativo || "",
       });
     } else {
@@ -107,7 +109,7 @@ const Itens: React.FC = () => {
       setFormData({
         nome: "",
         descricao: "",
-        unidade_medida: "horas",
+        unidades_medida: ["horas"],
         codigo_corporativo: "",
       });
     }
@@ -120,7 +122,7 @@ const Itens: React.FC = () => {
     setFormData({
       nome: "",
       descricao: "",
-      unidade_medida: "horas",
+      unidades_medida: ["horas"],
       codigo_corporativo: "",
     });
   };
@@ -132,16 +134,20 @@ const Itens: React.FC = () => {
         return;
       }
 
+      if (formData.unidades_medida.length === 0) {
+        setError("Selecione ao menos uma unidade de medida");
+        return;
+      }
+
       setError("");
 
       if (editingItem) {
-        // Update existing item
         const { error: updateError } = await supabase
           .from("itens_contrato")
           .update({
             nome: formData.nome,
             descricao: formData.descricao || null,
-            unidade_medida: formData.unidade_medida,
+            unidade_medida: formData.unidades_medida,
             codigo_corporativo: formData.codigo_corporativo.trim() || null,
           })
           .eq("id", editingItem.id);
@@ -156,13 +162,12 @@ const Itens: React.FC = () => {
           throw updateError;
         }
       } else {
-        // Create new item
         const { error: insertError } = await supabase
           .from("itens_contrato")
           .insert({
             nome: formData.nome,
             descricao: formData.descricao || null,
-            unidade_medida: formData.unidade_medida,
+            unidade_medida: formData.unidades_medida,
             codigo_corporativo: formData.codigo_corporativo.trim() || null,
           });
 
@@ -208,7 +213,6 @@ const Itens: React.FC = () => {
     setDeleteRelatedItems([]);
 
     try {
-      // Verificar vínculos com contratos (tabela contrato_itens)
       const { data: vinculos, error: vinculosError } = await supabase
         .from("contrato_itens")
         .select("contrato_id, contratos(nome)")
@@ -307,16 +311,27 @@ const Itens: React.FC = () => {
     },
     {
       field: "unidade_medida",
-      headerName: "Unidade de Medida",
-      width: 200,
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color="primary"
-          variant="outlined"
-        />
-      ),
+      headerName: "Unidade(s) de Medida",
+      width: 280,
+      renderCell: (params) => {
+        const unidades: string[] = Array.isArray(params.value)
+          ? params.value
+          : [params.value].filter(Boolean);
+        return (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, py: 0.5 }}>
+            {unidades.map((u) => (
+              <Chip
+                key={u}
+                label={u}
+                size="small"
+                color="primary"
+                variant="outlined"
+                sx={{ fontSize: "0.7rem" }}
+              />
+            ))}
+          </Box>
+        );
+      },
     },
     {
       field: "ativo",
@@ -431,7 +446,13 @@ const Itens: React.FC = () => {
                   },
                 }}
                 disableRowSelectionOnClick
-                sx={getDataGridStyles(isDark)}
+                getRowHeight={() => "auto"}
+                sx={{
+                  ...getDataGridStyles(isDark),
+                  "& .MuiDataGrid-cell": {
+                    py: 1,
+                  },
+                }}
               />
             )}
           </Box>
@@ -494,25 +515,59 @@ const Itens: React.FC = () => {
               fullWidth
             />
 
-            <TextField
-              label="Unidade de Medida"
-              value={formData.unidade_medida}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  unidade_medida: e.target.value as UnidadeMedida,
-                })
-              }
-              select
-              required
-              fullWidth
-            >
-              {UNIDADES_MEDIDA.map((unidade) => (
-                <MenuItem key={unidade} value={unidade}>
-                  {unidade}
-                </MenuItem>
-              ))}
-            </TextField>
+            {/* Multi-select para Unidades de Medida */}
+            <FormControl fullWidth>
+              <Autocomplete
+                multiple
+                options={UNIDADES_MEDIDA}
+                value={formData.unidades_medida}
+                onChange={(_, newValue) =>
+                  setFormData({
+                    ...formData,
+                    unidades_medida: newValue as UnidadeMedida[],
+                  })
+                }
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        label={option}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        {...tagProps}
+                      />
+                    );
+                  })
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Unidades de Medida"
+                    required
+                    placeholder={
+                      formData.unidades_medida.length === 0
+                        ? "Selecione uma ou mais..."
+                        : ""
+                    }
+                    error={formData.unidades_medida.length === 0}
+                  />
+                )}
+              />
+              {formData.unidades_medida.length === 0 && (
+                <FormHelperText error>
+                  Selecione ao menos uma unidade de medida
+                </FormHelperText>
+              )}
+              {formData.unidades_medida.length > 1 && (
+                <FormHelperText>
+                  Quando este item for adicionado a um contrato, será solicitada
+                  a escolha da unidade a ser utilizada.
+                </FormHelperText>
+              )}
+            </FormControl>
           </Box>
         </DialogContent>
 

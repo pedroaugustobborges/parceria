@@ -88,6 +88,7 @@ export type Database = {
           item_id: string
           observacoes: string | null
           quantidade: number
+          unidade_medida: string | null
           valor_unitario: number
         }
         Insert: {
@@ -97,6 +98,7 @@ export type Database = {
           item_id: string
           observacoes?: string | null
           quantidade?: number
+          unidade_medida?: string | null
           valor_unitario: number
         }
         Update: {
@@ -106,6 +108,7 @@ export type Database = {
           item_id?: string
           observacoes?: string | null
           quantidade?: number
+          unidade_medida?: string | null
           valor_unitario?: number
         }
         Relationships: [
@@ -605,7 +608,7 @@ export type Database = {
           descricao: string | null
           id: string
           nome: string
-          unidade_medida: string
+          unidade_medida: string[]
           updated_at: string | null
         }
         Insert: {
@@ -615,7 +618,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome: string
-          unidade_medida: string
+          unidade_medida: string[]
           updated_at?: string | null
         }
         Update: {
@@ -625,7 +628,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome?: string
-          unidade_medida?: string
+          unidade_medida?: string[]
           updated_at?: string | null
         }
         Relationships: []

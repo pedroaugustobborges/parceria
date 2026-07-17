@@ -196,7 +196,12 @@ export const WizardDialog: React.FC<WizardDialogProps> = ({
                 })
               }
               options={itensContrato}
-              getOptionLabel={(option) => `${option.nome} (${option.unidade_medida})`}
+              getOptionLabel={(option) => {
+                const unidade = Array.isArray(option.unidade_medida)
+                  ? option.unidade_medida[0] || ''
+                  : option.unidade_medida || '';
+                return `${option.nome} (${unidade})`;
+              }}
               renderInput={(params) => (
                 <TextField
                   {...params}

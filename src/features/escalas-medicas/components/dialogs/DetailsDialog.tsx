@@ -515,9 +515,14 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     Unidade de medida:{" "}
-                    {todosItensContrato.find(
-                      (i) => i.id === escala.item_contrato_id,
-                    )?.unidade_medida || "N/A"}
+                    {contratoItem?.unidade_medida ||
+                      (() => {
+                        const u = todosItensContrato.find(
+                          (i) => i.id === escala.item_contrato_id,
+                        )?.unidade_medida;
+                        return Array.isArray(u) ? u[0] : u;
+                      })() ||
+                      "N/A"}
                   </Typography>
                 </CardContent>
               </Card>

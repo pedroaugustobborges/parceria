@@ -466,7 +466,21 @@ export async function loadItensContrato(contratoId: string): Promise<ItemContrat
     return [];
   }
 
-  return contratoItens.map((ci: any) => ci.item);
+  // Mescla a unidade selecionada no contrato (contrato_itens.unidade_medida)
+  // com os dados do item. A unidade é normalizada para string[] para manter
+  // compatibilidade de tipos, mas conterá apenas a unidade escolhida para este contrato.
+  return contratoItens.map((ci: any) => {
+    const item = ci.item;
+    const unidadeContrato: string | null = ci.unidade_medida;
+    const unidadesItem: string[] = Array.isArray(item?.unidade_medida)
+      ? item.unidade_medida
+      : [item?.unidade_medida].filter(Boolean);
+    return {
+      ...item,
+      // Resolve a unidade efetiva: prioriza a escolha do contrato, fallback ao item
+      unidade_medida: unidadeContrato ? [unidadeContrato] : unidadesItem,
+    };
+  });
 }
 
 // ============================================

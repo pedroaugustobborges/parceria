@@ -26,6 +26,8 @@ import {
   Paper,
   Divider,
   CircularProgress,
+  Radio,
+  RadioGroup,
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { useTheme } from "@mui/material";
@@ -65,6 +67,7 @@ interface ItemSelecionado {
   quantidade: number;
   valor_unitario: number;
   observacoes: string;
+  unidade_medida: string;
 }
 
 const Contratos: React.FC = () => {
@@ -107,6 +110,11 @@ const Contratos: React.FC = () => {
   // Documentos state
   const [documentos, setDocumentos] = useState<DocumentoContrato[]>([]);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+
+  // Unit selection dialog state (when item has multiple units)
+  const [unidadeDialogOpen, setUnidadeDialogOpen] = useState(false);
+  const [itemPendente, setItemPendente] = useState<ItemContrato | null>(null);
+  const [unidadeSelecionada, setUnidadeSelecionada] = useState<string>("");
 
   // AI extraction state (only for Novo Contrato)
   const [arquivoPdfExtracao, setArquivoPdfExtracao] = useState<File | null>(null);
@@ -226,6 +234,12 @@ const Contratos: React.FC = () => {
         quantidade: ci.quantidade,
         valor_unitario: ci.valor_unitario || 0,
         observacoes: ci.observacoes || "",
+        unidade_medida:
+          ci.unidade_medida ||
+          (Array.isArray(ci.item?.unidade_medida)
+            ? ci.item.unidade_medida[0]
+            : ci.item?.unidade_medida) ||
+          "",
       }));
 
       setItensSelecionados(itens);
@@ -403,6 +417,9 @@ const Contratos: React.FC = () => {
     setEditingContrato(null);
     setItensSelecionados([]);
     setItemParaAdicionar(null);
+    setUnidadeDialogOpen(false);
+    setItemPendente(null);
+    setUnidadeSelecionada("");
     setError("");
     setArquivoPdfExtracao(null);
     setExtraindoDados(false);
@@ -565,11 +582,15 @@ const Contratos: React.FC = () => {
 
           if (itemExistente) {
             if (!itensPreenchidos.some((is) => is.item.id === itemExistente!.id)) {
+              const unidades: string[] = Array.isArray(itemExistente.unidade_medida)
+                ? itemExistente.unidade_medida
+                : [itemExistente.unidade_medida].filter(Boolean);
               itensPreenchidos.push({
                 item: itemExistente,
                 quantidade: Number(itemExtraido.quantidade) || 1,
                 valor_unitario: Number(itemExtraido.valor_unitario) || 0,
                 observacoes: "",
+                unidade_medida: unidades[0] || "",
               });
             }
           } else {
@@ -604,6 +625,19 @@ const Contratos: React.FC = () => {
       return;
     }
 
+    const unidades: string[] = Array.isArray(itemParaAdicionar.unidade_medida)
+      ? itemParaAdicionar.unidade_medida
+      : [itemParaAdicionar.unidade_medida].filter(Boolean);
+
+    if (unidades.length > 1) {
+      // Item has multiple units — prompt user to choose
+      setItemPendente(itemParaAdicionar);
+      setUnidadeSelecionada(unidades[0]);
+      setUnidadeDialogOpen(true);
+      return;
+    }
+
+    // Single unit — add directly
     setItensSelecionados([
       ...itensSelecionados,
       {
@@ -611,9 +645,29 @@ const Contratos: React.FC = () => {
         quantidade: 1,
         valor_unitario: 10,
         observacoes: "",
+        unidade_medida: unidades[0] || "",
       },
     ]);
     setItemParaAdicionar(null);
+  };
+
+  const handleConfirmarUnidade = () => {
+    if (!itemPendente || !unidadeSelecionada) return;
+
+    setItensSelecionados([
+      ...itensSelecionados,
+      {
+        item: itemPendente,
+        quantidade: 1,
+        valor_unitario: 10,
+        observacoes: "",
+        unidade_medida: unidadeSelecionada,
+      },
+    ]);
+    setItemParaAdicionar(null);
+    setItemPendente(null);
+    setUnidadeSelecionada("");
+    setUnidadeDialogOpen(false);
   };
 
   const handleRemoverItem = (itemId: string) => {
@@ -716,6 +770,7 @@ const Contratos: React.FC = () => {
           quantidade: is.quantidade,
           valor_unitario: is.valor_unitario,
           observacoes: is.observacoes,
+          unidade_medida: is.unidade_medida || null,
         }));
 
         const { error: itensError } = await supabase
@@ -1277,11 +1332,15 @@ const Contratos: React.FC = () => {
                       value={itemParaAdicionar}
                       onChange={(_, newValue) => setItemParaAdicionar(newValue)}
                       options={itensDisponiveis}
-                      getOptionLabel={(option) =>
-                        option.codigo_corporativo
-                          ? `${option.codigo_corporativo} – ${option.nome} (${option.unidade_medida})`
-                          : `${option.nome} (${option.unidade_medida})`
-                      }
+                      getOptionLabel={(option) => {
+                        const unidades: string[] = Array.isArray(option.unidade_medida)
+                          ? option.unidade_medida
+                          : [option.unidade_medida].filter(Boolean);
+                        const unidadeStr = unidades.join(", ");
+                        return option.codigo_corporativo
+                          ? `${option.codigo_corporativo} – ${option.nome} (${unidadeStr})`
+                          : `${option.nome} (${unidadeStr})`;
+                      }}
                       filterOptions={(options, { inputValue }) => {
                         const term = inputValue.toLowerCase();
                         return options.filter(
@@ -1290,25 +1349,39 @@ const Contratos: React.FC = () => {
                             (o.codigo_corporativo || "").toLowerCase().includes(term),
                         );
                       }}
-                      renderOption={(props, option) => (
-                        <Box component="li" {...props}>
-                          {option.codigo_corporativo && (
-                            <Chip
-                              label={option.codigo_corporativo}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                              sx={{ mr: 1, fontSize: "0.7rem", height: 20 }}
-                            />
-                          )}
-                          <Box>
-                            <Typography variant="body2">{option.nome}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {option.unidade_medida}
-                            </Typography>
+                      renderOption={(props, option) => {
+                        const unidades: string[] = Array.isArray(option.unidade_medida)
+                          ? option.unidade_medida
+                          : [option.unidade_medida].filter(Boolean);
+                        return (
+                          <Box component="li" {...props}>
+                            {option.codigo_corporativo && (
+                              <Chip
+                                label={option.codigo_corporativo}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                sx={{ mr: 1, fontSize: "0.7rem", height: 20 }}
+                              />
+                            )}
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2">{option.nome}</Typography>
+                              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.25 }}>
+                                {unidades.map((u) => (
+                                  <Chip
+                                    key={u}
+                                    label={u}
+                                    size="small"
+                                    variant="outlined"
+                                    color="default"
+                                    sx={{ fontSize: "0.65rem", height: 18 }}
+                                  />
+                                ))}
+                              </Box>
+                            </Box>
                           </Box>
-                        </Box>
-                      )}
+                        );
+                      }}
                       renderInput={(params) => (
                         <TextField
                           {...params}
@@ -1382,12 +1455,15 @@ const Contratos: React.FC = () => {
                                 <Typography variant="body2" fontWeight={600}>
                                   {is.item.nome}
                                 </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                >
-                                  {is.item.unidade_medida}
-                                </Typography>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
+                                  <Chip
+                                    label={is.unidade_medida}
+                                    size="small"
+                                    color="primary"
+                                    variant="outlined"
+                                    sx={{ fontSize: "0.7rem", height: 20 }}
+                                  />
+                                </Box>
                                 {is.item.codigo_corporativo && (
                                   <Typography
                                     variant="caption"
@@ -1781,6 +1857,89 @@ const Contratos: React.FC = () => {
                 Salvar
               </Button>
             )}
+          </DialogActions>
+        </Dialog>
+
+        {/* Diálogo de seleção de unidade de medida */}
+        <Dialog
+          open={unidadeDialogOpen}
+          onClose={() => {
+            setUnidadeDialogOpen(false);
+            setItemPendente(null);
+            setUnidadeSelecionada("");
+          }}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Inventory color="primary" />
+              <Typography variant="h6" fontWeight={600}>
+                Escolha a Unidade de Medida
+              </Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              O item <strong>{itemPendente?.nome}</strong> pode ser medido de
+              mais de uma forma. Escolha como ele será utilizado neste contrato:
+            </Typography>
+            <RadioGroup
+              value={unidadeSelecionada}
+              onChange={(e) => setUnidadeSelecionada(e.target.value)}
+            >
+              {(Array.isArray(itemPendente?.unidade_medida)
+                ? itemPendente!.unidade_medida
+                : [itemPendente?.unidade_medida].filter(Boolean)
+              ).map((u) => (
+                <FormControlLabel
+                  key={u}
+                  value={u}
+                  control={<Radio color="primary" />}
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+                      <Chip
+                        label={u}
+                        size="small"
+                        color={unidadeSelecionada === u ? "primary" : "default"}
+                        variant={unidadeSelecionada === u ? "filled" : "outlined"}
+                        sx={{ fontSize: "0.78rem" }}
+                      />
+                    </Box>
+                  }
+                  sx={{
+                    mb: 0.5,
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: unidadeSelecionada === u ? "primary.main" : "divider",
+                    bgcolor: unidadeSelecionada === u
+                      ? "primary.50"
+                      : "background.paper",
+                    px: 1,
+                    transition: "all 0.15s",
+                  }}
+                />
+              ))}
+            </RadioGroup>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setUnidadeDialogOpen(false);
+                setItemPendente(null);
+                setUnidadeSelecionada("");
+              }}
+              variant="outlined"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmarUnidade}
+              variant="contained"
+              disabled={!unidadeSelecionada}
+            >
+              Confirmar
+            </Button>
           </DialogActions>
         </Dialog>
 
