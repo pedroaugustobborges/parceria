@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Button,
@@ -119,6 +119,10 @@ const isValidCpf = (cpf: string): boolean => {
 const CPF_ERROR_MESSAGE =
   "O CPF deve possuir 11 dígitos. Em caso de CPFs mais antigos que possuem menos que isso, por favor adicione zeros no início até que também possuam 11 dígitos.";
 
+// Chaves de sessionStorage para persistência do rascunho do formulário
+const RASCUNHO_FORM_KEY = "usuarios_rascunho_formulario";
+const RASCUNHO_META_KEY = "usuarios_rascunho_meta";
+
 interface UsuarioContrato {
   id: string;
   usuario_id: string;
@@ -129,6 +133,8 @@ interface UsuarioContrato {
 
 const Usuarios: React.FC = () => {
   const { isAdminAgirCorporativo, isAdminAgirPlanta } = useAuth();
+  const jaRestaurouRef = useRef(false);
+  const [formRestorado, setFormRestorado] = useState(false);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [usuariosFiltrados, setUsuariosFiltrados] = useState<Usuario[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
@@ -174,6 +180,54 @@ const Usuarios: React.FC = () => {
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // Salva o rascunho do formulário no sessionStorage sempre que houver alteração e o dialog estiver aberto
+  useEffect(() => {
+    if (!createDialogOpen) return;
+    try {
+      sessionStorage.setItem(RASCUNHO_FORM_KEY, JSON.stringify(formData));
+      sessionStorage.setItem(
+        RASCUNHO_META_KEY,
+        JSON.stringify({
+          dialogAberto: true,
+          modoEdicao: editMode,
+          usuarioId: selectedUser?.id ?? null,
+        }),
+      );
+    } catch {
+      // ignora erros de quota
+    }
+  }, [formData, createDialogOpen, editMode, selectedUser]);
+
+  // Restaura o rascunho do formulário após o carregamento inicial dos dados
+  useEffect(() => {
+    if (loading || jaRestaurouRef.current) return;
+    jaRestaurouRef.current = true;
+    try {
+      const metaRaw = sessionStorage.getItem(RASCUNHO_META_KEY);
+      const formRaw = sessionStorage.getItem(RASCUNHO_FORM_KEY);
+      if (!metaRaw || !formRaw) return;
+
+      const meta = JSON.parse(metaRaw);
+      const form = JSON.parse(formRaw);
+
+      if (!meta.dialogAberto) return;
+
+      setFormData(form);
+      setEditMode(meta.modoEdicao);
+
+      if (meta.modoEdicao && meta.usuarioId) {
+        const usuarioEncontrado = usuarios.find((u) => u.id === meta.usuarioId);
+        if (usuarioEncontrado) setSelectedUser(usuarioEncontrado);
+      }
+
+      setFormRestorado(true);
+      setCreateDialogOpen(true);
+    } catch {
+      limparRascunhoFormulario();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   // Busca todos os usuários paginando de 1000 em 1000 para contornar
   // o limite padrão do PostgREST (PGRST_DB_MAX_ROWS = 1000)
@@ -360,6 +414,12 @@ const Usuarios: React.FC = () => {
     setUserContracts([]);
   };
 
+  const limparRascunhoFormulario = () => {
+    sessionStorage.removeItem(RASCUNHO_FORM_KEY);
+    sessionStorage.removeItem(RASCUNHO_META_KEY);
+    setFormRestorado(false);
+  };
+
   const handleOpenCreateDialog = () => {
     setEditMode(false);
     setFormData({
@@ -394,6 +454,7 @@ const Usuarios: React.FC = () => {
   };
 
   const handleCloseCreateDialog = () => {
+    limparRascunhoFormulario();
     setCreateDialogOpen(false);
     setEditMode(false);
     setError("");
@@ -528,6 +589,7 @@ const Usuarios: React.FC = () => {
 
         setSuccess("Usuário atualizado com sucesso!");
         setSaving(false);
+        limparRascunhoFormulario();
         handleCloseCreateDialog();
         loadInitialData(); // Atualiza autocompletes de nome/CPF
         handleSearch();
@@ -607,6 +669,7 @@ const Usuarios: React.FC = () => {
         }
 
         setSaving(false);
+        limparRascunhoFormulario();
         handleCloseCreateDialog();
         loadInitialData(); // Atualiza autocompletes de nome/CPF
         handleSearch();
@@ -1272,6 +1335,28 @@ const Usuarios: React.FC = () => {
           {editMode ? "Editar Usuário" : "Criar Novo Usuário"}
         </DialogTitle>
         <DialogContent>
+          {formRestorado && (
+            <Alert
+              severity="info"
+              sx={{ mb: 2 }}
+              onClose={() => {
+                limparRascunhoFormulario();
+                setFormData({
+                  email: "",
+                  nome: "",
+                  cpf: "",
+                  tipo: "terceiro",
+                  contrato_ids: [],
+                  codigomv: "",
+                  especialidade: [],
+                  unidade_hospitalar_id: "",
+                });
+              }}
+            >
+              Rascunho recuperado — seus dados foram restaurados após uma interrupção. Feche este aviso para descartar o rascunho.
+            </Alert>
+          )}
+
           {error && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
               {error}
