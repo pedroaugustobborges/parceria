@@ -134,7 +134,6 @@ interface UsuarioContrato {
 const Usuarios: React.FC = () => {
   const { isAdminAgirCorporativo, isAdminAgirPlanta } = useAuth();
   const jaRestaurouRef = useRef(false);
-  const [formRestorado, setFormRestorado] = useState(false);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [usuariosFiltrados, setUsuariosFiltrados] = useState<Usuario[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
@@ -221,7 +220,6 @@ const Usuarios: React.FC = () => {
         if (usuarioEncontrado) setSelectedUser(usuarioEncontrado);
       }
 
-      setFormRestorado(true);
       setCreateDialogOpen(true);
     } catch {
       limparRascunhoFormulario();
@@ -417,7 +415,6 @@ const Usuarios: React.FC = () => {
   const limparRascunhoFormulario = () => {
     sessionStorage.removeItem(RASCUNHO_FORM_KEY);
     sessionStorage.removeItem(RASCUNHO_META_KEY);
-    setFormRestorado(false);
   };
 
   const handleOpenCreateDialog = () => {
@@ -1335,28 +1332,6 @@ const Usuarios: React.FC = () => {
           {editMode ? "Editar Usuário" : "Criar Novo Usuário"}
         </DialogTitle>
         <DialogContent>
-          {formRestorado && (
-            <Alert
-              severity="info"
-              sx={{ mb: 2 }}
-              onClose={() => {
-                limparRascunhoFormulario();
-                setFormData({
-                  email: "",
-                  nome: "",
-                  cpf: "",
-                  tipo: "terceiro",
-                  contrato_ids: [],
-                  codigomv: "",
-                  especialidade: [],
-                  unidade_hospitalar_id: "",
-                });
-              }}
-            >
-              Rascunho recuperado — seus dados foram restaurados após uma interrupção. Feche este aviso para descartar o rascunho.
-            </Alert>
-          )}
-
           {error && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
               {error}

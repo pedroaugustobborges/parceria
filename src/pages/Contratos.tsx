@@ -90,7 +90,6 @@ const Contratos: React.FC = () => {
   // Partners (administrador-terceiro) have read-only access
   const isReadOnly = isAdminTerceiro;
   const jaRestaurouRef = useRef(false);
-  const [formRestorado, setFormRestorado] = useState(false);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -207,7 +206,6 @@ const Contratos: React.FC = () => {
         if (contratoEncontrado) setEditingContrato(contratoEncontrado);
       }
 
-      setFormRestorado(true);
       setOpenDialog(true);
     } catch {
       limparRascunhoFormulario();
@@ -449,7 +447,6 @@ const Contratos: React.FC = () => {
     sessionStorage.removeItem(RASCUNHO_FORM_KEY);
     sessionStorage.removeItem(RASCUNHO_ITENS_KEY);
     sessionStorage.removeItem(RASCUNHO_META_KEY);
-    setFormRestorado(false);
   };
 
   const handleOpenDialog = async (contrato?: Contrato) => {
@@ -1184,28 +1181,6 @@ const Contratos: React.FC = () => {
             <Box
               sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}
             >
-              {formRestorado && (
-                <Alert
-                  severity="info"
-                  onClose={() => {
-                    limparRascunhoFormulario();
-                    setFormData({
-                      nome: "",
-                      numero_contrato: "",
-                      empresa: "",
-                      data_inicio: null,
-                      data_fim: null,
-                      ativo: true,
-                      unidade_hospitalar_id: isAdminAgirPlanta ? unidadeHospitalarId : null,
-                    });
-                    setItensSelecionados([]);
-                    setEditingContrato(null);
-                  }}
-                >
-                  Rascunho recuperado — seus dados foram restaurados após uma interrupção. Feche este aviso para descartar o rascunho.
-                </Alert>
-              )}
-
               {/* ── AI Extraction Section (Novo Contrato only) ─────────────── */}
               {!editingContrato && !isReadOnly && (
                 <Box

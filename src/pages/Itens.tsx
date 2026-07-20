@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Card,
@@ -27,6 +27,10 @@ import { supabase } from "../lib/supabase";
 import { ItemContrato, UnidadeMedida } from "../types/database.types";
 import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
+// Chaves de sessionStorage para persistência do rascunho do formulário
+const RASCUNHO_FORM_KEY = "itens_rascunho_formulario";
+const RASCUNHO_META_KEY = "itens_rascunho_meta";
+
 export const UNIDADES_MEDIDA: UnidadeMedida[] = [
   "atendimento ambulatorial",
   "atendimento domiciliar",
@@ -51,6 +55,7 @@ export const UNIDADES_MEDIDA: UnidadeMedida[] = [
 const Itens: React.FC = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const jaRestaurouRef = useRef(false);
   const [itens, setItens] = useState<ItemContrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -75,6 +80,51 @@ const Itens: React.FC = () => {
     loadItens();
   }, []);
 
+  // Salva o rascunho no sessionStorage sempre que o formulário mudar e o dialog estiver aberto
+  useEffect(() => {
+    if (!dialogOpen) return;
+    try {
+      sessionStorage.setItem(RASCUNHO_FORM_KEY, JSON.stringify(formData));
+      sessionStorage.setItem(
+        RASCUNHO_META_KEY,
+        JSON.stringify({
+          dialogAberto: true,
+          itemId: editingItem?.id ?? null,
+        }),
+      );
+    } catch {
+      // ignora erros de quota
+    }
+  }, [formData, dialogOpen, editingItem]);
+
+  // Restaura o rascunho após o carregamento inicial dos dados
+  useEffect(() => {
+    if (loading || jaRestaurouRef.current) return;
+    jaRestaurouRef.current = true;
+    try {
+      const metaRaw = sessionStorage.getItem(RASCUNHO_META_KEY);
+      const formRaw = sessionStorage.getItem(RASCUNHO_FORM_KEY);
+      if (!metaRaw || !formRaw) return;
+
+      const meta = JSON.parse(metaRaw);
+      const form = JSON.parse(formRaw);
+
+      if (!meta.dialogAberto) return;
+
+      setFormData(form);
+
+      if (meta.itemId) {
+        const itemEncontrado = itens.find((i) => i.id === meta.itemId);
+        if (itemEncontrado) setEditingItem(itemEncontrado);
+      }
+
+      setDialogOpen(true);
+    } catch {
+      limparRascunhoFormulario();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   const loadItens = async () => {
     try {
       setLoading(true);
@@ -94,6 +144,11 @@ const Itens: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const limparRascunhoFormulario = () => {
+    sessionStorage.removeItem(RASCUNHO_FORM_KEY);
+    sessionStorage.removeItem(RASCUNHO_META_KEY);
   };
 
   const handleOpenDialog = (item?: ItemContrato) => {
@@ -118,6 +173,7 @@ const Itens: React.FC = () => {
   };
 
   const handleCloseDialog = () => {
+    limparRascunhoFormulario();
     setDialogOpen(false);
     setEditingItem(null);
     setFormData({
@@ -183,6 +239,7 @@ const Itens: React.FC = () => {
         }
       }
 
+      limparRascunhoFormulario();
       handleCloseDialog();
       loadItens();
     } catch (err: any) {
