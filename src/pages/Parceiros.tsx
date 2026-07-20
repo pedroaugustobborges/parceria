@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Card,
@@ -25,9 +25,14 @@ import { Parceiro } from "../types/database.types";
 import { format, parseISO } from "date-fns";
 import DeleteConfirmDialog from "../components/DeleteConfirmDialog";
 
+// Chaves de sessionStorage para persistência do rascunho do formulário
+const RASCUNHO_FORM_KEY = "parceiros_rascunho_formulario";
+const RASCUNHO_META_KEY = "parceiros_rascunho_meta";
+
 const Parceiros: React.FC = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+  const jaRestaurouRef = useRef(false);
   const [parceiros, setParceiros] = useState<Parceiro[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -53,6 +58,51 @@ const Parceiros: React.FC = () => {
     loadParceiros();
   }, []);
 
+  // Salva o rascunho no sessionStorage sempre que o formulário mudar e o dialog estiver aberto
+  useEffect(() => {
+    if (!dialogOpen) return;
+    try {
+      sessionStorage.setItem(RASCUNHO_FORM_KEY, JSON.stringify(formData));
+      sessionStorage.setItem(
+        RASCUNHO_META_KEY,
+        JSON.stringify({
+          dialogAberto: true,
+          parceiroId: editingParceiro?.id ?? null,
+        }),
+      );
+    } catch {
+      // ignora erros de quota
+    }
+  }, [formData, dialogOpen, editingParceiro]);
+
+  // Restaura o rascunho após o carregamento inicial dos dados
+  useEffect(() => {
+    if (loading || jaRestaurouRef.current) return;
+    jaRestaurouRef.current = true;
+    try {
+      const metaRaw = sessionStorage.getItem(RASCUNHO_META_KEY);
+      const formRaw = sessionStorage.getItem(RASCUNHO_FORM_KEY);
+      if (!metaRaw || !formRaw) return;
+
+      const meta = JSON.parse(metaRaw);
+      const form = JSON.parse(formRaw);
+
+      if (!meta.dialogAberto) return;
+
+      setFormData(form);
+
+      if (meta.parceiroId) {
+        const parceiroEncontrado = parceiros.find((p) => p.id === meta.parceiroId);
+        if (parceiroEncontrado) setEditingParceiro(parceiroEncontrado);
+      }
+
+      setDialogOpen(true);
+    } catch {
+      limparRascunhoFormulario();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   const loadParceiros = async () => {
     try {
       setLoading(true);
@@ -72,6 +122,11 @@ const Parceiros: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const limparRascunhoFormulario = () => {
+    sessionStorage.removeItem(RASCUNHO_FORM_KEY);
+    sessionStorage.removeItem(RASCUNHO_META_KEY);
   };
 
   const handleOpenDialog = (parceiro?: Parceiro) => {
@@ -96,6 +151,7 @@ const Parceiros: React.FC = () => {
   };
 
   const handleCloseDialog = () => {
+    limparRascunhoFormulario();
     setDialogOpen(false);
     setEditingParceiro(null);
     setError("");
@@ -162,6 +218,7 @@ const Parceiros: React.FC = () => {
           .eq("id", editingParceiro.id);
 
         if (updateError) throw updateError;
+        limparRascunhoFormulario();
         setSuccess("Parceiro atualizado com sucesso!");
       } else {
         // Create new parceiro
@@ -170,6 +227,7 @@ const Parceiros: React.FC = () => {
           .insert(parceiroData);
 
         if (insertError) throw insertError;
+        limparRascunhoFormulario();
         setSuccess("Parceiro criado com sucesso!");
       }
 
