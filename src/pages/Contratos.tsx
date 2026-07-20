@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Button,
@@ -70,6 +70,11 @@ interface ItemSelecionado {
   unidade_medida: string;
 }
 
+// Chaves de sessionStorage para persistência do rascunho do formulário
+const RASCUNHO_FORM_KEY = "contratos_rascunho_formulario";
+const RASCUNHO_ITENS_KEY = "contratos_rascunho_itens";
+const RASCUNHO_META_KEY = "contratos_rascunho_meta";
+
 const Contratos: React.FC = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
@@ -84,6 +89,8 @@ const Contratos: React.FC = () => {
 
   // Partners (administrador-terceiro) have read-only access
   const isReadOnly = isAdminTerceiro;
+  const jaRestaurouRef = useRef(false);
+  const [formRestorado, setFormRestorado] = useState(false);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -145,6 +152,68 @@ const Contratos: React.FC = () => {
     loadParceiros();
     loadUnidades();
   }, [isAdminTerceiro, userContratoIds]);
+
+  // Salva o rascunho no sessionStorage sempre que o formulário mudar e o dialog estiver aberto
+  useEffect(() => {
+    if (!openDialog || isReadOnly) return;
+    try {
+      const formParaSalvar = {
+        ...formData,
+        data_inicio: formData.data_inicio?.toISOString() ?? null,
+        data_fim: formData.data_fim?.toISOString() ?? null,
+      };
+      sessionStorage.setItem(RASCUNHO_FORM_KEY, JSON.stringify(formParaSalvar));
+      sessionStorage.setItem(RASCUNHO_ITENS_KEY, JSON.stringify(itensSelecionados));
+      sessionStorage.setItem(
+        RASCUNHO_META_KEY,
+        JSON.stringify({
+          dialogAberto: true,
+          contratoId: editingContrato?.id ?? null,
+        }),
+      );
+    } catch {
+      // ignora erros de quota
+    }
+  }, [formData, itensSelecionados, openDialog, editingContrato, isReadOnly]);
+
+  // Restaura o rascunho após o carregamento inicial dos dados
+  useEffect(() => {
+    if (loading || jaRestaurouRef.current || isReadOnly) return;
+    jaRestaurouRef.current = true;
+    try {
+      const metaRaw = sessionStorage.getItem(RASCUNHO_META_KEY);
+      const formRaw = sessionStorage.getItem(RASCUNHO_FORM_KEY);
+      const itensRaw = sessionStorage.getItem(RASCUNHO_ITENS_KEY);
+      if (!metaRaw || !formRaw) return;
+
+      const meta = JSON.parse(metaRaw);
+      const formSalvo = JSON.parse(formRaw);
+      const itensSalvos: ItemSelecionado[] = itensRaw ? JSON.parse(itensRaw) : [];
+
+      if (!meta.dialogAberto) return;
+
+      // Desserializar campos de data
+      const form = {
+        ...formSalvo,
+        data_inicio: formSalvo.data_inicio ? new Date(formSalvo.data_inicio) : null,
+        data_fim: formSalvo.data_fim ? new Date(formSalvo.data_fim) : null,
+      };
+
+      setFormData(form);
+      setItensSelecionados(itensSalvos);
+
+      if (meta.contratoId) {
+        const contratoEncontrado = contratos.find((c) => c.id === meta.contratoId);
+        if (contratoEncontrado) setEditingContrato(contratoEncontrado);
+      }
+
+      setFormRestorado(true);
+      setOpenDialog(true);
+    } catch {
+      limparRascunhoFormulario();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const loadContratos = async () => {
     try {
@@ -376,6 +445,13 @@ const Contratos: React.FC = () => {
     }
   };
 
+  const limparRascunhoFormulario = () => {
+    sessionStorage.removeItem(RASCUNHO_FORM_KEY);
+    sessionStorage.removeItem(RASCUNHO_ITENS_KEY);
+    sessionStorage.removeItem(RASCUNHO_META_KEY);
+    setFormRestorado(false);
+  };
+
   const handleOpenDialog = async (contrato?: Contrato) => {
     if (contrato) {
       setEditingContrato(contrato);
@@ -413,6 +489,7 @@ const Contratos: React.FC = () => {
   };
 
   const handleCloseDialog = () => {
+    limparRascunhoFormulario();
     setOpenDialog(false);
     setEditingContrato(null);
     setItensSelecionados([]);
@@ -748,6 +825,7 @@ const Contratos: React.FC = () => {
           .delete()
           .eq("contrato_id", contratoId);
 
+        limparRascunhoFormulario();
         setSuccess("Contrato atualizado com sucesso!");
       } else {
         // Create new contract
@@ -759,6 +837,7 @@ const Contratos: React.FC = () => {
 
         if (insertError) throw insertError;
         contratoId = newContrato.id;
+        limparRascunhoFormulario();
         setSuccess("Contrato criado com sucesso!");
       }
 
@@ -1105,6 +1184,28 @@ const Contratos: React.FC = () => {
             <Box
               sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}
             >
+              {formRestorado && (
+                <Alert
+                  severity="info"
+                  onClose={() => {
+                    limparRascunhoFormulario();
+                    setFormData({
+                      nome: "",
+                      numero_contrato: "",
+                      empresa: "",
+                      data_inicio: null,
+                      data_fim: null,
+                      ativo: true,
+                      unidade_hospitalar_id: isAdminAgirPlanta ? unidadeHospitalarId : null,
+                    });
+                    setItensSelecionados([]);
+                    setEditingContrato(null);
+                  }}
+                >
+                  Rascunho recuperado — seus dados foram restaurados após uma interrupção. Feche este aviso para descartar o rascunho.
+                </Alert>
+              )}
+
               {/* ── AI Extraction Section (Novo Contrato only) ─────────────── */}
               {!editingContrato && !isReadOnly && (
                 <Box
