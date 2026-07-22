@@ -209,8 +209,13 @@ export function useEscalaForm(props: UseEscalaFormProps): UseEscalaFormReturn {
         let medicosUsuarios: Usuario[] = [];
         if (contratoAssociado) {
           try {
-            medicosUsuarios = await escalasService.loadUsuariosByContrato(escala.contrato_id);
-            await loadItensContrato(contratoAssociado.id);
+            // Fetch directly for mapping pre-selected doctors, and also update
+            // the shared `usuarios` state so the Autocomplete options list is populated
+            [medicosUsuarios] = await Promise.all([
+              escalasService.loadUsuariosByContrato(escala.contrato_id),
+              loadUsuariosByContrato(escala.contrato_id),
+              loadItensContrato(contratoAssociado.id),
+            ]);
           } catch (err: any) {
             console.error('Erro ao carregar usuários:', err);
           }
@@ -258,7 +263,7 @@ export function useEscalaForm(props: UseEscalaFormProps): UseEscalaFormReturn {
       setActiveStep(0);
       setDialogOpen(true);
     },
-    [contratos, isAdminAgir, isAdminTerceiro, userContratoIds, setError, loadItensContrato]
+    [contratos, isAdminAgir, isAdminTerceiro, userContratoIds, setError, loadUsuariosByContrato, loadItensContrato]
   );
 
   // ============================================
