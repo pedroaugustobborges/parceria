@@ -58,10 +58,13 @@ const ESPECIALIDADES = [
   "Cirurgia Plástica",
   "Cirurgia Vascular",
   "Clínica Geral",
+  "Dermatologia",
   "Diagnóstico por Imagem",
   "Ecocardiografia",
+  "Endocrinologia",
   "Endoscopia",
   "Gastroenterologia",
+  "Hematologia",
   "Intervencionista",
   "Hemodinâmica",
   "Medicina Intensiva",
@@ -75,6 +78,8 @@ const ESPECIALIDADES = [
   "Nutrologia",
   "Ortopedia",
   "Pediatria",
+  "Psiquiatria",
+  "Reumatologia",
   "Urologia",
 ];
 
