@@ -244,6 +244,42 @@ Deno.serve(async (req: Request) => {
       return json({ success: true });
     }
 
+    // ================================================================
+    // ACTION: update-email
+    // Atualiza o email de um usuário no GoTrue (auth.users).
+    // O registro em usuarios já foi atualizado pelo frontend antes desta chamada.
+    // ================================================================
+    if (action === "update-email") {
+      if (!["administrador-agir-corporativo", "administrador-agir-planta"].includes(callerProfile.tipo)) {
+        return json({ error: "Sem permissão para alterar emails" }, 403);
+      }
+
+      const { targetUserId, novoEmail } = body;
+      if (!targetUserId || !novoEmail) {
+        return json({ error: "targetUserId e novoEmail são obrigatórios" }, 400);
+      }
+
+      const { error: updateAuthError } = await adminClient.auth.admin.updateUserById(
+        targetUserId,
+        { email: novoEmail, email_confirm: true }
+      );
+
+      if (updateAuthError) {
+        // Se o usuário não tem conta auth (UUID legado), não é um erro crítico —
+        // o email já foi salvo em usuarios. O admin pode usar "Redefinir Senha"
+        // para criar a conta auth com o novo email.
+        if (
+          updateAuthError.message.includes("User not found") ||
+          updateAuthError.message.includes("not found")
+        ) {
+          return json({ success: true, aviso: "Email atualizado em usuarios. Conta auth não encontrada — use Redefinir Senha para criar o acesso com o novo email." });
+        }
+        throw updateAuthError;
+      }
+
+      return json({ success: true });
+    }
+
     return json({ error: "Ação desconhecida" }, 400);
 
   } catch (err: any) {

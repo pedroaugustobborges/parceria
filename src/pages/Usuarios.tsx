@@ -537,9 +537,9 @@ const Usuarios: React.FC = () => {
               : null,
         };
 
-        // Only update email if user has auth account
-        if (selectedUser.email) {
-          updateData.email = formData.email;
+        // Atualiza email para todos os tipos que possuem campo de email no formulário
+        if (formData.tipo !== "terceiro") {
+          updateData.email = formData.email || null;
         }
 
         const { error: updateError } = await supabase
@@ -548,6 +548,20 @@ const Usuarios: React.FC = () => {
           .eq("id", selectedUser.id);
 
         if (updateError) throw updateError;
+
+        // Sincroniza email no GoTrue quando o email mudou e o usuário tinha conta auth
+        const emailMudou = formData.tipo !== "terceiro" && formData.email && formData.email !== selectedUser.email;
+        if (emailMudou && selectedUser.email) {
+          await supabase.functions.invoke("admin-users", {
+            body: {
+              action: "update-email",
+              targetUserId: selectedUser.id,
+              novoEmail: formData.email,
+            },
+          });
+          // Não bloqueia em caso de erro: usuarios.email já foi salvo.
+          // Usuário legado sem conta auth: admin usa "Redefinir Senha" depois.
+        }
 
         // Update contracts
         // First, delete existing contracts
