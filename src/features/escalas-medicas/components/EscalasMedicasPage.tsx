@@ -853,6 +853,7 @@ export const EscalasMedicasPage: React.FC = () => {
           onClose={handleCloseDetailsDialog}
           escala={escalaDetalhes}
           contratos={escalas.auxiliaryData.contratos}
+          unidades={escalas.auxiliaryData.unidades}
           todosItensContrato={escalas.auxiliaryData.todosItensContrato}
           contratoItens={escalas.auxiliaryData.contratoItens}
           usuarioAlterouStatus={usuarioAlterouStatus}

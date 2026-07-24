@@ -52,6 +52,7 @@ import {
   Save,
   RestartAlt,
   Info,
+  Domain,
 } from "@mui/icons-material";
 import { Divider } from "@mui/material";
 import { format, parseISO, subDays, addDays, isSameDay, differenceInMinutes, isValid, isAfter } from "date-fns";
@@ -64,6 +65,7 @@ import type {
   Contrato,
   ItemContrato,
   ContratoItem,
+  UnidadeHospitalar,
   Usuario,
   StatusEscala,
 } from "../../types/escalas.types";
@@ -142,6 +144,7 @@ export interface DetailsDialogProps {
   onClose: () => void;
   escala: EscalaMedica | null;
   contratos: Contrato[];
+  unidades?: UnidadeHospitalar[];
   todosItensContrato: ItemContrato[];
   usuarioAlterouStatus: Usuario | null;
   acessosMedico: AcessoMedico[];
@@ -172,6 +175,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   onClose,
   escala,
   contratos,
+  unidades = [],
   todosItensContrato,
   usuarioAlterouStatus,
   acessosMedico,
@@ -431,41 +435,74 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
           {/* Contract Info */}
-          <Card
-            sx={{
-              bgcolor:
-                theme.palette.mode === "dark"
-                  ? "rgba(59, 130, 246, 0.1)"
-                  : "primary.50",
-              borderLeft: "4px solid",
-              borderColor: "primary.main",
-            }}
-          >
-            <CardContent>
-              <Typography variant="overline" color="text.secondary">
-                Contrato
-              </Typography>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                {contratos.find((c) => c.id === escala.contrato_id)?.nome ||
-                  "Não encontrado"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Empresa:{" "}
-                {contratos.find((c) => c.id === escala.contrato_id)?.empresa ||
-                  "Não encontrado"}
-              </Typography>
-              {contratos.find((c) => c.id === escala.contrato_id)
-                ?.numero_contrato && (
-                <Typography variant="body2" color="text.secondary">
-                  Nº Contrato:{" "}
-                  {
-                    contratos.find((c) => c.id === escala.contrato_id)
-                      ?.numero_contrato
-                  }
-                </Typography>
-              )}
-            </CardContent>
-          </Card>
+          {(() => {
+            const contrato = contratos.find((c) => c.id === escala.contrato_id);
+            const unidade = unidades.find((u) => u.id === contrato?.unidade_hospitalar_id);
+            return (
+              <Card
+                sx={{
+                  bgcolor: theme.palette.mode === "dark"
+                    ? "rgba(59, 130, 246, 0.1)"
+                    : "primary.50",
+                  borderLeft: "4px solid",
+                  borderColor: "primary.main",
+                }}
+              >
+                <CardContent>
+                  <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1} mb={0.5}>
+                    <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1 }}>
+                      Contrato
+                    </Typography>
+                    {unidade && (
+                      <Box
+                        sx={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 0.75,
+                          px: 1.25,
+                          py: 0.4,
+                          borderRadius: 2,
+                          bgcolor: theme.palette.mode === "dark"
+                            ? "rgba(255,255,255,0.07)"
+                            : "rgba(255,255,255,0.75)",
+                          border: "1px solid",
+                          borderColor: theme.palette.mode === "dark"
+                            ? "rgba(99,102,241,0.3)"
+                            : "rgba(99,102,241,0.2)",
+                          backdropFilter: "blur(4px)",
+                        }}
+                      >
+                        <Domain sx={{ fontSize: 13, color: "primary.main", opacity: 0.8 }} />
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: "0.7rem",
+                            color: "primary.main",
+                            letterSpacing: "0.03em",
+                          }}
+                        >
+                          {unidade.codigo}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+
+                  <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mt: 0.5 }}>
+                    {contrato?.nome || "Não encontrado"}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Empresa: {contrato?.empresa || "Não encontrado"}
+                  </Typography>
+                  {contrato?.numero_contrato && (
+                    <Typography variant="body2" color="text.secondary">
+                      Nº Contrato: {contrato.numero_contrato}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Escala Info Grid */}
           <Grid container spacing={2}>
