@@ -764,6 +764,7 @@ export const EscalasMedicasPage: React.FC = () => {
           setFormData={form.setFormData}
           previewData={form.previewData}
           contratos={escalas.auxiliaryData.contratos}
+          unidades={escalas.auxiliaryData.unidades}
           itensContrato={escalas.auxiliaryData.itensContrato}
           usuarios={escalas.auxiliaryData.usuarios}
           loadingUsuarios={escalas.loadingUsuarios}

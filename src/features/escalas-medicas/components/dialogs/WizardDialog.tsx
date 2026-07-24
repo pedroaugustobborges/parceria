@@ -55,6 +55,7 @@ import type {
   ItemContrato,
   Usuario,
   MedicoEscala,
+  UnidadeHospitalar,
 } from '../../types/escalas.types';
 
 // ============================================
@@ -90,6 +91,7 @@ export interface WizardDialogProps {
   setFormData: (data: WizardFormData) => void;
   previewData: PreviewData;
   contratos: Contrato[];
+  unidades: UnidadeHospitalar[];
   itensContrato: ItemContrato[];
   usuarios: Usuario[];
   loadingUsuarios: boolean;
@@ -123,6 +125,7 @@ export const WizardDialog: React.FC<WizardDialogProps> = ({
   setFormData,
   previewData,
   contratos,
+  unidades,
   itensContrato,
   usuarios,
   loadingUsuarios,
@@ -182,7 +185,11 @@ export const WizardDialog: React.FC<WizardDialogProps> = ({
               value={contratos.find((c) => c.id === formData.contrato_id) || null}
               onChange={(_, newValue) => onContratoChange(newValue)}
               options={contratos}
-              getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
+              getOptionLabel={(option) => {
+                const unidade = unidades.find((u) => u.id === option.unidade_hospitalar_id);
+                const prefixo = unidade ? `${unidade.codigo} - ` : '';
+                return `${prefixo}${option.nome} - ${option.empresa}`;
+              }}
               renderInput={(params) => <TextField {...params} label="Contrato" required />}
               fullWidth
             />
