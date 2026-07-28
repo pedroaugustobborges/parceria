@@ -64,6 +64,7 @@ const ESPECIALIDADES = [
   "Endocrinologia",
   "Endoscopia",
   "Gastroenterologia",
+  "Ginecologia",
   "Hematologia",
   "Intervencionista",
   "Hemodinâmica",
@@ -229,7 +230,7 @@ const Usuarios: React.FC = () => {
     } catch {
       limparRascunhoFormulario();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
   // Busca todos os usuários paginando de 1000 em 1000 para contornar
@@ -259,15 +260,16 @@ const Usuarios: React.FC = () => {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [
-        { data: contratosData },
-        { data: unidadesData },
-        usuariosData,
-      ] = await Promise.all([
-        supabase.from("contratos").select("*").eq("ativo", true),
-        supabase.from("unidades_hospitalares").select("*").eq("ativo", true).order("codigo"),
-        fetchAllUsuarios(),
-      ]);
+      const [{ data: contratosData }, { data: unidadesData }, usuariosData] =
+        await Promise.all([
+          supabase.from("contratos").select("*").eq("ativo", true),
+          supabase
+            .from("unidades_hospitalares")
+            .select("*")
+            .eq("ativo", true)
+            .order("codigo"),
+          fetchAllUsuarios(),
+        ]);
 
       setContratos(contratosData || []);
       setUnidades(unidadesData || []);
@@ -285,7 +287,9 @@ const Usuarios: React.FC = () => {
       setError("");
 
       const hasServerFilters =
-        filtroNome.length > 0 || filtroCpf.length > 0 || filtroEspecialidade.length > 0;
+        filtroNome.length > 0 ||
+        filtroCpf.length > 0 ||
+        filtroEspecialidade.length > 0;
 
       let filteredUsers: Usuario[] = [];
 
@@ -294,7 +298,9 @@ const Usuarios: React.FC = () => {
         let query = supabase.from("usuarios").select("*");
 
         if (filtroNome.length > 0) {
-          const nomeFilter = filtroNome.map((n) => `nome.ilike.*${n}*`).join(",");
+          const nomeFilter = filtroNome
+            .map((n) => `nome.ilike.*${n}*`)
+            .join(",");
           query = query.or(nomeFilter);
         }
         if (filtroCpf.length > 0) {
@@ -550,7 +556,10 @@ const Usuarios: React.FC = () => {
         if (updateError) throw updateError;
 
         // Sincroniza email no GoTrue quando o email mudou e o usuário tinha conta auth
-        const emailMudou = formData.tipo !== "terceiro" && formData.email && formData.email !== selectedUser.email;
+        const emailMudou =
+          formData.tipo !== "terceiro" &&
+          formData.email &&
+          formData.email !== selectedUser.email;
         if (emailMudou && selectedUser.email) {
           await supabase.functions.invoke("admin-users", {
             body: {
@@ -638,7 +647,10 @@ const Usuarios: React.FC = () => {
               codigomv: formData.codigomv,
               especialidade: formData.especialidade,
               unidade_hospitalar_id: null,
-              contrato_id: formData.contrato_ids.length > 0 ? formData.contrato_ids[0] : null,
+              contrato_id:
+                formData.contrato_ids.length > 0
+                  ? formData.contrato_ids[0]
+                  : null,
             })
             .select()
             .single();
@@ -653,28 +665,34 @@ const Usuarios: React.FC = () => {
                   usuario_id: newUser.id,
                   contrato_id,
                   cpf: formData.cpf,
-                }))
+                })),
               );
-            if (contractError) throw new Error(`Erro ao vincular contratos: ${contractError.message}`);
+            if (contractError)
+              throw new Error(
+                `Erro ao vincular contratos: ${contractError.message}`,
+              );
           }
 
           setSuccess("Terceiro criado com sucesso!");
         } else {
           // Não-terceiros: cria conta auth via edge function com senha padrão Agir@123
-          const { data, error: fnError } = await supabase.functions.invoke("admin-users", {
-            body: {
-              action: "create-user",
-              email: formData.email,
-              nome: formData.nome,
-              cpf: formData.cpf,
-              tipo: formData.tipo,
-              unidade_hospitalar_id:
-                formData.tipo === "administrador-agir-planta"
-                  ? formData.unidade_hospitalar_id
-                  : null,
-              contrato_ids: formData.contrato_ids,
+          const { data, error: fnError } = await supabase.functions.invoke(
+            "admin-users",
+            {
+              body: {
+                action: "create-user",
+                email: formData.email,
+                nome: formData.nome,
+                cpf: formData.cpf,
+                tipo: formData.tipo,
+                unidade_hospitalar_id:
+                  formData.tipo === "administrador-agir-planta"
+                    ? formData.unidade_hospitalar_id
+                    : null,
+                contrato_ids: formData.contrato_ids,
+              },
             },
-          });
+          );
 
           if (fnError) {
             // Extract the specific error message from the edge function response body
@@ -688,7 +706,7 @@ const Usuarios: React.FC = () => {
           if (data?.error) throw new Error(data.error);
 
           setSuccess(
-            `Usuário ${formData.nome} criado com sucesso! Senha padrão: Agir@123 — lembre de avisar o usuário para alterá-la no primeiro acesso.`
+            `Usuário ${formData.nome} criado com sucesso! Senha padrão: Agir@123 — lembre de avisar o usuário para alterá-la no primeiro acesso.`,
           );
         }
 
@@ -734,17 +752,21 @@ const Usuarios: React.FC = () => {
   const handleResetPassword = async (usuario: Usuario) => {
     if (
       !window.confirm(
-        `Redefinir a senha de "${usuario.nome}" para a senha padrão Agir@123?\n\nLembre de avisar o usuário para alterá-la no próximo acesso.`
+        `Redefinir a senha de "${usuario.nome}" para a senha padrão Agir@123?\n\nLembre de avisar o usuário para alterá-la no próximo acesso.`,
       )
-    ) return;
+    )
+      return;
 
     try {
       setError("");
       setSuccess("");
 
-      const { data, error: fnError } = await supabase.functions.invoke("admin-users", {
-        body: { action: "reset-password", targetUserId: usuario.id },
-      });
+      const { data, error: fnError } = await supabase.functions.invoke(
+        "admin-users",
+        {
+          body: { action: "reset-password", targetUserId: usuario.id },
+        },
+      );
 
       if (fnError) {
         let msg = fnError.message;
@@ -757,7 +779,7 @@ const Usuarios: React.FC = () => {
       if (data?.error) throw new Error(data.error);
 
       setSuccess(
-        `Senha de ${usuario.nome} redefinida para "Agir@123". Avise o usuário para alterá-la no próximo login.`
+        `Senha de ${usuario.nome} redefinida para "Agir@123". Avise o usuário para alterá-la no próximo login.`,
       );
     } catch (err: any) {
       setError(err.message || "Erro ao redefinir senha");
@@ -1322,22 +1344,26 @@ const Usuarios: React.FC = () => {
               {selectedUser.email &&
                 (isAdminAgirCorporativo ||
                   (isAdminAgirPlanta &&
-                    ["administrador-terceiro", "terceiro"].includes(selectedUser.tipo))) && (
-                <Button
-                  variant="contained"
-                  startIcon={<LockReset />}
-                  onClick={() => handleResetPassword(selectedUser)}
-                  fullWidth
-                  sx={{
-                    background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                    "&:hover": {
-                      background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
-                    },
-                  }}
-                >
-                  Redefinir Senha para Padrão (Agir@123)
-                </Button>
-              )}
+                    ["administrador-terceiro", "terceiro"].includes(
+                      selectedUser.tipo,
+                    ))) && (
+                  <Button
+                    variant="contained"
+                    startIcon={<LockReset />}
+                    onClick={() => handleResetPassword(selectedUser)}
+                    fullWidth
+                    sx={{
+                      background:
+                        "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                      "&:hover": {
+                        background:
+                          "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
+                      },
+                    }}
+                  >
+                    Redefinir Senha para Padrão (Agir@123)
+                  </Button>
+                )}
             </Box>
           )}
         </DialogContent>
@@ -1421,7 +1447,9 @@ const Usuarios: React.FC = () => {
                 }
                 fullWidth
                 required={!editMode}
-                error={formData.email ? isEmailDomainBlocked(formData.email) : false}
+                error={
+                  formData.email ? isEmailDomainBlocked(formData.email) : false
+                }
                 helperText={
                   formData.email && isEmailDomainBlocked(formData.email)
                     ? getBlockedDomainMessage(formData.email)
@@ -1563,7 +1591,8 @@ const Usuarios: React.FC = () => {
             {formData.tipo === "terceiro" && !editMode && (
               <Alert severity="info">
                 <Typography variant="body2">
-                  Terceiros são criados apenas para registro e controle de escalas. Eles não possuem acesso ao sistema.
+                  Terceiros são criados apenas para registro e controle de
+                  escalas. Eles não possuem acesso ao sistema.
                 </Typography>
               </Alert>
             )}
@@ -1584,7 +1613,8 @@ const Usuarios: React.FC = () => {
                   Senha padrão: Agir@123
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  O usuário receberá acesso imediato com esta senha. Lembre-se de avisá-lo para alterá-la no primeiro login.
+                  O usuário receberá acesso imediato com esta senha. Lembre-se
+                  de avisá-lo para alterá-la no primeiro login.
                 </Typography>
               </Alert>
             )}
