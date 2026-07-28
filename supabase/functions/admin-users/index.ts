@@ -82,8 +82,16 @@ Deno.serve(async (req: Request) => {
       });
 
       if (authError) {
-        if (authError.message.includes("already been registered") || authError.message.includes("already registered")) {
-          return json({ error: "Este email já está cadastrado no sistema" }, 409);
+        const msg = authError.message.toLowerCase();
+        if (
+          msg.includes("already been registered") ||
+          msg.includes("already registered") ||
+          msg.includes("already exists") ||
+          msg.includes("email address not available") ||
+          msg.includes("duplicate") ||
+          authError.status === 422
+        ) {
+          return json({ error: "Este email já está cadastrado no sistema de autenticação" }, 409);
         }
         throw authError;
       }
@@ -200,7 +208,15 @@ Deno.serve(async (req: Request) => {
         });
 
         if (createError) {
-          if (createError.message.includes("already been registered") || createError.message.includes("already registered")) {
+          const createMsg = createError.message.toLowerCase();
+          if (
+            createMsg.includes("already been registered") ||
+            createMsg.includes("already registered") ||
+            createMsg.includes("already exists") ||
+            createMsg.includes("email address not available") ||
+            createMsg.includes("duplicate") ||
+            createError.status === 422
+          ) {
             return json({ error: "Este email já está registrado no sistema de autenticação, mas com outro ID. Contate o suporte." }, 409);
           }
           throw createError;

@@ -676,7 +676,15 @@ const Usuarios: React.FC = () => {
             },
           });
 
-          if (fnError) throw new Error(fnError.message);
+          if (fnError) {
+            // Extract the specific error message from the edge function response body
+            let msg = fnError.message;
+            try {
+              const body = await (fnError as any).context.json();
+              if (body?.error) msg = body.error;
+            } catch {}
+            throw new Error(msg);
+          }
           if (data?.error) throw new Error(data.error);
 
           setSuccess(
@@ -738,7 +746,14 @@ const Usuarios: React.FC = () => {
         body: { action: "reset-password", targetUserId: usuario.id },
       });
 
-      if (fnError) throw new Error(fnError.message);
+      if (fnError) {
+        let msg = fnError.message;
+        try {
+          const body = await (fnError as any).context.json();
+          if (body?.error) msg = body.error;
+        } catch {}
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
 
       setSuccess(
