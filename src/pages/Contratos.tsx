@@ -28,6 +28,7 @@ import {
   CircularProgress,
   Radio,
   RadioGroup,
+  Tooltip,
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { useTheme } from "@mui/material";
@@ -44,6 +45,7 @@ import {
   Download,
   PictureAsPdf,
   Visibility,
+  Close,
 } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -136,6 +138,13 @@ const Contratos: React.FC = () => {
   // Unidades state
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
 
+  // PDF viewer state
+  const [contratosComDocumentos, setContratosComDocumentos] = useState<Set<string>>(new Set());
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
+  const [pdfViewerNome, setPdfViewerNome] = useState("");
+  const [loadingPdfId, setLoadingPdfId] = useState<string | null>(null);
+
   // Form state
   const [formData, setFormData] = useState({
     nome: "",
@@ -152,6 +161,7 @@ const Contratos: React.FC = () => {
     loadItens();
     loadParceiros();
     loadUnidades();
+    loadContratosComDocumentos();
   }, [isAdminTerceiro, userContratoIds]);
 
   // Salva o rascunho no sessionStorage sempre que o formulário mudar e o dialog estiver aberto
@@ -995,6 +1005,59 @@ const Contratos: React.FC = () => {
     }
   };
 
+  const loadContratosComDocumentos = async () => {
+    try {
+      const { data } = await supabase
+        .from("documentos_contrato")
+        .select("contrato_id");
+      if (data) {
+        setContratosComDocumentos(new Set(data.map((d: any) => d.contrato_id)));
+      }
+    } catch (err) {
+      console.error("Erro ao verificar documentos:", err);
+    }
+  };
+
+  const handleVerPdf = async (contrato: Contrato) => {
+    setLoadingPdfId(contrato.id);
+    try {
+      const { data: docs } = await supabase
+        .from("documentos_contrato")
+        .select("*")
+        .eq("contrato_id", contrato.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (!docs || docs.length === 0) return;
+
+      const doc = docs[0] as DocumentoContrato;
+      const { data: blob } = await supabase.storage
+        .from("documentos-contratos")
+        .download(doc.caminho_storage);
+
+      if (blob) {
+        if (pdfViewerUrl) URL.revokeObjectURL(pdfViewerUrl);
+        const url = URL.createObjectURL(blob);
+        setPdfViewerUrl(url);
+        setPdfViewerNome(doc.nome_arquivo);
+        setPdfViewerOpen(true);
+      }
+    } catch {
+      setError("Erro ao carregar o PDF");
+    } finally {
+      setLoadingPdfId(null);
+    }
+  };
+
+  const handleClosePdfViewer = () => {
+    setPdfViewerOpen(false);
+    if (pdfViewerUrl) {
+      URL.revokeObjectURL(pdfViewerUrl);
+      setPdfViewerUrl(null);
+    }
+    setPdfViewerNome("");
+  };
+
   const handleToggleAtivo = async (contrato: Contrato) => {
     try {
       const updateData: any = { ativo: !contrato.ativo };
@@ -1100,39 +1163,82 @@ const Contratos: React.FC = () => {
     {
       field: "actions",
       headerName: "Ações",
-      width: 120,
+      width: 155,
       sortable: false,
-      renderCell: (params) => (
-        <Box>
-          {isReadOnly ? (
+      renderCell: (params) => {
+        const temPdf = contratosComDocumentos.has(params.row.id);
+        const isLoadingThis = loadingPdfId === params.row.id;
+
+        const pdfButton = temPdf ? (
+          <Tooltip title="Visualizar contrato em PDF" arrow>
             <IconButton
               size="small"
-              color="primary"
-              onClick={() => handleOpenDialog(params.row)}
-              title="Visualizar"
+              onClick={() => handleVerPdf(params.row)}
+              disabled={isLoadingThis}
+              sx={{
+                color: "#ef4444",
+                "&:hover": { bgcolor: "rgba(239,68,68,0.08)" },
+              }}
             >
-              <Visibility fontSize="small" />
+              {isLoadingThis ? (
+                <CircularProgress size={16} sx={{ color: "#ef4444" }} />
+              ) : (
+                <PictureAsPdf fontSize="small" />
+              )}
             </IconButton>
-          ) : (
-            <>
+          </Tooltip>
+        ) : (
+          <Tooltip title="Faça o upload deste contrato para visualizá-lo" arrow>
+            <span>
               <IconButton
                 size="small"
-                color="primary"
-                onClick={() => handleOpenDialog(params.row)}
+                disabled
+                sx={{ opacity: 0.28, color: "text.disabled" }}
               >
-                <Edit fontSize="small" />
+                <PictureAsPdf fontSize="small" />
               </IconButton>
-              <IconButton
-                size="small"
-                color="error"
-                onClick={() => handleOpenDeleteDialog(params.row)}
-              >
-                <Delete fontSize="small" />
-              </IconButton>
-            </>
-          )}
-        </Box>
-      ),
+            </span>
+          </Tooltip>
+        );
+
+        return (
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            {pdfButton}
+            {isReadOnly ? (
+              <Tooltip title="Visualizar" arrow>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  onClick={() => handleOpenDialog(params.row)}
+                >
+                  <Visibility fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <>
+                <Tooltip title="Editar" arrow>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() => handleOpenDialog(params.row)}
+                  >
+                    <Edit fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Excluir" arrow>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => handleOpenDeleteDialog(params.row)}
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
+          </Box>
+        );
+      },
     },
   ];
 
@@ -2148,6 +2254,64 @@ const Contratos: React.FC = () => {
           warningMessage="A exclusão de um contrato é uma ação MUITO SÉRIA. Todos os vínculos, escalas médicas e dados relacionados serão permanentemente excluídos."
           loading={deleting}
         />
+
+        {/* PDF Viewer Dialog */}
+        <Dialog
+          open={pdfViewerOpen}
+          onClose={handleClosePdfViewer}
+          maxWidth="xl"
+          fullWidth
+          PaperProps={{
+            sx: {
+              height: "92vh",
+              borderRadius: 3,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            },
+          }}
+        >
+          <DialogTitle
+            sx={{
+              px: 3,
+              py: 1.5,
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              background: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "rgba(239,68,68,0.08)"
+                  : "rgba(239,68,68,0.04)",
+            }}
+          >
+            <PictureAsPdf sx={{ color: "#ef4444", fontSize: 24 }} />
+            <Typography
+              variant="subtitle1"
+              fontWeight={600}
+              sx={{ flex: 1 }}
+              noWrap
+              title={pdfViewerNome}
+            >
+              {pdfViewerNome}
+            </Typography>
+            <Tooltip title="Fechar" arrow>
+              <IconButton size="small" onClick={handleClosePdfViewer}>
+                <Close fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </DialogTitle>
+          <DialogContent sx={{ p: 0, flex: 1, minHeight: 0 }}>
+            {pdfViewerUrl && (
+              <iframe
+                src={pdfViewerUrl}
+                title={pdfViewerNome}
+                style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </Box>
     </LocalizationProvider>
   );
