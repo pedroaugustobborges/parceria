@@ -77,7 +77,7 @@ const RASCUNHO_META_KEY = "contratos_rascunho_meta";
 
 const Contratos: React.FC = () => {
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
+  const isDark = theme.palette.mode === "dark";
   const {
     isAdminAgirCorporativo,
     isAdminAgirPlanta,
@@ -123,7 +123,9 @@ const Contratos: React.FC = () => {
   const [unidadeSelecionada, setUnidadeSelecionada] = useState<string>("");
 
   // AI extraction state (only for Novo Contrato)
-  const [arquivoPdfExtracao, setArquivoPdfExtracao] = useState<File | null>(null);
+  const [arquivoPdfExtracao, setArquivoPdfExtracao] = useState<File | null>(
+    null,
+  );
   const [extraindoDados, setExtraindoDados] = useState(false);
   const [dadosExtraidos, setDadosExtraidos] = useState(false);
   const [itensNaoMapeados, setItensNaoMapeados] = useState<string[]>([]);
@@ -162,7 +164,10 @@ const Contratos: React.FC = () => {
         data_fim: formData.data_fim?.toISOString() ?? null,
       };
       sessionStorage.setItem(RASCUNHO_FORM_KEY, JSON.stringify(formParaSalvar));
-      sessionStorage.setItem(RASCUNHO_ITENS_KEY, JSON.stringify(itensSelecionados));
+      sessionStorage.setItem(
+        RASCUNHO_ITENS_KEY,
+        JSON.stringify(itensSelecionados),
+      );
       sessionStorage.setItem(
         RASCUNHO_META_KEY,
         JSON.stringify({
@@ -187,14 +192,18 @@ const Contratos: React.FC = () => {
 
       const meta = JSON.parse(metaRaw);
       const formSalvo = JSON.parse(formRaw);
-      const itensSalvos: ItemSelecionado[] = itensRaw ? JSON.parse(itensRaw) : [];
+      const itensSalvos: ItemSelecionado[] = itensRaw
+        ? JSON.parse(itensRaw)
+        : [];
 
       if (!meta.dialogAberto) return;
 
       // Desserializar campos de data
       const form = {
         ...formSalvo,
-        data_inicio: formSalvo.data_inicio ? new Date(formSalvo.data_inicio) : null,
+        data_inicio: formSalvo.data_inicio
+          ? new Date(formSalvo.data_inicio)
+          : null,
         data_fim: formSalvo.data_fim ? new Date(formSalvo.data_fim) : null,
       };
 
@@ -202,7 +211,9 @@ const Contratos: React.FC = () => {
       setItensSelecionados(itensSalvos);
 
       if (meta.contratoId) {
-        const contratoEncontrado = contratos.find((c) => c.id === meta.contratoId);
+        const contratoEncontrado = contratos.find(
+          (c) => c.id === meta.contratoId,
+        );
         if (contratoEncontrado) setEditingContrato(contratoEncontrado);
       }
 
@@ -210,7 +221,7 @@ const Contratos: React.FC = () => {
     } catch {
       limparRascunhoFormulario();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
   const loadContratos = async () => {
@@ -514,7 +525,9 @@ const Contratos: React.FC = () => {
       setDadosExtraidos(false);
       setItensNaoMapeados([]);
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       const formDataPdf = new FormData();
       formDataPdf.append("pdf", file);
@@ -542,12 +555,14 @@ const Contratos: React.FC = () => {
             apikey: supabaseAnonKey,
           },
           body: formDataPdf,
-        }
+        },
       );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.erro || `Erro ${response.status} na extração`);
+        throw new Error(
+          errorData.erro || `Erro ${response.status} na extração`,
+        );
       }
 
       const result = await response.json();
@@ -572,7 +587,10 @@ const Contratos: React.FC = () => {
         ...prev,
         nome: dados.nome || prev.nome,
         numero_contrato: dados.numero_contrato || prev.numero_contrato,
-        empresa: parceiroEncontrado?.nome || dados.empresa_nome_contrato || prev.empresa,
+        empresa:
+          parceiroEncontrado?.nome ||
+          dados.empresa_nome_contrato ||
+          prev.empresa,
         data_inicio: dados.data_inicio
           ? new Date(dados.data_inicio + "T12:00:00")
           : prev.data_inicio,
@@ -595,9 +613,13 @@ const Contratos: React.FC = () => {
         console.log("[IA] itens brutos extraídos:", extraidos);
 
         // ── P1: DB query por codigo_corporativo ───────────────────────────────
-        const codigosExtraidos = [...new Set(
-          extraidos.map((i) => (i.codigo_corporativo as string || "").trim()).filter(Boolean)
-        )];
+        const codigosExtraidos = [
+          ...new Set(
+            extraidos
+              .map((i) => ((i.codigo_corporativo as string) || "").trim())
+              .filter(Boolean),
+          ),
+        ];
 
         const mapPorCodigo: Record<string, ItemContrato> = {};
         if (codigosExtraidos.length > 0) {
@@ -608,7 +630,8 @@ const Contratos: React.FC = () => {
               .in("codigo_corporativo", codigosExtraidos);
             (data || []).forEach((item: any) => {
               if (item.codigo_corporativo) {
-                mapPorCodigo[item.codigo_corporativo.trim().toLowerCase()] = item;
+                mapPorCodigo[item.codigo_corporativo.trim().toLowerCase()] =
+                  item;
               }
             });
             console.log("[IA] P1 DB por código:", mapPorCodigo);
@@ -625,7 +648,9 @@ const Contratos: React.FC = () => {
           const wa = words(a);
           const wb = words(b);
           let hits = 0;
-          wa.forEach((w) => { if (wb.has(w)) hits++; });
+          wa.forEach((w) => {
+            if (wb.has(w)) hits++;
+          });
           return hits / Math.max(wa.size, wb.size, 1);
         };
 
@@ -634,8 +659,14 @@ const Contratos: React.FC = () => {
         const nomesSemCorrespondencia: string[] = [];
 
         for (const itemExtraido of extraidos) {
-          const codigoExtraido = (itemExtraido.codigo_corporativo as string || "").trim().toLowerCase();
-          const nomeExtraido = (itemExtraido.nome_no_contrato as string || "").toLowerCase().trim();
+          const codigoExtraido = (
+            (itemExtraido.codigo_corporativo as string) || ""
+          )
+            .trim()
+            .toLowerCase();
+          const nomeExtraido = ((itemExtraido.nome_no_contrato as string) || "")
+            .toLowerCase()
+            .trim();
 
           // P1 — codigo_corporativo via DB
           let itemExistente: ItemContrato | undefined = codigoExtraido
@@ -648,15 +679,24 @@ const Contratos: React.FC = () => {
             let melhorItem: ItemContrato | undefined;
             for (const i of itensDisponiveis) {
               const score = scoreIntersecao(i.nome.toLowerCase(), nomeExtraido);
-              if (score > melhorScore) { melhorScore = score; melhorItem = i; }
+              if (score > melhorScore) {
+                melhorScore = score;
+                melhorItem = i;
+              }
             }
-            console.log(`[IA] P2 word-score para "${nomeExtraido}": melhor="${melhorItem?.nome}" score=${melhorScore.toFixed(2)}`);
+            console.log(
+              `[IA] P2 word-score para "${nomeExtraido}": melhor="${melhorItem?.nome}" score=${melhorScore.toFixed(2)}`,
+            );
             if (melhorScore >= 0.35) itemExistente = melhorItem;
           }
 
           if (itemExistente) {
-            if (!itensPreenchidos.some((is) => is.item.id === itemExistente!.id)) {
-              const unidades: string[] = Array.isArray(itemExistente.unidade_medida)
+            if (
+              !itensPreenchidos.some((is) => is.item.id === itemExistente!.id)
+            ) {
+              const unidades: string[] = Array.isArray(
+                itemExistente.unidade_medida,
+              )
                 ? itemExistente.unidade_medida
                 : [itemExistente.unidade_medida].filter(Boolean);
               itensPreenchidos.push({
@@ -668,12 +708,16 @@ const Contratos: React.FC = () => {
               });
             }
           } else {
-            const nomeExibir = (itemExtraido.nome_no_contrato || itemExtraido.nome) as string | null;
+            const nomeExibir = (itemExtraido.nome_no_contrato ||
+              itemExtraido.nome) as string | null;
             if (nomeExibir) nomesSemCorrespondencia.push(nomeExibir);
           }
         }
 
-        console.log("[IA] itens mapeados:", itensPreenchidos.map(is => is.item.nome));
+        console.log(
+          "[IA] itens mapeados:",
+          itensPreenchidos.map((is) => is.item.nome),
+        );
         console.log("[IA] sem correspondência:", nomesSemCorrespondencia);
 
         if (itensPreenchidos.length > 0) setItensSelecionados(itensPreenchidos);
@@ -682,7 +726,9 @@ const Contratos: React.FC = () => {
 
       setDadosExtraidos(true);
     } catch (err: any) {
-      setError("Erro ao extrair dados do PDF: " + (err.message || "Tente novamente"));
+      setError(
+        "Erro ao extrair dados do PDF: " + (err.message || "Tente novamente"),
+      );
       setArquivoPdfExtracao(null);
       setDadosExtraidos(false);
     } finally {
@@ -970,6 +1016,25 @@ const Contratos: React.FC = () => {
 
   const columns: GridColDef[] = [
     {
+      field: "unidade_hospitalar_id",
+      headerName: "Unidade",
+      width: 110,
+      renderCell: (params) => {
+        const unidade = unidades.find(
+          (u) => u.id === params.row.unidade_hospitalar_id,
+        );
+        return (
+          <Chip
+            label={unidade?.codigo || "-"}
+            size="small"
+            color="primary"
+            variant="outlined"
+            sx={{ fontWeight: 700, fontSize: "0.75rem" }}
+          />
+        );
+      },
+    },
+    {
       field: "nome",
       headerName: "Contrato",
       flex: 1,
@@ -1188,22 +1253,40 @@ const Contratos: React.FC = () => {
                     p: 2,
                     borderRadius: 2,
                     border: "1px solid",
-                    borderColor: dadosExtraidos ? "success.main" : "primary.light",
+                    borderColor: dadosExtraidos
+                      ? "success.main"
+                      : "primary.light",
                     bgcolor: (theme) =>
                       dadosExtraidos
                         ? theme.palette.mode === "dark"
                           ? "rgba(34,197,94,0.08)"
                           : "rgba(34,197,94,0.06)"
                         : theme.palette.mode === "dark"
-                        ? "rgba(14,165,233,0.08)"
-                        : "rgba(14,165,233,0.05)",
+                          ? "rgba(14,165,233,0.08)"
+                          : "rgba(14,165,233,0.05)",
                   }}
                 >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                    <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 1,
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={700}
+                      sx={{ flex: 1 }}
+                    >
                       ✨ Extração Automática com IA
                     </Typography>
-                    <Chip label="Opcional" size="small" variant="outlined" color="primary" />
+                    <Chip
+                      label="Opcional"
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                    />
                   </Box>
 
                   {dadosExtraidos && arquivoPdfExtracao ? (
@@ -1409,7 +1492,9 @@ const Contratos: React.FC = () => {
                       onChange={(_, newValue) => setItemParaAdicionar(newValue)}
                       options={itensDisponiveis}
                       getOptionLabel={(option) => {
-                        const unidades: string[] = Array.isArray(option.unidade_medida)
+                        const unidades: string[] = Array.isArray(
+                          option.unidade_medida,
+                        )
                           ? option.unidade_medida
                           : [option.unidade_medida].filter(Boolean);
                         const unidadeStr = unidades.join(", ");
@@ -1422,11 +1507,15 @@ const Contratos: React.FC = () => {
                         return options.filter(
                           (o) =>
                             o.nome.toLowerCase().includes(term) ||
-                            (o.codigo_corporativo || "").toLowerCase().includes(term),
+                            (o.codigo_corporativo || "")
+                              .toLowerCase()
+                              .includes(term),
                         );
                       }}
                       renderOption={(props, option) => {
-                        const unidades: string[] = Array.isArray(option.unidade_medida)
+                        const unidades: string[] = Array.isArray(
+                          option.unidade_medida,
+                        )
                           ? option.unidade_medida
                           : [option.unidade_medida].filter(Boolean);
                         return (
@@ -1441,8 +1530,17 @@ const Contratos: React.FC = () => {
                               />
                             )}
                             <Box sx={{ flex: 1 }}>
-                              <Typography variant="body2">{option.nome}</Typography>
-                              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.25 }}>
+                              <Typography variant="body2">
+                                {option.nome}
+                              </Typography>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: 0.5,
+                                  mt: 0.25,
+                                }}
+                              >
                                 {unidades.map((u) => (
                                   <Chip
                                     key={u}
@@ -1531,7 +1629,14 @@ const Contratos: React.FC = () => {
                                 <Typography variant="body2" fontWeight={600}>
                                   {is.item.nome}
                                 </Typography>
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                    mt: 0.25,
+                                  }}
+                                >
                                   <Chip
                                     label={is.unidade_medida}
                                     size="small"
@@ -1973,12 +2078,21 @@ const Contratos: React.FC = () => {
                   value={u}
                   control={<Radio color="primary" />}
                   label={
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        py: 0.5,
+                      }}
+                    >
                       <Chip
                         label={u}
                         size="small"
                         color={unidadeSelecionada === u ? "primary" : "default"}
-                        variant={unidadeSelecionada === u ? "filled" : "outlined"}
+                        variant={
+                          unidadeSelecionada === u ? "filled" : "outlined"
+                        }
                         sx={{ fontSize: "0.78rem" }}
                       />
                     </Box>
@@ -1987,10 +2101,12 @@ const Contratos: React.FC = () => {
                     mb: 0.5,
                     borderRadius: 2,
                     border: "1px solid",
-                    borderColor: unidadeSelecionada === u ? "primary.main" : "divider",
-                    bgcolor: unidadeSelecionada === u
-                      ? "primary.50"
-                      : "background.paper",
+                    borderColor:
+                      unidadeSelecionada === u ? "primary.main" : "divider",
+                    bgcolor:
+                      unidadeSelecionada === u
+                        ? "primary.50"
+                        : "background.paper",
                     px: 1,
                     transition: "all 0.15s",
                   }}
