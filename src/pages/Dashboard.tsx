@@ -3394,9 +3394,11 @@ const Dashboard: React.FC = () => {
                   value={filtroContrato}
                   onChange={handleContratoChange}
                   options={contratos}
-                  getOptionLabel={(option) =>
-                    `${option.nome} - ${option.empresa}`
-                  }
+                  getOptionLabel={(option) => {
+                    const unidade = unidades.find((u) => u.id === option.unidade_hospitalar_id);
+                    const prefixo = unidade ? `${unidade.codigo} - ` : '';
+                    return `${prefixo}${option.nome} - ${option.empresa}`;
+                  }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
