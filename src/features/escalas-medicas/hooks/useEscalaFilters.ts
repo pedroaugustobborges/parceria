@@ -96,11 +96,15 @@ export function useEscalaFilters(props: UseEscalaFiltersProps): UseEscalaFilters
   // ============================================
 
   const contratosUnicos = useMemo<FilterOption[]>(() => {
-    return contratos.map((c) => ({
-      id: c.id,
-      label: `${c.nome} - ${c.empresa}`,
-    }));
-  }, [contratos]);
+    return contratos.map((c) => {
+      const unidade = unidades.find((u) => u.id === c.unidade_hospitalar_id);
+      const prefixo = unidade ? `${unidade.codigo} - ` : '';
+      return {
+        id: c.id,
+        label: `${prefixo}${c.nome} - ${c.empresa}`,
+      };
+    });
+  }, [contratos, unidades]);
 
   const itensContratoUnicos = useMemo<FilterOption[]>(() => {
     // If contracts are selected, use those; otherwise use all accessible contracts
