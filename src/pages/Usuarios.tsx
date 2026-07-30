@@ -156,6 +156,7 @@ const Usuarios: React.FC = () => {
   const [filtroContrato, setFiltroContrato] = useState<Contrato | null>(null);
   const [filtroParceiro, setFiltroParceiro] = useState<string[]>([]);
   const [filtroEspecialidade, setFiltroEspecialidade] = useState<string[]>([]);
+  const [filtroEmail, setFiltroEmail] = useState<string[]>([]);
 
   // Dialog states
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -289,7 +290,8 @@ const Usuarios: React.FC = () => {
       const hasServerFilters =
         filtroNome.length > 0 ||
         filtroCpf.length > 0 ||
-        filtroEspecialidade.length > 0;
+        filtroEspecialidade.length > 0 ||
+        filtroEmail.length > 0;
 
       let filteredUsers: Usuario[] = [];
 
@@ -308,6 +310,12 @@ const Usuarios: React.FC = () => {
         }
         if (filtroEspecialidade.length > 0) {
           query = query.overlaps("especialidade", filtroEspecialidade);
+        }
+        if (filtroEmail.length > 0) {
+          const emailFilter = filtroEmail
+            .map((e) => `email.ilike.*${e}*`)
+            .join(",");
+          query = query.or(emailFilter);
         }
 
         const { data, error: queryError } = await query;
@@ -886,6 +894,15 @@ const Usuarios: React.FC = () => {
     new Set(usuarios.map((u) => u.cpf)),
   ).sort();
 
+  // Get unique emails for autocomplete
+  const emailsDisponiveis = Array.from(
+    new Set(
+      usuarios
+        .map((u) => u.email)
+        .filter((e): e is string => Boolean(e)),
+    ),
+  ).sort();
+
   // Get unique parceiros (empresas from contratos)
   const parceirosDisponiveis = Array.from(
     new Set(contratos.map((c) => c.empresa)),
@@ -1021,13 +1038,30 @@ const Usuarios: React.FC = () => {
             </Grid>
 
             <Grid item xs={12} md={6} lg={4}>
-              <Box sx={{ display: "flex", gap: 1, height: "100%" }}>
+              <Autocomplete
+                multiple
+                freeSolo
+                options={emailsDisponiveis}
+                value={filtroEmail}
+                onChange={(_, newValue) => setFiltroEmail(newValue as string[])}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Email"
+                    placeholder="Digite e pressione Enter..."
+                  />
+                )}
+                size="small"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
                 <Button
                   variant="contained"
                   startIcon={<Search />}
                   onClick={handleSearch}
                   disabled={loading}
-                  fullWidth
                   sx={{
                     background:
                       "linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)",
