@@ -296,6 +296,36 @@ Deno.serve(async (req: Request) => {
       return json({ success: true });
     }
 
+    // ================================================================
+    // ACTION: remove-auth-user
+    // Remove a conta auth de um usuário (quando o email é removido na edição),
+    // liberando o email para ser usado em outro cadastro.
+    // O registro em public.usuarios é mantido intacto.
+    // ================================================================
+    if (action === "remove-auth-user") {
+      if (!["administrador-agir-corporativo", "administrador-agir-planta"].includes(callerProfile.tipo)) {
+        return json({ error: "Sem permissão para remover acesso de usuários" }, 403);
+      }
+
+      const { targetUserId } = body;
+      if (!targetUserId) return json({ error: "targetUserId é obrigatório" }, 400);
+
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUserId);
+
+      if (deleteError) {
+        // Usuário já não tinha conta auth — não é um erro
+        if (
+          deleteError.message.toLowerCase().includes("user not found") ||
+          deleteError.message.toLowerCase().includes("not found")
+        ) {
+          return json({ success: true });
+        }
+        throw deleteError;
+      }
+
+      return json({ success: true });
+    }
+
     return json({ error: "Ação desconhecida" }, 400);
 
   } catch (err: any) {

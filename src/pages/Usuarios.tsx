@@ -580,6 +580,21 @@ const Usuarios: React.FC = () => {
           // Usuário legado sem conta auth: admin usa "Redefinir Senha" depois.
         }
 
+        // Se o email foi removido e o usuário tinha conta auth, exclui a conta
+        // auth para liberar o email e evitar registros órfãos em auth.users.
+        const emailFoiRemovido =
+          formData.tipo !== "terceiro" &&
+          !formData.email &&
+          selectedUser.email;
+        if (emailFoiRemovido) {
+          await supabase.functions.invoke("admin-users", {
+            body: {
+              action: "remove-auth-user",
+              targetUserId: selectedUser.id,
+            },
+          });
+        }
+
         // Update contracts
         // First, delete existing contracts
         await supabase
