@@ -1345,7 +1345,11 @@ const Usuarios: React.FC = () => {
                       {userContracts.map((uc) => (
                         <ListItem key={uc.id}>
                           <ListItemText
-                            primary={uc.contratos?.nome}
+                            primary={(() => {
+                              const unidade = unidades.find((u) => u.id === uc.contratos?.unidade_hospitalar_id);
+                              const prefixo = unidade ? `${unidade.codigo} - ` : '';
+                              return `${prefixo}${uc.contratos?.nome}`;
+                            })()}
                             secondary={uc.contratos?.empresa}
                           />
                           <ListItemSecondaryAction>
@@ -1368,9 +1372,11 @@ const Usuarios: React.FC = () => {
                       (c) =>
                         !userContracts.some((uc) => uc.contrato_id === c.id),
                     )}
-                    getOptionLabel={(option) =>
-                      `${option.nome} - ${option.empresa}`
-                    }
+                    getOptionLabel={(option) => {
+                      const unidade = unidades.find((u) => u.id === option.unidade_hospitalar_id);
+                      const prefixo = unidade ? `${unidade.codigo} - ` : '';
+                      return `${prefixo}${option.nome} - ${option.empresa}`;
+                    }}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -1604,9 +1610,11 @@ const Usuarios: React.FC = () => {
                       contrato_ids: newValue.map((c) => c.id),
                     })
                   }
-                  getOptionLabel={(option) =>
-                    `${option.nome} - ${option.empresa}`
-                  }
+                  getOptionLabel={(option) => {
+                    const unidade = unidades.find((u) => u.id === option.unidade_hospitalar_id);
+                    const prefixo = unidade ? `${unidade.codigo} - ` : '';
+                    return `${prefixo}${option.nome} - ${option.empresa}`;
+                  }}
                   renderInput={(params) => (
                     <TextField {...params} label="Contratos" />
                   )}
