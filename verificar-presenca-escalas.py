@@ -90,38 +90,33 @@ def calcular_duracao_horas(horario_entrada: str, horario_saida: str) -> float:
     return duracao_min / 60.0
 
 
-BRT_TO_UTC = timedelta(hours=3)  # BRT = UTC-3, so BRT + 3h = UTC
-
-
 def calcular_janela_busca(data_inicio_str: str, horario_entrada: str, horario_saida: str) -> tuple[str, str]:
     """
     Janela de busca de acessos: 2h antes da entrada até 2h após a saída.
     Para plantões noturnos a saída é no dia seguinte.
 
-    Os horários da escala estão em BRT (UTC-3). Os acessos são armazenados em UTC.
-    Por isso, converte a janela para UTC antes de montar as strings de query
-    (BRT + 3h = UTC).
+    IMPORTANTE: os timestamps em acessos.data_acesso são armazenados como horário
+    local (BRT) rotulados como +00:00 (sem conversão real para UTC), portanto
+    comparamos diretamente com strings de horário local — sem offset de fuso.
 
-    Retorna (window_start, window_end) em formato "YYYY-MM-DDTHH:MM:SS" (UTC).
+    Retorna (window_start, window_end) em formato "YYYY-MM-DDTHH:MM:SS".
     """
     data = datetime.strptime(data_inicio_str, "%Y-%m-%d")
     h_e, m_e = parse_hhmm(horario_entrada)
     h_s, m_s = parse_hhmm(horario_saida)
 
-    # Horários em BRT (horário local da escala)
-    entrada_brt = data.replace(hour=h_e, minute=m_e, second=0, microsecond=0)
+    entrada_dt = data.replace(hour=h_e, minute=m_e, second=0, microsecond=0)
 
     if is_overnight(horario_entrada, horario_saida):
         dia_seguinte = data + timedelta(days=1)
-        saida_brt = dia_seguinte.replace(hour=h_s, minute=m_s, second=0, microsecond=0)
+        saida_dt = dia_seguinte.replace(hour=h_s, minute=m_s, second=0, microsecond=0)
     else:
-        saida_brt = data.replace(hour=h_s, minute=m_s, second=0, microsecond=0)
+        saida_dt = data.replace(hour=h_s, minute=m_s, second=0, microsecond=0)
 
-    # Converter janela para UTC (+3h) para comparar com acessos.data_acesso
-    window_start_utc = (entrada_brt - timedelta(hours=2)) + BRT_TO_UTC
-    window_end_utc   = (saida_brt   + timedelta(hours=2)) + BRT_TO_UTC
+    window_start = (entrada_dt - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S")
+    window_end   = (saida_dt   + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S")
 
-    return window_start_utc.strftime("%Y-%m-%dT%H:%M:%S"), window_end_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    return window_start, window_end
 
 
 # ── Caches (evita queries repetidas ao Supabase) ──────────────────────────────
