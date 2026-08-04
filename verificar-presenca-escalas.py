@@ -295,8 +295,8 @@ def analisar_escala(escala: dict) -> Optional[str]:
         novo_status = "Atenção"
         logger.info(f"     🔴 Resultado: ATENÇÃO (médico(s) sem acesso)")
     elif algum_parcial:
-        novo_status = "Aprovado Parcial"
-        logger.info(f"     🟡 Resultado: APROVADO PARCIAL (carga incompleta)")
+        novo_status = "Aprovação Parcial"
+        logger.info(f"     🟡 Resultado: APROVAÇÃO PARCIAL (carga incompleta)")
     else:
         novo_status = "Pré-Aprovado"
         logger.info(f"     🟢 Resultado: PRÉ-APROVADO")
