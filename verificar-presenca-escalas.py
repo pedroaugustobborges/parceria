@@ -116,8 +116,8 @@ def calcular_janela_busca(data_inicio_str: str, horario_entrada: str, horario_sa
     else:
         saida_brt = data.replace(hour=h_s, minute=m_s, second=0, microsecond=0)
 
-    window_start = ((entrada_brt - timedelta(hours=2)) + BRT_TO_UTC).strftime("%Y-%m-%dT%H:%M:%S")
-    window_end   = ((saida_brt   + timedelta(hours=2)) + BRT_TO_UTC).strftime("%Y-%m-%dT%H:%M:%S")
+    window_start = ((entrada_brt - timedelta(hours=2.5)) + BRT_TO_UTC).strftime("%Y-%m-%dT%H:%M:%S")
+    window_end   = ((saida_brt   + timedelta(hours=2.5)) + BRT_TO_UTC).strftime("%Y-%m-%dT%H:%M:%S")
 
     return window_start, window_end
 
