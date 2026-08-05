@@ -7,7 +7,7 @@ Lógica:
   - Busca todas as escalas com status="Programado" de datas anteriores até hoje
   - Para cada escala, obtém a unidade hospitalar via contrato → unidades_hospitalares
   - Para cada médico na escala, verifica seus acessos na coluna "planta" da tabela "acessos"
-  - Janela de busca: 2h antes do horário de entrada até 2h após o horário de saída
+  - Janela de busca: 2.5h antes do horário de entrada até 2.5h após o horário de saída
   - Plantão noturno: horario_saida <= horario_entrada → saída é no dia seguinte
   - Duração calculada: último acesso - primeiro acesso dentro da janela
   - Resultados por escala:
@@ -95,7 +95,7 @@ BRT_TO_UTC = timedelta(hours=3)  # acessos.data_acesso é armazenado em UTC real
 
 def calcular_janela_busca(data_inicio_str: str, horario_entrada: str, horario_saida: str) -> tuple[str, str]:
     """
-    Janela de busca de acessos: 2h antes da entrada até 2h após a saída.
+    Janela de busca de acessos: 2.5h antes da entrada até 2.5h após a saída.
     Para plantões noturnos a saída é no dia seguinte.
 
     Os horários da escala estão em BRT (UTC-3).
