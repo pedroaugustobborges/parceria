@@ -1243,7 +1243,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
 
                   {produtividadeMedico.length > 0 ? (
                     <>
-                      <Grid container spacing={1.5} sx={{ mt: 0.5 }}>
+                      <Grid container spacing={2} sx={{ mt: 0.5 }}>
                         {PROD_FIELDS.map((field) => {
                           const value = prodTotais[field.key] ?? 0;
                           const isSelected = localCampoProducao === field.key && localBaseCalculo === 'producao';
@@ -1251,23 +1251,24 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                           const isSelectable = canChangeBaseCalculo;
 
                           return (
-                            <Grid item xs={6} sm={4} md={3} key={field.key}>
+                            <Grid item xs={12} sm={4} key={field.key}>
                               <Paper
                                 onClick={() => {
                                   if (!isSelectable) return;
                                   if (isSelected) {
-                                    // clicking active selection triggers reset
                                     setPendingProdField('__reset__');
                                   } else {
                                     setPendingProdField(field.key);
                                     setBaseCalculoError('');
                                   }
                                 }}
-                                elevation={isPending || isSelected ? 4 : 1}
+                                elevation={isPending || isSelected ? 6 : 1}
                                 sx={{
-                                  p: 1.5,
+                                  py: 2.5,
+                                  px: 2,
                                   textAlign: 'center',
                                   position: 'relative',
+                                  borderRadius: 2,
                                   cursor: isSelectable ? 'pointer' : 'default',
                                   border: '2px solid',
                                   borderColor: isSelected
@@ -1279,8 +1280,8 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                                   '&:hover': isSelectable
                                     ? {
                                         borderColor: '#6366f1',
-                                        boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
-                                        transform: 'translateY(-2px)',
+                                        boxShadow: '0 6px 20px rgba(99,102,241,0.3)',
+                                        transform: 'translateY(-3px)',
                                       }
                                     : {},
                                 }}
@@ -1290,17 +1291,47 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                                   <CheckCircle
                                     sx={{
                                       position: 'absolute',
-                                      top: 4,
-                                      right: 4,
-                                      fontSize: 15,
+                                      top: 8,
+                                      right: 8,
+                                      fontSize: 18,
                                       color: '#6366f1',
                                     }}
                                   />
                                 )}
-                                <Typography variant="h5" fontWeight={700} color={isSelected ? '#6366f1' : 'primary'}>
+                                {/* Accent bar */}
+                                <Box
+                                  sx={{
+                                    width: 32,
+                                    height: 4,
+                                    borderRadius: 2,
+                                    bgcolor: isSelected
+                                      ? '#6366f1'
+                                      : isPending
+                                      ? 'rgba(99,102,241,0.5)'
+                                      : 'rgba(240,147,251,0.5)',
+                                    mx: 'auto',
+                                    mb: 1.5,
+                                    transition: 'background-color 0.18s',
+                                  }}
+                                />
+                                <Typography
+                                  variant="h4"
+                                  fontWeight={800}
+                                  sx={{
+                                    color: isSelected ? '#6366f1' : isPending ? 'rgba(99,102,241,0.8)' : 'text.primary',
+                                    lineHeight: 1,
+                                    mb: 0.75,
+                                    transition: 'color 0.18s',
+                                  }}
+                                >
                                   {value}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2, display: 'block' }}>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  fontWeight={500}
+                                  sx={{ lineHeight: 1.3 }}
+                                >
                                   {field.label}
                                 </Typography>
                               </Paper>
