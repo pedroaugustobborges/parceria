@@ -68,6 +68,7 @@ import type {
   UnidadeHospitalar,
   Usuario,
   StatusEscala,
+  Produtividade,
 } from "../../types/escalas.types";
 import { updateBaseCalculo, updateHorariosPagamento } from "../../services/escalasService";
 import {
@@ -94,19 +95,18 @@ const statusIconMap: Record<StatusEscala, React.ReactElement> = {
 // Productivity fields config
 // ============================================
 
-const PROD_FIELDS: Array<{ key: keyof ProdutividadeMedico; label: string }> = [
-  { key: 'prescricao', label: 'Prescrição' },
-  { key: 'evolucao', label: 'Evoluções' },
-  { key: 'procedimento', label: 'Procedimentos' },
-  { key: 'urgencia', label: 'Urgências' },
-  { key: 'parecer_solicitado', label: 'Parecer Solicitado' },
-  { key: 'parecer_realizado', label: 'Parecer Realizado' },
-  { key: 'ambulatorio', label: 'Ambulatórios' },
-  { key: 'evolucao_noturna_cti', label: 'Evol. Noturna CTI' },
-  { key: 'evolucao_diurna_cti', label: 'Evol. Diurna CTI' },
-  { key: 'cirurgia_realizada', label: 'Cirurgias' },
-  { key: 'folha_objetivo_diario', label: 'Folha Obj. Diário' },
-  { key: 'qtd_documentos_pep', label: 'Docs no PEP' },
+type ProdKey = 'prescricao' | 'diagnostico' | 'encaminhamento' | 'parecer' | 'anotacao' | 'avaliacao' | 'documento_eletronico' | 'evolucao' | 'alta_medica';
+
+const PROD_FIELDS: Array<{ key: ProdKey; label: string }> = [
+  { key: 'prescricao',           label: 'Prescrição' },
+  { key: 'diagnostico',          label: 'Diagnóstico' },
+  { key: 'encaminhamento',       label: 'Encaminhamento' },
+  { key: 'parecer',              label: 'Parecer' },
+  { key: 'anotacao',             label: 'Anotação' },
+  { key: 'avaliacao',            label: 'Avaliação' },
+  { key: 'documento_eletronico', label: 'Doc. Eletrônico' },
+  { key: 'evolucao',             label: 'Evolução' },
+  { key: 'alta_medica',          label: 'Alta Médica' },
 ];
 
 // ============================================
@@ -118,21 +118,6 @@ interface AcessoMedico {
   sentido: "E" | "S";
   planta?: string;
   codin?: string;
-}
-
-interface ProdutividadeMedico {
-  prescricao: number;
-  evolucao: number;
-  procedimento: number;
-  urgencia: number;
-  parecer_solicitado: number;
-  parecer_realizado: number;
-  ambulatorio: number;
-  evolucao_noturna_cti: number;
-  evolucao_diurna_cti: number;
-  cirurgia_realizada: number;
-  folha_objetivo_diario: number;
-  qtd_documentos_pep: number;
 }
 
 // ============================================
@@ -148,7 +133,7 @@ export interface DetailsDialogProps {
   todosItensContrato: ItemContrato[];
   usuarioAlterouStatus: Usuario | null;
   acessosMedico: AcessoMedico[];
-  produtividadeMedico: ProdutividadeMedico | null;
+  produtividadeMedico: Produtividade[];
   loadingDetalhes: boolean;
   isAdminAgir: boolean;
   isAdminAgirCorporativo?: boolean;
@@ -350,12 +335,20 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
   );
   const valorUnitario = contratoItem?.valor_unitario ?? 0;
 
-  const canChangeBaseCalculo = (isAdminAgirCorporativo || isAdminAgirPlanta) && !escalaPaga && !!produtividadeMedico;
+  const canChangeBaseCalculo = (isAdminAgirCorporativo || isAdminAgirPlanta) && !escalaPaga && produtividadeMedico.length > 0;
 
   const activeProdLabel =
     localCampoProducao
       ? (PROD_FIELDS.find((f) => f.key === localCampoProducao)?.label ?? localCampoProducao)
       : null;
+
+  // Aggregate totals across all units for this doctor/date
+  const prodTotais = produtividadeMedico.reduce((acc, item) => {
+    PROD_FIELDS.forEach((f) => {
+      acc[f.key] = (acc[f.key] ?? 0) + ((item as unknown as Record<string, number>)[f.key] ?? 0);
+    });
+    return acc;
+  }, {} as Record<ProdKey, number>);
 
   // Pending field info (for confirmation panel)
   const pendingIsReset = pendingProdField === '__reset__';
@@ -363,8 +356,8 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
     ? PROD_FIELDS.find((f) => f.key === pendingProdField)
     : null;
   const pendingQuantity =
-    pendingFieldInfo && produtividadeMedico
-      ? (produtividadeMedico as unknown as Record<string, number>)[pendingProdField!] ?? 0
+    pendingFieldInfo && produtividadeMedico.length > 0
+      ? produtividadeMedico.reduce((sum, item) => sum + ((item as unknown as Record<string, number>)[pendingProdField!] ?? 0), 0)
       : 0;
   const pendingTotal = pendingQuantity * valorUnitario;
 
@@ -374,8 +367,8 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
     try {
       const newBase = field ? 'producao' : null;
       const newQuantity =
-        field && produtividadeMedico
-          ? (produtividadeMedico as unknown as Record<string, number>)[field] ?? 0
+        field && produtividadeMedico.length > 0
+          ? produtividadeMedico.reduce((sum, item) => sum + ((item as unknown as Record<string, number>)[field] ?? 0), 0)
           : null;
 
       await updateBaseCalculo(escala.id, newBase, field, newQuantity);
@@ -1248,11 +1241,11 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                     </Typography>
                   )}
 
-                  {produtividadeMedico ? (
+                  {produtividadeMedico.length > 0 ? (
                     <>
                       <Grid container spacing={1.5} sx={{ mt: 0.5 }}>
                         {PROD_FIELDS.map((field) => {
-                          const value = produtividadeMedico[field.key] ?? 0;
+                          const value = prodTotais[field.key] ?? 0;
                           const isSelected = localCampoProducao === field.key && localBaseCalculo === 'producao';
                           const isPending = pendingProdField === field.key;
                           const isSelectable = canChangeBaseCalculo;
@@ -1315,6 +1308,46 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                           );
                         })}
                       </Grid>
+
+                      {/* Per-unit breakdown (only when there are multiple units) */}
+                      {produtividadeMedico.length > 1 && (
+                        <Box sx={{ mt: 2 }}>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: 'rgba(255,255,255,0.75)', display: 'block', mb: 1, fontWeight: 600 }}
+                          >
+                            Detalhamento por unidade ({produtividadeMedico.length} unidades)
+                          </Typography>
+                          <TableContainer component={Paper} sx={{ borderRadius: 1, overflowX: 'auto' }}>
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'grey.100' }}>
+                                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Unidade</TableCell>
+                                  {PROD_FIELDS.map((f) => (
+                                    <TableCell key={f.key} align="center" sx={{ fontWeight: 700, whiteSpace: 'nowrap', fontSize: '0.7rem' }}>
+                                      {f.label}
+                                    </TableCell>
+                                  ))}
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {produtividadeMedico.map((row, idx) => (
+                                  <TableRow key={idx}>
+                                    <TableCell sx={{ whiteSpace: 'nowrap', fontSize: '0.75rem' }}>
+                                      {row.nm_unidade || '—'}
+                                    </TableCell>
+                                    {PROD_FIELDS.map((f) => (
+                                      <TableCell key={f.key} align="center" sx={{ fontSize: '0.75rem' }}>
+                                        {((row as unknown as Record<string, number>)[f.key]) || 0}
+                                      </TableCell>
+                                    ))}
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </Box>
+                      )}
 
                       {/* Inline confirmation panel */}
                       <Collapse in={pendingProdField !== null} unmountOnExit>

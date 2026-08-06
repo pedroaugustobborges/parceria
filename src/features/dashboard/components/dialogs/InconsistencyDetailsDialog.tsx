@@ -59,26 +59,19 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
   const calculateTotals = (registros: Produtividade[]) => {
     return registros.reduce(
       (acc, reg) => ({
-        procedimento: acc.procedimento + (reg.procedimento || 0),
-        parecer_solicitado: acc.parecer_solicitado + (reg.parecer_solicitado || 0),
-        parecer_realizado: acc.parecer_realizado + (reg.parecer_realizado || 0),
-        cirurgia: acc.cirurgia + (reg.cirurgia_realizada || 0),
-        prescricao: acc.prescricao + (reg.prescricao || 0),
-        evolucao: acc.evolucao + (reg.evolucao || 0),
-        urgencia: acc.urgencia + (reg.urgencia || 0),
-        ambulatorio: acc.ambulatorio + (reg.ambulatorio || 0),
-        qtd_documentos_pep: acc.qtd_documentos_pep + (reg.qtd_documentos_pep || 0),
+        prescricao:           acc.prescricao           + (reg.prescricao           || 0),
+        diagnostico:          acc.diagnostico          + (reg.diagnostico          || 0),
+        encaminhamento:       acc.encaminhamento       + (reg.encaminhamento       || 0),
+        parecer:              acc.parecer              + (reg.parecer              || 0),
+        anotacao:             acc.anotacao             + (reg.anotacao             || 0),
+        avaliacao:            acc.avaliacao            + (reg.avaliacao            || 0),
+        documento_eletronico: acc.documento_eletronico + (reg.documento_eletronico || 0),
+        evolucao:             acc.evolucao             + (reg.evolucao             || 0),
+        alta_medica:          acc.alta_medica          + (reg.alta_medica          || 0),
       }),
       {
-        procedimento: 0,
-        parecer_solicitado: 0,
-        parecer_realizado: 0,
-        cirurgia: 0,
-        prescricao: 0,
-        evolucao: 0,
-        urgencia: 0,
-        ambulatorio: 0,
-        qtd_documentos_pep: 0,
+        prescricao: 0, diagnostico: 0, encaminhamento: 0, parecer: 0,
+        anotacao: 0, avaliacao: 0, documento_eletronico: 0, evolucao: 0, alta_medica: 0,
       }
     );
   };
@@ -233,7 +226,7 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                     </TableCell>
                     {isProdSemAcesso && (
                       <>
-                        {['Proc.', 'Par.Sol.', 'Par.Real.', 'Cirur.', 'Presc.', 'Evol.', 'Urg.', 'Amb.', 'Docs PEP', 'Total'].map(
+                        {['Presc.', 'Diagn.', 'Encam.', 'Parecer', 'Anot.', 'Aval.', 'Doc.Elet.', 'Evol.', 'Alta Méd.', 'Total'].map(
                           (header) => (
                             <TableCell
                               key={header}
@@ -255,15 +248,9 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                     const registros = data.detalhes?.get(dataStr) || [];
                     const totais = calculateTotals(registros);
                     const totalAtividades =
-                      totais.procedimento +
-                      totais.parecer_solicitado +
-                      totais.parecer_realizado +
-                      totais.cirurgia +
-                      totais.prescricao +
-                      totais.evolucao +
-                      totais.urgencia +
-                      totais.ambulatorio +
-                      totais.qtd_documentos_pep;
+                      totais.prescricao + totais.diagnostico + totais.encaminhamento +
+                      totais.parecer + totais.anotacao + totais.avaliacao +
+                      totais.documento_eletronico + totais.evolucao + totais.alta_medica;
 
                     return (
                       <TableRow key={index} sx={getTableRowStyles(isDark)}>
@@ -307,15 +294,15 @@ export const InconsistencyDetailsDialog: React.FC<InconsistencyDetailsDialogProp
                         {isProdSemAcesso && (
                           <>
                             {[
-                              totais.procedimento,
-                              totais.parecer_solicitado,
-                              totais.parecer_realizado,
-                              totais.cirurgia,
                               totais.prescricao,
+                              totais.diagnostico,
+                              totais.encaminhamento,
+                              totais.parecer,
+                              totais.anotacao,
+                              totais.avaliacao,
+                              totais.documento_eletronico,
                               totais.evolucao,
-                              totais.urgencia,
-                              totais.ambulatorio,
-                              totais.qtd_documentos_pep,
+                              totais.alta_medica,
                             ].map((value, i) => (
                               <TableCell key={i} sx={{ textAlign: 'center' }}>
                                 <Typography

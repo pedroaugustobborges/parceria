@@ -571,14 +571,14 @@ export async function loadAcessosMedico(
  * - Queries ALL doctors on the escala, not just the first
  * - Handles overnight shifts by also querying the next day
  *
- * Returns both the aggregated Produtividade and a CPF→codigoMV map for display.
+ * Returns all Produtividade records (one per unit) and a CPF→codigoMV map for display.
  */
 export async function loadProdutividadeMedico(
   dataEscala: string,
   medicos: Array<{ nome: string; cpf: string }>,
   isOvernight: boolean,
-): Promise<{ produtividade: Produtividade | null; codigosMV: Record<string, string | null> }> {
-  if (medicos.length === 0) return { produtividade: null, codigosMV: {} };
+): Promise<{ produtividade: Produtividade[]; codigosMV: Record<string, string | null> }> {
+  if (medicos.length === 0) return { produtividade: [], codigosMV: {} };
 
   // 1. Safe date extraction — strip any time or timezone component
   const dateStr = dataEscala.split('T')[0];
@@ -602,56 +602,45 @@ export async function loadProdutividadeMedico(
 
   // 3. Query produtividade — primary: codigo_mv, fallback: nome
   const codigosMVList = Object.values(codigosMV).filter((v): v is string => !!v);
+
+  console.debug('[loadProdutividadeMedico] cpfs:', cpfs);
+  console.debug('[loadProdutividadeMedico] codigosMV map:', codigosMV);
+  console.debug('[loadProdutividadeMedico] codigosMVList:', codigosMVList);
+  console.debug('[loadProdutividadeMedico] datesToQuery:', datesToQuery);
+
   let produtividadeRecords: Produtividade[] = [];
 
   if (codigosMVList.length > 0) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('produtividade')
       .select('*')
       .in('data', datesToQuery)
-      .in('codigo_mv', codigosMVList);
+      .in('codigo_mv', codigosMVList)
+      .order('nm_unidade', { ascending: true });
+    console.debug('[loadProdutividadeMedico] primary query result:', data, 'error:', error);
     produtividadeRecords = (data || []) as Produtividade[];
+  } else {
+    console.warn('[loadProdutividadeMedico] codigosMVList is empty — skipping primary query. CPFs without codigomv:', cpfs.filter(cpf => !codigosMV[cpf]));
   }
 
   if (produtividadeRecords.length === 0) {
     // Fallback: match by name
     const nomes = medicos.map(m => m.nome).filter(Boolean);
+    console.debug('[loadProdutividadeMedico] falling back to nome query:', nomes);
     if (nomes.length > 0) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('produtividade')
         .select('*')
         .in('data', datesToQuery)
-        .in('nome', nomes);
+        .in('nome', nomes)
+        .order('nm_unidade', { ascending: true });
+      console.debug('[loadProdutividadeMedico] fallback (nome) result:', data, 'error:', error);
       produtividadeRecords = (data || []) as Produtividade[];
     }
   }
 
-  if (produtividadeRecords.length === 0) return { produtividade: null, codigosMV };
-
-  // 4. Aggregate all records across all doctors and both days
-  const [first, ...rest] = produtividadeRecords;
-  const aggregated: Produtividade = rest.reduce(
-    (acc, record) => ({
-      ...acc,
-      prescricao: (acc.prescricao || 0) + (record.prescricao || 0),
-      evolucao: (acc.evolucao || 0) + (record.evolucao || 0),
-      procedimento: (acc.procedimento || 0) + (record.procedimento || 0),
-      urgencia: (acc.urgencia || 0) + (record.urgencia || 0),
-      parecer_solicitado: (acc.parecer_solicitado || 0) + (record.parecer_solicitado || 0),
-      parecer_realizado: (acc.parecer_realizado || 0) + (record.parecer_realizado || 0),
-      ambulatorio: (acc.ambulatorio || 0) + (record.ambulatorio || 0),
-      evolucao_noturna_cti: (acc.evolucao_noturna_cti || 0) + (record.evolucao_noturna_cti || 0),
-      evolucao_diurna_cti: (acc.evolucao_diurna_cti || 0) + (record.evolucao_diurna_cti || 0),
-      cirurgia_realizada: (acc.cirurgia_realizada || 0) + (record.cirurgia_realizada || 0),
-      folha_objetivo_diario: (acc.folha_objetivo_diario || 0) + (record.folha_objetivo_diario || 0),
-      qtd_documentos_pep: (acc.qtd_documentos_pep || 0) + (record.qtd_documentos_pep || 0),
-      auxiliar: (acc.auxiliar || 0) + (record.auxiliar || 0),
-      encaminhamento: (acc.encaminhamento || 0) + (record.encaminhamento || 0),
-    }),
-    { ...first } as Produtividade,
-  );
-
-  return { produtividade: aggregated, codigosMV };
+  console.debug('[loadProdutividadeMedico] final records:', produtividadeRecords.length);
+  return { produtividade: produtividadeRecords, codigosMV };
 }
 
 // ============================================

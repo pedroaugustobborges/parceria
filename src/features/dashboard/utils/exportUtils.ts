@@ -100,17 +100,16 @@ export function exportProductivityXLSX(
     'Código MV',
     'Nome',
     'Especialidade',
-    'Vínculo',
-    'Origem',
-    'Procedimentos',
-    'Pareceres Solicitados',
-    'Pareceres Realizados',
-    'Cirurgias Realizadas',
-    'Prescrições',
-    'Evoluções',
-    'Urgências',
-    'Ambulatórios',
-    'Documentos Assinados no PEP',
+    'Unidade',
+    'Prescrição',
+    'Diagnóstico',
+    'Encaminhamento',
+    'Parecer',
+    'Anotação',
+    'Avaliação',
+    'Doc. Eletrônico',
+    'Evolução',
+    'Alta Médica',
   ];
 
   const rows = produtividade.map((prod) => [
@@ -118,17 +117,16 @@ export function exportProductivityXLSX(
     prod.codigo_mv,
     prod.nome,
     formatValue(prod.especialidade),
-    formatValue(prod.vinculo),
-    formatValue(prod.origem),
-    prod.procedimento || 0,
-    prod.parecer_solicitado || 0,
-    prod.parecer_realizado || 0,
-    prod.cirurgia_realizada || 0,
-    prod.prescricao || 0,
-    prod.evolucao || 0,
-    prod.urgencia || 0,
-    prod.ambulatorio || 0,
-    prod.qtd_documentos_pep || 0,
+    formatValue(prod.nm_unidade),
+    prod.prescricao           || 0,
+    prod.diagnostico          || 0,
+    prod.encaminhamento       || 0,
+    prod.parecer              || 0,
+    prod.anotacao             || 0,
+    prod.avaliacao            || 0,
+    prod.documento_eletronico || 0,
+    prod.evolucao             || 0,
+    prod.alta_medica          || 0,
   ]);
 
   const data = [headers, ...rows];
@@ -160,15 +158,15 @@ export function exportInconsistencyXLSX(
       'Data',
       'Nome',
       'Tipo de Inconsistência',
-      'Procedimentos',
-      'Pareceres Sol.',
-      'Pareceres Real.',
-      'Cirurgias',
-      'Prescrições',
-      'Evoluções',
-      'Urgências',
-      'Ambulatórios',
-      'Documentos Assinados no PEP',
+      'Prescrição',
+      'Diagnóstico',
+      'Encaminhamento',
+      'Parecer',
+      'Anotação',
+      'Avaliação',
+      'Doc. Eletrônico',
+      'Evolução',
+      'Alta Médica',
       'Total Atividades',
     ];
 
@@ -177,53 +175,40 @@ export function exportInconsistencyXLSX(
 
       const totais = registros.reduce(
         (acc, reg) => ({
-          procedimento: acc.procedimento + (reg.procedimento || 0),
-          parecer_solicitado: acc.parecer_solicitado + (reg.parecer_solicitado || 0),
-          parecer_realizado: acc.parecer_realizado + (reg.parecer_realizado || 0),
-          cirurgia: acc.cirurgia + (reg.cirurgia_realizada || 0),
-          prescricao: acc.prescricao + (reg.prescricao || 0),
-          evolucao: acc.evolucao + (reg.evolucao || 0),
-          urgencia: acc.urgencia + (reg.urgencia || 0),
-          ambulatorio: acc.ambulatorio + (reg.ambulatorio || 0),
-          qtd_documentos_pep: acc.qtd_documentos_pep + (reg.qtd_documentos_pep || 0),
+          prescricao:           acc.prescricao           + (reg.prescricao           || 0),
+          diagnostico:          acc.diagnostico          + (reg.diagnostico          || 0),
+          encaminhamento:       acc.encaminhamento       + (reg.encaminhamento       || 0),
+          parecer:              acc.parecer              + (reg.parecer              || 0),
+          anotacao:             acc.anotacao             + (reg.anotacao             || 0),
+          avaliacao:            acc.avaliacao            + (reg.avaliacao            || 0),
+          documento_eletronico: acc.documento_eletronico + (reg.documento_eletronico || 0),
+          evolucao:             acc.evolucao             + (reg.evolucao             || 0),
+          alta_medica:          acc.alta_medica          + (reg.alta_medica          || 0),
         }),
         {
-          procedimento: 0,
-          parecer_solicitado: 0,
-          parecer_realizado: 0,
-          cirurgia: 0,
-          prescricao: 0,
-          evolucao: 0,
-          urgencia: 0,
-          ambulatorio: 0,
-          qtd_documentos_pep: 0,
+          prescricao: 0, diagnostico: 0, encaminhamento: 0, parecer: 0,
+          anotacao: 0, avaliacao: 0, documento_eletronico: 0, evolucao: 0, alta_medica: 0,
         }
       );
 
       const totalAtividades =
-        totais.procedimento +
-        totais.parecer_solicitado +
-        totais.parecer_realizado +
-        totais.cirurgia +
-        totais.prescricao +
-        totais.evolucao +
-        totais.urgencia +
-        totais.ambulatorio +
-        totais.qtd_documentos_pep;
+        totais.prescricao + totais.diagnostico + totais.encaminhamento +
+        totais.parecer + totais.anotacao + totais.avaliacao +
+        totais.documento_eletronico + totais.evolucao + totais.alta_medica;
 
       return [
         format(parseISO(data), 'dd/MM/yyyy', { locale: ptBR }),
         nome,
         tipoTexto,
-        totais.procedimento,
-        totais.parecer_solicitado,
-        totais.parecer_realizado,
-        totais.cirurgia,
         totais.prescricao,
+        totais.diagnostico,
+        totais.encaminhamento,
+        totais.parecer,
+        totais.anotacao,
+        totais.avaliacao,
+        totais.documento_eletronico,
         totais.evolucao,
-        totais.urgencia,
-        totais.ambulatorio,
-        totais.qtd_documentos_pep,
+        totais.alta_medica,
         totalAtividades,
       ];
     });
@@ -263,20 +248,15 @@ export function exportDashboardXLSX(horasCalculadas: HorasCalculadas[]): void {
     'Entradas',
     'Saídas',
     'Último Acesso',
-    'Procedimentos',
-    'Pareceres Solicitados',
-    'Pareceres Realizados',
-    'Cirurgias',
-    'Prescrições',
-    'Evoluções',
-    'Urgências',
-    'Ambulatórios',
-    'Auxiliar',
+    'Prescrição',
+    'Diagnóstico',
     'Encaminhamento',
-    'Folha Objetivo Diário',
-    'Evolução Diurna CTI',
-    'Evolução Noturna CTI',
-    'Documentos Assinados no PEP',
+    'Parecer',
+    'Anotação',
+    'Avaliação',
+    'Doc. Eletrônico',
+    'Evolução',
+    'Alta Médica',
   ];
 
   const rows = horasCalculadas.map((h) => [
@@ -293,20 +273,15 @@ export function exportDashboardXLSX(horasCalculadas: HorasCalculadas[]): void {
     h.entradas,
     h.saidas,
     format(parseISO(h.ultimoAcesso), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
-    h.produtividade_procedimento,
-    h.produtividade_parecer_solicitado,
-    h.produtividade_parecer_realizado,
-    h.produtividade_cirurgia_realizada,
     h.produtividade_prescricao,
-    h.produtividade_evolucao,
-    h.produtividade_urgencia,
-    h.produtividade_ambulatorio,
-    h.produtividade_auxiliar,
+    h.produtividade_diagnostico,
     h.produtividade_encaminhamento,
-    h.produtividade_folha_objetivo_diario,
-    h.produtividade_evolucao_diurna_cti,
-    h.produtividade_evolucao_noturna_cti,
-    h.produtividade_qtd_documentos_pep,
+    h.produtividade_parecer,
+    h.produtividade_anotacao,
+    h.produtividade_avaliacao,
+    h.produtividade_documento_eletronico,
+    h.produtividade_evolucao,
+    h.produtividade_alta_medica,
   ]);
 
   const data = [headers, ...rows];

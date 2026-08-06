@@ -709,92 +709,63 @@ export type Database = {
       }
       produtividade: {
         Row: {
-          ambulatorio: number | null
-          auxiliar: number | null
-          cirurgia_realizada: number | null
+          alta_medica: number
+          anotacao: number
+          avaliacao: number
           codigo_mv: string
           created_at: string
           data: string | null
-          encaminhamento: number | null
+          diagnostico: number
+          documento_eletronico: number
+          encaminhamento: number
           especialidade: string | null
-          evolucao: number | null
-          evolucao_diurna_cti: number | null
-          evolucao_noturna_cti: number | null
-          folha_objetivo_diario: number | null
+          evolucao: number
           id: string
+          nm_unidade: string | null
           nome: string
-          origem: string | null
-          parecer_realizado: number | null
-          parecer_solicitado: number | null
-          prescricao: number | null
-          procedimento: number | null
-          qtd_documentos_pep: number | null
-          unidade_hospitalar_id: string | null
+          parecer: number
+          prescricao: number
           updated_at: string
-          urgencia: number | null
-          vinculo: string | null
         }
         Insert: {
-          ambulatorio?: number | null
-          auxiliar?: number | null
-          cirurgia_realizada?: number | null
+          alta_medica?: number
+          anotacao?: number
+          avaliacao?: number
           codigo_mv: string
           created_at?: string
           data?: string | null
-          encaminhamento?: number | null
+          diagnostico?: number
+          documento_eletronico?: number
+          encaminhamento?: number
           especialidade?: string | null
-          evolucao?: number | null
-          evolucao_diurna_cti?: number | null
-          evolucao_noturna_cti?: number | null
-          folha_objetivo_diario?: number | null
+          evolucao?: number
           id?: string
+          nm_unidade?: string | null
           nome: string
-          origem?: string | null
-          parecer_realizado?: number | null
-          parecer_solicitado?: number | null
-          prescricao?: number | null
-          procedimento?: number | null
-          qtd_documentos_pep?: number | null
-          unidade_hospitalar_id?: string | null
+          parecer?: number
+          prescricao?: number
           updated_at?: string
-          urgencia?: number | null
-          vinculo?: string | null
         }
         Update: {
-          ambulatorio?: number | null
-          auxiliar?: number | null
-          cirurgia_realizada?: number | null
+          alta_medica?: number
+          anotacao?: number
+          avaliacao?: number
           codigo_mv?: string
           created_at?: string
           data?: string | null
-          encaminhamento?: number | null
+          diagnostico?: number
+          documento_eletronico?: number
+          encaminhamento?: number
           especialidade?: string | null
-          evolucao?: number | null
-          evolucao_diurna_cti?: number | null
-          evolucao_noturna_cti?: number | null
-          folha_objetivo_diario?: number | null
+          evolucao?: number
           id?: string
+          nm_unidade?: string | null
           nome?: string
-          origem?: string | null
-          parecer_realizado?: number | null
-          parecer_solicitado?: number | null
-          prescricao?: number | null
-          procedimento?: number | null
-          qtd_documentos_pep?: number | null
-          unidade_hospitalar_id?: string | null
+          parecer?: number
+          prescricao?: number
           updated_at?: string
-          urgencia?: number | null
-          vinculo?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "produtividade_unidade_hospitalar_id_fkey"
-            columns: ["unidade_hospitalar_id"]
-            isOneToOne: false
-            referencedRelation: "unidades_hospitalares"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       unidades_hospitalares: {
         Row: {
@@ -966,31 +937,6 @@ export type Database = {
             columns: ["contrato_id"]
             isOneToOne: false
             referencedRelation: "contratos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      vm_produtividade_mensal: {
-        Row: {
-          especialidade: string | null
-          mes: string | null
-          profissionais_ativos: number | null
-          total_ambulatorios: number | null
-          total_cirurgias: number | null
-          total_evolucoes: number | null
-          total_pareceres_realizados: number | null
-          total_pareceres_solicitados: number | null
-          total_prescricoes: number | null
-          total_procedimentos: number | null
-          total_urgencias: number | null
-          unidade_hospitalar_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "produtividade_unidade_hospitalar_id_fkey"
-            columns: ["unidade_hospitalar_id"]
-            isOneToOne: false
-            referencedRelation: "unidades_hospitalares"
             referencedColumns: ["id"]
           },
         ]
@@ -1244,6 +1190,34 @@ export type UnidadeMedida =
   | 'sobreaviso'
   | 'unidade'
   | 'visita'
+
+/**
+ * Computed row representing aggregated access + productivity data per person.
+ * Built by useHoursCalculation and displayed in the Dashboard main table.
+ */
+export interface HorasCalculadas {
+  cpf: string;
+  nome: string;
+  matricula: string;
+  tipo: string;
+  codigomv: string;
+  totalHoras: number;
+  cargaHorariaEscalada: number;
+  diasComRegistro: number;
+  entradas: number;
+  saidas: number;
+  ultimoAcesso: string;
+  especialidade: string | null;
+  produtividade_prescricao: number;
+  produtividade_diagnostico: number;
+  produtividade_encaminhamento: number;
+  produtividade_parecer: number;
+  produtividade_anotacao: number;
+  produtividade_avaliacao: number;
+  produtividade_documento_eletronico: number;
+  produtividade_evolucao: number;
+  produtividade_alta_medica: number;
+}
 
 /**
  * Medical schedule record (escalas_medicas table Row).

@@ -64,128 +64,74 @@ export const ProductivityBarChart: React.FC<ProductivityBarChartProps> = ({
       if (filtroNome.length > 0 && !filtroNome.includes(item.nome))
         return false;
 
-      // Hospital unit filter
-      if (filtroUnidade.length > 0 && item.unidade_hospitalar_id) {
-        const unidadeItem = unidades.find(
-          (u) => u.id === item.unidade_hospitalar_id
-        );
-        if (!unidadeItem || !filtroUnidade.includes(unidadeItem.codigo)) {
+      // Hospital unit filter — now uses nm_unidade directly
+      if (filtroUnidade.length > 0) {
+        if (!item.nm_unidade || !filtroUnidade.includes(item.nm_unidade))
           return false;
-        }
       }
 
       // Contract filter (through codigo_mv -> cpf)
       if (cpfsDoContratoFiltrado.length > 0) {
         const cpf = codigoMVToCPF.get(item.codigo_mv);
-        if (!cpf || !cpfsDoContratoFiltrado.includes(cpf)) {
-          return false;
-        }
+        if (!cpf || !cpfsDoContratoFiltrado.includes(cpf)) return false;
       }
 
-      // Date filters (using 'data' column from produtividade table)
-      // Parse ISO date string (YYYY-MM-DD) correctly to avoid timezone issues
+      // Date filters
       if (filtroDataInicio && item.data) {
-        const [year, month, day] = item.data
-          .split("T")[0]
-          .split("-")
-          .map(Number);
+        const [year, month, day] = item.data.split('T')[0].split('-').map(Number);
         const dataProd = new Date(year, month - 1, day);
-        const inicioNormalizado = new Date(filtroDataInicio);
-        inicioNormalizado.setHours(0, 0, 0, 0);
-        if (dataProd < inicioNormalizado) return false;
+        const inicio = new Date(filtroDataInicio);
+        inicio.setHours(0, 0, 0, 0);
+        if (dataProd < inicio) return false;
       }
       if (filtroDataFim && item.data) {
-        const [year, month, day] = item.data
-          .split("T")[0]
-          .split("-")
-          .map(Number);
+        const [year, month, day] = item.data.split('T')[0].split('-').map(Number);
         const dataProd = new Date(year, month - 1, day);
-        const fimNormalizado = new Date(filtroDataFim);
-        fimNormalizado.setHours(0, 0, 0, 0);
-        if (dataProd > fimNormalizado) return false;
+        const fim = new Date(filtroDataFim);
+        fim.setHours(0, 0, 0, 0);
+        if (dataProd > fim) return false;
       }
 
       return true;
     });
 
     const totais = {
-      procedimento: 0,
-      parecer_solicitado: 0,
-      parecer_realizado: 0,
-      cirurgia_realizada: 0,
-      prescricao: 0,
-      evolucao: 0,
-      urgencia: 0,
-      ambulatorio: 0,
-      auxiliar: 0,
-      encaminhamento: 0,
-      folha_objetivo_diario: 0,
-      evolucao_diurna_cti: 0,
-      evolucao_noturna_cti: 0,
+      prescricao:           0,
+      diagnostico:          0,
+      encaminhamento:       0,
+      parecer:              0,
+      anotacao:             0,
+      avaliacao:            0,
+      documento_eletronico: 0,
+      evolucao:             0,
+      alta_medica:          0,
     };
 
     produtividadeFiltrada.forEach((item) => {
-      totais.procedimento += item.procedimento || 0;
-      totais.parecer_solicitado += item.parecer_solicitado || 0;
-      totais.parecer_realizado += item.parecer_realizado || 0;
-      totais.cirurgia_realizada += item.cirurgia_realizada || 0;
-      totais.prescricao += item.prescricao || 0;
-      totais.evolucao += item.evolucao || 0;
-      totais.urgencia += item.urgencia || 0;
-      totais.ambulatorio += item.ambulatorio || 0;
-      totais.auxiliar += item.auxiliar || 0;
-      totais.encaminhamento += item.encaminhamento || 0;
-      totais.folha_objetivo_diario += item.folha_objetivo_diario || 0;
-      totais.evolucao_diurna_cti += item.evolucao_diurna_cti || 0;
-      totais.evolucao_noturna_cti += item.evolucao_noturna_cti || 0;
+      totais.prescricao           += item.prescricao           || 0;
+      totais.diagnostico          += item.diagnostico          || 0;
+      totais.encaminhamento       += item.encaminhamento       || 0;
+      totais.parecer              += item.parecer              || 0;
+      totais.anotacao             += item.anotacao             || 0;
+      totais.avaliacao            += item.avaliacao            || 0;
+      totais.documento_eletronico += item.documento_eletronico || 0;
+      totais.evolucao             += item.evolucao             || 0;
+      totais.alta_medica          += item.alta_medica          || 0;
     });
 
-    // Create chart data array (only with values > 0)
     const data: ChartDataItem[] = [
-      { name: "Procedimento", value: totais.procedimento, color: "#0ea5e9" },
-      {
-        name: "Parecer Solicitado",
-        value: totais.parecer_solicitado,
-        color: "#8b5cf6",
-      },
-      {
-        name: "Parecer Realizado",
-        value: totais.parecer_realizado,
-        color: "#10b981",
-      },
-      {
-        name: "Cirurgia Realizada",
-        value: totais.cirurgia_realizada,
-        color: "#f59e0b",
-      },
-      { name: "Prescrição", value: totais.prescricao, color: "#ec4899" },
-      { name: "Evolução", value: totais.evolucao, color: "#06b6d4" },
-      { name: "Urgência", value: totais.urgencia, color: "#ef4444" },
-      { name: "Ambulatório", value: totais.ambulatorio, color: "#6366f1" },
-      { name: "Auxiliar", value: totais.auxiliar, color: "#14b8a6" },
-      {
-        name: "Encaminhamento",
-        value: totais.encaminhamento,
-        color: "#f97316",
-      },
-      {
-        name: "Folha Objetivo Diário",
-        value: totais.folha_objetivo_diario,
-        color: "#a855f7",
-      },
-      {
-        name: "Evolução Diurna CTI",
-        value: totais.evolucao_diurna_cti,
-        color: "#22c55e",
-      },
-      {
-        name: "Evolução Noturna CTI",
-        value: totais.evolucao_noturna_cti,
-        color: "#3b82f6",
-      },
+      { name: 'Prescrição',           value: totais.prescricao,           color: '#ec4899' },
+      { name: 'Diagnóstico',          value: totais.diagnostico,          color: '#0ea5e9' },
+      { name: 'Encaminhamento',       value: totais.encaminhamento,       color: '#f97316' },
+      { name: 'Parecer',              value: totais.parecer,              color: '#8b5cf6' },
+      { name: 'Anotação',             value: totais.anotacao,             color: '#14b8a6' },
+      { name: 'Avaliação',            value: totais.avaliacao,            color: '#f59e0b' },
+      { name: 'Documento Eletrônico', value: totais.documento_eletronico, color: '#6366f1' },
+      { name: 'Evolução',             value: totais.evolucao,             color: '#06b6d4' },
+      { name: 'Alta Médica',          value: totais.alta_medica,          color: '#10b981' },
     ]
-      .filter((item) => item.value > 0) // Filter only values greater than 0
-      .sort((a, b) => b.value - a.value); // Sort in descending order
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value);
 
     return data;
   }, [

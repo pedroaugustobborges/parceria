@@ -223,14 +223,15 @@ export const DashboardPage: React.FC = () => {
     const totalProdutividade = dashboard.horasCalculadas.reduce(
       (sum, h) =>
         sum +
-        h.produtividade_procedimento +
-        h.produtividade_parecer_solicitado +
-        h.produtividade_parecer_realizado +
-        h.produtividade_cirurgia_realizada +
         h.produtividade_prescricao +
+        h.produtividade_diagnostico +
+        h.produtividade_encaminhamento +
+        h.produtividade_parecer +
+        h.produtividade_anotacao +
+        h.produtividade_avaliacao +
+        h.produtividade_documento_eletronico +
         h.produtividade_evolucao +
-        h.produtividade_urgencia +
-        h.produtividade_ambulatorio,
+        h.produtividade_alta_medica,
       0
     );
     const produtividadeMedia =

@@ -288,58 +288,15 @@ export function useHoursCalculation() {
             saidas: totalSaidas,
             ultimoAcesso: ultimoAcesso.data_acesso,
             especialidade,
-            produtividade_procedimento: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.procedimento || 0),
-              0
-            ),
-            produtividade_parecer_solicitado: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.parecer_solicitado || 0),
-              0
-            ),
-            produtividade_parecer_realizado: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.parecer_realizado || 0),
-              0
-            ),
-            produtividade_cirurgia_realizada: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.cirurgia_realizada || 0),
-              0
-            ),
-            produtividade_prescricao: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.prescricao || 0),
-              0
-            ),
-            produtividade_evolucao: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.evolucao || 0),
-              0
-            ),
-            produtividade_urgencia: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.urgencia || 0),
-              0
-            ),
-            produtividade_ambulatorio: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.ambulatorio || 0),
-              0
-            ),
-            produtividade_auxiliar: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.auxiliar || 0),
-              0
-            ),
-            produtividade_encaminhamento: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.encaminhamento || 0),
-              0
-            ),
-            produtividade_folha_objetivo_diario: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.folha_objetivo_diario || 0),
-              0
-            ),
-            produtividade_evolucao_diurna_cti: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.evolucao_diurna_cti || 0),
-              0
-            ),
-            produtividade_evolucao_noturna_cti: produtividadeCpf.reduce(
-              (sum, item) => sum + (item.evolucao_noturna_cti || 0),
-              0
-            ),
+            produtividade_prescricao:           produtividadeCpf.reduce((sum, item) => sum + (item.prescricao           || 0), 0),
+            produtividade_diagnostico:          produtividadeCpf.reduce((sum, item) => sum + (item.diagnostico          || 0), 0),
+            produtividade_encaminhamento:       produtividadeCpf.reduce((sum, item) => sum + (item.encaminhamento       || 0), 0),
+            produtividade_parecer:              produtividadeCpf.reduce((sum, item) => sum + (item.parecer              || 0), 0),
+            produtividade_anotacao:             produtividadeCpf.reduce((sum, item) => sum + (item.anotacao             || 0), 0),
+            produtividade_avaliacao:            produtividadeCpf.reduce((sum, item) => sum + (item.avaliacao            || 0), 0),
+            produtividade_documento_eletronico: produtividadeCpf.reduce((sum, item) => sum + (item.documento_eletronico || 0), 0),
+            produtividade_evolucao:             produtividadeCpf.reduce((sum, item) => sum + (item.evolucao             || 0), 0),
+            produtividade_alta_medica:          produtividadeCpf.reduce((sum, item) => sum + (item.alta_medica          || 0), 0),
           };
         }
       );

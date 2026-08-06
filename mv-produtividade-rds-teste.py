@@ -71,13 +71,17 @@ TIPOS_DOCUMENTO = {
     63: "Avaliação Farmacêutica",
 }
 
-# Mapeamento para colunas da tabela produtividade (referência futura)
+# 9 colunas finais da tabela produtividade (migration 029)
 MAPA_PRODUTIVIDADE = {
-    "prescricao":        [3, 17, 50, 53],
-    "evolucao":          [36],
-    "encaminhamento":    [11],
-    "parecer_realizado": [21],
-    # sem coluna ainda: 4, 25, 27, 30, 31, 51, 63
+    "prescricao":           [3, 17, 50, 53],
+    "diagnostico":          [4, 25],
+    "encaminhamento":       [11],
+    "parecer":              [21],
+    "anotacao":             [27],
+    "avaliacao":            [30, 63],
+    "documento_eletronico": [31],
+    "evolucao":             [36],
+    "alta_medica":          [51],
 }
 
 DOWNLOADS = os.path.expanduser("~/Downloads")
@@ -108,6 +112,19 @@ def salvar_csv(nome_arquivo: str, linhas: list):
         writer.writeheader()
         writer.writerows(linhas)
     logger.info(f"  -> {caminho}  ({len(linhas)} linhas)")
+
+
+def formatar_especialidade(esp) -> str:
+    """Converte ['Cirurgia Geral'] ou ['A', 'B'] para 'Cirurgia Geral' / 'A, B'."""
+    if isinstance(esp, list):
+        return ", ".join(str(e) for e in esp)
+    if isinstance(esp, str):
+        esp = esp.strip()
+        if esp.startswith("[") and esp.endswith("]"):
+            inner = esp[1:-1]
+            partes = [p.strip().strip("'\"") for p in inner.split(",")]
+            return ", ".join(p for p in partes if p)
+    return esp or ""
 
 
 # ============================================================
@@ -221,11 +238,23 @@ def detectar_colunas(cur) -> dict:
 def consultar_rds(prestadores: list) -> list:
     separador("PASSO 2 — Consultar RDS")
 
-    cd_prestadores = [int(p["codigomv"]) for p in prestadores]
-    cd_tipos       = list(TIPOS_DOCUMENTO.keys())
+    cd_prestadores = []
+    ignorados = []
+    for p in prestadores:
+        try:
+            cd_prestadores.append(int(p["codigomv"]))
+        except (ValueError, TypeError):
+            ignorados.append(f"{p.get('nome', '?')} → codigomv='{p.get('codigomv')}'")
+
+    if ignorados:
+        logger.warning(f"  {len(ignorados)} prestadores ignorados (codigomv não numérico):")
+        for i in ignorados:
+            logger.warning(f"    {i}")
+
+    cd_tipos = list(TIPOS_DOCUMENTO.keys())
 
     logger.info(f"  Data      : {DATA_BR}")
-    logger.info(f"  Prestadores ({len(cd_prestadores)}): {cd_prestadores}")
+    logger.info(f"  Prestadores válidos: {len(cd_prestadores)} / {len(prestadores)}")
     logger.info(f"  Tipos doc ({len(cd_tipos)}): {cd_tipos}")
     logger.info(f"  Bancos    : {NM_BANCOS}")
 
@@ -291,63 +320,65 @@ def consultar_rds(prestadores: list) -> list:
 def gerar_csvs(rows: list, prestadores: list):
     separador("PASSO 3 — Gerar CSVs")
 
-    idx_prest = {int(p["codigomv"]): p for p in prestadores}
+    idx_prest     = {}
+    codigomv_orig = {}
+    for p in prestadores:
+        try:
+            key = int(p["codigomv"])
+            idx_prest[key]     = p
+            codigomv_orig[key] = p["codigomv"].strip()
+        except (ValueError, TypeError):
+            pass
 
-    # ---- CSV detalhe: uma linha por prestador + tipo + banco ----
-    detalhe = []
+    # pivot[(cd_prestador, nm_unidade)] = {cd_tipo: total}
+    pivot: dict[tuple, dict] = {}
     for row in rows:
         cd_prest = int(row["cd_prestador"])
-        cd_tipo  = int(row["cd_tipo_documento"])
-        info     = idx_prest.get(cd_prest, {})
-        detalhe.append({
-            "data":              DATA_ISO,
-            "cd_prestador":      cd_prest,
-            "nome":              info.get("nome", ""),
-            "especialidade":     info.get("especialidade", ""),
-            "nm_banco":          row.get("nm_banco", "N/D"),
-            "nm_unidade":        row.get("nm_unidade", "N/D"),
-            "cd_tipo_documento": cd_tipo,
-            "ds_tipo_documento": TIPOS_DOCUMENTO.get(cd_tipo, "?"),
-            "total":             int(row["total"]),
-        })
-
-    # ---- CSV resumo: pivot por prestador ----
-    # Colunas: uma por CD_TIPO_DOCUMENTO + campos mapeados para produtividade
-    resumo: dict[int, dict] = {}
-
-    for row in rows:
-        cd_prest = int(row["cd_prestador"])
+        nm_unid  = row.get("nm_unidade") or "N/D"
         cd_tipo  = int(row["cd_tipo_documento"])
         total    = int(row["total"])
+        chave = (cd_prest, nm_unid)
+        pivot.setdefault(chave, {})
+        pivot[chave][cd_tipo] = pivot[chave].get(cd_tipo, 0) + total
 
-        if cd_prest not in resumo:
-            info = idx_prest.get(cd_prest, {})
-            resumo[cd_prest] = {
+    # ---- CSV detalhe ----
+    detalhe = []
+    for (cd_prest, nm_unid), tipos in sorted(pivot.items()):
+        info = idx_prest.get(cd_prest, {})
+        for cd_tipo, total in sorted(tipos.items()):
+            detalhe.append({
+                "data":              DATA_ISO,
+                "cd_prestador":      cd_prest,
+                "codigo_mv":         codigomv_orig.get(cd_prest, str(cd_prest)),
+                "nome":              info.get("nome", ""),
+                "especialidade":     formatar_especialidade(info.get("especialidade", "")),
+                "nm_unidade":        nm_unid,
+                "cd_tipo_documento": cd_tipo,
+                "ds_tipo_documento": TIPOS_DOCUMENTO.get(cd_tipo, "?"),
+                "total":             total,
+            })
+
+    # ---- CSV resumo: pivot por (prestador, nm_unidade) ----
+    resumo: dict[tuple, dict] = {}
+    for (cd_prest, nm_unid), tipos in pivot.items():
+        info  = idx_prest.get(cd_prest, {})
+        chave = (cd_prest, nm_unid)
+        if chave not in resumo:
+            codigo_mv_val = codigomv_orig.get(cd_prest, str(cd_prest))
+            resumo[chave] = {
                 "data":          DATA_ISO,
                 "cd_prestador":  cd_prest,
+                "codigo_mv":     codigo_mv_val,
                 "nome":          info.get("nome", ""),
-                "especialidade": info.get("especialidade", ""),
-                # colunas brutas por CD_TIPO_DOCUMENTO
-                **{f"cd_{cd}_{TIPOS_DOCUMENTO[cd].split()[0].lower()}": 0
-                   for cd in TIPOS_DOCUMENTO},
-                # colunas mapeadas para produtividade
-                "prescricao":        0,
-                "evolucao":          0,
-                "encaminhamento":    0,
-                "parecer_realizado": 0,
+                "especialidade": formatar_especialidade(info.get("especialidade", "")),
+                "nm_unidade":    nm_unid,
+                **{campo: 0 for campo in MAPA_PRODUTIVIDADE},
             }
-
-        reg = resumo[cd_prest]
-
-        # coluna bruta
-        col_bruta = f"cd_{cd_tipo}_{TIPOS_DOCUMENTO.get(cd_tipo, str(cd_tipo)).split()[0].lower()}"
-        if col_bruta in reg:
-            reg[col_bruta] += total
-
-        # colunas mapeadas
-        for campo, cd_lista in MAPA_PRODUTIVIDADE.items():
-            if cd_tipo in cd_lista:
-                reg[campo] += total
+        reg = resumo[chave]
+        for cd_tipo, total in tipos.items():
+            for campo, cd_lista in MAPA_PRODUTIVIDADE.items():
+                if cd_tipo in cd_lista:
+                    reg[campo] += total
 
     resumo_linhas = list(resumo.values())
 
@@ -552,8 +583,18 @@ def main():
     if not prestadores:
         logger.warning("Nenhum prestador encontrado. Encerrando.")
         return
+    cd_prestadores = []
+    ignorados_main = []
+    for p in prestadores:
+        try:
+            cd_prestadores.append(int(p["codigomv"]))
+        except (ValueError, TypeError):
+            ignorados_main.append(f"{p.get('nome', '?')} → codigomv='{p.get('codigomv')}'")
 
-    cd_prestadores = [int(p["codigomv"]) for p in prestadores]
+    if ignorados_main:
+        logger.warning(f"  {len(ignorados_main)} prestadores ignorados (codigomv não numérico):")
+        for i in ignorados_main:
+            logger.warning(f"    {i}")
 
     # Explorar atendime_completo (sempre roda)
     explorar_atendime_completo(cd_prestadores)

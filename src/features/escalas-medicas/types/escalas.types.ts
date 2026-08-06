@@ -210,7 +210,7 @@ export interface DetailsDialogState {
   escala: EscalaMedica | null;
   usuarioAlterouStatus: Usuario | null;
   acessosMedico: Acesso[];
-  produtividadeMedico: Produtividade | null;
+  produtividadeMedico: Produtividade[];
   loading: boolean;
 }
 

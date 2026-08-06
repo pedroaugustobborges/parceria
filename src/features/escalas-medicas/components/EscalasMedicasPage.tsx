@@ -44,7 +44,7 @@ import { CsvImportDialog } from './dialogs/CsvImportDialog';
 import { CsvPreviewDialog } from './dialogs/CsvPreviewDialog';
 
 // Types
-import type { EscalaMedica, StatusEscala, CsvPreviewRow, CsvValidatedRow, Usuario } from '../types/escalas.types';
+import type { EscalaMedica, StatusEscala, CsvPreviewRow, CsvValidatedRow, Usuario, Produtividade } from '../types/escalas.types';
 
 // ============================================
 // Component
@@ -119,7 +119,7 @@ export const EscalasMedicasPage: React.FC = () => {
   const [escalaDetalhes, setEscalaDetalhes] = useState<EscalaMedica | null>(null);
   const [usuarioAlterouStatus, setUsuarioAlterouStatus] = useState<Usuario | null>(null);
   const [acessosMedico, setAcessosMedico] = useState<any[]>([]);
-  const [produtividadeMedico, setProdutividadeMedico] = useState<any | null>(null);
+  const [produtividadeMedico, setProdutividadeMedico] = useState<Produtividade[]>([]);
   const [medicosCodigosMV, setMedicosCodigosMV] = useState<Record<string, string | null>>({});
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
   const [scrollToHorario, setScrollToHorario] = useState(false);
@@ -334,7 +334,7 @@ export const EscalasMedicasPage: React.FC = () => {
         setEscalaDetalhes(null);
         setUsuarioAlterouStatus(null);
         setAcessosMedico([]);
-        setProdutividadeMedico(null);
+        setProdutividadeMedico([]);
         setMedicosCodigosMV({});
         setScrollToHorario(false);
       }
@@ -436,7 +436,7 @@ export const EscalasMedicasPage: React.FC = () => {
     setEscalaDetalhes(null);
     setUsuarioAlterouStatus(null);
     setAcessosMedico([]);
-    setProdutividadeMedico(null);
+    setProdutividadeMedico([]);
     setMedicosCodigosMV({});
     setScrollToHorario(false);
   }, []);

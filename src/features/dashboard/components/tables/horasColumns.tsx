@@ -235,120 +235,21 @@ export function createHorasColumns(callbacks: ColumnsCallbacks): GridColDef[] {
       ),
     },
     {
-      field: 'produtividade_procedimento',
-      headerName: 'Procedimento',
-      width: 110,
-      type: 'number',
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
-      ),
-    },
-    {
-      field: 'produtividade_parecer_solicitado',
-      headerName: 'Parecer Sol.',
-      width: 110,
-      type: 'number',
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
-      ),
-    },
-    {
-      field: 'produtividade_parecer_realizado',
-      headerName: 'Parecer Real.',
-      width: 110,
-      type: 'number',
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
-      ),
-    },
-    {
-      field: 'produtividade_cirurgia_realizada',
-      headerName: 'Cirurgia',
-      width: 100,
-      type: 'number',
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
-      ),
-    },
-    {
       field: 'produtividade_prescricao',
       headerName: 'Prescrição',
       width: 100,
       type: 'number',
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? 'success' : 'default'} />
       ),
     },
     {
-      field: 'produtividade_evolucao',
-      headerName: 'Evolução',
-      width: 100,
-      type: 'number',
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
-      ),
-    },
-    {
-      field: 'produtividade_urgencia',
-      headerName: 'Urgência',
-      width: 100,
-      type: 'number',
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
-      ),
-    },
-    {
-      field: 'produtividade_ambulatorio',
-      headerName: 'Ambulatório',
+      field: 'produtividade_diagnostico',
+      headerName: 'Diagnóstico',
       width: 110,
       type: 'number',
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
-      ),
-    },
-    {
-      field: 'produtividade_auxiliar',
-      headerName: 'Auxiliar',
-      width: 100,
-      type: 'number',
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? 'success' : 'default'} />
       ),
     },
     {
@@ -357,50 +258,61 @@ export function createHorasColumns(callbacks: ColumnsCallbacks): GridColDef[] {
       width: 110,
       type: 'number',
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? 'success' : 'default'} />
       ),
     },
     {
-      field: 'produtividade_folha_objetivo_diario',
-      headerName: 'Folha Obj.',
+      field: 'produtividade_parecer',
+      headerName: 'Parecer',
       width: 100,
       type: 'number',
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? 'success' : 'default'} />
       ),
     },
     {
-      field: 'produtividade_evolucao_diurna_cti',
-      headerName: 'Evol. Diurna CTI',
-      width: 130,
+      field: 'produtividade_anotacao',
+      headerName: 'Anotação',
+      width: 100,
       type: 'number',
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? 'success' : 'default'} />
       ),
     },
     {
-      field: 'produtividade_evolucao_noturna_cti',
-      headerName: 'Evol. Noturna CTI',
+      field: 'produtividade_avaliacao',
+      headerName: 'Avaliação',
+      width: 100,
+      type: 'number',
+      renderCell: (params) => (
+        <Chip label={params.value} size="small" color={params.value > 0 ? 'success' : 'default'} />
+      ),
+    },
+    {
+      field: 'produtividade_documento_eletronico',
+      headerName: 'Doc. Eletrônico',
       width: 130,
       type: 'number',
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? 'success' : 'default'}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? 'success' : 'default'} />
+      ),
+    },
+    {
+      field: 'produtividade_evolucao',
+      headerName: 'Evolução',
+      width: 100,
+      type: 'number',
+      renderCell: (params) => (
+        <Chip label={params.value} size="small" color={params.value > 0 ? 'success' : 'default'} />
+      ),
+    },
+    {
+      field: 'produtividade_alta_medica',
+      headerName: 'Alta Médica',
+      width: 110,
+      type: 'number',
+      renderCell: (params) => (
+        <Chip label={params.value} size="small" color={params.value > 0 ? 'success' : 'default'} />
       ),
     },
   ];

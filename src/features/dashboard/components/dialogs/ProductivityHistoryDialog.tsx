@@ -78,20 +78,15 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
   const totalRegistros = personProdutividade.reduce(
     (sum, p) =>
       sum +
-      (p.procedimento || 0) +
-      (p.parecer_solicitado || 0) +
-      (p.parecer_realizado || 0) +
-      (p.cirurgia_realizada || 0) +
-      (p.prescricao || 0) +
-      (p.evolucao || 0) +
-      (p.urgencia || 0) +
-      (p.ambulatorio || 0) +
-      (p.auxiliar || 0) +
-      (p.encaminhamento || 0) +
-      (p.folha_objetivo_diario || 0) +
-      (p.evolucao_diurna_cti || 0) +
-      (p.evolucao_noturna_cti || 0) +
-      (p.qtd_documentos_pep || 0),
+      (p.prescricao           || 0) +
+      (p.diagnostico          || 0) +
+      (p.encaminhamento       || 0) +
+      (p.parecer              || 0) +
+      (p.anotacao             || 0) +
+      (p.avaliacao            || 0) +
+      (p.documento_eletronico || 0) +
+      (p.evolucao             || 0) +
+      (p.alta_medica          || 0),
     0
   );
 
@@ -297,16 +292,16 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                     <TableRow>
                       {[
                         'Data',
-                        'Origem',
-                        'Procedimentos',
-                        'Par. Sol.',
-                        'Par. Real.',
-                        'Cirurgias',
-                        'Prescrições',
-                        'Evoluções',
-                        'Urgências',
-                        'Ambulatórios',
-                        'Docs PEP',
+                        'Unidade',
+                        'Prescrição',
+                        'Diagnóstico',
+                        'Encaminhamento',
+                        'Parecer',
+                        'Anotação',
+                        'Avaliação',
+                        'Doc. Eletrônico',
+                        'Evolução',
+                        'Alta Médica',
                       ].map((header) => (
                         <TableCell key={header} sx={getTableHeaderStyles(isDark)}>
                           {header}
@@ -326,19 +321,19 @@ export const ProductivityHistoryDialog: React.FC<ProductivityHistoryDialogProps>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" color="text.secondary">
-                            {prod.origem || '-'}
+                            {prod.nm_unidade || '-'}
                           </Typography>
                         </TableCell>
                         {[
-                          prod.procedimento,
-                          prod.parecer_solicitado,
-                          prod.parecer_realizado,
-                          prod.cirurgia_realizada,
                           prod.prescricao,
+                          prod.diagnostico,
+                          prod.encaminhamento,
+                          prod.parecer,
+                          prod.anotacao,
+                          prod.avaliacao,
+                          prod.documento_eletronico,
                           prod.evolucao,
-                          prod.urgencia,
-                          prod.ambulatorio,
-                          prod.qtd_documentos_pep,
+                          prod.alta_medica,
                         ].map((value, i) => (
                           <TableCell key={i} align="center">
                             <Chip
