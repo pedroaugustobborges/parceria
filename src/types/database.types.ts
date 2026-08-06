@@ -800,6 +800,38 @@ export type Database = {
         }
         Relationships: []
       }
+      usuario_codigomv: {
+        Row: {
+          codigomv: string
+          created_at: string
+          id: string
+          nm_unidade: string
+          usuario_id: string
+        }
+        Insert: {
+          codigomv: string
+          created_at?: string
+          id?: string
+          nm_unidade: string
+          usuario_id: string
+        }
+        Update: {
+          codigomv?: string
+          created_at?: string
+          id?: string
+          nm_unidade?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuario_codigomv_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usuario_contrato: {
         Row: {
           contrato_id: string | null
@@ -1164,7 +1196,17 @@ export interface MedicoEscala {
 // Convenience Type Aliases (Table Row types)
 // ============================================
 
+export type UsuarioCodigomv = Database['public']['Tables']['usuario_codigomv']['Row']
+export type Usuario = Database['public']['Tables']['usuarios']['Row']
+export type Acesso = Database['public']['Tables']['acessos']['Row']
+export type Produtividade = Database['public']['Tables']['produtividade']['Row']
 export type Contrato = Database['public']['Tables']['contratos']['Row']
+
+export type UserRole =
+  | 'administrador-agir-corporativo'
+  | 'administrador-agir-planta'
+  | 'administrador-terceiro'
+  | 'terceiro'
 export type ItemContrato = Database['public']['Tables']['itens_contrato']['Row']
 export type ContratoItem = Database['public']['Tables']['contrato_itens']['Row']
 export type Parceiro = Database['public']['Tables']['parceiros']['Row']

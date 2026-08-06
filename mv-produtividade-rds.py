@@ -4,9 +4,10 @@ mv-produtividade-rds.py
 Substitui o web scraper do relatório MV pelo acesso direto ao banco RDS.
 
 Fluxo:
-  1. Busca usuários tipo='terceiro' com codigomv no Supabase
+  1. Busca entradas de usuario_codigomv no Supabase (N códigos por usuário,
+     um por unidade hospitalar)
   2. Consulta pw_documento_clinico_completo no RDS para ONTEM,
-     nos 4 bancos, filtrando pelos cd_prestador
+     nos 4 bancos, filtrando pelos cd_prestador E nm_unidade autorizados
   3. Pivota contagens por CD_TIPO_DOCUMENTO → 9 colunas de produtividade
      Uma linha por (cd_prestador, nm_unidade)
   4. Upsert no Supabase (chave: codigo_mv + data + nm_unidade)
@@ -139,6 +140,11 @@ def formatar_especialidade(esp) -> str:
 # ============================================================
 
 def buscar_prestadores() -> list:
+    """
+    Retorna lista de entradas de usuario_codigomv, cada uma com:
+      { "usuario_id": ..., "codigomv": "1819", "nm_unidade": "HUGOL",
+        "usuarios": { "id": ..., "nome": ..., "especialidade": [...] } }
+    """
     separador("PASSO 1 — Buscar prestadores no Supabase")
 
     if not SUPABASE_URL or not SUPABASE_KEY:
@@ -148,15 +154,16 @@ def buscar_prestadores() -> list:
 
     sb: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     resp = (
-        sb.table("usuarios")
-        .select("id, nome, codigomv, especialidade")
-        .eq("tipo", "terceiro")
-        .not_.is_("codigomv", "null")
+        sb.table("usuario_codigomv")
+        .select("usuario_id, codigomv, nm_unidade, usuarios(id, nome, especialidade)")
         .execute()
     )
 
     prestadores = resp.data or []
-    logger.info(f"  {len(prestadores)} usuários terceiros com codigomv")
+    logger.info(f"  {len(prestadores)} entradas em usuario_codigomv")
+    for p in prestadores:
+        nome = (p.get("usuarios") or {}).get("nome", "?")
+        logger.info(f"    {nome:<35} codigomv={p['codigomv']}  unidade={p['nm_unidade']}")
     return prestadores
 
 
@@ -200,26 +207,42 @@ def detectar_colunas(cur) -> dict:
     return mapa
 
 
-def consultar_rds(prestadores: list) -> list:
+def consultar_rds(prestadores: list) -> tuple:
+    """
+    Retorna (rows, pares_validos) onde:
+      - rows: lista de dicts do RDS
+      - pares_validos: set de (int(codigomv), nm_unidade) autorizados
+    """
     separador("PASSO 2 — Consultar RDS")
 
-    cd_prestadores = []
-    ignorados = []
+    cd_prestadores_set = set()
+    nm_unidades_set    = set()
+    pares_validos      = set()
+    ignorados          = []
+
     for p in prestadores:
         try:
-            cd_prestadores.append(int(p["codigomv"]))
+            cd = int(p["codigomv"])
+            nm = p["nm_unidade"]
+            cd_prestadores_set.add(cd)
+            nm_unidades_set.add(nm)
+            pares_validos.add((cd, nm))
         except (ValueError, TypeError):
-            ignorados.append(f"{p.get('nome', '?')} → codigomv='{p.get('codigomv')}'")
+            nome = (p.get("usuarios") or {}).get("nome", "?")
+            ignorados.append(f"{nome} → codigomv='{p.get('codigomv')}'")
 
     if ignorados:
-        logger.warning(f"  {len(ignorados)} prestadores ignorados (codigomv não numérico):")
+        logger.warning(f"  {len(ignorados)} entradas ignoradas (codigomv não numérico):")
         for i in ignorados:
             logger.warning(f"    {i}")
 
-    cd_tipos = list(TIPOS_DOCUMENTO.keys())
+    cd_prestadores = list(cd_prestadores_set)
+    nm_unidades    = list(nm_unidades_set)
+    cd_tipos       = list(TIPOS_DOCUMENTO.keys())
 
     logger.info(f"  Data      : {DATA_BR}")
-    logger.info(f"  Prestadores válidos: {len(cd_prestadores)} / {len(prestadores)}")
+    logger.info(f"  Prestadores válidos: {len(cd_prestadores)} (únicos)")
+    logger.info(f"  Unidades  : {nm_unidades}")
     logger.info(f"  Bancos    : {NM_BANCOS}")
 
     conn = psycopg2.connect(**RDS_CONFIG)
@@ -241,6 +264,13 @@ def consultar_rds(prestadores: list) -> list:
         if col_b else ""
     )
 
+    # Filtra também por nm_unidade para evitar contaminação cruzada
+    # (mesmo cd_prestador pode existir em unidades diferentes)
+    filtro_unidade = (
+        f"AND {col_u} IN ({', '.join(['%s'] * len(nm_unidades))})"
+        if col_u and nm_unidades else ""
+    )
+
     sql = f"""
         SELECT
             {col_p}       AS cd_prestador,
@@ -254,6 +284,7 @@ def consultar_rds(prestadores: list) -> list:
           AND {col_d}  >= %s
           AND {col_d}  <= %s
           {filtro_banco}
+          {filtro_unidade}
         GROUP BY {col_p}, {col_t}, {sel_unidade}, {sel_banco}
         ORDER BY {col_p}, nm_unidade, {col_t}
     """
@@ -263,40 +294,50 @@ def consultar_rds(prestadores: list) -> list:
         + cd_tipos
         + [f"{DATA_ISO} 00:00:00", f"{DATA_ISO} 23:59:59"]
         + (NM_BANCOS if col_b else [])
+        + (nm_unidades if col_u and nm_unidades else [])
     )
 
     logger.info("  Executando query...")
     cur.execute(sql, params)
     rows = [dict(r) for r in cur.fetchall()]
-    logger.info(f"  {len(rows)} linhas retornadas")
+    logger.info(f"  {len(rows)} linhas retornadas do RDS")
 
     cur.close()
     conn.close()
-    return rows
+    return rows, pares_validos
 
 
 # ============================================================
 # PASSO 3 — Pivotar: um registro por (cd_prestador, nm_unidade)
 # ============================================================
 
-def pivotar(rows: list, prestadores: list) -> tuple:
+def pivotar(rows: list, prestadores: list, pares_validos: set) -> tuple:
+    """
+    rows         : linhas retornadas pelo RDS
+    prestadores  : entradas de usuario_codigomv (com usuário aninhado)
+    pares_validos: set de (int(codigomv), nm_unidade) autorizados
+
+    Retorna (registros_prod, detalhe).
+    """
     separador("PASSO 3 — Pivotar resultados")
 
-    # idx_prest: int(codigomv) → prestador dict
-    # codigomv_orig: int(codigomv) → string original do codigomv (para gravar em codigo_mv)
-    idx_prest    = {}
-    codigomv_orig = {}
+    # idx: (int(codigomv), nm_unidade) → {nome, especialidade, codigomv_orig}
+    idx: dict[tuple, dict] = {}
     for p in prestadores:
         try:
-            key = int(p["codigomv"])
-            idx_prest[key]     = p
-            # Guarda o valor original exato (sem conversão int→str)
-            # para que codigo_mv gravado no Supabase seja idêntico a usuarios.codigomv
-            codigomv_orig[key] = p["codigomv"].strip()
+            cd  = int(p["codigomv"])
+            nm  = p["nm_unidade"]
+            usr = p.get("usuarios") or {}
+            idx[(cd, nm)] = {
+                "nome":         usr.get("nome", ""),
+                "especialidade": usr.get("especialidade", ""),
+                "codigomv_orig": p["codigomv"].strip(),
+            }
         except (ValueError, TypeError):
             pass
 
     # pivot[(cd_prestador, nm_unidade)] = {cd_tipo: total}
+    # Apenas pares autorizados são aceitos
     pivot: dict[tuple, dict] = {}
 
     for row in rows:
@@ -306,38 +347,39 @@ def pivotar(rows: list, prestadores: list) -> tuple:
         total    = int(row["total"])
 
         chave = (cd_prest, nm_unid)
+        if chave not in pares_validos:
+            continue  # ignora pares não autorizados (outro prestador na mesma unidade)
+
         pivot.setdefault(chave, {})
         pivot[chave][cd_tipo] = pivot[chave].get(cd_tipo, 0) + total
 
     # CSV detalhe: uma linha por prestador + tipo + unidade
     detalhe = []
     for (cd_prest, nm_unid), tipos in sorted(pivot.items()):
-        info = idx_prest.get(cd_prest, {})
-        for cd_tipo, total in sorted(tipos.items()):
+        info = idx.get((cd_prest, nm_unid), {})
+        for cd_tipo, total_val in sorted(tipos.items()):
             detalhe.append({
                 "data":              DATA_ISO,
                 "cd_prestador":      cd_prest,
-                "codigo_mv":         codigomv_orig.get(cd_prest, str(cd_prest)),
+                "codigo_mv":         info.get("codigomv_orig", str(cd_prest)),
                 "nome":              info.get("nome", ""),
                 "especialidade":     formatar_especialidade(info.get("especialidade", "")),
                 "nm_unidade":        nm_unid,
                 "cd_tipo_documento": cd_tipo,
                 "ds_tipo_documento": TIPOS_DOCUMENTO.get(cd_tipo, "?"),
-                "total":             total,
+                "total":             total_val,
             })
 
     # Registros para produtividade: um por (cd_prestador, nm_unidade)
     registros: dict[tuple, dict] = {}
 
     for (cd_prest, nm_unid), tipos in pivot.items():
-        info = idx_prest.get(cd_prest, {})
+        info  = idx.get((cd_prest, nm_unid), {})
         chave = (cd_prest, nm_unid)
 
         if chave not in registros:
-            # Usa o codigomv ORIGINAL (idêntico ao que está em usuarios.codigomv)
-            codigo_mv_val = codigomv_orig.get(cd_prest, str(cd_prest))
             registros[chave] = {
-                "codigo_mv":    codigo_mv_val,
+                "codigo_mv":    info.get("codigomv_orig", str(cd_prest)),
                 "nome":         info.get("nome", ""),
                 "especialidade": formatar_especialidade(info.get("especialidade", "")),
                 "data":         DATA_ISO,
@@ -346,10 +388,10 @@ def pivotar(rows: list, prestadores: list) -> tuple:
             }
 
         reg = registros[chave]
-        for cd_tipo, total in tipos.items():
+        for cd_tipo, total_val in tipos.items():
             for campo, cd_lista in MAPA_PRODUTIVIDADE.items():
                 if cd_tipo in cd_lista:
-                    reg[campo] += total
+                    reg[campo] += total_val
 
     registros_prod = list(registros.values())
 
@@ -418,15 +460,15 @@ def main():
 
     prestadores = buscar_prestadores()
     if not prestadores:
-        logger.warning("Nenhum prestador terceiro com codigomv. Encerrando.")
+        logger.warning("Nenhuma entrada em usuario_codigomv. Encerrando.")
         return
 
-    rows = consultar_rds(prestadores)
+    rows, pares_validos = consultar_rds(prestadores)
     if not rows:
         logger.warning("Nenhum documento encontrado para ONTEM. Encerrando.")
         return
 
-    registros_prod, detalhe = pivotar(rows, prestadores)
+    registros_prod, detalhe = pivotar(rows, prestadores, pares_validos)
 
     salvar_csv(f"mv_produtividade_detalhe_{DATA_ISO}.csv", detalhe)
     salvar_csv(f"mv_produtividade_resumo_{DATA_ISO}.csv",  registros_prod)

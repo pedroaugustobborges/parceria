@@ -563,13 +563,11 @@ export async function loadAcessosMedico(
 }
 
 /**
- * Load productivity for all doctors on an escala, aggregated into a single record.
+ * Load productivity for all doctors on an escala.
  *
- * Fixes vs. the old version:
- * - Strips time/timezone from data_inicio before comparing (avoids off-by-one day)
- * - Matches by codigo_mv (same as Dashboard) with nome fallback
- * - Queries ALL doctors on the escala, not just the first
- * - Handles overnight shifts by also querying the next day
+ * Uses usuario_codigomv table to get (codigomv, nm_unidade) pairs per doctor,
+ * ensuring we only return production for the exact units each doctor is registered in.
+ * This prevents cross-contamination when the same cd_prestador exists in multiple units.
  *
  * Returns all Produtividade records (one per unit) and a CPF→codigoMV map for display.
  */
@@ -586,60 +584,85 @@ export async function loadProdutividadeMedico(
     ? [dateStr, format(addDays(parseISO(dateStr), 1), 'yyyy-MM-dd')]
     : [dateStr];
 
-  // 2. Lookup codigo_mv for each doctor by CPF
   const cpfs = medicos.map(m => m.cpf).filter(Boolean);
   const codigosMV: Record<string, string | null> = {};
 
-  if (cpfs.length > 0) {
-    const { data: usuarios } = await supabase
-      .from('usuarios')
-      .select('cpf, codigomv')
-      .in('cpf', cpfs);
-    (usuarios || []).forEach((u: { cpf: string | null; codigomv: string | null }) => {
-      if (u.cpf) codigosMV[u.cpf] = u.codigomv ?? null;
+  if (cpfs.length === 0) return { produtividade: [], codigosMV: {} };
+
+  // 2. Get user IDs for these CPFs
+  const { data: usuariosData } = await supabase
+    .from('usuarios')
+    .select('id, cpf, codigomv')
+    .in('cpf', cpfs);
+
+  const usuarioPorId: Record<string, string> = {}; // id → cpf
+  (usuariosData || []).forEach((u: { id: string; cpf: string; codigomv: string | null }) => {
+    if (u.cpf) {
+      codigosMV[u.cpf] = u.codigomv ?? null; // fallback for display
+      usuarioPorId[u.id] = u.cpf;
+    }
+  });
+
+  const usuarioIds = Object.keys(usuarioPorId);
+
+  // 3. Get (codigomv, nm_unidade) pairs from usuario_codigomv
+  type CodigomvRow = { usuario_id: string; codigomv: string; nm_unidade: string };
+  let paresAutorizados: Array<{ codigomv: string; nm_unidade: string; cpf: string }> = [];
+
+  if (usuarioIds.length > 0) {
+    const { data: codigomvRows } = await supabase
+      .from('usuario_codigomv')
+      .select('usuario_id, codigomv, nm_unidade')
+      .in('usuario_id', usuarioIds);
+
+    paresAutorizados = (codigomvRows || []).map((row: CodigomvRow) => ({
+      codigomv: row.codigomv,
+      nm_unidade: row.nm_unidade,
+      cpf: usuarioPorId[row.usuario_id] ?? '',
+    }));
+
+    // Update codigosMV display map with first codigomv per CPF from usuario_codigomv
+    paresAutorizados.forEach(({ cpf, codigomv }) => {
+      if (cpf && !codigosMV[cpf]) codigosMV[cpf] = codigomv;
+      else if (cpf && codigosMV[cpf] === null) codigosMV[cpf] = codigomv;
     });
   }
 
-  // 3. Query produtividade — primary: codigo_mv, fallback: nome
-  const codigosMVList = Object.values(codigosMV).filter((v): v is string => !!v);
-
-  console.debug('[loadProdutividadeMedico] cpfs:', cpfs);
-  console.debug('[loadProdutividadeMedico] codigosMV map:', codigosMV);
-  console.debug('[loadProdutividadeMedico] codigosMVList:', codigosMVList);
-  console.debug('[loadProdutividadeMedico] datesToQuery:', datesToQuery);
+  const codigosMVList = [...new Set(paresAutorizados.map(p => p.codigomv))].filter(Boolean);
+  const nmUnidadesList = [...new Set(paresAutorizados.map(p => p.nm_unidade))].filter(Boolean);
+  const paresSet = new Set(paresAutorizados.map(p => `${p.codigomv}|${p.nm_unidade}`));
 
   let produtividadeRecords: Produtividade[] = [];
 
   if (codigosMVList.length > 0) {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('produtividade')
       .select('*')
       .in('data', datesToQuery)
       .in('codigo_mv', codigosMVList)
+      .in('nm_unidade', nmUnidadesList.length > 0 ? nmUnidadesList : ['__none__'])
       .order('nm_unidade', { ascending: true });
-    console.debug('[loadProdutividadeMedico] primary query result:', data, 'error:', error);
-    produtividadeRecords = (data || []) as Produtividade[];
-  } else {
-    console.warn('[loadProdutividadeMedico] codigosMVList is empty — skipping primary query. CPFs without codigomv:', cpfs.filter(cpf => !codigosMV[cpf]));
+
+    // Filter in-memory: keep only (codigo_mv, nm_unidade) pairs that are authorized
+    produtividadeRecords = ((data || []) as Produtividade[]).filter(
+      r => paresSet.has(`${r.codigo_mv}|${r.nm_unidade}`)
+    );
   }
 
   if (produtividadeRecords.length === 0) {
-    // Fallback: match by name
+    // Fallback: match by name (for doctors not yet in usuario_codigomv)
     const nomes = medicos.map(m => m.nome).filter(Boolean);
-    console.debug('[loadProdutividadeMedico] falling back to nome query:', nomes);
     if (nomes.length > 0) {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('produtividade')
         .select('*')
         .in('data', datesToQuery)
         .in('nome', nomes)
         .order('nm_unidade', { ascending: true });
-      console.debug('[loadProdutividadeMedico] fallback (nome) result:', data, 'error:', error);
       produtividadeRecords = (data || []) as Produtividade[];
     }
   }
 
-  console.debug('[loadProdutividadeMedico] final records:', produtividadeRecords.length);
   return { produtividade: produtividadeRecords, codigosMV };
 }
 

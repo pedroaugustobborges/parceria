@@ -4,9 +4,9 @@ mv-produtividade-rds-teste.py
 Versão de teste: apenas lê dados do RDS e gera CSVs. Não toca no Supabase.
 
 Fluxo:
-  1. Busca usuários tipo='terceiro' com codigomv no Supabase (somente leitura)
+  1. Busca entradas de usuario_codigomv no Supabase (somente leitura)
   2. Consulta pw_documento_clinico_completo no RDS para ONTEM,
-     nos 4 bancos, filtrando pelos cd_prestador e CD_TIPO_DOCUMENTO do CSV
+     nos 4 bancos, filtrando pelos cd_prestador e nm_unidade autorizados
   3. Salva dois CSVs em Downloads/:
        mv_produtividade_detalhe_YYYY-MM-DD.csv  — bruto: uma linha por tipo
        mv_produtividade_resumo_YYYY-MM-DD.csv   — pivot: uma linha por prestador
@@ -132,6 +132,11 @@ def formatar_especialidade(esp) -> str:
 # ============================================================
 
 def buscar_prestadores() -> list:
+    """
+    Retorna lista de entradas de usuario_codigomv, cada uma com:
+      { "usuario_id": ..., "codigomv": "1819", "nm_unidade": "HUGOL",
+        "usuarios": { "id": ..., "nome": ..., "especialidade": [...] } }
+    """
     separador("PASSO 1 — Prestadores no Supabase")
 
     if not SUPABASE_URL or not SUPABASE_KEY:
@@ -141,17 +146,16 @@ def buscar_prestadores() -> list:
 
     sb: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     resp = (
-        sb.table("usuarios")
-        .select("id, nome, codigomv, especialidade")
-        .eq("tipo", "terceiro")
-        .not_.is_("codigomv", "null")
+        sb.table("usuario_codigomv")
+        .select("usuario_id, codigomv, nm_unidade, usuarios(id, nome, especialidade)")
         .execute()
     )
 
     prestadores = resp.data or []
-    logger.info(f"  {len(prestadores)} usuários terceiros com codigomv")
+    logger.info(f"  {len(prestadores)} entradas em usuario_codigomv")
     for p in prestadores:
-        logger.info(f"    {p['nome']:<35} codigomv={p['codigomv']}")
+        nome = (p.get("usuarios") or {}).get("nome", "?")
+        logger.info(f"    {nome:<35} codigomv={p['codigomv']}  unidade={p['nm_unidade']}")
     return prestadores
 
 
@@ -235,26 +239,38 @@ def detectar_colunas(cur) -> dict:
 # PASSO 3 — Consultar RDS
 # ============================================================
 
-def consultar_rds(prestadores: list) -> list:
+def consultar_rds(prestadores: list) -> tuple:
+    """Retorna (rows, pares_validos)."""
     separador("PASSO 2 — Consultar RDS")
 
-    cd_prestadores = []
-    ignorados = []
+    cd_prestadores_set = set()
+    nm_unidades_set    = set()
+    pares_validos      = set()
+    ignorados          = []
+
     for p in prestadores:
         try:
-            cd_prestadores.append(int(p["codigomv"]))
+            cd = int(p["codigomv"])
+            nm = p["nm_unidade"]
+            cd_prestadores_set.add(cd)
+            nm_unidades_set.add(nm)
+            pares_validos.add((cd, nm))
         except (ValueError, TypeError):
-            ignorados.append(f"{p.get('nome', '?')} → codigomv='{p.get('codigomv')}'")
+            nome = (p.get("usuarios") or {}).get("nome", "?")
+            ignorados.append(f"{nome} → codigomv='{p.get('codigomv')}'")
 
     if ignorados:
-        logger.warning(f"  {len(ignorados)} prestadores ignorados (codigomv não numérico):")
+        logger.warning(f"  {len(ignorados)} entradas ignoradas (codigomv não numérico):")
         for i in ignorados:
             logger.warning(f"    {i}")
 
-    cd_tipos = list(TIPOS_DOCUMENTO.keys())
+    cd_prestadores = list(cd_prestadores_set)
+    nm_unidades    = list(nm_unidades_set)
+    cd_tipos       = list(TIPOS_DOCUMENTO.keys())
 
     logger.info(f"  Data      : {DATA_BR}")
-    logger.info(f"  Prestadores válidos: {len(cd_prestadores)} / {len(prestadores)}")
+    logger.info(f"  Prestadores válidos: {len(cd_prestadores)} (únicos)")
+    logger.info(f"  Unidades  : {nm_unidades}")
     logger.info(f"  Tipos doc ({len(cd_tipos)}): {cd_tipos}")
     logger.info(f"  Bancos    : {NM_BANCOS}")
 
@@ -279,6 +295,11 @@ def consultar_rds(prestadores: list) -> list:
         if col_b else ""
     )
 
+    filtro_unidade = (
+        f"AND {col_u} IN ({', '.join(['%s'] * len(nm_unidades))})"
+        if col_u and nm_unidades else ""
+    )
+
     sql = f"""
         SELECT
             {col_p}       AS cd_prestador,
@@ -292,6 +313,7 @@ def consultar_rds(prestadores: list) -> list:
           AND {col_d}  >= %s
           AND {col_d}  <= %s
           {filtro_banco}
+          {filtro_unidade}
         GROUP BY {col_p}, {col_t}, {sel_unidade}, {sel_banco}
         ORDER BY {col_p}, {col_t}
     """
@@ -301,6 +323,7 @@ def consultar_rds(prestadores: list) -> list:
         + cd_tipos
         + [f"{DATA_ISO} 00:00:00", f"{DATA_ISO} 23:59:59"]
         + (NM_BANCOS if col_b else [])
+        + (nm_unidades if col_u and nm_unidades else [])
     )
 
     logger.info("  Executando query...")
@@ -310,27 +333,33 @@ def consultar_rds(prestadores: list) -> list:
 
     cur.close()
     conn.close()
-    return rows
+    return rows, pares_validos
 
 
 # ============================================================
 # PASSO 4 — Gerar CSVs
 # ============================================================
 
-def gerar_csvs(rows: list, prestadores: list):
+def gerar_csvs(rows: list, prestadores: list, pares_validos: set):
     separador("PASSO 3 — Gerar CSVs")
 
-    idx_prest     = {}
-    codigomv_orig = {}
+    # idx: (int(codigomv), nm_unidade) → {nome, especialidade, codigomv_orig}
+    idx: dict[tuple, dict] = {}
     for p in prestadores:
         try:
-            key = int(p["codigomv"])
-            idx_prest[key]     = p
-            codigomv_orig[key] = p["codigomv"].strip()
+            cd  = int(p["codigomv"])
+            nm  = p["nm_unidade"]
+            usr = p.get("usuarios") or {}
+            idx[(cd, nm)] = {
+                "nome":         usr.get("nome", ""),
+                "especialidade": usr.get("especialidade", ""),
+                "codigomv_orig": p["codigomv"].strip(),
+            }
         except (ValueError, TypeError):
             pass
 
     # pivot[(cd_prestador, nm_unidade)] = {cd_tipo: total}
+    # Apenas pares autorizados
     pivot: dict[tuple, dict] = {}
     for row in rows:
         cd_prest = int(row["cd_prestador"])
@@ -338,18 +367,20 @@ def gerar_csvs(rows: list, prestadores: list):
         cd_tipo  = int(row["cd_tipo_documento"])
         total    = int(row["total"])
         chave = (cd_prest, nm_unid)
+        if chave not in pares_validos:
+            continue
         pivot.setdefault(chave, {})
         pivot[chave][cd_tipo] = pivot[chave].get(cd_tipo, 0) + total
 
     # ---- CSV detalhe ----
     detalhe = []
     for (cd_prest, nm_unid), tipos in sorted(pivot.items()):
-        info = idx_prest.get(cd_prest, {})
+        info = idx.get((cd_prest, nm_unid), {})
         for cd_tipo, total in sorted(tipos.items()):
             detalhe.append({
                 "data":              DATA_ISO,
                 "cd_prestador":      cd_prest,
-                "codigo_mv":         codigomv_orig.get(cd_prest, str(cd_prest)),
+                "codigo_mv":         info.get("codigomv_orig", str(cd_prest)),
                 "nome":              info.get("nome", ""),
                 "especialidade":     formatar_especialidade(info.get("especialidade", "")),
                 "nm_unidade":        nm_unid,
@@ -361,14 +392,13 @@ def gerar_csvs(rows: list, prestadores: list):
     # ---- CSV resumo: pivot por (prestador, nm_unidade) ----
     resumo: dict[tuple, dict] = {}
     for (cd_prest, nm_unid), tipos in pivot.items():
-        info  = idx_prest.get(cd_prest, {})
+        info  = idx.get((cd_prest, nm_unid), {})
         chave = (cd_prest, nm_unid)
         if chave not in resumo:
-            codigo_mv_val = codigomv_orig.get(cd_prest, str(cd_prest))
             resumo[chave] = {
                 "data":          DATA_ISO,
                 "cd_prestador":  cd_prest,
-                "codigo_mv":     codigo_mv_val,
+                "codigo_mv":     info.get("codigomv_orig", str(cd_prest)),
                 "nome":          info.get("nome", ""),
                 "especialidade": formatar_especialidade(info.get("especialidade", "")),
                 "nm_unidade":    nm_unid,
@@ -581,33 +611,28 @@ def main():
 
     prestadores = buscar_prestadores()
     if not prestadores:
-        logger.warning("Nenhum prestador encontrado. Encerrando.")
+        logger.warning("Nenhuma entrada em usuario_codigomv. Encerrando.")
         return
+
     cd_prestadores = []
-    ignorados_main = []
     for p in prestadores:
         try:
             cd_prestadores.append(int(p["codigomv"]))
         except (ValueError, TypeError):
-            ignorados_main.append(f"{p.get('nome', '?')} → codigomv='{p.get('codigomv')}'")
-
-    if ignorados_main:
-        logger.warning(f"  {len(ignorados_main)} prestadores ignorados (codigomv não numérico):")
-        for i in ignorados_main:
-            logger.warning(f"    {i}")
+            pass
 
     # Explorar atendime_completo (sempre roda)
-    explorar_atendime_completo(cd_prestadores)
+    explorar_atendime_completo(list(set(cd_prestadores)))
 
     # Tentar consulta principal (pw_documento_clinico_completo)
     separador("CONSULTA PRINCIPAL — pw_documento_clinico_completo")
     try:
-        rows = consultar_rds(prestadores)
+        rows, pares_validos = consultar_rds(prestadores)
         if not rows:
             logger.warning("Nenhum documento encontrado para ONTEM.")
             salvar_csv(f"mv_produtividade_VAZIO_{DATA_ISO}.csv", [])
         else:
-            nome_det, nome_res = gerar_csvs(rows, prestadores)
+            nome_det, nome_res = gerar_csvs(rows, prestadores, pares_validos)
             logger.info(f"  {nome_det}")
             logger.info(f"  {nome_res}")
     except RuntimeError as e:

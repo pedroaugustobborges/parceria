@@ -37,6 +37,7 @@ import {
   Delete,
   AdminPanelSettings,
   LockReset,
+  Add,
 } from "@mui/icons-material";
 import { supabase } from "../lib/supabase";
 import {
@@ -137,6 +138,11 @@ interface UsuarioContrato {
   contratos?: Contrato;
 }
 
+interface CodigomvPar {
+  codigomv: string;
+  nm_unidade: string;
+}
+
 const Usuarios: React.FC = () => {
   const { isAdminAgirCorporativo, isAdminAgirPlanta } = useAuth();
   const jaRestaurouRef = useRef(false);
@@ -162,6 +168,7 @@ const Usuarios: React.FC = () => {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
   const [userContracts, setUserContracts] = useState<UsuarioContrato[]>([]);
+  const [userCodigomvs, setUserCodigomvs] = useState<CodigomvPar[]>([]);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -178,7 +185,7 @@ const Usuarios: React.FC = () => {
     cpf: "",
     tipo: "terceiro" as UserRole,
     contrato_ids: [] as string[],
-    codigomv: "",
+    codigomvs: [] as CodigomvPar[],
     especialidade: [] as string[],
     unidade_hospitalar_id: "",
   });
@@ -380,6 +387,14 @@ const Usuarios: React.FC = () => {
   const handleOpenUserDetails = async (usuario: Usuario) => {
     setSelectedUser(usuario);
 
+    // Load codigomvs
+    const { data: codigomvsData } = await supabase
+      .from("usuario_codigomv")
+      .select("codigomv, nm_unidade")
+      .eq("usuario_id", usuario.id)
+      .order("nm_unidade");
+    setUserCodigomvs(codigomvsData || []);
+
     // Load user contracts from usuario_contrato table
     try {
       const { data: contratosFromTable } = await supabase
@@ -429,6 +444,7 @@ const Usuarios: React.FC = () => {
     setDetailsDialogOpen(false);
     setSelectedUser(null);
     setUserContracts([]);
+    setUserCodigomvs([]);
   };
 
   const limparRascunhoFormulario = () => {
@@ -444,24 +460,39 @@ const Usuarios: React.FC = () => {
       cpf: "",
       tipo: "terceiro",
       contrato_ids: [],
-      codigomv: "",
+      codigomvs: [],
       especialidade: [],
       unidade_hospitalar_id: "",
     });
     setCreateDialogOpen(true);
   };
 
-  const handleOpenEditDialog = () => {
+  const handleOpenEditDialog = async () => {
     if (!selectedUser) return;
+
+    // Load codigomvs (may have already been loaded, but refresh to be sure)
+    const { data: codigomvsData } = await supabase
+      .from("usuario_codigomv")
+      .select("codigomv, nm_unidade")
+      .eq("usuario_id", selectedUser.id)
+      .order("nm_unidade");
+
+    const codigomvs = codigomvsData || [];
+
+    // Fallback: if no entries in usuario_codigomv but has legacy codigomv field
+    const legacyFallback: CodigomvPar[] =
+      codigomvs.length === 0 && selectedUser.codigomv
+        ? [{ codigomv: selectedUser.codigomv, nm_unidade: "" }]
+        : codigomvs;
 
     setEditMode(true);
     setFormData({
-      email: selectedUser.email,
+      email: selectedUser.email ?? "",
       nome: selectedUser.nome,
       cpf: selectedUser.cpf,
-      tipo: selectedUser.tipo,
+      tipo: selectedUser.tipo as UserRole,
       contrato_ids: userContracts.map((uc) => uc.contrato_id),
-      codigomv: selectedUser.codigomv || "",
+      codigomvs: legacyFallback,
       especialidade: selectedUser.especialidade || [],
       unidade_hospitalar_id: selectedUser.unidade_hospitalar_id || "",
     });
@@ -523,11 +554,37 @@ const Usuarios: React.FC = () => {
         }
       }
 
-      // Validar codigomv e especialidade para terceiros
-      if (formData.tipo === "terceiro" && !formData.codigomv) {
-        setError("Código do Prestador no MV é obrigatório");
-        setSaving(false);
-        return;
+      // Validar codigomvs e especialidade para terceiros
+      if (formData.tipo === "terceiro") {
+        if (formData.codigomvs.length === 0) {
+          setError("Adicione pelo menos um Código MV com a respectiva unidade hospitalar");
+          setSaving(false);
+          return;
+        }
+        // Validate each pair
+        for (const par of formData.codigomvs) {
+          if (!par.codigomv.trim()) {
+            setError("Preencha o código MV em todos os registros");
+            setSaving(false);
+            return;
+          }
+          if (!par.nm_unidade) {
+            setError("Selecione a unidade hospitalar para todos os códigos MV");
+            setSaving(false);
+            return;
+          }
+        }
+        // Check for duplicates within form
+        const seenPairs = new Set<string>();
+        for (const par of formData.codigomvs) {
+          const key = `${par.codigomv.trim()}|${par.nm_unidade}`;
+          if (seenPairs.has(key)) {
+            setError(`Código MV "${par.codigomv}" já adicionado para a unidade "${par.nm_unidade}"`);
+            setSaving(false);
+            return;
+          }
+          seenPairs.add(key);
+        }
       }
 
       if (formData.tipo === "terceiro" && formData.especialidade.length === 0) {
@@ -538,11 +595,15 @@ const Usuarios: React.FC = () => {
 
       if (editMode && selectedUser) {
         // Update existing user
+        const firstCodigomv =
+          formData.tipo === "terceiro" && formData.codigomvs.length > 0
+            ? formData.codigomvs[0].codigomv.trim()
+            : null;
         const updateData: any = {
           nome: formData.nome,
           cpf: formData.cpf,
           tipo: formData.tipo,
-          codigomv: formData.tipo === "terceiro" ? formData.codigomv : null,
+          codigomv: firstCodigomv, // keep in sync for backward compat
           especialidade:
             formData.tipo === "terceiro" ? formData.especialidade : null,
           unidade_hospitalar_id:
@@ -635,6 +696,34 @@ const Usuarios: React.FC = () => {
             .eq("id", selectedUser.id);
         }
 
+        // Atualiza usuario_codigomv (para terceiros)
+        if (formData.tipo === "terceiro") {
+          await supabase
+            .from("usuario_codigomv")
+            .delete()
+            .eq("usuario_id", selectedUser.id);
+
+          if (formData.codigomvs.length > 0) {
+            const { error: codigomvError } = await supabase
+              .from("usuario_codigomv")
+              .insert(
+                formData.codigomvs.map((par) => ({
+                  usuario_id: selectedUser.id,
+                  codigomv: par.codigomv.trim(),
+                  nm_unidade: par.nm_unidade,
+                })),
+              );
+            if (codigomvError) {
+              if (codigomvError.code === "23505") {
+                throw new Error(
+                  "Um dos códigos MV já está cadastrado para essa unidade hospitalar por outro usuário",
+                );
+              }
+              throw new Error(`Erro ao salvar códigos MV: ${codigomvError.message}`);
+            }
+          }
+        }
+
         setSuccess("Usuário atualizado com sucesso!");
         setSaving(false);
         limparRascunhoFormulario();
@@ -658,6 +747,11 @@ const Usuarios: React.FC = () => {
             return;
           }
 
+          const firstCodigomv =
+            formData.codigomvs.length > 0
+              ? formData.codigomvs[0].codigomv.trim()
+              : null;
+
           const tempUUID = crypto.randomUUID();
           const { data: newUser, error: insertError } = await supabase
             .from("usuarios")
@@ -667,7 +761,7 @@ const Usuarios: React.FC = () => {
               nome: formData.nome,
               cpf: formData.cpf,
               tipo: formData.tipo,
-              codigomv: formData.codigomv,
+              codigomv: firstCodigomv,
               especialidade: formData.especialidade,
               unidade_hospitalar_id: null,
               contrato_id:
@@ -694,6 +788,27 @@ const Usuarios: React.FC = () => {
               throw new Error(
                 `Erro ao vincular contratos: ${contractError.message}`,
               );
+          }
+
+          // Salva os códigos MV em usuario_codigomv
+          if (newUser && formData.codigomvs.length > 0) {
+            const { error: codigomvError } = await supabase
+              .from("usuario_codigomv")
+              .insert(
+                formData.codigomvs.map((par) => ({
+                  usuario_id: newUser.id,
+                  codigomv: par.codigomv.trim(),
+                  nm_unidade: par.nm_unidade,
+                })),
+              );
+            if (codigomvError) {
+              if (codigomvError.code === "23505") {
+                throw new Error(
+                  "Um dos códigos MV já está cadastrado para essa unidade hospitalar por outro usuário",
+                );
+              }
+              throw new Error(`Erro ao salvar códigos MV: ${codigomvError.message}`);
+            }
           }
 
           setSuccess("Terceiro criado com sucesso!");
@@ -864,9 +979,14 @@ const Usuarios: React.FC = () => {
     try {
       setError("");
 
-      // Delete usuario_contrato records
+      // Delete usuario_contrato and usuario_codigomv records
       await supabase
         .from("usuario_contrato")
+        .delete()
+        .eq("usuario_id", usuario.id);
+
+      await supabase
+        .from("usuario_codigomv")
         .delete()
         .eq("usuario_id", usuario.id);
 
@@ -1282,14 +1402,22 @@ const Usuarios: React.FC = () => {
                         {roleLabels[selectedUser.tipo]}
                       </Typography>
                     </Grid>
-                    {selectedUser.codigomv && (
-                      <Grid item xs={12} sm={6}>
+                    {userCodigomvs.length > 0 && (
+                      <Grid item xs={12}>
                         <Typography variant="caption" color="text.secondary">
-                          Código MV
+                          Códigos MV
                         </Typography>
-                        <Typography variant="body1" fontWeight={500}>
-                          {selectedUser.codigomv}
-                        </Typography>
+                        <Box sx={{ mt: 0.5, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                          {userCodigomvs.map((par, i) => (
+                            <Chip
+                              key={i}
+                              label={`${par.codigomv} — ${par.nm_unidade}`}
+                              size="small"
+                              variant="outlined"
+                              color="secondary"
+                            />
+                          ))}
+                        </Box>
                       </Grid>
                     )}
                     {selectedUser.especialidade &&
@@ -1557,15 +1685,80 @@ const Usuarios: React.FC = () => {
 
             {formData.tipo === "terceiro" && (
               <>
-                <TextField
-                  label="Código do Prestador no MV"
-                  value={formData.codigomv}
-                  onChange={(e) =>
-                    setFormData({ ...formData, codigomv: e.target.value })
-                  }
-                  fullWidth
-                  required
-                />
+                {/* Códigos MV por unidade hospitalar */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Códigos no MV *
+                  </Typography>
+
+                  {formData.codigomvs.map((par, index) => (
+                    <Box
+                      key={index}
+                      sx={{ display: "flex", gap: 1, mb: 1, alignItems: "center" }}
+                    >
+                      <TextField
+                        label="Código Prestador MV"
+                        value={par.codigomv}
+                        onChange={(e) => {
+                          const updated = [...formData.codigomvs];
+                          updated[index] = { ...par, codigomv: e.target.value };
+                          setFormData({ ...formData, codigomvs: updated });
+                        }}
+                        size="small"
+                        sx={{ flex: 1 }}
+                        required
+                      />
+                      <FormControl size="small" sx={{ minWidth: 160 }} required>
+                        <InputLabel>Unidade</InputLabel>
+                        <Select
+                          value={par.nm_unidade}
+                          label="Unidade"
+                          onChange={(e) => {
+                            const updated = [...formData.codigomvs];
+                            updated[index] = { ...par, nm_unidade: e.target.value };
+                            setFormData({ ...formData, codigomvs: updated });
+                          }}
+                        >
+                          {unidades.map((u) => (
+                            <MenuItem key={u.id} value={u.codigo}>
+                              {u.codigo}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          const updated = formData.codigomvs.filter(
+                            (_, i) => i !== index,
+                          );
+                          setFormData({ ...formData, codigomvs: updated });
+                        }}
+                        title="Remover"
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  ))}
+
+                  <Button
+                    startIcon={<Add />}
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        codigomvs: [
+                          ...formData.codigomvs,
+                          { codigomv: "", nm_unidade: "" },
+                        ],
+                      })
+                    }
+                    variant="outlined"
+                    size="small"
+                    sx={{ mt: 0.5 }}
+                  >
+                    Adicionar Código MV
+                  </Button>
+                </Box>
 
                 <Autocomplete
                   multiple
