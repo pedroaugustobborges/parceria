@@ -3,21 +3,30 @@ mv-produtividade-rds.py
 =======================
 Substitui o web scraper do relatório MV pelo acesso direto ao banco RDS.
 
-Fluxo:
-  1. Busca entradas de usuario_codigomv no Supabase (N códigos por usuário,
-     um por unidade hospitalar)
-  2. Consulta pw_documento_clinico_completo no RDS para ONTEM,
-     nos 4 bancos, filtrando pelos cd_prestador E nm_unidade autorizados
-  3. Pivota contagens por CD_TIPO_DOCUMENTO → 9 colunas de produtividade
-     Uma linha por (cd_prestador, nm_unidade)
-  4. Upsert no Supabase (chave: codigo_mv + data + nm_unidade)
-  5. Salva CSV de auditoria em Downloads/
+Fluxo ao rodar (diariamente às 13h BRT via cron):
+
+  FASE 1 — Inserção do dia anterior (D-1):
+    1. Busca entradas de usuario_codigomv no Supabase
+    2. Consulta pw_documento_clinico_completo no RDS para D-1
+    3. Pivota contagens por CD_TIPO_DOCUMENTO → 9 colunas de produtividade
+    4. Upsert no Supabase (chave: codigo_mv + data + nm_unidade)
+       - INSERT: seta created_at e updated_at via default do banco
+       - UPDATE: sempre sobrescreve e atualiza updated_at
+
+  FASE 2 — Revisão retroativa (D-2 a D-8):
+    A tabela pw_documento_clinico_completo pode sofrer alterações por até
+    7 dias após a data original. Por isso, a cada execução o script também
+    reprocessa os 7 dias anteriores a D-1 e corrige o Supabase apenas
+    quando os valores de produtividade mudaram (updated_at é atualizado
+    somente em caso de alteração real, preservando o histórico de created_at).
+
+  FASE 3 — CSV de auditoria em ~/Downloads/
 """
 
 import os
 import csv
 import logging
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 
 import psycopg2
 import psycopg2.extras
@@ -85,10 +94,12 @@ MAPA_PRODUTIVIDADE = {
     "alta_medica":          [51],
 }
 
+PROD_COLS = list(MAPA_PRODUTIVIDADE.keys())   # lista das 9 colunas de produtividade
+
+# Quantos dias retroativos verificar após D-1 (D-2 até D-(JANELA+1))
+JANELA_RETROATIVA_DIAS = 7
+
 DOWNLOADS = os.path.expanduser("~/Downloads")
-ONTEM    = date.today() - timedelta(days=1)
-DATA_ISO = ONTEM.isoformat()
-DATA_BR  = ONTEM.strftime("%d/%m/%Y")
 
 TABELA_DOC = "assistencial.pw_documento_clinico_completo"
 
@@ -108,6 +119,11 @@ def separador(titulo=""):
     if titulo:
         logger.info(f"  {titulo}")
         logger.info("=" * 60)
+
+
+def now_utc_iso() -> str:
+    """Retorna o instante atual em UTC no formato ISO 8601."""
+    return datetime.now(timezone.utc).isoformat()
 
 
 def salvar_csv(nome_arquivo: str, linhas: list):
@@ -139,7 +155,7 @@ def formatar_especialidade(esp) -> str:
 # PASSO 1 — Buscar prestadores no Supabase
 # ============================================================
 
-def buscar_prestadores() -> list:
+def buscar_prestadores(sb: Client) -> list:
     """
     Retorna lista de entradas de usuario_codigomv, cada uma com:
       { "usuario_id": ..., "codigomv": "1819", "nm_unidade": "HUGOL",
@@ -147,12 +163,6 @@ def buscar_prestadores() -> list:
     """
     separador("PASSO 1 — Buscar prestadores no Supabase")
 
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        raise ValueError(
-            "VITE_SUPABASE_URL ou VITE_SUPABASE_SERVICE_ROLE_KEY não encontrados no .env"
-        )
-
-    sb: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     resp = (
         sb.table("usuario_codigomv")
         .select("usuario_id, codigomv, nm_unidade, usuarios(id, nome, especialidade)")
@@ -207,14 +217,13 @@ def detectar_colunas(cur) -> dict:
     return mapa
 
 
-def consultar_rds(prestadores: list) -> tuple:
+def consultar_rds(prestadores: list, data_iso: str) -> tuple:
     """
+    Consulta o RDS para a data indicada (YYYY-MM-DD).
     Retorna (rows, pares_validos) onde:
-      - rows: lista de dicts do RDS
+      - rows        : lista de dicts do RDS
       - pares_validos: set de (int(codigomv), nm_unidade) autorizados
     """
-    separador("PASSO 2 — Consultar RDS")
-
     cd_prestadores_set = set()
     nm_unidades_set    = set()
     pares_validos      = set()
@@ -240,7 +249,7 @@ def consultar_rds(prestadores: list) -> tuple:
     nm_unidades    = list(nm_unidades_set)
     cd_tipos       = list(TIPOS_DOCUMENTO.keys())
 
-    logger.info(f"  Data      : {DATA_BR}")
+    logger.info(f"  Data      : {data_iso}")
     logger.info(f"  Prestadores válidos: {len(cd_prestadores)} (únicos)")
     logger.info(f"  Unidades  : {nm_unidades}")
     logger.info(f"  Bancos    : {NM_BANCOS}")
@@ -263,9 +272,6 @@ def consultar_rds(prestadores: list) -> tuple:
         f"AND {col_b} IN ({', '.join(['%s'] * len(NM_BANCOS))})"
         if col_b else ""
     )
-
-    # Filtra também por nm_unidade para evitar contaminação cruzada
-    # (mesmo cd_prestador pode existir em unidades diferentes)
     filtro_unidade = (
         f"AND {col_u} IN ({', '.join(['%s'] * len(nm_unidades))})"
         if col_u and nm_unidades else ""
@@ -292,7 +298,7 @@ def consultar_rds(prestadores: list) -> tuple:
     params = (
         cd_prestadores
         + cd_tipos
-        + [f"{DATA_ISO} 00:00:00", f"{DATA_ISO} 23:59:59"]
+        + [f"{data_iso} 00:00:00", f"{data_iso} 23:59:59"]
         + (NM_BANCOS if col_b else [])
         + (nm_unidades if col_u and nm_unidades else [])
     )
@@ -311,16 +317,11 @@ def consultar_rds(prestadores: list) -> tuple:
 # PASSO 3 — Pivotar: um registro por (cd_prestador, nm_unidade)
 # ============================================================
 
-def pivotar(rows: list, prestadores: list, pares_validos: set) -> tuple:
+def pivotar(rows: list, prestadores: list, pares_validos: set, data_iso: str) -> tuple:
     """
-    rows         : linhas retornadas pelo RDS
-    prestadores  : entradas de usuario_codigomv (com usuário aninhado)
-    pares_validos: set de (int(codigomv), nm_unidade) autorizados
-
+    Pivota as linhas do RDS em registros de produtividade.
     Retorna (registros_prod, detalhe).
     """
-    separador("PASSO 3 — Pivotar resultados")
-
     # idx: (int(codigomv), nm_unidade) → {nome, especialidade, codigomv_orig}
     idx: dict[tuple, dict] = {}
     for p in prestadores:
@@ -329,7 +330,7 @@ def pivotar(rows: list, prestadores: list, pares_validos: set) -> tuple:
             nm  = p["nm_unidade"]
             usr = p.get("usuarios") or {}
             idx[(cd, nm)] = {
-                "nome":         usr.get("nome", ""),
+                "nome":          usr.get("nome", ""),
                 "especialidade": usr.get("especialidade", ""),
                 "codigomv_orig": p["codigomv"].strip(),
             }
@@ -337,7 +338,6 @@ def pivotar(rows: list, prestadores: list, pares_validos: set) -> tuple:
             pass
 
     # pivot[(cd_prestador, nm_unidade)] = {cd_tipo: total}
-    # Apenas pares autorizados são aceitos
     pivot: dict[tuple, dict] = {}
 
     for row in rows:
@@ -348,18 +348,18 @@ def pivotar(rows: list, prestadores: list, pares_validos: set) -> tuple:
 
         chave = (cd_prest, nm_unid)
         if chave not in pares_validos:
-            continue  # ignora pares não autorizados (outro prestador na mesma unidade)
+            continue
 
         pivot.setdefault(chave, {})
         pivot[chave][cd_tipo] = pivot[chave].get(cd_tipo, 0) + total
 
-    # CSV detalhe: uma linha por prestador + tipo + unidade
+    # CSV detalhe
     detalhe = []
     for (cd_prest, nm_unid), tipos in sorted(pivot.items()):
         info = idx.get((cd_prest, nm_unid), {})
         for cd_tipo, total_val in sorted(tipos.items()):
             detalhe.append({
-                "data":              DATA_ISO,
+                "data":              data_iso,
                 "cd_prestador":      cd_prest,
                 "codigo_mv":         info.get("codigomv_orig", str(cd_prest)),
                 "nome":              info.get("nome", ""),
@@ -370,7 +370,7 @@ def pivotar(rows: list, prestadores: list, pares_validos: set) -> tuple:
                 "total":             total_val,
             })
 
-    # Registros para produtividade: um por (cd_prestador, nm_unidade)
+    # Registros de produtividade: um por (cd_prestador, nm_unidade)
     registros: dict[tuple, dict] = {}
 
     for (cd_prest, nm_unid), tipos in pivot.items():
@@ -379,11 +379,11 @@ def pivotar(rows: list, prestadores: list, pares_validos: set) -> tuple:
 
         if chave not in registros:
             registros[chave] = {
-                "codigo_mv":    info.get("codigomv_orig", str(cd_prest)),
-                "nome":         info.get("nome", ""),
+                "codigo_mv":     info.get("codigomv_orig", str(cd_prest)),
+                "nome":          info.get("nome", ""),
                 "especialidade": formatar_especialidade(info.get("especialidade", "")),
-                "data":         DATA_ISO,
-                "nm_unidade":   nm_unid,
+                "data":          data_iso,
+                "nm_unidade":    nm_unid,
                 **{campo: 0 for campo in MAPA_PRODUTIVIDADE},
             }
 
@@ -401,17 +401,20 @@ def pivotar(rows: list, prestadores: list, pares_validos: set) -> tuple:
 
 
 # ============================================================
-# PASSO 4 — Upsert no Supabase
+# PASSO 4a — Upsert D-1 (sempre grava, atualiza updated_at)
 # ============================================================
 
-def upsert_supabase(registros: list):
-    separador("PASSO 4 — Upsert no Supabase")
+def upsert_supabase(sb: Client, registros: list):
+    """
+    Fase 1: insere ou atualiza os registros de D-1.
+    Em UPDATE, sempre seta updated_at = agora (dados frescos do RDS).
+    """
+    separador("PASSO 4a — Upsert D-1 no Supabase")
 
     if not registros:
         logger.warning("  Nenhum registro para inserir.")
         return
 
-    sb: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     sucesso = erros = 0
 
     for reg in registros:
@@ -429,6 +432,7 @@ def upsert_supabase(registros: list):
                        if k not in ("codigo_mv", "data", "nm_unidade")}
 
             if existing.data:
+                payload["updated_at"] = now_utc_iso()
                 sb.table("produtividade").update(payload).eq(
                     "id", existing.data[0]["id"]
                 ).execute()
@@ -450,30 +454,147 @@ def upsert_supabase(registros: list):
 
 
 # ============================================================
+# PASSO 4b — Revisão retroativa D-2 a D-8
+# ============================================================
+
+def revisar_retroativo(sb: Client, registros_novos: list):
+    """
+    Fase 2: para dias anteriores (D-2 a D-8), compara as 9 colunas de
+    produtividade com o que já existe no Supabase.
+
+    - Se o registro não existir → INSERT (dado que chegou com atraso)
+    - Se existir e os valores mudaram → UPDATE + atualiza updated_at
+    - Se existir e os valores são iguais → sem alteração (updated_at preservado)
+    """
+    if not registros_novos:
+        logger.info("  Sem registros do RDS para esta data.")
+        return
+
+    alterados = inseridos = iguais = erros = 0
+
+    for reg in registros_novos:
+        try:
+            existing_resp = (
+                sb.table("produtividade")
+                .select("id, " + ", ".join(PROD_COLS))
+                .eq("codigo_mv",  reg["codigo_mv"])
+                .eq("data",       reg["data"])
+                .eq("nm_unidade", reg["nm_unidade"])
+                .execute()
+            )
+
+            if not existing_resp.data:
+                # Registro inexistente — insere (dado retroativo)
+                sb.table("produtividade").insert(reg).execute()
+                logger.info(
+                    f"  [INS-RETRO] {reg['nome']} / {reg['nm_unidade']} — {reg['data']}"
+                )
+                inseridos += 1
+                continue
+
+            existente = existing_resp.data[0]
+
+            # Compara as 9 colunas
+            mudou = any(
+                int(existente.get(col) or 0) != int(reg.get(col) or 0)
+                for col in PROD_COLS
+            )
+
+            if mudou:
+                payload = {col: reg[col] for col in PROD_COLS}
+                payload["updated_at"] = now_utc_iso()
+                sb.table("produtividade").update(payload).eq(
+                    "id", existente["id"]
+                ).execute()
+                diffs = [
+                    f"{col}: {existente.get(col) or 0}→{reg.get(col) or 0}"
+                    for col in PROD_COLS
+                    if int(existente.get(col) or 0) != int(reg.get(col) or 0)
+                ]
+                logger.info(
+                    f"  [UPD-RETRO] {reg['nome']} / {reg['nm_unidade']} — {reg['data']}  "
+                    f"({', '.join(diffs)})"
+                )
+                alterados += 1
+            else:
+                logger.info(
+                    f"  [=] {reg['nome']} / {reg['nm_unidade']} — {reg['data']}  sem alteração"
+                )
+                iguais += 1
+
+        except Exception as e:
+            logger.error(
+                f"  [ERR] {reg.get('nome', '?')} / {reg.get('nm_unidade', '?')}: {e}"
+            )
+            erros += 1
+
+    logger.info(
+        f"\n  Resultado retroativo: {inseridos} inseridos, "
+        f"{alterados} atualizados, {iguais} sem alteração, {erros} erros"
+    )
+
+
+# ============================================================
 # MAIN
 # ============================================================
 
 def main():
-    separador("mv-produtividade-rds.py")
-    logger.info(f"  Data : {DATA_BR} (ONTEM)")
-    logger.info(f"  Bancos RDS : {NM_BANCOS}")
+    hoje  = date.today()
+    ontem = hoje - timedelta(days=1)
 
-    prestadores = buscar_prestadores()
+    separador("mv-produtividade-rds.py")
+    logger.info(f"  Execução  : {hoje.strftime('%d/%m/%Y')} às {datetime.now().strftime('%H:%M:%S')}")
+    logger.info(f"  D-1       : {ontem.isoformat()}")
+    logger.info(f"  Retroativo: D-2 a D-{1 + JANELA_RETROATIVA_DIAS}  "
+                f"({(hoje - timedelta(days=2)).isoformat()} → "
+                f"{(hoje - timedelta(days=1 + JANELA_RETROATIVA_DIAS)).isoformat()})")
+    logger.info(f"  Bancos RDS: {NM_BANCOS}")
+
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        raise ValueError(
+            "VITE_SUPABASE_URL ou VITE_SUPABASE_SERVICE_ROLE_KEY não encontrados no .env"
+        )
+
+    sb: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+    prestadores = buscar_prestadores(sb)
     if not prestadores:
         logger.warning("Nenhuma entrada em usuario_codigomv. Encerrando.")
         return
 
-    rows, pares_validos = consultar_rds(prestadores)
-    if not rows:
-        logger.warning("Nenhum documento encontrado para ONTEM. Encerrando.")
-        return
+    # ── FASE 1: D-1 (dados frescos, sempre upsert) ───────────────────────────
 
-    registros_prod, detalhe = pivotar(rows, prestadores, pares_validos)
+    separador(f"FASE 1 — Inserção D-1: {ontem.isoformat()}")
 
-    salvar_csv(f"mv_produtividade_detalhe_{DATA_ISO}.csv", detalhe)
-    salvar_csv(f"mv_produtividade_resumo_{DATA_ISO}.csv",  registros_prod)
+    data_iso_ontem = ontem.isoformat()
+    rows, pares_validos = consultar_rds(prestadores, data_iso_ontem)
 
-    upsert_supabase(registros_prod)
+    if rows:
+        registros_prod, detalhe = pivotar(rows, prestadores, pares_validos, data_iso_ontem)
+        salvar_csv(f"mv_produtividade_detalhe_{data_iso_ontem}.csv", detalhe)
+        salvar_csv(f"mv_produtividade_resumo_{data_iso_ontem}.csv",  registros_prod)
+        upsert_supabase(sb, registros_prod)
+    else:
+        logger.warning(f"  Nenhum documento encontrado para D-1 ({data_iso_ontem}).")
+
+    # ── FASE 2: D-2 a D-8 (revisão retroativa, só atualiza se mudou) ─────────
+
+    separador(f"FASE 2 — Revisão retroativa (D-2 a D-{1 + JANELA_RETROATIVA_DIAS})")
+
+    for dias_atras in range(2, 2 + JANELA_RETROATIVA_DIAS):
+        dia     = hoje - timedelta(days=dias_atras)
+        data_iso = dia.isoformat()
+
+        separador(f"  Revisando D-{dias_atras}: {data_iso}")
+
+        rows_retro, _ = consultar_rds(prestadores, data_iso)
+
+        if not rows_retro:
+            logger.info(f"  Sem dados no RDS para {data_iso}.")
+            continue
+
+        registros_retro, _ = pivotar(rows_retro, prestadores, pares_validos, data_iso)
+        revisar_retroativo(sb, registros_retro)
 
     separador("CONCLUÍDO")
     logger.info(f"  CSVs em: {DOWNLOADS}/")
