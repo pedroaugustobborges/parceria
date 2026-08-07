@@ -190,14 +190,17 @@ def obter_codigomvs_medico(cpf: str) -> list[str]:
     """
     if cpf not in _cache_medicos:
         try:
+            # Usa limit(1) em vez de .single() para não lançar exceção
+            # quando o CPF não está cadastrado em usuarios
             resp_user = supabase.table("usuarios") \
                 .select("id") \
                 .eq("cpf", cpf) \
-                .single() \
+                .limit(1) \
                 .execute()
-            usuario_id = (resp_user.data or {}).get("id")
+            usuario_id = (resp_user.data[0] if resp_user.data else {}).get("id")
 
             if not usuario_id:
+                logger.info(f"      ℹ️  CPF {cpf} não encontrado em usuarios — sem código MV")
                 _cache_medicos[cpf] = []
             else:
                 resp_mv = supabase.table("usuario_codigomv") \
