@@ -6,14 +6,24 @@ Executa diariamente às 13h (Horário de Brasília / UTC-3 = 16h UTC).
 Lógica:
   - Busca todas as escalas com status="Programado" de datas anteriores até hoje
   - Para cada escala, obtém a unidade hospitalar via contrato → unidades_hospitalares
-  - Para cada médico na escala, verifica seus acessos na coluna "planta" da tabela "acessos"
-  - Janela de busca: 2.5h antes do horário de entrada até 2.5h após o horário de saída
-  - Plantão noturno: horario_saida <= horario_entrada → saída é no dia seguinte
-  - Duração calculada: último acesso - primeiro acesso dentro da janela
-  - Resultados por escala:
-      * "Pré-Aprovado"   → todos os médicos cumpriram (dentro da tolerância de 1h)
-      * "Aprovado Parcial" → algum médico ficou mais de 1h abaixo do esperado
-      * "Atenção"        → algum médico sem nenhum acesso na unidade no período
+  - Bifurca pelo campo "possui_gestao_acesso" da unidade:
+
+  [possui_gestao_acesso = TRUE] — lógica completa via acessos:
+    - Para cada médico, verifica seus acessos na coluna "planta" da tabela "acessos"
+    - Janela de busca: 2.5h antes do horário de entrada até 2.5h após o horário de saída
+    - Plantão noturno: horario_saida <= horario_entrada → saída é no dia seguinte
+    - Duração calculada: último acesso - primeiro acesso dentro da janela
+    - Resultados por escala:
+        * "Pré-Aprovado"     → todos os médicos cumpriram (dentro da tolerância de 1h)
+        * "Aprovação Parcial" → algum médico ficou mais de 1h abaixo do esperado
+        * "Atenção"           → algum médico sem nenhum acesso na unidade no período
+
+  [possui_gestao_acesso = FALSE] — lógica simplificada via produtividade:
+    - Para cada médico, busca seus códigos MV em usuario_codigomv
+    - Verifica se existe algum registro em "produtividade" na data da escala
+    - Resultados por escala:
+        * "Pré-Aprovado" → todos os médicos têm produtividade registrada no dia
+        * "Atenção"       → algum médico sem produtividade no dia
 
 Cron (servidor em UTC):
   0 16 * * * /usr/bin/python3 /caminho/para/verificar-presenca-escalas.py
@@ -124,12 +134,17 @@ def calcular_janela_busca(data_inicio_str: str, horario_entrada: str, horario_sa
 
 # ── Caches (evita queries repetidas ao Supabase) ──────────────────────────────
 
-_cache_contratos: dict[str, Optional[str]] = {}   # contrato_id → unidade_id
-_cache_unidades:  dict[str, Optional[str]] = {}   # unidade_id  → codigo
+_cache_contratos: dict[str, Optional[str]]  = {}   # contrato_id → unidade_id
+_cache_unidades:  dict[str, Optional[dict]] = {}   # unidade_id  → {codigo, possui_gestao_acesso}
+_cache_medicos:   dict[str, list[str]]      = {}   # cpf         → [codigomv, ...]
 
 
-def obter_codigo_unidade(contrato_id: str) -> Optional[str]:
-    """Resolve contrato_id → codigo da unidade hospitalar."""
+def obter_info_unidade(contrato_id: str) -> Optional[dict]:
+    """
+    Resolve contrato_id → dict com:
+      { "codigo": str, "possui_gestao_acesso": bool }
+    Retorna None se não encontrado.
+    """
     # 1. Resolver contrato → unidade_id
     if contrato_id not in _cache_contratos:
         try:
@@ -147,15 +162,20 @@ def obter_codigo_unidade(contrato_id: str) -> Optional[str]:
     if not unidade_id:
         return None
 
-    # 2. Resolver unidade_id → codigo
+    # 2. Resolver unidade_id → {codigo, possui_gestao_acesso}
     if unidade_id not in _cache_unidades:
         try:
             resp = supabase.table("unidades_hospitalares") \
-                .select("codigo") \
+                .select("codigo, possui_gestao_acesso") \
                 .eq("id", unidade_id) \
                 .single() \
                 .execute()
-            _cache_unidades[unidade_id] = (resp.data or {}).get('codigo')
+            data = resp.data or {}
+            codigo = data.get("codigo")
+            _cache_unidades[unidade_id] = {
+                "codigo":                codigo,
+                "possui_gestao_acesso":  bool(data.get("possui_gestao_acesso", True)),
+            } if codigo else None
         except Exception as e:
             logger.error(f"Erro ao buscar unidade {unidade_id}: {e}")
             _cache_unidades[unidade_id] = None
@@ -163,7 +183,36 @@ def obter_codigo_unidade(contrato_id: str) -> Optional[str]:
     return _cache_unidades.get(unidade_id)
 
 
-# ── Análise de presença ───────────────────────────────────────────────────────
+def obter_codigomvs_medico(cpf: str) -> list[str]:
+    """
+    Resolve CPF → lista de codigomvs cadastrados em usuario_codigomv.
+    Usa cache para evitar queries repetidas.
+    """
+    if cpf not in _cache_medicos:
+        try:
+            resp_user = supabase.table("usuarios") \
+                .select("id") \
+                .eq("cpf", cpf) \
+                .single() \
+                .execute()
+            usuario_id = (resp_user.data or {}).get("id")
+
+            if not usuario_id:
+                _cache_medicos[cpf] = []
+            else:
+                resp_mv = supabase.table("usuario_codigomv") \
+                    .select("codigomv") \
+                    .eq("usuario_id", usuario_id) \
+                    .execute()
+                _cache_medicos[cpf] = [r["codigomv"] for r in (resp_mv.data or [])]
+        except Exception as e:
+            logger.error(f"Erro ao buscar codigomvs do médico CPF={cpf}: {e}")
+            _cache_medicos[cpf] = []
+
+    return _cache_medicos.get(cpf) or []
+
+
+# ── Análise de presença (hospitais COM gestão de acesso) ─────────────────────
 
 def buscar_acessos(cpf: str, planta: str, window_start: str, window_end: str) -> list:
     """Retorna todos os acessos de um médico em uma unidade dentro da janela."""
@@ -204,7 +253,7 @@ def calcular_tempo_presenca(acessos: list) -> float:
 def avaliar_medico(cpf: str, nome: str, planta: str,
                    duracao_escala: float, window_start: str, window_end: str) -> str:
     """
-    Avalia a presença de um médico e retorna:
+    Avalia a presença de um médico via registros de acesso e retorna:
       "presente_total"   → cumpriu com até 1h de tolerância
       "presente_parcial" → faltou mais de 1h
       "ausente"          → nenhum acesso encontrado
@@ -231,18 +280,102 @@ def avaliar_medico(cpf: str, nome: str, planta: str,
         return "presente_parcial"
 
 
+# ── Análise de produtividade (hospitais SEM gestão de acesso) ────────────────
+
+COLUNAS_PRODUTIVIDADE = [
+    "prescricao", "diagnostico", "encaminhamento", "parecer", "anotacao",
+    "avaliacao", "documento_eletronico", "evolucao", "alta_medica",
+]
+
+
+def verificar_produtividade_dia(codigomvs: list[str], data_iso: str) -> bool:
+    """
+    Retorna True se existir ao menos um registro em 'produtividade'
+    para qualquer dos codigomvs do médico na data indicada (YYYY-MM-DD)
+    E a soma das 9 colunas de produtividade for maior que zero.
+    Registros com todas as colunas zeradas são tratados como ausência.
+    """
+    if not codigomvs:
+        return False
+    try:
+        resp = supabase.table("produtividade") \
+            .select(", ".join(COLUNAS_PRODUTIVIDADE)) \
+            .in_("codigo_mv", codigomvs) \
+            .eq("data", data_iso) \
+            .execute()
+
+        for row in (resp.data or []):
+            total = sum(row.get(col) or 0 for col in COLUNAS_PRODUTIVIDADE)
+            if total > 0:
+                return True
+
+        return False
+    except Exception as e:
+        logger.error(f"Erro ao verificar produtividade (codigomvs={codigomvs}, data={data_iso}): {e}")
+        return False
+
+
+def analisar_por_produtividade(medicos: list, data_inicio: str) -> str:
+    """
+    Regra simplificada para hospitais sem gestão de acesso:
+      - Médico com produtividade na data → presente
+      - Médico sem produtividade (ou sem código MV) → ausente
+    Resultado da escala:
+      "Pré-Aprovado" → todos presentes
+      "Atenção"       → qualquer ausente
+    """
+    logger.info(f"     📈 Modo: verificação por produtividade (sem gestão de acesso)")
+
+    data_iso  = data_inicio[:10]  # "YYYY-MM-DD"
+    algum_ausente = False
+
+    for medico in medicos:
+        cpf  = (medico.get('cpf') or '').strip()
+        nome = (medico.get('nome') or 'Desconhecido').strip()
+
+        if not cpf:
+            logger.info(f"     ⚠️  Médico '{nome}' sem CPF — ignorando")
+            continue
+
+        codigomvs = obter_codigomvs_medico(cpf)
+
+        if not codigomvs:
+            logger.info(f"      ❓ {nome} ({cpf}): sem código MV cadastrado — tratado como ausente")
+            algum_ausente = True
+            continue
+
+        tem_prod = verificar_produtividade_dia(codigomvs, data_iso)
+
+        if tem_prod:
+            logger.info(f"      ✅ {nome} ({cpf}): produtividade registrada em {data_iso}")
+        else:
+            logger.info(f"      ❌ {nome} ({cpf}): sem produtividade em {data_iso}")
+            algum_ausente = True
+
+    if algum_ausente:
+        logger.info(f"     🔴 Resultado: ATENÇÃO (médico(s) sem produtividade no dia)")
+        return "Atenção"
+    else:
+        logger.info(f"     🟢 Resultado: PRÉ-APROVADO (produtividade confirmada)")
+        return "Pré-Aprovado"
+
+
 # ── Processamento de escala ───────────────────────────────────────────────────
 
 def analisar_escala(escala: dict) -> Optional[str]:
     """
     Analisa uma única escala e retorna o novo status ou None se não for possível analisar.
+
+    Bifurca pelo campo possui_gestao_acesso da unidade hospitalar:
+      TRUE  → verifica acessos físicos (lógica completa)
+      FALSE → verifica produtividade no dia (lógica simplificada)
     """
-    escala_id     = escala['id']
-    data_inicio   = escala['data_inicio']        # "YYYY-MM-DD"
-    hora_entrada  = escala['horario_entrada']    # "HH:MM" ou "HH:MM:SS"
-    hora_saida    = escala['horario_saida']
-    contrato_id   = escala['contrato_id']
-    medicos       = escala.get('medicos') or []
+    escala_id    = escala['id']
+    data_inicio  = escala['data_inicio']        # "YYYY-MM-DD"
+    hora_entrada = escala['horario_entrada']    # "HH:MM" ou "HH:MM:SS"
+    hora_saida   = escala['horario_saida']
+    contrato_id  = escala['contrato_id']
+    medicos      = escala.get('medicos') or []
 
     logger.info(
         f"\n  📋 Escala {escala_id[:8]}… | "
@@ -253,19 +386,31 @@ def analisar_escala(escala: dict) -> Optional[str]:
         logger.info(f"     ⚠️  Sem médicos cadastrados — ignorando")
         return None
 
-    # Resolver unidade hospitalar
-    planta = obter_codigo_unidade(contrato_id)
-    if not planta:
+    # Resolver unidade hospitalar (código + possui_gestao_acesso)
+    info_unidade = obter_info_unidade(contrato_id)
+    if not info_unidade:
         logger.warning(f"     ⚠️  Unidade não encontrada para contrato {contrato_id} — ignorando")
         return None
 
+    planta               = info_unidade["codigo"]
+    possui_gestao_acesso = info_unidade["possui_gestao_acesso"]
+
+    logger.info(
+        f"     🏥 Unidade: {planta} | "
+        f"Gestão de acesso: {'✅ Sim' if possui_gestao_acesso else '❌ Não'}"
+    )
+
+    # ── Lógica simplificada: sem gestão de acesso ─────────────────────────────
+    if not possui_gestao_acesso:
+        return analisar_por_produtividade(medicos, data_inicio)
+
+    # ── Lógica completa: com gestão de acesso ────────────────────────────────
     overnight      = is_overnight(hora_entrada, hora_saida)
     duracao_escala = calcular_duracao_horas(hora_entrada, hora_saida)
     window_start, window_end = calcular_janela_busca(data_inicio, hora_entrada, hora_saida)
 
     logger.info(
-        f"     🏥 Unidade: {planta} | "
-        f"{'Noturno' if overnight else 'Diurno'} | "
+        f"     {'🌙 Noturno' if overnight else '☀️  Diurno'} | "
         f"{duracao_escala:.2f}h"
     )
     logger.info(f"     🔍 Janela: {window_start} → {window_end}")
@@ -288,7 +433,7 @@ def analisar_escala(escala: dict) -> Optional[str]:
         elif resultado == "presente_parcial":
             algum_parcial = True
 
-    # Status final da escala
+    # Status final
     if algum_ausente:
         novo_status = "Atenção"
         logger.info(f"     🔴 Resultado: ATENÇÃO (médico(s) sem acesso)")
@@ -333,9 +478,9 @@ def executar():
 
     logger.info(f"\n📊 {len(escalas)} escala(s) para analisar\n")
 
-    atualizadas  = 0
-    sem_dados    = 0
-    erros        = 0
+    atualizadas = 0
+    sem_dados   = 0
+    erros       = 0
 
     for escala in escalas:
         try:
