@@ -987,56 +987,40 @@ const Dashboard: React.FC = () => {
         });
 
         // Somar cada tipo de produtividade separadamente
-        const produtividade_procedimento = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.procedimento || 0),
-          0,
-        );
-        const produtividade_parecer_solicitado = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.parecer_solicitado || 0),
-          0,
-        );
-        const produtividade_parecer_realizado = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.parecer_realizado || 0),
-          0,
-        );
-        const produtividade_cirurgia_realizada = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.cirurgia_realizada || 0),
-          0,
-        );
         const produtividade_prescricao = produtividadeCpf.reduce(
           (sum, item) => sum + (item.prescricao || 0),
           0,
         );
-        const produtividade_evolucao = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.evolucao || 0),
-          0,
-        );
-        const produtividade_urgencia = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.urgencia || 0),
-          0,
-        );
-        const produtividade_ambulatorio = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.ambulatorio || 0),
-          0,
-        );
-        const produtividade_auxiliar = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.auxiliar || 0),
+        const produtividade_diagnostico = produtividadeCpf.reduce(
+          (sum, item) => sum + (item.diagnostico || 0),
           0,
         );
         const produtividade_encaminhamento = produtividadeCpf.reduce(
           (sum, item) => sum + (item.encaminhamento || 0),
           0,
         );
-        const produtividade_folha_objetivo_diario = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.folha_objetivo_diario || 0),
+        const produtividade_parecer = produtividadeCpf.reduce(
+          (sum, item) => sum + (item.parecer || 0),
           0,
         );
-        const produtividade_evolucao_diurna_cti = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.evolucao_diurna_cti || 0),
+        const produtividade_anotacao = produtividadeCpf.reduce(
+          (sum, item) => sum + (item.anotacao || 0),
           0,
         );
-        const produtividade_evolucao_noturna_cti = produtividadeCpf.reduce(
-          (sum, item) => sum + (item.evolucao_noturna_cti || 0),
+        const produtividade_avaliacao = produtividadeCpf.reduce(
+          (sum, item) => sum + (item.avaliacao || 0),
+          0,
+        );
+        const produtividade_documento_eletronico = produtividadeCpf.reduce(
+          (sum, item) => sum + (item.documento_eletronico || 0),
+          0,
+        );
+        const produtividade_evolucao = produtividadeCpf.reduce(
+          (sum, item) => sum + (item.evolucao || 0),
+          0,
+        );
+        const produtividade_alta_medica = produtividadeCpf.reduce(
+          (sum, item) => sum + (item.alta_medica || 0),
           0,
         );
 
@@ -1055,19 +1039,15 @@ const Dashboard: React.FC = () => {
           saidas: totalSaidas,
           ultimoAcesso: ultimoAcesso.data_acesso,
           especialidade: especialidade,
-          produtividade_procedimento,
-          produtividade_parecer_solicitado,
-          produtividade_parecer_realizado,
-          produtividade_cirurgia_realizada,
           produtividade_prescricao,
-          produtividade_evolucao,
-          produtividade_urgencia,
-          produtividade_ambulatorio,
-          produtividade_auxiliar,
+          produtividade_diagnostico,
           produtividade_encaminhamento,
-          produtividade_folha_objetivo_diario,
-          produtividade_evolucao_diurna_cti,
-          produtividade_evolucao_noturna_cti,
+          produtividade_parecer,
+          produtividade_anotacao,
+          produtividade_avaliacao,
+          produtividade_documento_eletronico,
+          produtividade_evolucao,
+          produtividade_alta_medica,
         };
       },
     );
@@ -2128,14 +2108,15 @@ const Dashboard: React.FC = () => {
       "Nome",
       "Especialidade",
       "Vínculo",
-      "Procedimentos",
-      "Pareceres Solicitados",
-      "Pareceres Realizados",
-      "Cirurgias Realizadas",
-      "Prescrições",
-      "Evoluções",
-      "Urgências",
-      "Ambulatórios",
+      "Prescrição",
+      "Diagnóstico",
+      "Encaminhamento",
+      "Parecer",
+      "Anotação",
+      "Avaliação",
+      "Doc. Eletrônico",
+      "Evolução",
+      "Alta Médica",
     ];
 
     // Prepare CSV rows
@@ -2147,14 +2128,15 @@ const Dashboard: React.FC = () => {
       prod.nome,
       prod.especialidade || "",
       prod.vinculo || "",
-      prod.procedimento,
-      prod.parecer_solicitado,
-      prod.parecer_realizado,
-      prod.cirurgia_realizada,
       prod.prescricao,
+      prod.diagnostico,
+      prod.encaminhamento,
+      prod.parecer,
+      prod.anotacao,
+      prod.avaliacao,
+      prod.documento_eletronico,
       prod.evolucao,
-      prod.urgencia,
-      prod.ambulatorio,
+      prod.alta_medica,
     ]);
 
     // Combine headers and rows
@@ -2559,14 +2541,15 @@ const Dashboard: React.FC = () => {
         "Data",
         "Nome",
         "Tipo de Inconsistência",
-        "Procedimentos",
-        "Pareceres Sol.",
-        "Pareceres Real.",
-        "Cirurgias",
-        "Prescrições",
-        "Evoluções",
-        "Urgências",
-        "Ambulatórios",
+        "Prescrição",
+        "Diagnóstico",
+        "Encaminhamento",
+        "Parecer",
+        "Anotação",
+        "Avaliação",
+        "Doc. Eletrônico",
+        "Evolução",
+        "Alta Médica",
         "Total Atividades",
       ];
 
@@ -2576,49 +2559,40 @@ const Dashboard: React.FC = () => {
         // Somar todas as atividades do dia
         const totais = registros.reduce(
           (acc, reg) => ({
-            procedimento: acc.procedimento + reg.procedimento,
-            parecer_solicitado: acc.parecer_solicitado + reg.parecer_solicitado,
-            parecer_realizado: acc.parecer_realizado + reg.parecer_realizado,
-            cirurgia: acc.cirurgia + reg.cirurgia_realizada,
-            prescricao: acc.prescricao + reg.prescricao,
-            evolucao: acc.evolucao + reg.evolucao,
-            urgencia: acc.urgencia + reg.urgencia,
-            ambulatorio: acc.ambulatorio + reg.ambulatorio,
+            prescricao:           acc.prescricao           + (reg.prescricao           || 0),
+            diagnostico:          acc.diagnostico          + (reg.diagnostico          || 0),
+            encaminhamento:       acc.encaminhamento       + (reg.encaminhamento       || 0),
+            parecer:              acc.parecer              + (reg.parecer              || 0),
+            anotacao:             acc.anotacao             + (reg.anotacao             || 0),
+            avaliacao:            acc.avaliacao            + (reg.avaliacao            || 0),
+            documento_eletronico: acc.documento_eletronico + (reg.documento_eletronico || 0),
+            evolucao:             acc.evolucao             + (reg.evolucao             || 0),
+            alta_medica:          acc.alta_medica          + (reg.alta_medica          || 0),
           }),
           {
-            procedimento: 0,
-            parecer_solicitado: 0,
-            parecer_realizado: 0,
-            cirurgia: 0,
-            prescricao: 0,
-            evolucao: 0,
-            urgencia: 0,
-            ambulatorio: 0,
+            prescricao: 0, diagnostico: 0, encaminhamento: 0, parecer: 0,
+            anotacao: 0, avaliacao: 0, documento_eletronico: 0, evolucao: 0, alta_medica: 0,
           },
         );
 
         const totalAtividades =
-          totais.procedimento +
-          totais.parecer_solicitado +
-          totais.parecer_realizado +
-          totais.cirurgia +
-          totais.prescricao +
-          totais.evolucao +
-          totais.urgencia +
-          totais.ambulatorio;
+          totais.prescricao + totais.diagnostico + totais.encaminhamento +
+          totais.parecer + totais.anotacao + totais.avaliacao +
+          totais.documento_eletronico + totais.evolucao + totais.alta_medica;
 
         return [
           format(parseISO(data), "dd/MM/yyyy", { locale: ptBR }),
           nome,
           tipoTexto,
-          totais.procedimento.toString(),
-          totais.parecer_solicitado.toString(),
-          totais.parecer_realizado.toString(),
-          totais.cirurgia.toString(),
           totais.prescricao.toString(),
+          totais.diagnostico.toString(),
+          totais.encaminhamento.toString(),
+          totais.parecer.toString(),
+          totais.anotacao.toString(),
+          totais.avaliacao.toString(),
+          totais.documento_eletronico.toString(),
           totais.evolucao.toString(),
-          totais.urgencia.toString(),
-          totais.ambulatorio.toString(),
+          totais.alta_medica.toString(),
           totalAtividades.toString(),
         ];
       });
@@ -2871,172 +2845,84 @@ const Dashboard: React.FC = () => {
       ),
     },
     {
-      field: "produtividade_procedimento",
-      headerName: "Procedimento",
-      width: 110,
-      type: "number",
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
-      ),
-    },
-    {
-      field: "produtividade_parecer_solicitado",
-      headerName: "Parecer Sol.",
-      width: 110,
-      type: "number",
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
-      ),
-    },
-    {
-      field: "produtividade_parecer_realizado",
-      headerName: "Parecer Real.",
-      width: 110,
-      type: "number",
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
-      ),
-    },
-    {
-      field: "produtividade_cirurgia_realizada",
-      headerName: "Cirurgia",
-      width: 100,
-      type: "number",
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
-      ),
-    },
-    {
       field: "produtividade_prescricao",
       headerName: "Prescrição",
-      width: 100,
+      width: 105,
       type: "number",
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? "success" : "default"} />
       ),
     },
     {
-      field: "produtividade_evolucao",
-      headerName: "Evolução",
-      width: 100,
-      type: "number",
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
-      ),
-    },
-    {
-      field: "produtividade_urgencia",
-      headerName: "Urgência",
-      width: 100,
-      type: "number",
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
-      ),
-    },
-    {
-      field: "produtividade_ambulatorio",
-      headerName: "Ambulatório",
+      field: "produtividade_diagnostico",
+      headerName: "Diagnóstico",
       width: 110,
       type: "number",
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
-      ),
-    },
-    {
-      field: "produtividade_auxiliar",
-      headerName: "Auxiliar",
-      width: 100,
-      type: "number",
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? "success" : "default"} />
       ),
     },
     {
       field: "produtividade_encaminhamento",
       headerName: "Encaminh.",
-      width: 110,
+      width: 105,
       type: "number",
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? "success" : "default"} />
       ),
     },
     {
-      field: "produtividade_folha_objetivo_diario",
-      headerName: "Folha Obj.",
+      field: "produtividade_parecer",
+      headerName: "Parecer",
+      width: 95,
+      type: "number",
+      renderCell: (params) => (
+        <Chip label={params.value} size="small" color={params.value > 0 ? "success" : "default"} />
+      ),
+    },
+    {
+      field: "produtividade_anotacao",
+      headerName: "Anotação",
       width: 100,
       type: "number",
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? "success" : "default"} />
       ),
     },
     {
-      field: "produtividade_evolucao_diurna_cti",
-      headerName: "Evol. Diurna CTI",
-      width: 130,
+      field: "produtividade_avaliacao",
+      headerName: "Avaliação",
+      width: 100,
       type: "number",
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? "success" : "default"} />
       ),
     },
     {
-      field: "produtividade_evolucao_noturna_cti",
-      headerName: "Evol. Noturna CTI",
+      field: "produtividade_documento_eletronico",
+      headerName: "Doc. Eletrônico",
       width: 130,
       type: "number",
       renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value > 0 ? "success" : "default"}
-        />
+        <Chip label={params.value} size="small" color={params.value > 0 ? "success" : "default"} />
+      ),
+    },
+    {
+      field: "produtividade_evolucao",
+      headerName: "Evolução",
+      width: 95,
+      type: "number",
+      renderCell: (params) => (
+        <Chip label={params.value} size="small" color={params.value > 0 ? "success" : "default"} />
+      ),
+    },
+    {
+      field: "produtividade_alta_medica",
+      headerName: "Alta Médica",
+      width: 110,
+      type: "number",
+      renderCell: (params) => (
+        <Chip label={params.value} size="small" color={params.value > 0 ? "success" : "default"} />
       ),
     },
   ];
@@ -3055,23 +2941,19 @@ const Dashboard: React.FC = () => {
     totalDiasUnicos > 0 ? (totalHorasGeral / totalDiasUnicos).toFixed(2) : "0";
 
   // Cálculo da Produtividade Médica
-  // Soma de todas as colunas de produtividade (procedimento até evolucao_noturna_cti) dividido pelo Total de Horas na Unidade
+  // Soma das 9 colunas de produtividade dividido pelo Total de Horas na Unidade
   const totalProdutividade = produtividade.reduce((sum, item) => {
     return (
       sum +
-      item.procedimento +
-      item.parecer_solicitado +
-      item.parecer_realizado +
-      item.cirurgia_realizada +
-      item.prescricao +
-      item.evolucao +
-      item.urgencia +
-      item.ambulatorio +
-      item.auxiliar +
-      item.encaminhamento +
-      item.folha_objetivo_diario +
-      item.evolucao_diurna_cti +
-      item.evolucao_noturna_cti
+      (item.prescricao           || 0) +
+      (item.diagnostico          || 0) +
+      (item.encaminhamento       || 0) +
+      (item.parecer              || 0) +
+      (item.anotacao             || 0) +
+      (item.avaliacao            || 0) +
+      (item.documento_eletronico || 0) +
+      (item.evolucao             || 0) +
+      (item.alta_medica          || 0)
     );
   }, 0);
   const produtividadeMedia =
