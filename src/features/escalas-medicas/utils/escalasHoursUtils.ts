@@ -73,6 +73,14 @@ const MONTHLY_UNIDADES = new Set([
 ]);
 
 /**
+ * Units of measure where each escala counts as 1/7,
+ * so that a full week of escalas sums to exactly 1.
+ */
+const WEEKLY_UNIDADES = new Set([
+  'carga horária semanal',
+]);
+
+/**
  * Returns true when the given unidade_medida should bill per-escala (1 unit)
  * rather than per-hour.
  */
@@ -91,6 +99,14 @@ export function isMonthlyBased(unidadeMedida: string | null | undefined): boolea
 }
 
 /**
+ * Returns true when the given unidade_medida should bill as 1/7 per escala.
+ */
+export function isWeeklyBased(unidadeMedida: string | null | undefined): boolean {
+  if (!unidadeMedida) return false;
+  return WEEKLY_UNIDADES.has(unidadeMedida.toLowerCase().trim());
+}
+
+/**
  * Returns the number of days in the month of the given date string (YYYY-MM-DD).
  * Parses the date components directly to avoid UTC/timezone shifts.
  */
@@ -104,6 +120,7 @@ function getDaysInMonth(dateStr: string): number {
  * Calculate the billing quantity for an escala.
  *
  * - Monthly unidades (carga horária mensal, do mensal estimado): 1 / days_in_month.
+ * - Weekly unidades (carga horária semanal): 1/7.
  * - Unit-based unidades (plantão, consulta, etc.): always 1, regardless of duration or doctors.
  * - Hour-based unidades (horas): delegates to calculateTotalEscalaHours.
  */
@@ -113,6 +130,9 @@ export function calculateEscalaBillingQuantity(
 ): number {
   if (isMonthlyBased(unidadeMedida)) {
     return 1 / getDaysInMonth(escala.data_inicio);
+  }
+  if (isWeeklyBased(unidadeMedida)) {
+    return 1 / 7;
   }
   if (isUnitBased(unidadeMedida)) {
     return 1;
