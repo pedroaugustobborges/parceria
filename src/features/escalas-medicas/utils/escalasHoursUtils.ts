@@ -64,6 +64,15 @@ const UNIT_BASED_UNIDADES = new Set([
 ]);
 
 /**
+ * Units of measure where each escala counts as 1 / (days in month),
+ * so that a full month of escalas sums to exactly 1.
+ */
+const MONTHLY_UNIDADES = new Set([
+  'carga horária mensal',
+  'do mensal estimado',
+]);
+
+/**
  * Returns true when the given unidade_medida should bill per-escala (1 unit)
  * rather than per-hour.
  */
@@ -73,8 +82,28 @@ export function isUnitBased(unidadeMedida: string | null | undefined): boolean {
 }
 
 /**
+ * Returns true when the given unidade_medida should bill as a fraction of the month
+ * (1 / days_in_month of escala.data_inicio).
+ */
+export function isMonthlyBased(unidadeMedida: string | null | undefined): boolean {
+  if (!unidadeMedida) return false;
+  return MONTHLY_UNIDADES.has(unidadeMedida.toLowerCase().trim());
+}
+
+/**
+ * Returns the number of days in the month of the given date string (YYYY-MM-DD).
+ * Parses the date components directly to avoid UTC/timezone shifts.
+ */
+function getDaysInMonth(dateStr: string): number {
+  const [year, month] = dateStr.split('-').map(Number);
+  // Day 0 of next month = last day of current month
+  return new Date(year, month, 0).getDate();
+}
+
+/**
  * Calculate the billing quantity for an escala.
  *
+ * - Monthly unidades (carga horária mensal, do mensal estimado): 1 / days_in_month.
  * - Unit-based unidades (plantão, consulta, etc.): always 1, regardless of duration or doctors.
  * - Hour-based unidades (horas): delegates to calculateTotalEscalaHours.
  */
@@ -82,6 +111,9 @@ export function calculateEscalaBillingQuantity(
   escala: EscalaMedica,
   unidadeMedida: string | null | undefined,
 ): number {
+  if (isMonthlyBased(unidadeMedida)) {
+    return 1 / getDaysInMonth(escala.data_inicio);
+  }
   if (isUnitBased(unidadeMedida)) {
     return 1;
   }
