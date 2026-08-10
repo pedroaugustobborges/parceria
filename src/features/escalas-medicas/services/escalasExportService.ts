@@ -55,7 +55,7 @@ import type {
   ItemContrato,
   ContratoItem,
 } from "../types/escalas.types";
-import { calculateTotalEscalaHours } from "../utils/escalasHoursUtils";
+import { calculateEscalaBillingQuantity } from "../utils/escalasHoursUtils";
 import { getContratoItemValue } from "./escalasService";
 import { supabase } from "../../../lib/supabase";
 
@@ -89,7 +89,7 @@ function buildMemorialRows(
 
     const nome = itemContrato?.nome || `Item ${escala.item_contrato_id}`;
     const valorUnitario = contratoItem?.valor_unitario ?? 0;
-    const horas = calculateTotalEscalaHours(escala);
+    const horas = calculateEscalaBillingQuantity(escala, contratoItem?.unidade_medida);
     const key = `${escala.contrato_id}_${escala.item_contrato_id}`;
 
     const existing = map.get(key);
@@ -803,7 +803,7 @@ async function calculateApprovedEscalasValue(
     );
 
     if (contratoItem?.valor_unitario) {
-      const totalHoras = calculateTotalEscalaHours(escala);
+      const totalHoras = calculateEscalaBillingQuantity(escala, contratoItem.unidade_medida);
       valorTotal += totalHoras * contratoItem.valor_unitario;
     } else {
       try {
@@ -812,7 +812,7 @@ async function calculateApprovedEscalasValue(
           escala.item_contrato_id,
         );
         if (dbItem?.valor_unitario) {
-          const totalHoras = calculateTotalEscalaHours(escala);
+          const totalHoras = calculateEscalaBillingQuantity(escala, dbItem.unidade_medida);
           valorTotal += totalHoras * dbItem.valor_unitario;
         }
       } catch (error) {

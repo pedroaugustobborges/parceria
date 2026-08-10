@@ -39,6 +39,56 @@ export function minutesToTimeString(totalMinutes: number): string {
 }
 
 // ============================================
+// Unit-based billing detection
+// ============================================
+
+/**
+ * Units of measure where each escala counts as exactly 1 unit,
+ * regardless of duration or number of doctors.
+ */
+const UNIT_BASED_UNIDADES = new Set([
+  'atendimento ambulatorial',
+  'atendimento domiciliar',
+  'auxílio',
+  'cirurgia',
+  'consulta',
+  'diária',
+  'intervenção',
+  'parecer médico',
+  'período',
+  'plantão',
+  'procedimento',
+  'sobreaviso',
+  'unidade',
+  'visita',
+]);
+
+/**
+ * Returns true when the given unidade_medida should bill per-escala (1 unit)
+ * rather than per-hour.
+ */
+export function isUnitBased(unidadeMedida: string | null | undefined): boolean {
+  if (!unidadeMedida) return false;
+  return UNIT_BASED_UNIDADES.has(unidadeMedida.toLowerCase().trim());
+}
+
+/**
+ * Calculate the billing quantity for an escala.
+ *
+ * - Unit-based unidades (plantão, consulta, etc.): always 1, regardless of duration or doctors.
+ * - Hour-based unidades (horas): delegates to calculateTotalEscalaHours.
+ */
+export function calculateEscalaBillingQuantity(
+  escala: EscalaMedica,
+  unidadeMedida: string | null | undefined,
+): number {
+  if (isUnitBased(unidadeMedida)) {
+    return 1;
+  }
+  return calculateTotalEscalaHours(escala);
+}
+
+// ============================================
 // Hours Calculation
 // ============================================
 
@@ -174,10 +224,10 @@ export function calculateScorecardMetrics(
       (ci) => ci.item_id === escala.item_contrato_id
     );
 
-    // Calculate hours
-    const totalHoras = calculateTotalEscalaHours(escala);
+    // Calculate billing quantity (1 unit for unit-based, hours otherwise)
+    const totalHoras = calculateEscalaBillingQuantity(escala, contratoItem?.unidade_medida);
 
-    // Calculate value (hours * price * doctors)
+    // Calculate value
     const valor = contratoItem?.valor_unitario
       ? contratoItem.valor_unitario * totalHoras
       : 0;
@@ -218,7 +268,7 @@ export function calculateApprovedValue(
     );
 
     if (contratoItem?.valor_unitario) {
-      const totalHoras = calculateTotalEscalaHours(escala);
+      const totalHoras = calculateEscalaBillingQuantity(escala, contratoItem.unidade_medida);
       valorTotal += totalHoras * contratoItem.valor_unitario;
     }
   }

@@ -697,10 +697,10 @@ export async function findUsuarioByCpf(cpf: string): Promise<Usuario | null> {
 export async function getContratoItemValue(
   contratoId: string,
   itemId: string
-): Promise<{ valor_unitario: number | null; quantidade: number } | null> {
+): Promise<{ valor_unitario: number | null; quantidade: number; unidade_medida: string | null } | null> {
   const { data } = await supabase
     .from('contrato_itens')
-    .select('valor_unitario, quantidade')
+    .select('valor_unitario, quantidade, unidade_medida')
     .eq('contrato_id', contratoId)
     .eq('item_id', itemId)
     .single();
