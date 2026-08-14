@@ -38,7 +38,9 @@ import {
   AdminPanelSettings,
   LockReset,
   Add,
+  FileDownload,
 } from "@mui/icons-material";
+import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
 import {
   Usuario,
@@ -1019,6 +1021,24 @@ const Usuarios: React.FC = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    const rows = usuariosFiltrados.map((u) => ({
+      Nome: u.nome,
+      Tipo: roleLabels[u.tipo],
+      CPF: u.cpf,
+      "Código MV": u.codigomv ?? "",
+      "E-mail": u.email ?? "",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Usuários");
+    XLSX.writeFile(
+      workbook,
+      `usuarios_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
+  };
+
   // Get unique names for autocomplete
   const nombresDisponiveis = Array.from(
     new Set(usuarios.map((u) => u.nome)),
@@ -1246,9 +1266,31 @@ const Usuarios: React.FC = () => {
       {searchPerformed && (
         <Card>
           <CardContent>
-            <Typography variant="h6" fontWeight={600} gutterBottom>
-              Resultados ({usuariosFiltrados.length})
-            </Typography>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+              <Typography variant="h6" fontWeight={600}>
+                Resultados ({usuariosFiltrados.length})
+              </Typography>
+              <Tooltip title="Exportar dados em Excel">
+                <span>
+                  <Button
+                    variant="outlined"
+                    startIcon={<FileDownload />}
+                    onClick={handleExportExcel}
+                    disabled={usuariosFiltrados.length === 0}
+                    sx={{
+                      borderColor: "#10b981",
+                      color: "#10b981",
+                      "&:hover": {
+                        borderColor: "#059669",
+                        bgcolor: "rgba(16, 185, 129, 0.08)",
+                      },
+                    }}
+                  >
+                    Excel
+                  </Button>
+                </span>
+              </Tooltip>
+            </Box>
 
             {loading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
