@@ -39,11 +39,15 @@ export interface FetchEscalasResult {
   limitReached: boolean;
 }
 
-// Maximum number of escalas to fetch per query
+// Hard safety cap — stop paginating beyond this total
 const ESCALAS_QUERY_LIMIT = 10000;
+// Page size per request — stays within PostgREST's default max-rows (1000)
+const PAGE_SIZE = 1000;
 
 /**
  * Fetch escalas within a date range.
+ * Paginates in PAGE_SIZE chunks to work around the PostgREST server-side
+ * max-rows limit that would otherwise silently truncate large result sets.
  * Applies role-based filtering automatically.
  * Returns an object with escalas array and a flag indicating if the limit was reached.
  */
@@ -62,20 +66,35 @@ export async function fetchEscalas(params: FetchEscalasParams): Promise<FetchEsc
   const dataInicioFormatada = format(dataInicio, 'yyyy-MM-dd');
   const dataFimFormatada = format(dataFim, 'yyyy-MM-dd');
 
-  const { data: escalas, error } = await supabase
-    .from('escalas_medicas')
-    .select('*')
-    .gte('data_inicio', dataInicioFormatada)
-    .lte('data_inicio', dataFimFormatada)
-    .order('data_inicio', { ascending: true })
-    .limit(ESCALAS_QUERY_LIMIT);
+  // Paginate to bypass the PostgREST server-side max-rows cap
+  let allEscalas: any[] = [];
+  let offset = 0;
 
-  if (error) throw error;
+  while (true) {
+    const { data: page, error } = await supabase
+      .from('escalas_medicas')
+      .select('*')
+      .gte('data_inicio', dataInicioFormatada)
+      .lte('data_inicio', dataFimFormatada)
+      .order('data_inicio', { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
 
-  // Check if limit was reached (might have more records)
-  const limitReached = (escalas?.length || 0) >= ESCALAS_QUERY_LIMIT;
+    if (error) throw error;
 
-  let filteredEscalas = escalas || [];
+    allEscalas = allEscalas.concat(page || []);
+
+    // Stop when the page is smaller than PAGE_SIZE (no more data) or safety cap reached
+    if (!page || page.length < PAGE_SIZE || allEscalas.length >= ESCALAS_QUERY_LIMIT) {
+      break;
+    }
+
+    offset += PAGE_SIZE;
+  }
+
+  // Check if safety limit was reached (might have more records)
+  const limitReached = allEscalas.length >= ESCALAS_QUERY_LIMIT;
+
+  let filteredEscalas = allEscalas;
 
   // Apply role-based filtering
   if (isAdminTerceiro && userContratoIds && userContratoIds.length > 0) {
