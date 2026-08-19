@@ -745,9 +745,23 @@ async function getDocumentosPepSum(escala: EscalaMedica): Promise<number> {
       ? format(addDays(dataEscala, 1), "yyyy-MM-dd")
       : null;
 
+    const PEP_COLS =
+      "nome, prescricao, diagnostico, encaminhamento, parecer, anotacao, avaliacao, documento_eletronico, evolucao, alta_medica";
+
+    const sumPepRow = (r: Record<string, any>): number =>
+      (r.prescricao || 0) +
+      (r.diagnostico || 0) +
+      (r.encaminhamento || 0) +
+      (r.parecer || 0) +
+      (r.anotacao || 0) +
+      (r.avaliacao || 0) +
+      (r.documento_eletronico || 0) +
+      (r.evolucao || 0) +
+      (r.alta_medica || 0);
+
     const { data: produtividadeDia, error: errorDia } = await supabase
       .from("produtividade")
-      .select("nome, qtd_documentos_pep")
+      .select(PEP_COLS)
       .in("nome", medicoNames)
       .eq("data", dataFormatada);
 
@@ -757,7 +771,7 @@ async function getDocumentosPepSum(escala: EscalaMedica): Promise<number> {
     if (overnight && dataSeguinteFormatada) {
       const { data: prodSeguinte, error: errorSeguinte } = await supabase
         .from("produtividade")
-        .select("nome, qtd_documentos_pep")
+        .select(PEP_COLS)
         .in("nome", medicoNames)
         .eq("data", dataSeguinteFormatada);
 
@@ -773,10 +787,7 @@ async function getDocumentosPepSum(escala: EscalaMedica): Promise<number> {
       ...(produtividadeDia || []),
       ...produtividadeSeguinte,
     ];
-    return allProdutividade.reduce(
-      (sum, r) => sum + (r.qtd_documentos_pep || 0),
-      0,
-    );
+    return allProdutividade.reduce((sum, r) => sum + sumPepRow(r), 0);
   } catch (error) {
     console.error("Error in getDocumentosPepSum:", error);
     return 0;
