@@ -32,7 +32,8 @@
       "Bash(scp:*)",
       "Bash(curl:*)",
       "Bash(aws sts:*)",
-      "Bash(pip list:*)"
+      "Bash(pip list:*)",
+      "Bash(plink:*)"
     ],
     "deny": [],
     "ask": []

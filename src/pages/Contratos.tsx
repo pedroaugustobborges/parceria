@@ -652,11 +652,15 @@ const Contratos: React.FC = () => {
 
         // ── P2: word-intersection sobre itensDisponiveis (em memória) ─────────
         // Divide em palavras ≥3 chars; threshold ≥35% para aceitar abreviações
+        // Normaliza acentos para não falhar em "plantão" vs "plantao"
+        const normalizar = (s: string) =>
+          s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
         const scoreIntersecao = (a: string, b: string): number => {
           const words = (s: string) =>
             new Set(s.split(/[\s/\-_(),]+/).filter((w) => w.length >= 3));
-          const wa = words(a);
-          const wb = words(b);
+          const wa = words(normalizar(a));
+          const wb = words(normalizar(b));
           let hits = 0;
           wa.forEach((w) => {
             if (wb.has(w)) hits++;
@@ -675,7 +679,6 @@ const Contratos: React.FC = () => {
             .trim()
             .toLowerCase();
           const nomeExtraido = ((itemExtraido.nome_no_contrato as string) || "")
-            .toLowerCase()
             .trim();
 
           // P1 — codigo_corporativo via DB
@@ -688,7 +691,7 @@ const Contratos: React.FC = () => {
             let melhorScore = 0;
             let melhorItem: ItemContrato | undefined;
             for (const i of itensDisponiveis) {
-              const score = scoreIntersecao(i.nome.toLowerCase(), nomeExtraido);
+              const score = scoreIntersecao(i.nome, nomeExtraido);
               if (score > melhorScore) {
                 melhorScore = score;
                 melhorItem = i;

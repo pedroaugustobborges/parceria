@@ -144,10 +144,28 @@ Deno.serve(async (req) => {
 
     console.log(`[extrair-dados-contrato] Texto extraido: ${textoPDF.length} chars`);
 
-    // Fatia linear: os primeiros 22000 chars cobrem cabecalho, clausulas e ANEXO I
-    // na grande maioria dos contratos. Nao usar estrategia de split com gap marker
-    // pois o ANEXO I pode estar no meio do documento e seria cortado.
-    const textoParaExtracao = textoPDF.substring(0, 22000);
+    // Estrategia: cabeçalho (primeiros 12000 chars) + janela em torno do ANEXO I.
+    // O ANEXO I pode estar em qualquer pagina; busca-se sua posicao no texto e
+    // extrai-se ate 18000 chars a partir dai para cobrir a tabela de itens completa.
+    // Total maximo enviado ao GPT: ~30000 chars (bem dentro dos 128k de contexto).
+    const HEAD_SIZE = 12000;
+    const ANEXO_WINDOW = 18000;
+    const cabecalho = textoPDF.substring(0, HEAD_SIZE);
+
+    const idxAnexo = (() => {
+      // Busca "ANEXO I" em maiusculas ou com acento
+      for (const marker of ["ANEXO I", "ANEXO 1", "Anexo I", "Anexo 1"]) {
+        const idx = textoPDF.indexOf(marker, HEAD_SIZE); // pula a parte ja incluida no cabecalho
+        if (idx !== -1) return idx;
+      }
+      return -1;
+    })();
+
+    const textoParaExtracao = idxAnexo !== -1
+      ? cabecalho + "\n[...]\n" + textoPDF.substring(idxAnexo, idxAnexo + ANEXO_WINDOW)
+      : textoPDF.substring(0, HEAD_SIZE + ANEXO_WINDOW); // fallback: slice linear maior
+
+    console.log(`[extrair-dados-contrato] idxAnexo=${idxAnexo}, textoParaExtracao.length=${textoParaExtracao.length}`);
 
     // Montar secoes de contexto para o prompt
     const secaoParceiros = parceiros.length > 0
