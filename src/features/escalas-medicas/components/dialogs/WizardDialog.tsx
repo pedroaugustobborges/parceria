@@ -209,6 +209,36 @@ export const WizardDialog: React.FC<WizardDialogProps> = ({
                   : option.unidade_medida || '';
                 return `${option.nome} (${unidade})`;
               }}
+              renderOption={(props, option) => {
+                const unidade = Array.isArray(option.unidade_medida)
+                  ? option.unidade_medida[0] || ''
+                  : option.unidade_medida || '';
+                return (
+                  <Box component="li" {...props}>
+                    {option.codigo_corporativo && (
+                      <Chip
+                        label={option.codigo_corporativo}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        sx={{ mr: 1, fontSize: '0.7rem', height: 20 }}
+                      />
+                    )}
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2">{option.nome}</Typography>
+                      {unidade && (
+                        <Chip
+                          label={unidade}
+                          size="small"
+                          variant="outlined"
+                          color="default"
+                          sx={{ fontSize: '0.65rem', height: 18, mt: 0.25 }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                );
+              }}
               renderInput={(params) => (
                 <TextField
                   {...params}
