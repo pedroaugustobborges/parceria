@@ -239,14 +239,34 @@ export const WizardDialog: React.FC<WizardDialogProps> = ({
                   </Box>
                 );
               }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Item de Contrato"
-                  required
-                  helperText="Selecione o item de contrato relacionado a esta escala"
-                />
-              )}
+              renderInput={(params) => {
+                const selectedItem = itensContrato.find((i) => i.id === formData.item_contrato_id);
+                return (
+                  <TextField
+                    {...params}
+                    label="Item de Contrato"
+                    required
+                    helperText="Selecione o item de contrato relacionado a esta escala"
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <>
+                          {selectedItem?.codigo_corporativo && (
+                            <Chip
+                              label={selectedItem.codigo_corporativo}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              sx={{ mr: 0.5, fontSize: '0.7rem', height: 20, flexShrink: 0 }}
+                            />
+                          )}
+                          {params.InputProps.startAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                );
+              }}
               disabled={!formData.contrato_id}
               fullWidth
             />
