@@ -101,7 +101,7 @@ export function useEscalaFilters(props: UseEscalaFiltersProps): UseEscalaFilters
       const prefixo = unidade ? `${unidade.codigo} - ` : '';
       return {
         id: c.id,
-        label: `${prefixo}${c.nome} - ${c.empresa}`,
+        label: `${prefixo}${c.nome} - ${c.empresa}${c.numero_contrato ? ` - ${c.numero_contrato}` : ''}`,
       };
     });
   }, [contratos, unidades]);

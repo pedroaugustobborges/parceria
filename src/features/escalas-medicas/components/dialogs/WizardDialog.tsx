@@ -188,7 +188,7 @@ export const WizardDialog: React.FC<WizardDialogProps> = ({
               getOptionLabel={(option) => {
                 const unidade = unidades.find((u) => u.id === option.unidade_hospitalar_id);
                 const prefixo = unidade ? `${unidade.codigo} - ` : '';
-                return `${prefixo}${option.nome} - ${option.empresa}`;
+                return `${prefixo}${option.nome} - ${option.empresa}${option.numero_contrato ? ` - ${option.numero_contrato}` : ''}`;
               }}
               renderInput={(params) => <TextField {...params} label="Contrato" required />}
               fullWidth
