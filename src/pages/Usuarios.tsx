@@ -146,7 +146,7 @@ interface CodigomvPar {
 }
 
 const Usuarios: React.FC = () => {
-  const { isAdminAgirCorporativo, isAdminAgirPlanta } = useAuth();
+  const { isAdminAgirCorporativo, isAdminAgirPlanta, unidadeHospitalarId } = useAuth();
   const jaRestaurouRef = useRef(false);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [usuariosFiltrados, setUsuariosFiltrados] = useState<Usuario[]>([]);
@@ -194,7 +194,7 @@ const Usuarios: React.FC = () => {
 
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [isAdminAgirPlanta, unidadeHospitalarId]);
 
   // Salva o rascunho do formulário no sessionStorage sempre que houver alteração e o dialog estiver aberto
   useEffect(() => {
@@ -270,9 +270,16 @@ const Usuarios: React.FC = () => {
   const loadInitialData = async () => {
     try {
       setLoading(true);
+
+      let contratosQuery = supabase.from("contratos").select("*").eq("ativo", true);
+      // Admin-planta sees only contracts for their unit (defense-in-depth on top of RLS)
+      if (isAdminAgirPlanta && unidadeHospitalarId) {
+        contratosQuery = contratosQuery.eq("unidade_hospitalar_id", unidadeHospitalarId);
+      }
+
       const [{ data: contratosData }, { data: unidadesData }, usuariosData] =
         await Promise.all([
-          supabase.from("contratos").select("*").eq("ativo", true),
+          contratosQuery,
           supabase
             .from("unidades_hospitalares")
             .select("*")
@@ -464,7 +471,8 @@ const Usuarios: React.FC = () => {
       contrato_ids: [],
       codigomvs: [],
       especialidade: [],
-      unidade_hospitalar_id: "",
+      // Admin-planta always creates users in their own unit
+      unidade_hospitalar_id: isAdminAgirPlanta ? (unidadeHospitalarId ?? "") : "",
     });
     setCreateDialogOpen(true);
   };
@@ -1645,12 +1653,19 @@ const Usuarios: React.FC = () => {
                     ...formData,
                     tipo: newTipo,
                     ...(newTipo === "terceiro" && { email: "" }),
+                    // When admin-planta switches to admin-planta type, lock unit to their own
+                    ...(isAdminAgirPlanta && newTipo === "administrador-agir-planta" && {
+                      unidade_hospitalar_id: unidadeHospitalarId ?? "",
+                    }),
                   });
                 }}
               >
-                <MenuItem value="administrador-agir-corporativo">
-                  Administrador Agir Corporativo
-                </MenuItem>
+                {/* Admin Corporativo only visible to admin corporativo */}
+                {!isAdminAgirPlanta && (
+                  <MenuItem value="administrador-agir-corporativo">
+                    Administrador Agir Corporativo
+                  </MenuItem>
+                )}
                 <MenuItem value="administrador-agir-planta">
                   Administrador Agir de Unidade
                 </MenuItem>
@@ -1707,7 +1722,7 @@ const Usuarios: React.FC = () => {
               <Autocomplete
                 value={
                   unidades.find(
-                    (u) => u.id === formData.unidade_hospitalar_id,
+                    (u) => u.id === (isAdminAgirPlanta ? unidadeHospitalarId : formData.unidade_hospitalar_id),
                   ) || null
                 }
                 onChange={(_, newValue) =>
@@ -1718,8 +1733,14 @@ const Usuarios: React.FC = () => {
                 }
                 options={unidades}
                 getOptionLabel={(option) => `${option.codigo} - ${option.nome}`}
+                disabled={isAdminAgirPlanta}
                 renderInput={(params) => (
-                  <TextField {...params} label="Unidade Hospitalar" required />
+                  <TextField
+                    {...params}
+                    label="Unidade Hospitalar"
+                    required
+                    helperText={isAdminAgirPlanta ? "Automaticamente vinculado à sua unidade" : undefined}
+                  />
                 )}
                 fullWidth
               />
