@@ -175,7 +175,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         label: "Admin Corporativo",
         color: "primary",
       },
-      "administrador-agir-planta": { label: "Admin Planta", color: "info" },
+      "administrador-agir-planta": { label: "Admin de Unidade", color: "info" },
       "administrador-terceiro": { label: "Admin Terceiro", color: "secondary" },
       terceiro: { label: "Terceiro", color: "default" },
     };
