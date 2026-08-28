@@ -242,8 +242,11 @@ const Contratos: React.FC = () => {
         .select("*")
         .order("created_at", { ascending: false });
 
-      // Partners can only see their own contracts
-      if (isAdminTerceiro && userContratoIds.length > 0) {
+      // Admin planta sees only contracts for their unit
+      if (isAdminAgirPlanta && unidadeHospitalarId) {
+        query = query.eq("unidade_hospitalar_id", unidadeHospitalarId);
+      } else if (isAdminTerceiro && userContratoIds.length > 0) {
+        // Partners can only see their own contracts
         query = query.in("id", userContratoIds);
       } else if (isAdminTerceiro && userContratoIds.length === 0) {
         // Partner has no contracts linked, show empty list
