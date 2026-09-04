@@ -77,7 +77,7 @@ import {
   canEditStatus,
   isEscalaPaga,
 } from "../../utils/escalasStatusUtils";
-import { shiftCrossesMidnight } from "../../utils/escalasHoursUtils";
+import { shiftCrossesMidnight, calculateEscalaBillingQuantity } from "../../utils/escalasHoursUtils";
 
 // Icon mapping for status
 const statusIconMap: Record<StatusEscala, React.ReactElement> = {
@@ -498,7 +498,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
 
           {/* Escala Info Grid */}
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={4}>
               <Card variant="outlined">
                 <CardContent>
                   <Typography variant="overline" color="text.secondary">
@@ -514,7 +514,7 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={4}>
               <Card variant="outlined">
                 <CardContent>
                   <Typography variant="overline" color="text.secondary">
@@ -530,6 +530,39 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
                 </CardContent>
               </Card>
             </Grid>
+
+            {/* Valor Card */}
+            {(() => {
+              const billingQty = calculateEscalaBillingQuantity(escala, contratoItem?.unidade_medida);
+              const valorTotal = billingQty * valorUnitario;
+              const isGlosa =
+                escala.status === 'Aprovado com Glosa' &&
+                escala.horario_pagamento_inicio &&
+                escala.horario_pagamento_fim;
+
+              return (
+                <Grid item xs={12} sm={4}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="overline" color="text.secondary">
+                        Valor
+                      </Typography>
+                      <Box display="flex" alignItems="center" gap={1} mt={1}>
+                        <Payments color="primary" />
+                        <Typography variant="h6">
+                          {valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </Typography>
+                      </Box>
+                      {isGlosa && (
+                        <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                          {billingQty.toFixed(2)}h (glosa) × R$ {valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })()}
 
             <Grid item xs={12}>
               <Card variant="outlined">
