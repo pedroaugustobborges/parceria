@@ -145,8 +145,8 @@ export interface DetailsDialogProps {
   onEdit: (escala: EscalaMedica) => void;
   onChangeStatus: (escala: EscalaMedica) => void;
   onDelete?: (escala: EscalaMedica) => void;
-  onHorariosPagamentoUpdated?: () => void;
-  onBaseCalculoUpdated?: () => void;
+  onHorariosPagamentoUpdated?: () => void | Promise<void>;
+  onBaseCalculoUpdated?: () => void | Promise<void>;
   scrollToHorarioPagamento?: boolean;
   onScrollToHorarioDone?: () => void;
 }
@@ -378,9 +378,8 @@ export const DetailsDialog: React.FC<DetailsDialogProps> = ({
       setLocalCampoProducao(field);
       setPendingProdField(null);
 
-      // Refresh the list in the background
-      onBaseCalculoUpdated?.();
-      onHorariosPagamentoUpdated?.(); // also reloads escala list
+      // Refresh the list — await so scorecards/exports are immediately up to date
+      await onBaseCalculoUpdated?.();
     } catch (err: any) {
       setBaseCalculoError('Erro ao salvar: ' + (err.message ?? 'Tente novamente.'));
     } finally {

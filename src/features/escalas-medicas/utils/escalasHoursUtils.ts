@@ -119,15 +119,29 @@ function getDaysInMonth(dateStr: string): number {
 /**
  * Calculate the billing quantity for an escala.
  *
- * - Monthly unidades (carga horária mensal, do mensal estimado): 1 / days_in_month.
- * - Weekly unidades (carga horária semanal): 1/7.
- * - Unit-based unidades (plantão, consulta, etc.): always 1, regardless of duration or doctors.
- * - Hour-based unidades (horas): delegates to calculateTotalEscalaHours.
+ * Priority order:
+ * 1. Production-based (base_calculo = 'producao'): returns quantidade_producao directly,
+ *    overriding all other billing modes — including unit-based unidades like 'consulta'.
+ * 2. Monthly unidades (carga horária mensal, do mensal estimado): 1 / days_in_month.
+ * 3. Weekly unidades (carga horária semanal): 1/7.
+ * 4. Unit-based unidades (plantão, consulta, etc.): always 1.
+ * 5. Hour-based unidades: delegates to calculateTotalEscalaHours.
  */
 export function calculateEscalaBillingQuantity(
   escala: EscalaMedica,
   unidadeMedida: string | null | undefined,
 ): number {
+  // Production-based override takes absolute priority — even over unit/monthly/weekly
+  // billing modes. When an admin explicitly sets base_calculo = 'producao', the
+  // captured quantidade_producao is the billing quantity regardless of unidade_medida.
+  if (
+    escala.base_calculo === 'producao' &&
+    escala.quantidade_producao !== null &&
+    escala.quantidade_producao !== undefined
+  ) {
+    return escala.quantidade_producao;
+  }
+
   if (isMonthlyBased(unidadeMedida)) {
     return 1 / getDaysInMonth(escala.data_inicio);
   }
@@ -271,9 +285,11 @@ export function calculateScorecardMetrics(
     const key = getMetricsKey(escala.status);
     if (!key) continue;
 
-    // Find the contract item to get the price
+    // Find the contract item to get the price (must match both item AND contract
+    // to avoid picking up a same-item record from a different contract that
+    // could have a different unidade_medida or valor_unitario)
     const contratoItem = contratoItens.find(
-      (ci) => ci.item_id === escala.item_contrato_id
+      (ci) => ci.item_id === escala.item_contrato_id && ci.contrato_id === escala.contrato_id
     );
 
     // Calculate billing quantity (1 unit for unit-based, hours otherwise)

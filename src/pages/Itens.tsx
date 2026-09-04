@@ -111,6 +111,13 @@ const Itens: React.FC = () => {
 
       if (!meta.dialogAberto) return;
 
+      // Garante que unidades_medida é sempre um array (proteção contra rascunhos antigos)
+      if (!Array.isArray(form.unidades_medida)) {
+        form.unidades_medida = form.unidades_medida
+          ? [form.unidades_medida]
+          : ["horas"];
+      }
+
       setFormData(form);
 
       if (meta.itemId) {
@@ -154,10 +161,16 @@ const Itens: React.FC = () => {
   const handleOpenDialog = (item?: ItemContrato) => {
     if (item) {
       setEditingItem(item);
+      const rawUnidade = item.unidade_medida;
+      const unidades = Array.isArray(rawUnidade)
+        ? (rawUnidade as UnidadeMedida[])
+        : rawUnidade
+          ? [rawUnidade as unknown as UnidadeMedida]
+          : (["horas"] as UnidadeMedida[]);
       setFormData({
         nome: item.nome,
         descricao: item.descricao || "",
-        unidades_medida: (item.unidade_medida as UnidadeMedida[]) || ["horas"],
+        unidades_medida: unidades,
         codigo_corporativo: item.codigo_corporativo || "",
       });
     } else {
@@ -578,7 +591,7 @@ const Itens: React.FC = () => {
               <Autocomplete
                 multiple
                 options={UNIDADES_MEDIDA}
-                value={formData.unidades_medida}
+                value={Array.isArray(formData.unidades_medida) ? formData.unidades_medida : []}
                 onChange={(_, newValue) =>
                   setFormData({
                     ...formData,

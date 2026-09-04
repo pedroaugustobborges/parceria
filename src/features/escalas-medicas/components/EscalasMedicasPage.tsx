@@ -7,7 +7,7 @@
  * This replaces the original 3000+ line monolithic component.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Box, Alert, Card, Typography, IconButton, Tooltip, Button } from '@mui/material';
 import { CalendarViewWeek, ViewModule, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { CalendarMonth } from '@mui/icons-material';
@@ -51,7 +51,7 @@ import type { EscalaMedica, StatusEscala, CsvPreviewRow, CsvValidatedRow, Usuari
 // ============================================
 
 export const EscalasMedicasPage: React.FC = () => {
-  const { isAdminAgir, isAdminTerceiro, isTerceiro, isAdminAgirCorporativo, isAdminAgirPlanta } = useAuth();
+  const { isAdminAgir, isAdminTerceiro, isTerceiro, isAdminAgirCorporativo, isAdminAgirPlanta, unidadeHospitalarId } = useAuth();
 
   // ============================================
   // Main Data Hook
@@ -421,7 +421,23 @@ export const EscalasMedicasPage: React.FC = () => {
       // Load additional details
       const details = await escalas.loadEscalaDetails(escala);
       setUsuarioAlterouStatus(details.usuarioAlterouStatus);
-      setAcessosMedico(details.acessosMedico);
+
+      // Admin-planta must only see accesses from their own unit.
+      // acessos.planta stores the unit's codigo (e.g. "HMSA"), so we look up
+      // the codigo from auxiliaryData.unidades using the user's unidadeHospitalarId.
+      let acessosFiltrados = details.acessosMedico;
+      if (isAdminAgirPlanta && unidadeHospitalarId) {
+        const meuCodigo = escalas.auxiliaryData.unidades.find(
+          (u) => u.id === unidadeHospitalarId,
+        )?.codigo;
+        if (meuCodigo) {
+          acessosFiltrados = acessosFiltrados.filter(
+            (a: any) => a.planta === meuCodigo,
+          );
+        }
+      }
+
+      setAcessosMedico(acessosFiltrados);
       setProdutividadeMedico(details.produtividadeMedico);
       setMedicosCodigosMV(details.codigosMV);
     } catch (err) {
@@ -430,6 +446,16 @@ export const EscalasMedicasPage: React.FC = () => {
       setLoadingDetalhes(false);
     }
   }, [escalas]);
+
+  // Keep the open dialog in sync with fresh data after any list refresh
+  useEffect(() => {
+    if (!escalaDetalhes) return;
+    const fresh = escalas.escalasFiltradas.find((e) => e.id === escalaDetalhes.id);
+    if (fresh && fresh !== escalaDetalhes) {
+      setEscalaDetalhes(fresh);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escalas.escalasFiltradas]);
 
   const handleCloseDetailsDialog = useCallback(() => {
     setDetailsDialogOpen(false);
