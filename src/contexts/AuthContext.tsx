@@ -36,8 +36,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar sessão existente
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Verificar sessão existente — se o refresh token for inválido, limpa e deixa
+    // o usuário na tela de login em vez de ficar preso com "{}" ou 400/504.
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Refresh token inválido ou expirado — descarta a sessão corrompida
+        supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
       setUser(session?.user ?? null);
       if (session?.user) {
         loadUserProfile(session.user.id);
@@ -49,12 +56,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Escutar mudanças na autenticação
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // TOKEN_REFRESHED falhou → limpa sessão inválida
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        supabase.auth.signOut();
+        setUser(null);
+        setUserProfile(null);
+        setUserContratoIds([]);
+        setLoading(false);
+        return;
+      }
+
       setUser(session?.user ?? null);
       if (session?.user) {
         loadUserProfile(session.user.id);
       } else {
         setUserProfile(null);
+        setUserContratoIds([]);
         setLoading(false);
       }
     });
