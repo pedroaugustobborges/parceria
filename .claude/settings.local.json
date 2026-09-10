@@ -33,7 +33,10 @@
       "Bash(curl:*)",
       "Bash(aws sts:*)",
       "Bash(pip list:*)",
-      "Bash(plink:*)"
+      "Bash(plink:*)",
+      "Bash(npm list:*)",
+      "Bash(grep:*)",
+      "Bash(ls *.sh)"
     ],
     "deny": [],
     "ask": []

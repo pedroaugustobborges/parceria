@@ -10,16 +10,14 @@ export default defineConfig({
     },
   },
   build: {
-    // Pre-bundle MUI so Rollup handles it as one unit instead of ~2400 files
-    commonjsOptions: {
-      include: [/node_modules/],
-    },
     rollupOptions: {
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules/@mui/icons-material')) return 'vendor-mui-icons';
-          if (id.includes('node_modules/@mui/')) return 'vendor-mui';
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) return 'vendor-react';
+          // Group emotion with MUI — they share React context and must initialize together
+          if (id.includes('node_modules/@mui/') || id.includes('node_modules/@emotion/')) return 'vendor-mui';
+          // Include scheduler (React internals) alongside React
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/scheduler')) return 'vendor-react';
           if (id.includes('node_modules/@supabase')) return 'vendor-supabase';
           if (id.includes('node_modules/')) return 'vendor-misc';
         },
