@@ -14,12 +14,12 @@ export default defineConfig({
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules/@mui/icons-material')) return 'vendor-mui-icons';
-          // Group emotion with MUI — they share React context and must initialize together
+          // Emotion must live alongside MUI — they share React context
           if (id.includes('node_modules/@mui/') || id.includes('node_modules/@emotion/')) return 'vendor-mui';
-          // Include scheduler (React internals) alongside React
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/scheduler')) return 'vendor-react';
           if (id.includes('node_modules/@supabase')) return 'vendor-supabase';
-          if (id.includes('node_modules/')) return 'vendor-misc';
+          // React + recharts + everything else in one chunk to avoid circular
+          // cross-chunk deps (recharts → react-smooth → raf → recharts cycle)
+          if (id.includes('node_modules/')) return 'vendor';
         },
       },
     },
