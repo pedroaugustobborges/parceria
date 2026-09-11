@@ -654,15 +654,29 @@ const Usuarios: React.FC = () => {
           formData.email &&
           formData.email !== selectedUser.email;
         if (emailMudou && selectedUser.email) {
-          await supabase.functions.invoke("admin-users", {
-            body: {
-              action: "update-email",
-              targetUserId: selectedUser.id,
-              novoEmail: formData.email,
-            },
-          });
-          // Não bloqueia em caso de erro: usuarios.email já foi salvo.
-          // Usuário legado sem conta auth: admin usa "Redefinir Senha" depois.
+          const { data: emailUpdateData, error: emailUpdateError } =
+            await supabase.functions.invoke("admin-users", {
+              body: {
+                action: "update-email",
+                targetUserId: selectedUser.id,
+                novoEmail: formData.email,
+              },
+            });
+          if (emailUpdateError || emailUpdateData?.error) {
+            // public.usuarios was already saved — warn but don't abort.
+            // Admin must use "Redefinir Senha" to resync auth.users manually.
+            console.warn("Falha ao sincronizar email no GoTrue:", emailUpdateError || emailUpdateData?.error);
+            setSaving(false);
+            setSuccess(
+              `Usuário atualizado, mas houve uma falha ao sincronizar o email no sistema de autenticação. ` +
+              `Use o botão "Redefinir Senha" no usuário para corrigir o acesso.`
+            );
+            limparRascunhoFormulario();
+            handleCloseCreateDialog();
+            loadInitialData();
+            handleSearch();
+            return;
+          }
         }
 
         // Se o email foi removido e o usuário tinha conta auth, exclui a conta
