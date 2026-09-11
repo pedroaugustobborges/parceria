@@ -61,6 +61,7 @@ const ESPECIALIDADES = [
   "Cirurgia Plástica",
   "Cirurgia Vascular",
   "Clínica Geral",
+  "Coloproctologia",
   "Dermatologia",
   "Diagnóstico por Imagem",
   "Ecocardiografia",
@@ -146,7 +147,8 @@ interface CodigomvPar {
 }
 
 const Usuarios: React.FC = () => {
-  const { isAdminAgirCorporativo, isAdminAgirPlanta, unidadeHospitalarId } = useAuth();
+  const { isAdminAgirCorporativo, isAdminAgirPlanta, unidadeHospitalarId } =
+    useAuth();
   const jaRestaurouRef = useRef(false);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [usuariosFiltrados, setUsuariosFiltrados] = useState<Usuario[]>([]);
@@ -271,10 +273,16 @@ const Usuarios: React.FC = () => {
     try {
       setLoading(true);
 
-      let contratosQuery = supabase.from("contratos").select("*").eq("ativo", true);
+      let contratosQuery = supabase
+        .from("contratos")
+        .select("*")
+        .eq("ativo", true);
       // Admin-planta sees only contracts for their unit (defense-in-depth on top of RLS)
       if (isAdminAgirPlanta && unidadeHospitalarId) {
-        contratosQuery = contratosQuery.eq("unidade_hospitalar_id", unidadeHospitalarId);
+        contratosQuery = contratosQuery.eq(
+          "unidade_hospitalar_id",
+          unidadeHospitalarId,
+        );
       }
 
       const [{ data: contratosData }, { data: unidadesData }, usuariosData] =
@@ -472,7 +480,9 @@ const Usuarios: React.FC = () => {
       codigomvs: [],
       especialidade: [],
       // Admin-planta always creates users in their own unit
-      unidade_hospitalar_id: isAdminAgirPlanta ? (unidadeHospitalarId ?? "") : "",
+      unidade_hospitalar_id: isAdminAgirPlanta
+        ? (unidadeHospitalarId ?? "")
+        : "",
     });
     setCreateDialogOpen(true);
   };
@@ -567,7 +577,9 @@ const Usuarios: React.FC = () => {
       // Validar codigomvs e especialidade para terceiros
       if (formData.tipo === "terceiro") {
         if (formData.codigomvs.length === 0) {
-          setError("Adicione pelo menos um Código MV com a respectiva unidade hospitalar");
+          setError(
+            "Adicione pelo menos um Código MV com a respectiva unidade hospitalar",
+          );
           setSaving(false);
           return;
         }
@@ -589,7 +601,9 @@ const Usuarios: React.FC = () => {
         for (const par of formData.codigomvs) {
           const key = `${par.codigomv.trim()}|${par.nm_unidade}`;
           if (seenPairs.has(key)) {
-            setError(`Código MV "${par.codigomv}" já adicionado para a unidade "${par.nm_unidade}"`);
+            setError(
+              `Código MV "${par.codigomv}" já adicionado para a unidade "${par.nm_unidade}"`,
+            );
             setSaving(false);
             return;
           }
@@ -654,9 +668,7 @@ const Usuarios: React.FC = () => {
         // Se o email foi removido e o usuário tinha conta auth, exclui a conta
         // auth para liberar o email e evitar registros órfãos em auth.users.
         const emailFoiRemovido =
-          formData.tipo !== "terceiro" &&
-          !formData.email &&
-          selectedUser.email;
+          formData.tipo !== "terceiro" && !formData.email && selectedUser.email;
         if (emailFoiRemovido) {
           await supabase.functions.invoke("admin-users", {
             body: {
@@ -729,7 +741,9 @@ const Usuarios: React.FC = () => {
                   "Um dos códigos MV já está cadastrado para essa unidade hospitalar por outro usuário",
                 );
               }
-              throw new Error(`Erro ao salvar códigos MV: ${codigomvError.message}`);
+              throw new Error(
+                `Erro ao salvar códigos MV: ${codigomvError.message}`,
+              );
             }
           }
         }
@@ -817,7 +831,9 @@ const Usuarios: React.FC = () => {
                   "Um dos códigos MV já está cadastrado para essa unidade hospitalar por outro usuário",
                 );
               }
-              throw new Error(`Erro ao salvar códigos MV: ${codigomvError.message}`);
+              throw new Error(
+                `Erro ao salvar códigos MV: ${codigomvError.message}`,
+              );
             }
           }
 
@@ -1060,9 +1076,7 @@ const Usuarios: React.FC = () => {
   // Get unique emails for autocomplete
   const emailsDisponiveis = Array.from(
     new Set(
-      usuarios
-        .map((u) => u.email)
-        .filter((e): e is string => Boolean(e)),
+      usuarios.map((u) => u.email).filter((e): e is string => Boolean(e)),
     ),
   ).sort();
 
@@ -1153,7 +1167,7 @@ const Usuarios: React.FC = () => {
                 value={filtroContrato}
                 onChange={(_, newValue) => setFiltroContrato(newValue)}
                 getOptionLabel={(option) =>
-                  `${option.nome} - ${option.empresa}${option.numero_contrato ? ` - ${option.numero_contrato}` : ''}`
+                  `${option.nome} - ${option.empresa}${option.numero_contrato ? ` - ${option.numero_contrato}` : ""}`
                 }
                 renderInput={(params) => (
                   <TextField
@@ -1274,7 +1288,14 @@ const Usuarios: React.FC = () => {
       {searchPerformed && (
         <Card>
           <CardContent>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 1,
+              }}
+            >
               <Typography variant="h6" fontWeight={600}>
                 Resultados ({usuariosFiltrados.length})
               </Typography>
@@ -1457,7 +1478,14 @@ const Usuarios: React.FC = () => {
                         <Typography variant="caption" color="text.secondary">
                           Códigos MV
                         </Typography>
-                        <Box sx={{ mt: 0.5, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                        <Box
+                          sx={{
+                            mt: 0.5,
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 0.5,
+                          }}
+                        >
                           {userCodigomvs.map((par, i) => (
                             <Chip
                               key={i}
@@ -1524,9 +1552,14 @@ const Usuarios: React.FC = () => {
                         <ListItem key={uc.id}>
                           <ListItemText
                             primary={(() => {
-                              const unidade = unidades.find((u) => u.id === uc.contratos?.unidade_hospitalar_id);
-                              const prefixo = unidade ? `${unidade.codigo} - ` : '';
-                              return `${prefixo}${uc.contratos?.nome}${uc.contratos?.numero_contrato ? ` - ${uc.contratos.numero_contrato}` : ''}`;
+                              const unidade = unidades.find(
+                                (u) =>
+                                  u.id === uc.contratos?.unidade_hospitalar_id,
+                              );
+                              const prefixo = unidade
+                                ? `${unidade.codigo} - `
+                                : "";
+                              return `${prefixo}${uc.contratos?.nome}${uc.contratos?.numero_contrato ? ` - ${uc.contratos.numero_contrato}` : ""}`;
                             })()}
                             secondary={uc.contratos?.empresa}
                           />
@@ -1551,9 +1584,11 @@ const Usuarios: React.FC = () => {
                         !userContracts.some((uc) => uc.contrato_id === c.id),
                     )}
                     getOptionLabel={(option) => {
-                      const unidade = unidades.find((u) => u.id === option.unidade_hospitalar_id);
-                      const prefixo = unidade ? `${unidade.codigo} - ` : '';
-                      return `${prefixo}${option.nome} - ${option.empresa}${option.numero_contrato ? ` - ${option.numero_contrato}` : ''}`;
+                      const unidade = unidades.find(
+                        (u) => u.id === option.unidade_hospitalar_id,
+                      );
+                      const prefixo = unidade ? `${unidade.codigo} - ` : "";
+                      return `${prefixo}${option.nome} - ${option.empresa}${option.numero_contrato ? ` - ${option.numero_contrato}` : ""}`;
                     }}
                     renderInput={(params) => (
                       <TextField
@@ -1654,9 +1689,10 @@ const Usuarios: React.FC = () => {
                     tipo: newTipo,
                     ...(newTipo === "terceiro" && { email: "" }),
                     // When admin-planta switches to admin-planta type, lock unit to their own
-                    ...(isAdminAgirPlanta && newTipo === "administrador-agir-planta" && {
-                      unidade_hospitalar_id: unidadeHospitalarId ?? "",
-                    }),
+                    ...(isAdminAgirPlanta &&
+                      newTipo === "administrador-agir-planta" && {
+                        unidade_hospitalar_id: unidadeHospitalarId ?? "",
+                      }),
                   });
                 }}
               >
@@ -1722,7 +1758,11 @@ const Usuarios: React.FC = () => {
               <Autocomplete
                 value={
                   unidades.find(
-                    (u) => u.id === (isAdminAgirPlanta ? unidadeHospitalarId : formData.unidade_hospitalar_id),
+                    (u) =>
+                      u.id ===
+                      (isAdminAgirPlanta
+                        ? unidadeHospitalarId
+                        : formData.unidade_hospitalar_id),
                   ) || null
                 }
                 onChange={(_, newValue) =>
@@ -1739,7 +1779,11 @@ const Usuarios: React.FC = () => {
                     {...params}
                     label="Unidade Hospitalar"
                     required
-                    helperText={isAdminAgirPlanta ? "Automaticamente vinculado à sua unidade" : undefined}
+                    helperText={
+                      isAdminAgirPlanta
+                        ? "Automaticamente vinculado à sua unidade"
+                        : undefined
+                    }
                   />
                 )}
                 fullWidth
@@ -1757,7 +1801,12 @@ const Usuarios: React.FC = () => {
                   {formData.codigomvs.map((par, index) => (
                     <Box
                       key={index}
-                      sx={{ display: "flex", gap: 1, mb: 1, alignItems: "center" }}
+                      sx={{
+                        display: "flex",
+                        gap: 1,
+                        mb: 1,
+                        alignItems: "center",
+                      }}
                     >
                       <TextField
                         label="Código Prestador MV"
@@ -1778,7 +1827,10 @@ const Usuarios: React.FC = () => {
                           label="Unidade"
                           onChange={(e) => {
                             const updated = [...formData.codigomvs];
-                            updated[index] = { ...par, nm_unidade: e.target.value };
+                            updated[index] = {
+                              ...par,
+                              nm_unidade: e.target.value,
+                            };
                             setFormData({ ...formData, codigomvs: updated });
                           }}
                         >
@@ -1867,9 +1919,11 @@ const Usuarios: React.FC = () => {
                     })
                   }
                   getOptionLabel={(option) => {
-                    const unidade = unidades.find((u) => u.id === option.unidade_hospitalar_id);
-                    const prefixo = unidade ? `${unidade.codigo} - ` : '';
-                    return `${prefixo}${option.nome} - ${option.empresa}${option.numero_contrato ? ` - ${option.numero_contrato}` : ''}`;
+                    const unidade = unidades.find(
+                      (u) => u.id === option.unidade_hospitalar_id,
+                    );
+                    const prefixo = unidade ? `${unidade.codigo} - ` : "";
+                    return `${prefixo}${option.nome} - ${option.empresa}${option.numero_contrato ? ` - ${option.numero_contrato}` : ""}`;
                   }}
                   renderInput={(params) => (
                     <TextField {...params} label="Contratos" />
