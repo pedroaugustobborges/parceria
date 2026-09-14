@@ -36,7 +36,10 @@
       "Bash(plink:*)",
       "Bash(npm list:*)",
       "Bash(grep:*)",
-      "Bash(ls *.sh)"
+      "Bash(ls *.sh)",
+      "Bash(pscp -i \"AgirChave02 2.ppk\" -batch investigate_emails.sql admin@10.12.1.170:/tmp/investigate_emails.sql)",
+      "Bash(pscp -i \"AgirChave02 2.ppk\" -batch admin@10.12.1.170:/tmp/investigate_out.txt /tmp/investigate_out.txt)",
+      "Bash(pscp:*)"
     ],
     "deny": [],
     "ask": []
