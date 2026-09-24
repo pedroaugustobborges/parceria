@@ -1817,7 +1817,7 @@ const Contratos: React.FC = () => {
                                     size="small"
                                     inputProps={{
                                       min: 0,
-                                      step: 0.01,
+                                      step: 0.00000001,
                                     }}
                                     required
                                     fullWidth
@@ -1826,7 +1826,7 @@ const Contratos: React.FC = () => {
                                         bgcolor: "background.paper",
                                       },
                                     }}
-                                    placeholder="0,00"
+                                    placeholder="0,00000000"
                                   />
                                 )}
                               </TableCell>
