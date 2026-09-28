@@ -199,11 +199,8 @@ const Dashboard: React.FC = () => {
   const [contratoItems, setContratoItems] = usePersistentArray<ContratoItem>(
     "dashboard_contratoItems",
   );
-  const [produtividade, setProdutividade] = usePersistentArray<Produtividade>(
-    "dashboard_produtividade",
-  );
-  const [escalas, setEscalas] =
-    usePersistentArray<EscalaMedica>("dashboard_escalas");
+  const [produtividade, setProdutividade] = useState<Produtividade[]>([]);
+  const [escalas, setEscalas] = useState<EscalaMedica[]>([]);
   const [usuarios, setUsuarios] =
     usePersistentArray<Usuario>("dashboard_usuarios");
   const [unidades, setUnidades] =
@@ -555,13 +552,22 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const loadEscalas = async () => {
+  const loadEscalas = async (dataInicio?: Date, dataFim?: Date) => {
     try {
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from("escalas_medicas")
         .select("*")
         .eq("ativo", true)
         .order("data_inicio", { ascending: false });
+
+      if (dataInicio) {
+        query = query.gte("data_inicio", format(dataInicio, "yyyy-MM-dd"));
+      }
+      if (dataFim) {
+        query = query.lte("data_inicio", format(dataFim, "yyyy-MM-dd"));
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
       setEscalas(data || []);
@@ -610,8 +616,6 @@ const Dashboard: React.FC = () => {
       await Promise.all([
         loadContratos(),
         loadContratoItems(),
-        loadProdutividade(),
-        loadEscalas(),
         loadUsuarios(),
         loadUnidades(),
       ]);
@@ -693,8 +697,11 @@ const Dashboard: React.FC = () => {
 
       setAcessos(normalizedAcessos);
 
-      // Carregar produtividade com os mesmos filtros de data
-      await loadProdutividade(filtroDataInicio, filtroDataFim);
+      // Carregar produtividade e escalas com os mesmos filtros de data
+      await Promise.all([
+        loadProdutividade(filtroDataInicio, filtroDataFim),
+        loadEscalas(filtroDataInicio, filtroDataFim),
+      ]);
 
       setBuscaRealizada(true);
     } catch (err: any) {
@@ -1281,14 +1288,7 @@ const Dashboard: React.FC = () => {
   };
 
   const handleContratoChange = (_: any, newValue: Contrato | null) => {
-    if (newValue && !filtroContrato) {
-      // Se está selecionando um contrato pela primeira vez, mostrar aviso
-      setPendingContrato(newValue);
-      setContratoWarningOpen(true);
-    } else {
-      // Se está removendo o filtro de contrato
-      setFiltroContrato(newValue);
-    }
+    setFiltroContrato(newValue);
   };
 
   const handleContratoWarningAccept = () => {
@@ -3281,6 +3281,7 @@ const Dashboard: React.FC = () => {
                     const prefixo = unidade ? `${unidade.codigo} - ` : '';
                     return `${prefixo}${option.nome} - ${option.empresa}`;
                   }}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
                   renderInput={(params) => (
                     <TextField
                       {...params}

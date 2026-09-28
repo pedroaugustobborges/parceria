@@ -151,6 +151,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
               onChange={(_, newValue) => onContratoChange(newValue)}
               options={contratos}
               getOptionLabel={(option) => `${option.nome} - ${option.empresa}`}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
               renderInput={(params) => (
                 <TextField
                   {...params}

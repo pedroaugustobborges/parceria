@@ -107,12 +107,21 @@ export async function loadProdutividade(
 // Load Escalas
 // ============================================
 
-export async function loadEscalas(): Promise<EscalaMedica[]> {
-  const { data, error } = await supabase
+export async function loadEscalas(dataInicio?: Date, dataFim?: Date): Promise<EscalaMedica[]> {
+  let query = supabase
     .from('escalas_medicas')
     .select('*')
     .eq('ativo', true)
     .order('data_inicio', { ascending: false });
+
+  if (dataInicio) {
+    query = query.gte('data_inicio', format(dataInicio, 'yyyy-MM-dd'));
+  }
+  if (dataFim) {
+    query = query.lte('data_inicio', format(dataFim, 'yyyy-MM-dd'));
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Erro ao carregar escalas:', error);
@@ -167,21 +176,20 @@ export async function loadUnidades(): Promise<UnidadeHospitalar[]> {
 // ============================================
 
 export async function loadAuxiliaryData(): Promise<DashboardAuxiliaryData> {
-  const [contratos, contratoItems, produtividade, escalas, usuarios, unidades] =
-    await Promise.all([
-      loadContratos(),
-      loadContratoItems(),
-      loadProdutividade(),
-      loadEscalas(),
-      loadUsuarios(),
-      loadUnidades(),
-    ]);
+  // escalas and produtividade are NOT loaded here — they are large and must be
+  // fetched on-demand (with date filters) when the user clicks "Buscar Acessos".
+  const [contratos, contratoItems, usuarios, unidades] = await Promise.all([
+    loadContratos(),
+    loadContratoItems(),
+    loadUsuarios(),
+    loadUnidades(),
+  ]);
 
   return {
     contratos,
     contratoItems,
-    produtividade,
-    escalas,
+    produtividade: [],
+    escalas: [],
     usuarios,
     unidades,
   };
@@ -198,50 +206,84 @@ export interface LoadAcessosParams {
   isTerceiro?: boolean;
   isAdminTerceiro?: boolean;
   userContratoIds?: string[];
+  // Server-side UI filters (pushed down from the filter bar)
+  filtroTipo?: string[];
+  filtroMatricula?: string[];
+  filtroNome?: string[];
+  filtroUnidade?: string[];
+  effectiveCpfs?: string[]; // pre-resolved intersection of filtroCpf + contrato + especialidade
 }
 
 export async function loadAcessos(params: LoadAcessosParams): Promise<Acesso[]> {
-  const { dataInicio, dataFim, userCpf, isTerceiro, isAdminTerceiro, userContratoIds } =
-    params;
+  const {
+    dataInicio,
+    dataFim,
+    userCpf,
+    isTerceiro,
+    isAdminTerceiro,
+    userContratoIds,
+    filtroTipo,
+    filtroMatricula,
+    filtroNome,
+    filtroUnidade,
+    effectiveCpfs,
+  } = params;
 
   const dataInicioFormatada = format(dataInicio, 'yyyy-MM-dd');
   const dataFimFormatada = format(dataFim, 'yyyy-MM-dd');
 
-  const pageSize = 1000;
-  let allAcessos: Acesso[] = [];
-  let from = 0;
-  let hasMore = true;
-
-  // Get CPFs for admin-terceiro filtering
-  let cpfsToFilter: string[] | null = null;
-  if (isAdminTerceiro && userContratoIds && userContratoIds.length > 0) {
+  // Resolve role-based CPF restriction
+  let roleCpfs: string[] | null = null;
+  if (isTerceiro && userCpf) {
+    roleCpfs = [userCpf];
+  } else if (isAdminTerceiro && userContratoIds && userContratoIds.length > 0) {
     const { data: usuariosContrato } = await supabase
       .from('usuario_contrato')
       .select('cpf')
       .in('contrato_id', userContratoIds);
 
     if (usuariosContrato && usuariosContrato.length > 0) {
-      cpfsToFilter = [...new Set(usuariosContrato.map((u: { cpf: string }) => u.cpf))];
+      roleCpfs = [...new Set(usuariosContrato.map((u: { cpf: string }) => u.cpf))];
     }
   }
 
-  while (hasMore) {
-    let query = supabase
+  // Compute final CPF set (intersection of role restriction ∩ UI filters)
+  let finalCpfs: string[] | null = null;
+  if (roleCpfs && effectiveCpfs) {
+    finalCpfs = roleCpfs.filter((cpf) => effectiveCpfs.includes(cpf));
+  } else {
+    finalCpfs = roleCpfs ?? effectiveCpfs ?? null;
+  }
+
+  // Short-circuit: intersection is empty — no records can match
+  if (finalCpfs !== null && finalCpfs.length === 0) {
+    return [];
+  }
+
+  const pageSize = 1000;
+  let allAcessos: Acesso[] = [];
+  let from = 0;
+  let hasMore = true;
+
+  // Build a fresh query per page (Supabase builder is immutable after .range())
+  const buildQuery = () => {
+    let q = supabase
       .from('acessos')
       .select('*')
       .gte('data_acesso', `${dataInicioFormatada}T00:00:00`)
-      .lte('data_acesso', `${dataFimFormatada}T23:59:59`)
-      .order('data_acesso', { ascending: false })
-      .range(from, from + pageSize - 1);
+      .lte('data_acesso', `${dataFimFormatada}T23:59:59`);
 
-    // Apply role-based filters
-    if (isTerceiro && userCpf) {
-      query = query.eq('cpf', userCpf);
-    } else if (cpfsToFilter && cpfsToFilter.length > 0) {
-      query = query.in('cpf', cpfsToFilter);
-    }
+    if (finalCpfs) q = q.in('cpf', finalCpfs);
+    if (filtroTipo?.length) q = q.in('tipo', filtroTipo);
+    if (filtroMatricula?.length) q = q.in('matricula', filtroMatricula);
+    if (filtroNome?.length) q = q.in('nome', filtroNome);
+    if (filtroUnidade?.length) q = q.in('planta', filtroUnidade);
 
-    const { data, error } = await query;
+    return q.order('data_acesso', { ascending: false });
+  };
+
+  while (hasMore) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1);
 
     if (error) throw error;
 
