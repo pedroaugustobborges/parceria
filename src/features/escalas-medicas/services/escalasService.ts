@@ -32,6 +32,11 @@ export interface FetchEscalasParams {
   isTerceiro?: boolean;
   isAdminAgirCorporativo?: boolean;
   isAdminAgirPlanta?: boolean;
+  // Server-side UI filters (pushed down from the filter bar)
+  filtroContratoIds?: string[];
+  filtroItemContratoIds?: string[];
+  filtroStatus?: StatusEscala[];
+  filtroStatusPagamento?: 'Sim' | 'Não';
 }
 
 export interface FetchEscalasResult {
@@ -61,23 +66,74 @@ export async function fetchEscalas(params: FetchEscalasParams): Promise<FetchEsc
     isTerceiro,
     isAdminAgirCorporativo,
     isAdminAgirPlanta,
+    filtroContratoIds,
+    filtroItemContratoIds,
+    filtroStatus,
+    filtroStatusPagamento,
   } = params;
 
   const dataInicioFormatada = format(dataInicio, 'yyyy-MM-dd');
   const dataFimFormatada = format(dataFim, 'yyyy-MM-dd');
+
+  // Determine effective contrato IDs (role restriction ∩ UI filter)
+  let effectiveContratoIds: string[] | undefined;
+  if (isAdminTerceiro && userContratoIds && userContratoIds.length > 0) {
+    effectiveContratoIds = filtroContratoIds?.length
+      ? filtroContratoIds.filter((id) => userContratoIds.includes(id))
+      : userContratoIds;
+  } else if (filtroContratoIds && filtroContratoIds.length > 0) {
+    effectiveContratoIds = filtroContratoIds;
+  }
+
+  const canSeeExcluida = isAdminAgirCorporativo || isAdminAgirPlanta;
+
+  // Determine effective status filter (respecting visibility rules)
+  let effectiveStatus: StatusEscala[] | undefined;
+  if (filtroStatus && filtroStatus.length > 0) {
+    effectiveStatus = canSeeExcluida
+      ? filtroStatus
+      : filtroStatus.filter((s) => s !== 'Excluída');
+    // No valid statuses remain — return empty immediately
+    if (effectiveStatus.length === 0) {
+      return { escalas: [], limitReached: false };
+    }
+  }
+
+  // Build a fresh query per page (Supabase builder is immutable after .range())
+  const buildQuery = () => {
+    let q = supabase
+      .from('escalas_medicas')
+      .select('*')
+      .gte('data_inicio', dataInicioFormatada)
+      .lte('data_inicio', dataFimFormatada);
+
+    if (effectiveContratoIds) {
+      q = q.in('contrato_id', effectiveContratoIds);
+    }
+
+    if (filtroItemContratoIds && filtroItemContratoIds.length > 0) {
+      q = q.in('item_contrato_id', filtroItemContratoIds);
+    }
+
+    if (effectiveStatus) {
+      q = q.in('status', effectiveStatus);
+    } else if (!canSeeExcluida) {
+      q = q.neq('status', 'Excluída');
+    }
+
+    if (filtroStatusPagamento) {
+      q = q.eq('status_pagamento', filtroStatusPagamento);
+    }
+
+    return q.order('data_inicio', { ascending: true });
+  };
 
   // Paginate to bypass the PostgREST server-side max-rows cap
   let allEscalas: any[] = [];
   let offset = 0;
 
   while (true) {
-    const { data: page, error } = await supabase
-      .from('escalas_medicas')
-      .select('*')
-      .gte('data_inicio', dataInicioFormatada)
-      .lte('data_inicio', dataFimFormatada)
-      .order('data_inicio', { ascending: true })
-      .range(offset, offset + PAGE_SIZE - 1);
+    const { data: page, error } = await buildQuery().range(offset, offset + PAGE_SIZE - 1);
 
     if (error) throw error;
 
@@ -94,25 +150,12 @@ export async function fetchEscalas(params: FetchEscalasParams): Promise<FetchEsc
   // Check if safety limit was reached (might have more records)
   const limitReached = allEscalas.length >= ESCALAS_QUERY_LIMIT;
 
+  // Terceiro role: filter by CPF inside the JSONB medicos array (not feasible server-side)
   let filteredEscalas = allEscalas;
-
-  // Apply role-based filtering
-  if (isAdminTerceiro && userContratoIds && userContratoIds.length > 0) {
-    // Admin-terceiro: only show escalas from linked contracts
-    filteredEscalas = filteredEscalas.filter((escala) =>
-      userContratoIds.includes(escala.contrato_id)
-    );
-  } else if (isTerceiro && userCpf) {
-    // Terceiro: only show escalas where their CPF is in the doctors list
+  if (isTerceiro && userCpf) {
     filteredEscalas = filteredEscalas.filter((escala) =>
       escala.medicos.some((medico: MedicoEscala) => medico.cpf === userCpf)
     );
-  }
-
-  // Filter out "Excluída" status for non-admin-agir users
-  const canSeeExcluida = isAdminAgirCorporativo || isAdminAgirPlanta;
-  if (!canSeeExcluida) {
-    filteredEscalas = filteredEscalas.filter((escala) => escala.status !== 'Excluída');
   }
 
   return {

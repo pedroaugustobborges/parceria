@@ -291,6 +291,29 @@ export function useEscalas(): UseEscalasReturn {
       setError('');
       setWarning('');
 
+      // Resolve filtroUnidade (unit codes) → contrato IDs for server-side filtering
+      let contratoIdsByUnidade: string[] | undefined;
+      if (filters.filtroUnidade.length > 0) {
+        const unidadeIds = unidades
+          .filter((u) => filters.filtroUnidade.includes(u.codigo))
+          .map((u) => u.id);
+        contratoIdsByUnidade = contratos
+          .filter((c) => c.unidade_hospitalar_id && unidadeIds.includes(c.unidade_hospitalar_id))
+          .map((c) => c.id);
+      }
+
+      // Merge filtroContrato and contratoIdsByUnidade (intersection when both are set)
+      let effectiveContratoIds: string[] | undefined;
+      if (filters.filtroContrato.length > 0 && contratoIdsByUnidade) {
+        effectiveContratoIds = filters.filtroContrato.filter((id) =>
+          contratoIdsByUnidade!.includes(id)
+        );
+      } else if (filters.filtroContrato.length > 0) {
+        effectiveContratoIds = filters.filtroContrato;
+      } else {
+        effectiveContratoIds = contratoIdsByUnidade;
+      }
+
       const result = await escalasService.fetchEscalas({
         dataInicio: filters.filtroDataInicio,
         dataFim: filters.filtroDataFim,
@@ -300,6 +323,12 @@ export function useEscalas(): UseEscalasReturn {
         isTerceiro,
         isAdminAgirCorporativo,
         isAdminAgirPlanta,
+        filtroContratoIds: effectiveContratoIds,
+        filtroItemContratoIds:
+          filters.filtroItemContrato.length > 0 ? filters.filtroItemContrato : undefined,
+        filtroStatus: filters.filtroStatus.length > 0 ? filters.filtroStatus : undefined,
+        filtroStatusPagamento:
+          filters.filtroStatusPagamento !== 'Todos' ? filters.filtroStatusPagamento : undefined,
       });
 
       setEscalas(result.escalas);
@@ -326,14 +355,21 @@ export function useEscalas(): UseEscalasReturn {
   }, [
     filters.filtroDataInicio,
     filters.filtroDataFim,
+    filters.filtroContrato,
+    filters.filtroItemContrato,
+    filters.filtroUnidade,
+    filters.filtroStatus,
+    filters.filtroStatusPagamento,
     filters.buscaRealizada,
+    filters.setBuscaRealizada,
+    contratos,
+    unidades,
     userContratoIds,
     userProfile?.cpf,
     isAdminTerceiro,
     isTerceiro,
     isAdminAgirCorporativo,
     isAdminAgirPlanta,
-    filters.setBuscaRealizada,
   ]);
 
   // ============================================
