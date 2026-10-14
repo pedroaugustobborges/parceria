@@ -1059,22 +1059,113 @@ const Usuarios: React.FC = () => {
     }
   };
 
-  const handleExportExcel = () => {
-    const rows = usuariosFiltrados.map((u) => ({
-      Nome: u.nome,
-      Tipo: roleLabels[u.tipo],
-      CPF: u.cpf,
-      "Código MV": u.codigomv ?? "",
-      "E-mail": u.email ?? "",
-    }));
+  const buildContratoLabel = (contrato: Contrato): string => {
+    const unidade = unidades.find((u) => u.id === contrato.unidade_hospitalar_id);
+    const prefixo = unidade ? `${unidade.codigo} - ` : "";
+    return `${prefixo}${contrato.nome} - ${contrato.empresa}${contrato.numero_contrato ? ` - ${contrato.numero_contrato}` : ""}`;
+  };
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Usuários");
-    XLSX.writeFile(
-      workbook,
-      `usuarios_${new Date().toISOString().slice(0, 10)}.xlsx`,
-    );
+  const handleExportExcel = async () => {
+    try {
+      const userIds = usuariosFiltrados.map((u) => u.id);
+
+      // Chunk helper — large .in() lists exceed URL limits and get ERR_CONNECTION_CLOSED
+      const CHUNK_SIZE = 50;
+      const chunkArray = <T,>(arr: T[], size: number): T[][] => {
+        const chunks: T[][] = [];
+        for (let i = 0; i < arr.length; i += size) {
+          chunks.push(arr.slice(i, i + size));
+        }
+        return chunks;
+      };
+
+      // Fetch all usuario_contrato rows in batches (bypasses `ativo=true` filter)
+      const allUserContratos: any[] = [];
+      for (const chunk of chunkArray(userIds, CHUNK_SIZE)) {
+        const { data, error } = await supabase
+          .from("usuario_contrato")
+          .select(
+            "usuario_id, contrato_id, contratos(id, nome, empresa, numero_contrato, unidade_hospitalar_id, unidades_hospitalares(codigo))",
+          )
+          .in("usuario_id", chunk);
+        if (error) throw error;
+        if (data) allUserContratos.push(...data);
+      }
+
+      // Fetch contracts referenced by the legacy usuarios.contrato_id field
+      const legacyContratoIds = Array.from(
+        new Set(
+          usuariosFiltrados
+            .map((u) => u.contrato_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      );
+      const legacyContratosData: any[] = [];
+      for (const chunk of chunkArray(legacyContratoIds, CHUNK_SIZE)) {
+        const { data, error } = await supabase
+          .from("contratos")
+          .select(
+            "id, nome, empresa, numero_contrato, unidade_hospitalar_id, unidades_hospitalares(codigo)",
+          )
+          .in("id", chunk);
+        if (error) throw error;
+        if (data) legacyContratosData.push(...data);
+      }
+
+      // Helper: build label from a raw contract row (with nested unidade)
+      const buildLabel = (c: {
+        id: string;
+        nome: string;
+        empresa: string;
+        numero_contrato: string | null;
+        unidades_hospitalares: { codigo: string } | null;
+      }): string => {
+        const prefixo = c.unidades_hospitalares
+          ? `${c.unidades_hospitalares.codigo} - `
+          : "";
+        return `${prefixo}${c.nome} - ${c.empresa}${c.numero_contrato ? ` - ${c.numero_contrato}` : ""}`;
+      };
+
+      const rows = usuariosFiltrados.map((u) => {
+        const seen = new Set<string>();
+        const labels: string[] = [];
+
+        // From usuario_contrato table (all linked contracts)
+        allUserContratos.forEach((uc: any) => {
+          if (uc.usuario_id === u.id && uc.contratos && !seen.has(uc.contrato_id)) {
+            seen.add(uc.contrato_id);
+            labels.push(buildLabel(uc.contratos));
+          }
+        });
+
+        // Legacy: contrato_id directly on the usuario row
+        if (u.contrato_id && !seen.has(u.contrato_id)) {
+          const legacy = legacyContratosData.find(
+            (c: any) => c.id === u.contrato_id,
+          );
+          if (legacy) labels.push(buildLabel(legacy));
+        }
+
+        return {
+          Nome: u.nome,
+          Tipo: roleLabels[u.tipo],
+          CPF: u.cpf,
+          "Código MV": u.codigomv ?? "",
+          "E-mail": u.email ?? "",
+          Contratos: labels.join("; "),
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Usuários");
+      XLSX.writeFile(
+        workbook,
+        `usuarios_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      );
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   // Get unique names for autocomplete
